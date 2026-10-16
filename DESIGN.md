@@ -66,17 +66,9 @@ Enforced by `Package.swift`, not by convention: `RaccoonDomain` may import Found
 value types (`URL`, `Data`, `Date`) and must not touch `FileManager`, `URLSession`,
 `Security` or `CoreServices`. A rule that wants a file reads it through a port.
 
-## How the method maps onto Swift
+## The method
 
-The skill is written for Effect. Raccoon is Swift, so the three channels map like this:
-
-| Effect | Swift here |
-|---|---|
-| `A` | the return value |
-| `E` | a typed throw: `throws(SendError)`. One enum per node family, never `any Error` |
-| `R` | the ports a type is initialised with. No singletons, no `shared` |
-| gen body = A | the `do { }` body reads top to bottom as the §2 tree, with no `catch` inside it |
-| pipe = E | the single `catch` after it, a `switch` over the typed error that applies the §4 verdict for every case |
-
-A `catch` in the middle of a happy path is the Swift form of error handling inside the gen
-body. It is allowed only where two calls in the same body need opposite verdicts.
+The graph is built with the `effect-swift` skill (`.agents/skills/effect-swift/`): A is the
+return value, E a typed `throws(E)` with one enum per layer, R the ports a type is
+initialised with. Load it before planning a change. Its `references/swift-mechanics.md`
+holds the code shapes, including the one case where a `catch` belongs inside the happy path.

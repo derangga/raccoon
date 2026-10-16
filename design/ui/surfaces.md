@@ -1,7 +1,7 @@
 # Surfaces
 
 Part of the [Raccoon UI](./design-system.md). The interface graph from
-`anak-intern:design-thinking` `references/design-graph.md`: surfaces, the moves between them,
+`effect-swift` `references/design-graph.md`: surfaces, the moves between them,
 every void state, and what each surface needs before it may exist. Domain words are from
 [CONTEXT.md](../../CONTEXT.md); failures are from [§4](../e-where-it-breaks.md).
 
