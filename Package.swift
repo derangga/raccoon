@@ -19,7 +19,7 @@ let package = Package(
         ),
         .testTarget(name: "RaccoonDomainTests", dependencies: ["RaccoonDomain", "RaccoonTesting"]),
         .testTarget(name: "RaccoonDataTests", dependencies: ["RaccoonData", "RaccoonTesting"], resources: [.copy("Fixtures")]),
-        .testTarget(name: "RaccoonTests", dependencies: ["Raccoon"]),
+        .testTarget(name: "RaccoonTests", dependencies: ["Raccoon", "RaccoonTesting"]),
     ],
     swiftLanguageModes: [.v6]
 )
