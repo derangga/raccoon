@@ -55,7 +55,7 @@ struct VariableResolverTests {
 
     @Test(arguments: [
         ([Row(name: "q", value: "a&b")], "http://h/search?q=a%26b"),
-        ([Row(name: "q", value: "a b"), Row(name: "n", value: "1+1=2")], "http://h/search?q=a%20b&n=1%2B1%3D2"),
+        ([Row(name: "q", value: "a b"), Row(name: "n", value: "1+1=2")], "http://h/search?q=a%20b&n=1+1=2"),
         ([Row(name: "off", value: "x", isEnabled: false)], "http://h/search"),
         ([Row(name: "a b", value: "")], "http://h/search?a%20b="),
     ])

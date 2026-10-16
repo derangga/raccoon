@@ -32,6 +32,11 @@ silently lose the param.
 `VariableResolver` builds the final URL with `URLComponents.percentEncodedQueryItems` after
 substitution, so a Variable whose value holds `&` is encoded and cannot split into two params.
 
+**What the URL bar shows is what is sent.** `URLText.join` and the resolver encode a value the
+same way: only what a query cannot hold, plus `&` (and `=` in a name). `+` stays `+`, as curl
+and Postman send it, so `?q=a+b` goes out exactly as typed. An empty value renders `name=`, so
+a typed `?flag` is sent as `?flag=`.
+
 ```
 -> editParamRow(index, name | value)
   -> params[index] = row                         pure

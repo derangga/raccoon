@@ -33,17 +33,10 @@ public enum VariableResolver {
         }
         if !params.isEmpty {
             components.percentEncodedQueryItems = params.map {
-                URLQueryItem(name: encoded($0.name), value: encoded($0.value))
+                URLQueryItem(name: QueryEncoding.name($0.name), value: QueryEncoding.value($0.value))
             }
         }
         guard let url = components.url else { throw .invalidURL(text) }
         return url
-    }
-
-    /// The query characters minus the ones that separate or alter a pair: `&`, `=`, `+`.
-    private static let queryAllowed = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&=+"))
-
-    private static func encoded(_ text: String) -> String {
-        text.addingPercentEncoding(withAllowedCharacters: queryAllowed) ?? text
     }
 }
