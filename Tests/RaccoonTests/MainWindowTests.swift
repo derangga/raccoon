@@ -22,6 +22,29 @@ struct MainWindowTests {
         #expect((inspector.minimumThickness, inspector.maximumThickness) == (240, 400))
     }
 
+    @Test func `the toolbar spans the whole window, above the sidebar and the inspector`() throws {
+        let window = try #require(controller.window)
+        #expect(!split.sidebarItem.allowsFullHeightLayout)
+        #expect(!split.inspectorItem.allowsFullHeightLayout)
+        #expect(!window.styleMask.contains(.fullSizeContentView))
+        #expect(window.titlebarSeparatorStyle == .line)
+        // Board 01 reads: traffic lights, sidebar toggle, the title, then the trailing items.
+        #expect(window.titleVisibility == .hidden)
+        #expect(window.title == "Raccoon")
+        let items = try #require(window.toolbar).items
+        #expect(items.map(\.itemIdentifier).prefix(2) == [MainWindowController.sidebarToggleID, MainWindowController.titleID])
+        #expect((items[1].view as? NSTextField)?.stringValue == "Raccoon")
+        #expect(items.last?.itemIdentifier == MainWindowController.inspectorToggleID)
+    }
+
+    @Test func `the sidebar has a separator on its trailing edge`() throws {
+        try #require(controller.window).layoutIfNeeded()
+        let sidebar = split.sidebarItem.viewController.view
+        let separator = try #require(sidebar.subviews.first { $0.frame.width == 1 })
+        #expect(separator.frame.maxX == sidebar.bounds.maxX)
+        #expect(separator.frame.height == sidebar.bounds.height)
+    }
+
     @Test func `the inspector opens at 280 pt`() throws {
         let window = try #require(controller.window)
         split.toggleInspector(nil)

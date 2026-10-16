@@ -11,7 +11,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     init(theme: ThemeEnvironment) {
         split = MainSplitViewController(theme: theme)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 760),
-                              styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+                              styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: false)
         window.title = "Raccoon"
         window.contentViewController = split
@@ -24,6 +24,10 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         toolbar.displayMode = .iconOnly
         window.toolbar = toolbar
         window.toolbarStyle = .unified
+        // Board 01: one title bar across the whole window, a line under it, the panes below.
+        window.titlebarSeparatorStyle = .line
+        // The title is a toolbar item after the sidebar toggle; the system one would come first.
+        window.titleVisibility = .hidden
 
         sidebarToggle.target = split
         inspectorToggle.target = split
@@ -47,11 +51,12 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         return button
     }
 
-    private static let sidebarToggleID = NSToolbarItem.Identifier("sidebarToggle")
-    private static let inspectorToggleID = NSToolbarItem.Identifier("inspectorToggle")
+    static let sidebarToggleID = NSToolbarItem.Identifier("sidebarToggle")
+    static let titleID = NSToolbarItem.Identifier("title")
+    static let inspectorToggleID = NSToolbarItem.Identifier("inspectorToggle")
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [Self.sidebarToggleID, .sidebarTrackingSeparator, .flexibleSpace, .inspectorTrackingSeparator, .flexibleSpace, Self.inspectorToggleID]
+        [Self.sidebarToggleID, Self.titleID, .flexibleSpace, Self.inspectorToggleID]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -59,6 +64,13 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        if identifier == Self.titleID {
+            let item = NSToolbarItem(itemIdentifier: identifier)
+            let title = NSTextField(labelWithString: window?.title ?? "")
+            title.font = .systemFont(ofSize: 13, weight: .semibold)
+            item.view = title
+            return item
+        }
         let button = switch identifier {
         case Self.sidebarToggleID: sidebarToggle
         case Self.inspectorToggleID: inspectorToggle
@@ -81,7 +93,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
 final class MainSplitViewController: NSSplitViewController {
     let sidebarItem: NSSplitViewItem
     let inspectorItem: NSSplitViewItem
-    private let sidebarPane = Pane(width: 232)
+    private let sidebarPane = Pane(width: 232, hasTrailingSeparator: true)
     private let contentPane: Pane
     private let inspectorPane: Pane
 
@@ -108,9 +120,11 @@ final class MainSplitViewController: NSSplitViewController {
         sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarPane)
         sidebarItem.minimumThickness = 180
         sidebarItem.maximumThickness = 360
+        sidebarItem.allowsFullHeightLayout = false
         inspectorItem = NSSplitViewItem(inspectorWithViewController: inspectorPane)
         inspectorItem.minimumThickness = 240
         inspectorItem.maximumThickness = 400
+        inspectorItem.allowsFullHeightLayout = false
         inspectorItem.isCollapsed = true
         super.init(nibName: nil, bundle: nil)
         addSplitViewItem(sidebarItem)
@@ -292,14 +306,24 @@ private final class Overlay {
     }
 }
 
+/// A 1 pt line in the system separator color, redrawn when the appearance changes.
+private final class SeparatorLine: NSView {
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.separatorColor.setFill()
+        bounds.fill()
+    }
+}
+
 /// A pane whose content view can be lent to an overlay and taken back.
 private final class Pane: NSViewController {
     private let width: CGFloat
     private let content: NSView
+    private let hasTrailingSeparator: Bool
 
-    init(width: CGFloat, view: NSView = NSView()) {
+    init(width: CGFloat, view: NSView = NSView(), hasTrailingSeparator: Bool = false) {
         self.width = width
         content = view
+        self.hasTrailingSeparator = hasTrailingSeparator
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -309,6 +333,12 @@ private final class Pane: NSViewController {
     override func loadView() {
         view = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 600))
         takeBack()
+        // The sidebar item hides the split view's divider; board 01 draws a line there.
+        if hasTrailingSeparator {
+            let separator = SeparatorLine(frame: NSRect(x: width - 1, y: 0, width: 1, height: view.bounds.height))
+            separator.autoresizingMask = [.minXMargin, .height]
+            view.addSubview(separator)
+        }
     }
 
     func lend() -> NSView {
@@ -319,7 +349,7 @@ private final class Pane: NSViewController {
     func takeBack() {
         content.frame = view.bounds
         content.autoresizingMask = [.width, .height]
-        view.addSubview(content)
+        view.addSubview(content, positioned: .below, relativeTo: nil)
     }
 }
 
