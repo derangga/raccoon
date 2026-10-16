@@ -61,12 +61,13 @@ struct MainWindowTests {
         #expect(effective == NSRect(x: 229, y: 0, width: 6, height: 600))
     }
 
-    @Test func `the sidebar is the native material blended within the window, not with the desktop`() throws {
+    @Test func `the sidebar is opaque, so focus never lets the desktop show through`() throws {
         try #require(controller.window).layoutIfNeeded()
-        let material = try #require(split.sidebarItem.viewController.view.subviews.compactMap { $0 as? NSVisualEffectView }.first)
-        #expect(material.material == .sidebar)
-        #expect(material.blendingMode == .withinWindow)
-        #expect(material.frame == split.sidebarItem.viewController.view.bounds)
+        let sidebar = split.sidebarItem.viewController.view
+        let background = try #require(sidebar.subviews.first { $0 is SidebarBackground })
+        #expect(background.isOpaque)
+        #expect(background.frame == sidebar.bounds)
+        #expect(!sidebar.subviews.contains { $0 is NSVisualEffectView })
     }
 
     @Test func `the inspector opens at 280 pt`() throws {

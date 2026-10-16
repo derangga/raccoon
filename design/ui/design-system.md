@@ -23,7 +23,7 @@ design/ui/mockups/build.py` regenerates the mockups after a source edit.
 
 | Area | Colors from | Why |
 |---|---|---|
-| Window, toolbar, sidebar, menus, sheets, alerts, Settings | the system: `NSColor` semantic colors and `NSVisualEffectView` materials | HIG; follows light/dark and accent by itself. The mockups draw these with `--sys-*` stand-ins, which are not Theme tokens |
+| Window, toolbar, sidebar, menus, sheets, alerts, Settings | the system: `NSColor` semantic colors and `NSVisualEffectView` materials. The sidebar is the opaque `windowBackgroundColor`, not a material (decided 2026-10-16): a vibrant material is translucent in a focused window and showed the wallpaper | HIG; follows light/dark and accent by itself. The mockups draw these with `--sys-*` stand-ins, which are not Theme tokens |
 | Tab strip, banners in the content area, URL bar, message line, request editor, response viewer, the Variable tooltip | the Theme's tokens | the content areas named in theme.md |
 | Inspector (Variables, Curl) | the Theme's tokens, on `backgroundRecessed` like the Response pane | it shows request data: Variable names and values, a curl command with `{{name}}` highlighting |
 | Sidebar filter field, the toolbar toggles | the system: `NSSearchField`, toolbar buttons | native controls |
@@ -626,11 +626,10 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
    Sidebar collapsing to an overlay below 960 pt, each Split pane keeping 160 pt. With the
    inspector open the editor needs 480 pt, so below about 1,000 pt of content the inspector
    overlays the content edge instead of narrowing it.
-3. **Sidebar material contrast.** Method badges are Theme colors on a translucent native
-   material; contrast was checked against estimates (#e8e8ea light, #2a2a2e dark). The sidebar
-   blends within the window, not with the desktop (decided 2026-10-16), so the desktop picture
-   no longer shifts it; the system's wallpaper tinting of window backgrounds still can. Measured
-   on macOS 27: #eaecef light, #343a43 dark with tinting on. Measure on device; if a badge fails, draw badges
+3. **Sidebar contrast.** Method badges are Theme colors on the sidebar; contrast was checked
+   against estimates (#e8e8ea light, #2a2a2e dark). The sidebar is the opaque
+   `windowBackgroundColor` (decided 2026-10-16), so neither focus nor the desktop picture shifts
+   it. Measured on macOS 27, dark, focused: #2c2c2c. Measure on device; if a badge fails, draw badges
    on an opaque 4 pt-radius chip of `background`.
 4. **Draft in scripts without italics.** CJK fonts have no true italic, so a Draft named in
    Japanese is told apart only by its tooltip. Alternative: a leading "Draft" label in

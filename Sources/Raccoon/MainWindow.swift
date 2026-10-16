@@ -94,7 +94,7 @@ final class MainSplitViewController: NSSplitViewController {
     let sidebarItem: NSSplitViewItem
     let inspectorItem: NSSplitViewItem
     let contentItem: NSSplitViewItem
-    private let sidebarPane = Pane(width: 232, view: SidebarMaterial(), hasTrailingSeparator: true)
+    private let sidebarPane = Pane(width: 232, view: SidebarBackground(), hasTrailingSeparator: true)
     private let contentPane: Pane
     private let inspectorPane: Pane
 
@@ -199,7 +199,7 @@ final class MainSplitViewController: NSSplitViewController {
         }
         switch (isInspectorShown && !fits, inspectorOverlay) {
         case (true, nil):
-            inspectorOverlay = Overlay(lending: inspectorPane, width: inspectorWidth, material: false)
+            inspectorOverlay = Overlay(lending: inspectorPane, width: inspectorWidth)
             inspectorOverlay?.place(in: contentPane.view, leading: false)
             updateEventMonitor()
         case (false, let overlay?):
@@ -212,7 +212,7 @@ final class MainSplitViewController: NSSplitViewController {
     }
 
     private func openSidebarOverlay() {
-        sidebarOverlay = Overlay(lending: sidebarPane, width: sidebarWidth, material: true)
+        sidebarOverlay = Overlay(lending: sidebarPane, width: sidebarWidth)
         sidebarOverlay?.place(in: contentPane.view, leading: true)
         isSidebarShown = true
         updateEventMonitor()
@@ -281,17 +281,10 @@ private final class Overlay {
     private let pane: Pane
     private let width: CGFloat
 
-    init(lending pane: Pane, width: CGFloat, material: Bool) {
+    init(lending pane: Pane, width: CGFloat) {
         self.pane = pane
         self.width = width
-        if material {
-            let effect = NSVisualEffectView()
-            effect.material = .sidebar
-            effect.blendingMode = .withinWindow
-            host = effect
-        } else {
-            host = NSView()
-        }
+        host = NSView()
         let shadow = NSShadow()
         shadow.shadowBlurRadius = 12
         shadow.shadowColor = .shadowColor.withAlphaComponent(0.3)
@@ -316,17 +309,16 @@ private final class Overlay {
     }
 }
 
-/// The native sidebar material, blended within the window so the desktop picture does not
-/// tint it (the sidebar item's own material blends behind the window).
-private final class SidebarMaterial: NSVisualEffectView {
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-        material = .sidebar
-        blendingMode = .withinWindow
-    }
+/// The sidebar's fill: the opaque window background color, the same in a focused and an
+/// unfocused window. Every vibrant material is translucent while the window is active, and the
+/// sidebar item's own one blends with the desktop, so any material lets the wallpaper through.
+final class SidebarBackground: NSView {
+    override var isOpaque: Bool { true }
 
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.windowBackgroundColor.setFill()
+        dirtyRect.fill()
+    }
 }
 
 /// Board 01 has one line at each pane edge and nothing between panes. A divider of any width
