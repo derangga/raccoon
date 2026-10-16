@@ -621,10 +621,10 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
 
 1. **Closing the last Tab.** tabs.md selects "the neighbour", and there is none. Proposed:
    open an empty Draft, so the editor always has a Tab (surfaces.md §4/§5 assume this).
-2. **Window minimum size** and narrow layouts. Proposed 760 × 480, the Sidebar collapsing to
-   an overlay below 960 pt, each Split pane keeping 160 pt. With the inspector open the
-   editor needs 480 pt, so below about 1,000 pt of content the inspector overlays the
-   content edge instead of narrowing it. Nothing in design/ decides any of this.
+2. **Window minimum size** and narrow layouts. Decided 2026-10-16: 760 × 480 minimum, the
+   Sidebar collapsing to an overlay below 960 pt, each Split pane keeping 160 pt. With the
+   inspector open the editor needs 480 pt, so below about 1,000 pt of content the inspector
+   overlays the content edge instead of narrowing it.
 3. **Sidebar material contrast.** Method badges are Theme colors on a translucent native
    material; contrast was checked against estimates (#e8e8ea light, #2a2a2e dark). A bright or
    dark desktop picture shifts the material. Measure on device; if a badge fails, draw badges

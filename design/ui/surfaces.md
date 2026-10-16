@@ -173,9 +173,9 @@ two cases are a binary body and a secret value, and both say why instead of show
 | Pretty | a parsed body ≤ 5 MB; above it the control is shown disabled with its reason, because hiding it would hide why the body looks raw |
 | VariableTooltip | pointer over a `{{name}}` range in a field that takes Variables |
 | SidebarFilter | at least one Collection; with none it is hidden, not disabled |
-| Inspector | a selected Tab; width for 280 pt beside an editor of at least 480 pt, otherwise it overlays the content edge (proposed, Q2) |
+| Inspector | a selected Tab; width for 280 pt beside an editor of at least 480 pt, otherwise it overlays the content edge (decided, Q2) |
 | Include secrets | the Curl pane; it changes only the copied text |
-| Window minimum size | proposed 760 × 480, Sidebar collapsing below 960 wide, each Split pane keeping 160 px (Open UI Q2) |
+| Window minimum size | 760 × 480, Sidebar collapsing to an overlay below 960 wide, each Split pane keeping 160 pt (decided, Open UI Q2) |
 
 ## §7 Behavior: motion decisions (from `animate`)
 
@@ -210,6 +210,6 @@ two cases are a binary body and a secret value, and both say why instead of show
   a 2,000-character URL, a 20 MB body, an unreadable file. Findings in design-system.md.
 - **Least access**: a read-only Data Folder (WindowBanner, components board). Collections
   vanish; Drafts and sending still work, so the window stays an HTTP client.
-- **Small and slow**: the proposed 760 × 480 minimum (Q2), a send that times out after 60 s, Reduce
+- **Small and slow**: the 760 × 480 minimum (Q2), a send that times out after 60 s, Reduce
   Motion on. The graph re-routes (Sidebar collapses, banners cross-fade), it does not
   degrade.
