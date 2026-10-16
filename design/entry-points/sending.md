@@ -49,6 +49,7 @@ and a file that changed since it was picked is sent as it is now, which is what 
 as `text/plain` and HTML as `application/json`. The header is a hint for which parser to try
 first, and a parse failure is `.raw`, never an error.
 
-**Headers are shown in wire order with duplicates kept.** Two `Set-Cookie` headers are two
-rows. `HTTPURLResponse.allHeaderFields` merges and reorders them, which is an open question
-(`open-questions.md` Q4) before this view can claim it.
+**Headers cannot be shown in wire order.** Two `Set-Cookie` headers reach Raccoon as one value
+joined with `, `, and `HTTPURLResponse` offers only a dictionary, so the order is gone too
+(measured, `environment-facts.md`). The Headers view says the system merged them rather than
+claiming to be raw.

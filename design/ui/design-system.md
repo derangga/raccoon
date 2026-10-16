@@ -645,8 +645,9 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
    silent?
 8. **Close confirmation** (Save · Don't Save · Cancel) is a native alert and is not drawn;
    confirm that a sheet-style alert attached to the window is wanted over an app-modal one.
-9. **Headers merged by the system.** If open-questions Q4 finds no ordered-headers API, the
-   Headers view needs a "merged by the system" note; its wording and place are not designed.
+9. **Headers merged by the system.** There is no ordered-headers API (measured, see
+   environment-facts.md), so the Headers view needs a "merged by the system" note; its wording
+   and place are not designed.
 10. **`requestsCompression`** may be removed (open-questions Q2), which removes a row from
     Request Settings and a flag from the Ignored note.
 11. **Request body syntax colors.** The raw body editor is specified with JSON/XML colors,

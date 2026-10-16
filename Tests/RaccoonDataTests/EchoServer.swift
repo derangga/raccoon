@@ -17,6 +17,7 @@ func withEchoServer<T>(tls: Bool = false, _ body: (EchoServer) async throws -> T
 ///     /delay/<ms>   waits, then echoes
 ///     /redirect     302 to /echo
 ///     /bytes/<n>    a body of n bytes
+///     /headers      two Set-Cookie headers and two others out of alphabetical order
 ///     anything else echoes
 final class EchoServer: Sendable {
     let port: UInt16
@@ -131,6 +132,8 @@ final class EchoServer: Sendable {
             }
         case ("redirect", _):
             send(status: "302 Found", headers: ["Location: /echo"], body: Data(), on: connection)
+        case ("headers", _):
+            send(status: "200 OK", headers: Self.replyHeaders, body: Data(), on: connection)
         case ("bytes", let count?):
             sendHead(status: "200 OK", headers: [], contentLength: count, on: connection)
             sendFiller(remaining: count, on: connection)
@@ -138,6 +141,9 @@ final class EchoServer: Sendable {
             send(status: "200 OK", headers: [], body: request, on: connection)
         }
     }
+
+    /// What /headers adds after the fixed head, in this order.
+    static let replyHeaders = ["Z-Last: 1", "Set-Cookie: a=1; Path=/", "A-First: 2", "Set-Cookie: b=2; Path=/"]
 
     private func sendHead(status: String, headers: [String], contentLength: Int, on connection: NWConnection) {
         let lines = ["HTTP/1.1 \(status)", "Content-Length: \(contentLength)", "Content-Type: application/octet-stream",

@@ -36,8 +36,8 @@ public final class URLSessionTransport: HTTPTransport {
         guard let http = response as? HTTPURLResponse else {
             throw .transport(.badServerResponse, "The server's reply was not HTTP.")
         }
-        // ponytail: allHeaderFields is a dictionary, so wire order and duplicates are lost; sorted
-        // by name until open question 4 (duplicate headers in wire order) is measured.
+        // allHeaderFields is a dictionary that joins duplicates with ", ", and no API keeps wire
+        // order (environment-facts.md), so the headers are sorted by name.
         let headers = (http.allHeaderFields as? [String: String] ?? [:])
             .map { Response.Header(name: $0.key, value: $0.value) }
             .sorted { $0.name < $1.name }

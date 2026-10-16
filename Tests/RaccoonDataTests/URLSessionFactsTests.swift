@@ -1,0 +1,97 @@
+import Foundation
+@testable import RaccoonData
+@testable import RaccoonDomain
+import RaccoonTesting
+import Testing
+
+/// What URLSession does on its own, measured against the echo server. Each test is a row in
+/// design/environment-facts.md; one failing means a new OS changed the fact and the design that
+/// leans on it has to be read again.
+struct URLSessionFactsTests {
+    func send(_ server: EchoServer, _ definition: RequestDefinition = .empty) async throws -> Data {
+        var definition = definition
+        definition.settings.allowsInsecureTLS = true
+        let transport = URLSessionTransport(files: DictionaryFileReading([:]))
+        _ = try await transport.send(ResolvedRequest(definition: definition, url: server.url("/echo")))
+        return try #require(server.requests.last)
+    }
+
+    /// The request's header lines as sent, in wire order.
+    func headers(_ request: Data) -> [(name: String, value: String)] {
+        let head = String(decoding: request, as: UTF8.self).components(separatedBy: "\r\n\r\n")[0]
+        return head.components(separatedBy: "\r\n").dropFirst().map {
+            let colon = $0.firstIndex(of: ":")!
+            return (String($0[..<colon]), $0[colon...].dropFirst().trimmingCharacters(in: .whitespaces))
+        }
+    }
+
+    func value(_ name: String, in request: Data) -> String? {
+        headers(request).first { $0.name == name }?.value
+    }
+
+    @Test func `a GET with an empty Headers table goes out with six headers URLSession added`() async throws {
+        try await withEchoServer { server in
+            let request = try await send(server)
+
+            #expect(Set(headers(request).map(\.name)) == ["Host", "Accept", "Accept-Language", "Connection", "Accept-Encoding", "User-Agent"])
+            #expect(value("Accept", in: request) == "*/*")
+            #expect(value("Connection", in: request) == "keep-alive")
+            #expect(value("Accept-Encoding", in: request) == "gzip, deflate")
+            #expect(value("User-Agent", in: request)?.contains("CFNetwork/") == true)
+            #expect(value("Accept-Language", in: request)?.isEmpty == false)
+        }
+    }
+
+    @Test func `over TLS Accept-Encoding also offers br`() async throws {
+        try await withEchoServer(tls: true) { server in
+            let request = try await send(server)
+            #expect(value("Accept-Encoding", in: request) == "gzip, deflate, br")
+        }
+    }
+
+    @Test func `a body with no Content-Type row goes out as application x-www-form-urlencoded`() async throws {
+        try await withEchoServer { server in
+            var post = RequestDefinition.empty
+            post.method = "POST"
+            post.body = .raw(.text, "hi")
+
+            let request = try await send(server, post)
+
+            #expect(value("Content-Type", in: request) == "application/x-www-form-urlencoded")
+            #expect(value("Content-Length", in: request) == "2")
+        }
+    }
+
+    @Test func `a Cookie header set by hand is sent with no cookie storage`() async throws {
+        try await withEchoServer { server in
+            var definition = RequestDefinition.empty
+            definition.headers = [Row(name: "Cookie", value: "manual=1")]
+
+            let request = try await send(server, definition)
+            #expect(value("Cookie", in: request) == "manual=1")
+        }
+    }
+
+    @Test func `a Set-Cookie reply adds no cookie to the next request`() async throws {
+        try await withEchoServer { server in
+            let transport = URLSessionTransport(files: DictionaryFileReading([:]))
+            _ = try await transport.send(ResolvedRequest(definition: .empty, url: server.url("/headers")))
+
+            let request = try await send(server)
+            #expect(value("Cookie", in: request) == nil)
+        }
+    }
+
+    @Test func `HTTPURLResponse merges duplicate headers and keeps no wire order`() async throws {
+        try await withEchoServer { server in
+            let transport = URLSessionTransport(files: DictionaryFileReading([:]))
+            let (_, response) = try await transport.session.data(from: server.url("/headers"))
+            let http = try #require(response as? HTTPURLResponse)
+
+            // Sent: Z-Last, Set-Cookie a, A-First, Set-Cookie b (EchoServer.replyHeaders).
+            #expect(http.value(forHTTPHeaderField: "Set-Cookie") == "a=1; Path=/, b=2; Path=/")
+            #expect(http.allHeaderFields["Set-Cookie"] as? String == "a=1; Path=/, b=2; Path=/")
+            #expect(http.allHeaderFields.count == 6)  // a dictionary: one Set-Cookie key, no order
+        }
+    }
+}
