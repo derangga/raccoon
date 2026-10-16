@@ -61,6 +61,8 @@ a typed `?flag` is sent as `?flag=`.
   -> Headers.contentType(for: newType)           pure
      -> set Content-Type only if the user has not set one, or the one there was
         the one this rule set last time
+     -> "set last time" is read, not stored: an enabled row whose value is what this
+        rule writes for the old Body Type. Switching to none removes that row
 ```
 
 **Raccoon writes `Content-Type` as a visible header row, never invisibly.** Request Cookies
