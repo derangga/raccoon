@@ -18,6 +18,27 @@ final class TabModel {
         self.instants = instants
     }
 
+    /// The line under the URL bar; not part of the Tab, so it is never saved.
+    var message: MessageLine?
+
+    /// What the URL bar shows: `url` plus the enabled params (editing.md).
+    var urlText: String { URLText.join(tab.definition.url, params: tab.definition.params) }
+
+    /// The typed text is split back into `url` and Params; Disabled Rows keep their place.
+    func typeInURLBar(_ text: String) {
+        let (base, pairs) = URLText.split(text)
+        tab.definition.url = base
+        tab.definition.params = Params.merge(pairs, into: tab.definition.params)
+        message = message?.afterURLEdit
+    }
+
+    /// Methods are free text, stored uppercased; a blank one changes nothing.
+    func setMethod(_ text: String) {
+        let method = text.trimmingCharacters(in: .whitespaces).uppercased()
+        guard !method.isEmpty else { return }
+        tab.definition.method = method
+    }
+
     /// Read again once 150 ms have passed; Observation does not see time move.
     var showsSpinner: Bool { tab.response.showsSpinner(at: instants.now) }
 
@@ -28,6 +49,7 @@ final class TabModel {
     /// One send at a time (§7): a second ⌘↩ while sending does nothing.
     func send() {
         guard inFlight == nil else { return }
+        message = message?.afterSendOrPaste
         let resolved: ResolvedRequest
         do throws(ResolveError) {
             resolved = try VariableResolver.resolve(tab.definition)

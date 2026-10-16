@@ -73,6 +73,9 @@ ResolvedRequest          a RequestDefinition with every {{name}} substituted and
                          what Copy as Curl renders. Only `VariableResolver` can build one
 Response                 status, headers [(name, value)] sorted by name, body Data,
                          elapsed Duration, byteCount
+MessageLine              .error(text) · .note(text)       the line under the URL bar, on the
+                         TabModel, never saved: a note goes on the next URL edit, an error on
+                         the next send or paste
 ResponseState            .idle · .sending(since: ContinuousClock.Instant)
                          · .received(Response) · .failed(SendError)
                          · .notSent(ResolveError)          resolution failed, no byte went out

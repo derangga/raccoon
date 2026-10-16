@@ -19,7 +19,11 @@ The Params table is the source of truth for the query string (shapes.md). The UR
      -> enabled rows replaced by the typed pairs, in order
      -> Disabled Rows kept, at their old index
   -> definition.url = base
+  -> message.afterURLEdit                        pure: a note goes, an error stays
 ```
+
+The URL field is not rewritten while the user types in it: the typed text is the source until
+editing ends, then it shows `URLText.join` again, so a cursor never jumps under a keystroke.
 
 **Disabled Rows survive typing in the URL bar.** They are not in the text, so the text cannot
 delete them. Without this rule, toggling a param off and then fixing a typo in the host would

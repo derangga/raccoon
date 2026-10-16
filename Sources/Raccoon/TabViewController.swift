@@ -3,13 +3,10 @@ import Observation
 import RaccoonDomain
 
 /// The selected Tab: the URL bar, then the RequestEditor over the ResponseViewer in a Split.
-// ponytail: tracer URL field and Response pane. The URL bar and the full Response viewer
-// states replace them in their own features.
-final class TabViewController: NSViewController, NSTextFieldDelegate {
+// ponytail: tracer Response pane; the full Response viewer states replace it.
+final class TabViewController: NSViewController {
     private let model: TabModel
     private let theme: ThemeEnvironment
-    private let urlField = NSTextField()
-    private let sendButton = NSButton(title: "Send", target: nil, action: nil)
     private let statusLabel = NSTextField(labelWithString: "")
     private let bodyView = NSTextView()
     private let split = EditorSplitView()
@@ -25,20 +22,6 @@ final class TabViewController: NSViewController, NSTextFieldDelegate {
 
     override func loadView() {
         let mono = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-        urlField.font = mono
-        urlField.placeholderString = "https://"
-        urlField.stringValue = model.tab.definition.url
-        urlField.delegate = self
-        urlField.cell?.isScrollable = true
-        urlField.cell?.wraps = false
-        urlField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-
-        sendButton.target = self
-        sendButton.action = #selector(send(_:))
-        sendButton.keyEquivalent = "\r"
-        sendButton.keyEquivalentModifierMask = .command
-        sendButton.bezelColor = theme.color(.accent)
-
         statusLabel.font = .monospacedSystemFont(ofSize: 12, weight: .bold)
 
         bodyView.isEditable = false
@@ -52,9 +35,7 @@ final class TabViewController: NSViewController, NSTextFieldDelegate {
         scroll.hasVerticalScroller = true
         scroll.drawsBackground = false
 
-        let urlRow = NSStackView(views: [urlField, sendButton])
-        urlRow.spacing = 8
-        urlRow.edgeInsets = NSEdgeInsets(top: 10, left: 12, bottom: 6, right: 12)
+        let urlRow = URLBar(model: model, theme: theme)
 
         let response = NSStackView(views: [statusLabel, scroll])
         response.orientation = .vertical
@@ -100,14 +81,6 @@ final class TabViewController: NSViewController, NSTextFieldDelegate {
         render()
     }
 
-
-    func controlTextDidChange(_ notification: Notification) {
-        model.tab.definition.url = urlField.stringValue
-    }
-
-    @objc private func send(_ sender: Any?) {
-        model.send()
-    }
 
     /// Redraws from the Tab's Response state, and again whenever it changes.
     private func render() {
