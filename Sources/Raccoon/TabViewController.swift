@@ -101,7 +101,7 @@ final class TabViewController: NSViewController, NSTextFieldDelegate {
         case .sending:
             ("Sending…", .textSecondary, "Waiting for the server.")
         case .received(let response):
-            ("\(response.status)", statusColor(response.status), String(decoding: response.body, as: UTF8.self))
+            received(response)
         case .failed(let error):
             ("Failed", .statusFailed, "\(error)")
         case .notSent(.invalidURL(let text)):
@@ -111,13 +111,8 @@ final class TabViewController: NSViewController, NSTextFieldDelegate {
         }
     }
 
-    private static func statusColor(_ status: Int) -> ColorToken {
-        switch status {
-        case ..<200: .status1xx
-        case ..<300: .status2xx
-        case ..<400: .status3xx
-        case ..<500: .status4xx
-        default: .status5xx
-        }
+    private static func received(_ response: Response) -> (status: String, color: ColorToken, body: String) {
+        let line = StatusLine(status: response.status, elapsed: response.elapsed, byteCount: response.byteCount)
+        return ("\(line.code) \(line.reason) · \(line.elapsed) · \(line.size)", line.token, String(decoding: response.body, as: UTF8.self))
     }
 }

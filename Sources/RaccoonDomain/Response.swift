@@ -12,7 +12,7 @@ public struct Response: Equatable, Sendable {
     }
 
     public var status: Int
-    /// In wire order, duplicates kept.
+    /// Sorted by name: URLSession joins duplicates with ", " and loses wire order (environment-facts.md).
     public var headers: [Header]
     public var body: Data
     public var elapsed: Duration
