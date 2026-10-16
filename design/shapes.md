@@ -86,7 +86,8 @@ ImportNote               what was dropped or changed, and the Requests it applie
                          · .examplesDropped · .renamed(from, to)
 
 Theme                    name, flavors [Flavor]
-Flavor                   name, appearance: .light | .dark, colors [ColorToken: Color]
+Flavor                   name, appearance: .light | .dark, colors [ColorToken: ThemeColor]
+                         ThemeColor is #rrggbb as three bytes; not Color, which SwiftUI owns
 ThemeChoice              theme name, light Flavor name, dark Flavor name
 ```
 

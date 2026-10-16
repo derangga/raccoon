@@ -13,6 +13,8 @@ let package = Package(
         .executableTarget(
             name: "Raccoon",
             dependencies: ["RaccoonDomain", "RaccoonData"],
+            // A symlink to design/ui/themes/catppuccin.json, which build.py writes: one copy.
+            resources: [.copy("Resources/catppuccin.json")],
             swiftSettings: [.defaultIsolation(MainActor.self)]
         ),
         .testTarget(name: "RaccoonDomainTests", dependencies: ["RaccoonDomain", "RaccoonTesting"]),
