@@ -224,15 +224,10 @@ final class URLBar: NSView, NSTextFieldDelegate {
         sendButton.isBordered = false
         sendButton.wantsLayer = true
         sendButton.layer?.cornerRadius = 6
-        sendButton.layer?.backgroundColor = theme.color(.accent).cgColor
-        sendButton.attributedTitle = NSAttributedString(string: "Send", attributes: [
-            .font: NSFont.systemFont(ofSize: 13, weight: .semibold), .foregroundColor: theme.color(.textOnAccent),
-        ])
+        sendButton.layer?.borderWidth = 1
         sendButton.target = self
-        sendButton.action = #selector(send)
-        sendButton.keyEquivalent = "\r"
+        sendButton.action = #selector(sendOrCancel)
         sendButton.keyEquivalentModifierMask = .command
-        sendButton.toolTip = "Send (⌘↩)"
         sendButton.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             sendButton.heightAnchor.constraint(equalToConstant: 30),
@@ -241,7 +236,28 @@ final class URLBar: NSView, NSTextFieldDelegate {
         sendButton.setContentHuggingPriority(.required, for: .horizontal)
     }
 
-    @objc private func send() { model.send() }
+    /// Send, or while sending, Cancel: `backgroundElevated`, `border`, `text`, on ⌘. instead of
+    /// ⌘↩, so a second ⌘↩ while sending does nothing.
+    private func renderSend(sending: Bool) {
+        let (title, key, fill, edge, ink) = sending
+            ? ("Cancel", ".", ColorToken.backgroundElevated, ColorToken.border, ColorToken.text)
+            : ("Send", "\r", .accent, .accent, .textOnAccent)
+        sendButton.attributedTitle = NSAttributedString(string: title, attributes: [
+            .font: NSFont.systemFont(ofSize: 13, weight: .semibold), .foregroundColor: theme.color(ink),
+        ])
+        sendButton.layer?.backgroundColor = theme.color(fill).cgColor
+        sendButton.layer?.borderColor = theme.color(edge).cgColor
+        sendButton.keyEquivalent = key
+        sendButton.toolTip = sending ? "Cancel (⌘.)" : "Send (⌘↩)"
+    }
+
+    private var isSending: Bool {
+        if case .sending = model.tab.response { true } else { false }
+    }
+
+    @objc private func sendOrCancel() {
+        if isSending { model.cancel() } else { model.send() }
+    }
 
     // MARK: Message line
 
@@ -300,6 +316,7 @@ final class URLBar: NSView, NSTextFieldDelegate {
             // Never rewrite the field under the user's typing: the cursor would jump.
             if urlField.currentEditor() == nil { urlField.attributedStringValue = urlTitle(model.urlText) }
             updateFade()
+            renderSend(sending: isSending)
             renderMessage(model.message)
         } onChange: { [weak self] in
             Task { @MainActor in self?.render() }

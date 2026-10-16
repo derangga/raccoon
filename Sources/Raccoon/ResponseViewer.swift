@@ -247,7 +247,7 @@ final class ResponseViewer: NSView {
             setStatus(("Sending…", "", .textSecondary))
             elapsedLabel.stringValue = StatusLine.elapsed(model.now - since)
             elapsedLabel.isHidden = false
-            showVoid(title: nil, text: "Waiting for the server.", keycap: false)
+            showVoid(title: nil, text: "Waiting for the server. ⌘. cancels.", keycap: false)
             tick(after: .milliseconds(100))
         case .received(let response):
             let line = StatusLine(status: response.status, elapsed: response.elapsed, byteCount: response.byteCount)

@@ -52,7 +52,7 @@ struct ResponseViewerTests {
         #expect(later.codeLabel.stringValue == "Sending…")
         #expect(later.elapsedLabel.stringValue == "1.4 s")
         #expect(later.elapsedLabel.font == .monospacedDigitSystemFont(ofSize: 12, weight: .regular))
-        #expect(later.voidText.stringValue == "Waiting for the server.")
+        #expect(later.voidText.stringValue == "Waiting for the server. ⌘. cancels.")
     }
 
     @Test func `a JSON body is shown Pretty and colored, and Raw on demand`() async {

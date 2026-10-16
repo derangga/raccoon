@@ -106,4 +106,42 @@ struct TabModelSendTests {
         model.send()
         #expect(model.presented == nil)
     }
+
+    @Test func `cancel returns the Tab to idle and keeps no Response`() async {
+        let model = makeTab(ScriptedTransport(.success(response)), url: "http://localhost:8080/")
+
+        model.send()
+        let send = model.inFlight
+        model.cancel()
+        await send?.value
+
+        #expect(model.tab.response == .idle)
+        #expect(model.inFlight == nil && model.presented == nil)
+    }
+
+    @Test func `a send right after cancel goes out and keeps its own Response`() async {
+        let transport = ScriptedTransport(.success(response))
+        let model = makeTab(transport, url: "http://localhost:8080/")
+
+        model.send()
+        let cancelled = model.inFlight
+        model.cancel()
+        model.send()
+        let second = model.inFlight
+        await cancelled?.value
+        await second?.value
+
+        #expect(transport.requests.count == 2)
+        #expect(model.tab.response == .received(response))
+    }
+
+    @Test func `cancel with nothing in flight changes nothing`() async {
+        let model = makeTab(ScriptedTransport(.success(response)), url: "http://localhost:8080/")
+        model.send()
+        await model.inFlight?.value
+
+        model.cancel()
+
+        #expect(model.tab.response == .received(response))
+    }
 }

@@ -85,19 +85,36 @@ final class TabModel {
         sends += 1
         let send = sends
         inFlight = Task {
+            let result: Result<Response, SendError>
             do throws(SendError) {
-                let response = try await transport.send(resolved)
+                result = .success(try await transport.send(resolved))
+            } catch {
+                result = .failure(error)
+            }
+            // Cancel has already returned the Tab to .idle, and a newer send may own it now.
+            guard !Task.isCancelled else { return }
+            inFlight = nil
+            switch result {
+            case .success(let response):
                 tab.response = .received(response)
                 presenting = Task {
                     let presented = await Self.present(response)
                     // A newer send owns the viewer now.
                     if send == sends { self.presented = presented }
                 }
-            } catch {
+            case .failure(let error):
                 tab.response = .failed(error)
             }
-            inFlight = nil
         }
+    }
+
+    /// Cancelling the Task is the whole release: URLSession closes the connection at once
+    /// (environment-facts.md, "Cancelling a send"). Not a failure, so the Tab is `.idle`.
+    func cancel() {
+        guard let inFlight else { return }
+        inFlight.cancel()
+        self.inFlight = nil
+        tab.response = .idle
     }
 }
 

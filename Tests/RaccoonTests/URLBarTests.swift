@@ -28,6 +28,29 @@ struct URLBarTests {
         #expect(bar.messageLine.isHidden)
     }
 
+    @Test func `while sending, Send becomes Cancel on ⌘. and cancelling restores Send on ⌘↩`() async {
+        let bar = bar()
+        model.tab.definition.url = "http://localhost/"
+        model.send()
+        let send = model.inFlight
+        bar.render()
+        #expect(bar.sendButton.attributedTitle.string == "Cancel")
+        #expect(bar.sendButton.keyEquivalent == "." && bar.sendButton.keyEquivalentModifierMask == .command)
+        #expect(bar.sendButton.toolTip == "Cancel (⌘.)")
+        #expect(bar.sendButton.layer?.backgroundColor == theme.color(.backgroundElevated).cgColor)
+        #expect(bar.sendButton.layer?.borderColor == theme.color(.border).cgColor)
+        #expect(bar.sendButton.attributedTitle.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor == theme.color(.text))
+
+        bar.sendButton.performClick(nil)
+        await send?.value
+        bar.render()
+
+        #expect(model.tab.response == .idle)
+        #expect(bar.sendButton.attributedTitle.string == "Send")
+        #expect(bar.sendButton.keyEquivalent == "\r" && bar.sendButton.keyEquivalentModifierMask == .command)
+        #expect(bar.sendButton.layer?.backgroundColor == theme.color(.accent).cgColor)
+    }
+
     @Test func `focusing the URL field shows the focus ring before any typing`() {
         let bar = bar()
         #expect(bar.urlBox.layer?.borderColor == theme.color(.border).cgColor)
