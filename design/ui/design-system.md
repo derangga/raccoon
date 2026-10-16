@@ -290,6 +290,7 @@ and columns, 6 pt radius outer border.
 | Disabled Row | checkbox **unchecked** and name/value in `textDisabled`. Both cues, never one |
 | trailing empty row | always present; "Name" / "Value" placeholders in `textTertiary` SF Pro 13; typing in it creates a row and a new trailing row |
 | 60 rows | the table scrolls inside the pane; the header row stays put; an overlay scroller |
+| automatic row | Headers only, after the trailing empty row: the headers sent that no row sets (`AutomaticHeaders`), name and value in `textTertiary`, no checkbox, no delete, not editable. A value computed at send reads "calculated when sent". Typing a row with the same name replaces it; the section count leaves them out. Not drawn on a board yet |
 
 The section label carries the count of rows ("Headers 60"), `textTertiary`, tabular. A count
 holding an Undefined Variable is drawn in `variableUndefined` semibold, so the reason a send

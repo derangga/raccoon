@@ -39,6 +39,8 @@ Part                     name, isEnabled, .text(String) | .file(path: String)
 BodyType                 .none · .raw(RawKind) · .formURLEncoded · .multipart
                          what the Body Type pop-up picks; Body.type reads it off a Body
 Auth                     .none · .basic(user, password) · .bearer(token)
+AutomaticHeader          name, value: String?          a header sent that no row sets;
+                         nil is computed at send (Content-Length)
 RequestSettings          allowsInsecureTLS, followsRedirects, requestsCompression
                          all false in RequestDefinition.empty, as in curl: -k, -L and
                          --compressed are what turn them on

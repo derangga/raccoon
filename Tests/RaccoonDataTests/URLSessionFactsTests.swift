@@ -29,9 +29,11 @@ struct URLSessionFactsTests {
         headers(request).first { $0.name == name }?.value
     }
 
-    @Test func `a GET with an empty Headers table goes out with six headers URLSession added`() async throws {
+    @Test func `a GET with no headers set goes out with six headers URLSession added`() async throws {
         try await withEchoServer { server in
-            let request = try await send(server)
+            // The bare session: the transport replaces User-Agent and Accept-Language.
+            _ = try await URLSessionTransport(files: DictionaryFileReading([:])).session.data(from: server.url("/echo"))
+            let request = try #require(server.requests.last)
 
             #expect(Set(headers(request).map(\.name)) == ["Host", "Accept", "Accept-Language", "Connection", "Accept-Encoding", "User-Agent"])
             #expect(value("Accept", in: request) == "*/*")

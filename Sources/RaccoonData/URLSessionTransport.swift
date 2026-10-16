@@ -69,6 +69,12 @@ public final class URLSessionTransport: HTTPTransport {
         for header in headers {
             urlRequest.addValue(header.value, forHTTPHeaderField: header.name)
         }
+        // URLSession's own values carry build numbers and a system list nobody can show ahead, so
+        // these two are set to what the Headers table's automatic rows say (AutomaticHeaders).
+        for (name, value) in [("User-Agent", AutomaticHeaders.userAgent), ("Accept-Language", AutomaticHeaders.acceptLanguage)]
+        where urlRequest.value(forHTTPHeaderField: name) == nil {
+            urlRequest.setValue(value, forHTTPHeaderField: name)
+        }
         // Request Cookies and any Cookie row are one header: addValue would join them with ", ".
         if !definition.cookies.isEmpty {
             let cookies = [urlRequest.value(forHTTPHeaderField: "Cookie")].compactMap { $0 } + definition.cookies.map { "\($0.name)=\($0.value)" }

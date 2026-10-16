@@ -9,6 +9,8 @@ CurlDetector, CurlLexer, CurlFlags, CurlMapping, CurlImporter     text -> CurlIm
 CurlRenderer                                                      ResolvedRequest -> text
 URLText.split / join, Params.merge                                the URL bar ↔ Params
 BodyConversion, Headers.contentType                               Body Type switches
+AutomaticHeaders.rows                                             ResolvedRequest -> the headers
+                                                                  sent that no row sets
 VariableTokens.ranges                                             {{…}} positions
 VariableScope, VariableResolver                                   definition -> ResolvedRequest
 PasteTarget.for                                                   current Tab or a new one

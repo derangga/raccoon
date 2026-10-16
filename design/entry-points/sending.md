@@ -21,6 +21,15 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
   -> tab.response = .received(response)
 ```
 
+**Every header sent is on screen.** URLSession adds `Host`, `Accept`, `Accept-Language`,
+`Accept-Encoding`, `Connection` and `User-Agent`, and a `Content-Type` on any body without one
+(environment-facts.md). None can be removed, only replaced, so the Headers table shows them as
+automatic rows (`AutomaticHeaders.rows(resolved)`), and a row the user types with the same name
+replaces one. The two whose system values cannot be known ahead, `User-Agent` and
+`Accept-Language`, are set by the transport to `Raccoon/<version>` and `*`, so every automatic
+row is exact before the send. `Content-Length` reads "calculated when sent", and multipart's
+boundary is appended at send as editing.md says.
+
 **Resolution runs before `.sending`.** A request with an Undefined Variable never shows a
 spinner, because it was never going to be sent. The red highlight is already on screen
 (`variables.md`), and the send only adds the message naming what is missing.
