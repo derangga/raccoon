@@ -26,9 +26,13 @@ final class EchoServer: Sendable {
     private let listener: NWListener
     private let queue: DispatchQueue
     private let received = Mutex<[Data]>([])
+    private let closed = Mutex<[ContinuousClock.Instant]>([])
 
     /// Every request's raw bytes, head and body, in arrival order.
     var requests: [Data] { received.withLock { $0 } }
+
+    /// When a client closed a /delay connection before the reply went out, in order.
+    var closes: [ContinuousClock.Instant] { closed.withLock { $0 } }
 
     func url(_ path: String) -> URL {
         URL(string: "\(scheme)://127.0.0.1:\(port)\(path)")!
@@ -128,6 +132,7 @@ final class EchoServer: Sendable {
 
         switch (parts.first, parts.dropFirst().first.flatMap { Int($0) }) {
         case ("delay", let milliseconds?):
+            watchClose(connection)
             queue.asyncAfter(deadline: .now() + .milliseconds(milliseconds)) { [weak self] in
                 self?.send(status: "200 OK", headers: [], body: request, on: connection)
             }
@@ -150,6 +155,14 @@ final class EchoServer: Sendable {
 
     /// "compressed hello" through gzip, mtime 0.
     static let gzipBody = Data(base64Encoded: "H4sIAAAAAAAC/0vOzy0oSi0uTk1RyEjNyckHALYBmUYQAAAA")!
+
+    /// A pending receive ends when the client closes its side.
+    private func watchClose(_ connection: NWConnection) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 1) { [weak self] _, _, isComplete, error in
+            guard isComplete || error != nil else { return }
+            self?.closed.withLock { $0.append(.now) }
+        }
+    }
 
     private func sendHead(status: String, headers: [String], contentLength: Int, on connection: NWConnection) {
         let lines = ["HTTP/1.1 \(status)", "Content-Length: \(contentLength)", "Content-Type: application/octet-stream",

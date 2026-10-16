@@ -18,8 +18,9 @@ withApp {                        // release: SessionWriter.writeNow, then everyt
 `Task` that runs the send. Close, quit and a second ⌘↩ (refused, §7) all reach the same
 `Task`, so "a closed Tab has no send still running" is true because the Tab is the only
 thing holding it. URLSession's async `data(for:delegate:)` is documented to cancel its data
-task when the calling `Task` is cancelled, so cancelling the `Task` should be the whole
-release. That is unmeasured (open-questions Q5) and the design leans on it.
+task when the calling `Task` is cancelled, so cancelling the `Task` is the whole release:
+the connection closes within milliseconds and the send throws `.transport(.cancelled)`
+(measured, environment-facts.md).
 
 **One URLSession for the app, a delegate per send.** The Request Settings differ per request,
 but `URLSession.data(for:delegate:)` takes a per-task delegate, and that delegate answers the

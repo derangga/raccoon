@@ -32,7 +32,9 @@ struct URLSessionFactsTests {
     @Test func `a GET with no headers set goes out with six headers URLSession added`() async throws {
         try await withEchoServer { server in
             // The bare session: the transport replaces User-Agent and Accept-Language.
-            _ = try await URLSessionTransport(files: DictionaryFileReading([:])).session.data(from: server.url("/echo"))
+            let transport = URLSessionTransport(files: DictionaryFileReading([:]))
+            defer { withExtendedLifetime(transport) {} }  // its deinit invalidates the session
+            _ = try await transport.session.data(from: server.url("/echo"))
             let request = try #require(server.requests.last)
 
             #expect(Set(headers(request).map(\.name)) == ["Host", "Accept", "Accept-Language", "Connection", "Accept-Encoding", "User-Agent"])
@@ -87,6 +89,7 @@ struct URLSessionFactsTests {
     @Test func `HTTPURLResponse merges duplicate headers and keeps no wire order`() async throws {
         try await withEchoServer { server in
             let transport = URLSessionTransport(files: DictionaryFileReading([:]))
+            defer { withExtendedLifetime(transport) {} }  // its deinit invalidates the session
             let (_, response) = try await transport.session.data(from: server.url("/headers"))
             let http = try #require(response as? HTTPURLResponse)
 
@@ -113,6 +116,29 @@ struct URLSessionFactsTests {
             #expect(response.byteCount == 16)
             #expect(response.headers.contains(.init(name: "Content-Length", value: "36")))
             #expect(response.headers.contains(.init(name: "Content-Encoding", value: "gzip")))
+        }
+    }
+
+    @Test func `cancelling the Task closes the connection at once and throws cancelled`() async throws {
+        try await withEchoServer { server in
+            let transport = URLSessionTransport(files: DictionaryFileReading([:]))
+            let request = ResolvedRequest(definition: .empty, url: server.url("/delay/10000"))
+            let send = Task<SendError?, Never> {
+                do throws(SendError) { _ = try await transport.send(request); return nil } catch { return error }
+            }
+            try await Task.sleep(for: .seconds(1))
+            let cancelledAt = ContinuousClock.now
+            send.cancel()
+
+            let error = await send.value
+            let returnedAt = ContinuousClock.now
+            try await Task.sleep(for: .milliseconds(200))
+
+            guard case .transport(.cancelled, _) = error else { Issue.record("\(String(describing: error))"); return }
+            #expect(returnedAt - cancelledAt < .milliseconds(200))
+            let closedAt = try #require(server.closes.first)
+            #expect(closedAt - cancelledAt < .milliseconds(200))
+            #expect(server.requests.count == 1)
         }
     }
 }
