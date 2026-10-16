@@ -50,7 +50,7 @@ enum EditorSection: CaseIterable {
 
 /// The section bar over one pane per section (surfaces.md §1 RequestEditor). Params, Headers
 /// and Cookies are key/value tables writing the Tab's definition.
-// ponytail: Body, Auth and Settings are empty panes until their sections are built.
+// ponytail: Body and Auth are empty panes until their sections are built.
 final class RequestEditor: NSView {
     private let model: TabModel
     private let theme: ThemeEnvironment
@@ -58,11 +58,14 @@ final class RequestEditor: NSView {
     private var buttons: [EditorSection: SectionButton] = [:]
     private var panes: [EditorSection: NSView] = [:]
     private var tables: [EditorSection: KeyValueTable] = [:]
+    let settingsPane: SettingsPane
 
     init(model: TabModel, theme: ThemeEnvironment) {
         self.model = model
         self.theme = theme
+        settingsPane = SettingsPane(theme: theme)
         super.init(frame: .zero)
+        settingsPane.onChange = { [weak self] in self?.model.tab.definition.settings = $0 }
 
         let bar = NSStackView()
         bar.spacing = 2
@@ -87,6 +90,8 @@ final class RequestEditor: NSView {
                 table.onChange = { [weak self] in self?.model.tab.definition[keyPath: rows] = $0 }
                 tables[section] = table
                 pane = table
+            } else if section == .settings {
+                pane = settingsPane
             } else {
                 pane = NSView()
             }
@@ -99,7 +104,7 @@ final class RequestEditor: NSView {
                 pane.topAnchor.constraint(equalTo: paneArea.topAnchor, constant: 8),
                 pane.bottomAnchor.constraint(lessThanOrEqualTo: paneArea.bottomAnchor, constant: -8),
             ])
-            // A table hugs its rows; an empty pane fills the area.
+            // A table hugs its rows; any other pane fills the area.
             if !(pane is KeyValueTable) { pane.bottomAnchor.constraint(equalTo: paneArea.bottomAnchor, constant: -8).isActive = true }
             pane.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         }
@@ -168,6 +173,7 @@ final class RequestEditor: NSView {
             }
             // An empty Draft or an invalid URL has no host yet, so nothing to show.
             let resolved = try? VariableResolver.resolve(definition)
+            settingsPane.setSettings(definition.settings)
             table(.headers).setAutomaticRows(resolved.map(AutomaticHeaders.rows) ?? [])
         } onChange: { [weak self] in
             Task { @MainActor in self?.render() }

@@ -77,6 +77,32 @@ struct RequestEditorTests {
         editor.render()
         #expect(headers.numberOfRows == 7)  // one row, the trailing row, five automatic
     }
+
+    @Test func `Settings has two checkboxes with their hints, and no compression row`() {
+        let editor = editor()
+        editor.select(.settings)
+        let pane = editor.settingsPane
+        #expect(!pane.isHidden)
+        #expect(pane.checkboxes.map(\.title) == ["Allow insecure TLS", "Follow redirects"])
+        #expect(pane.insecureTLSHint.stringValue == "Accept certificates the system does not trust, for this Request only.")
+        #expect(pane.insecureTLSHint.textColor == theme.color(.textTertiary))
+    }
+
+    @Test func `each Settings checkbox writes the Tab's Request Settings and follows them`() {
+        let editor = editor()
+        let (insecure, redirects) = (editor.settingsPane.checkboxes[0], editor.settingsPane.checkboxes[1])
+        #expect(insecure.state == .off && redirects.state == .off)
+
+        insecure.performClick(nil)
+        #expect(model.tab.definition.settings == RequestSettings(allowsInsecureTLS: true, followsRedirects: false))
+        redirects.performClick(nil)
+        #expect(model.tab.definition.settings == RequestSettings(allowsInsecureTLS: true, followsRedirects: true))
+
+        // The failed state's fix turns the setting on from outside the pane.
+        model.tab.definition.settings.allowsInsecureTLS = false
+        editor.render()
+        #expect(insecure.state == .off)
+    }
 }
 
 @MainActor
