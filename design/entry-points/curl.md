@@ -35,7 +35,7 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
                     -u user:pass -> .basic, unless an Authorization header won
       -> body       see the body table below
       -> method     -X / --request, else POST if there is a body, else GET
-      -> settings   -k / --insecure, -L / --location, --compressed
+      -> settings   -k / --insecure, -L / --location
   -> PasteTarget.for(tab)                        pure
      .currentTab   tab is a Draft, its definition equals the empty Draft, no Response
      .newDraftTab  anything else
@@ -86,6 +86,8 @@ Bruno's 53 (`environment-facts.md`):
 - **`--digest` is ignored, not mapped.** Auth has no Digest (CONTEXT, Auth). The `-u` value
   still becomes `.basic`, and the note says `--digest` was ignored so the user knows the
   scheme changed.
+- **`--compressed` is ignored.** URLSession always asks for gzip and decodes it
+  (environment-facts.md), so there is no setting to turn on and the note lists it.
 - **No GraphQL detection.** GraphQL is not a Body Type in v1, so a GraphQL body imports as
   `.raw(.json)`, which is what it is on the wire.
 
@@ -103,7 +105,7 @@ Bruno's 53 (`environment-facts.md`):
      -> every value single-quoted, `'` written as `'\''`
      -> Auth is already an Authorization header (variables.md), rendered as -H;
         cookies as -b
-     -> settings as -k, -L, --compressed
+     -> settings as -k, -L
   -> NSPasteboard.setString                      boundary    R: ClipboardWriter
 ```
 

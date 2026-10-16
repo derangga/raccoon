@@ -15,7 +15,7 @@ struct ShapesTests {
         let emptyDraft = RequestDefinition(
             method: "GET", url: "", params: [], headers: [], cookies: [],
             body: .none, auth: .none,
-            settings: RequestSettings(allowsInsecureTLS: false, followsRedirects: false, requestsCompression: false)
+            settings: RequestSettings(allowsInsecureTLS: false, followsRedirects: false)
         )
         #expect(RequestDefinition.empty == emptyDraft)
     }

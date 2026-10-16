@@ -42,9 +42,9 @@ BodyType                 .none · .raw(RawKind) · .formURLEncoded · .multipart
 Auth                     .none · .basic(user, password) · .bearer(token)
 AutomaticHeader          name, value: String?          a header sent that no row sets;
                          nil is computed at send (Content-Length)
-RequestSettings          allowsInsecureTLS, followsRedirects, requestsCompression
-                         all false in RequestDefinition.empty, as in curl: -k, -L and
-                         --compressed are what turn them on
+RequestSettings          allowsInsecureTLS, followsRedirects
+                         both false in RequestDefinition.empty, as in curl: -k and -L
+                         are what turn them on
 
 Request                  id: RequestID, name, definition         one file in the Data Folder
 TreeNode                 .folder(name, [TreeNode]) · .request(RequestID, name, path)

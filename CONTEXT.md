@@ -35,7 +35,7 @@ The request's authentication scheme: none, Basic, or Bearer.
 _Avoid_: Credentials, authorization header
 
 **Request Settings**:
-Per-request transport options: allow insecure TLS, follow redirects, and request compressed responses.
+Per-request transport options: allow insecure TLS and follow redirects.
 _Avoid_: Options, flags
 
 **Response**:

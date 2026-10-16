@@ -32,7 +32,7 @@ public struct RequestDefinition: Equatable, Sendable {
     public static let empty = RequestDefinition(
         method: "GET", url: "", params: [], headers: [], cookies: [],
         body: .none, auth: .none,
-        settings: RequestSettings(allowsInsecureTLS: false, followsRedirects: false, requestsCompression: false)
+        settings: RequestSettings(allowsInsecureTLS: false, followsRedirects: false)
     )
 }
 
@@ -86,12 +86,10 @@ public enum Auth: Equatable, Sendable {
 public struct RequestSettings: Equatable, Sendable {
     public var allowsInsecureTLS: Bool
     public var followsRedirects: Bool
-    public var requestsCompression: Bool
 
-    public init(allowsInsecureTLS: Bool, followsRedirects: Bool, requestsCompression: Bool) {
+    public init(allowsInsecureTLS: Bool, followsRedirects: Bool) {
         self.allowsInsecureTLS = allowsInsecureTLS
         self.followsRedirects = followsRedirects
-        self.requestsCompression = requestsCompression
     }
 }
 
