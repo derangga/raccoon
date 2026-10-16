@@ -36,6 +36,7 @@ Body                     .none
                          .formURLEncoded([Row])
                          .multipart([Part])
 Part                     name, isEnabled, .text(String) | .file(path: String)
+HighlightRange           range: NSRange (UTF-16, as text storage takes it), token: ColorToken
 BodyType                 .none · .raw(RawKind) · .formURLEncoded · .multipart
                          what the Body Type pop-up picks; Body.type reads it off a Body
 Auth                     .none · .basic(user, password) · .bearer(token)
