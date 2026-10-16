@@ -291,7 +291,7 @@ final class URLBar: NSView, NSTextFieldDelegate {
     /// The ring shows on focus, not on the first keystroke, so the empty Draft shows it at launch.
     func showFocus(_ focused: Bool) {
         focusRing.isHidden = !focused
-        urlBox.layer?.borderColor = theme.color(focused ? .focusRing : .border).cgColor
+        urlBox.layer?.borderColor = theme.color(model.isURLInvalid ? .error : focused ? .focusRing : .border).cgColor
         updateFade()
     }
 
@@ -317,6 +317,7 @@ final class URLBar: NSView, NSTextFieldDelegate {
             if urlField.currentEditor() == nil { urlField.attributedStringValue = urlTitle(model.urlText) }
             updateFade()
             renderSend(sending: isSending)
+            showFocus(urlField.currentEditor() != nil)
             renderMessage(model.message)
         } onChange: { [weak self] in
             Task { @MainActor in self?.render() }

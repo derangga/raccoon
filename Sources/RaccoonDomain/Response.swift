@@ -32,7 +32,8 @@ public enum ResponseState: Equatable, Sendable {
     case idle
     case sending(since: ContinuousClock.Instant)
     case received(Response)
-    case failed(SendError)
+    /// `after` is how long the send ran, for the status line's "after 212 ms".
+    case failed(SendError, after: Duration)
     /// Resolution failed, so no byte went out.
     case notSent(ResolveError)
 }

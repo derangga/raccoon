@@ -12,7 +12,7 @@ struct ResponseStateTests {
     @Test func `no other state shows the spinner`() {
         let later = since + .seconds(5)
         #expect(!ResponseState.idle.showsSpinner(at: later))
-        #expect(!ResponseState.failed(.timedOut).showsSpinner(at: later))
+        #expect(!ResponseState.failed(.timedOut, after: .zero).showsSpinner(at: later))
         #expect(!ResponseState.notSent(.invalidURL("x")).showsSpinner(at: later))
     }
 }

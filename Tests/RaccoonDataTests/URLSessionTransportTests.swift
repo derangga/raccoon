@@ -131,6 +131,21 @@ struct URLSessionTransportTests {
         }
     }
 
+    @Test func `a refused connection carries URLError's code and the host with its port`() async throws {
+        // The port is closed once the echo server stops.
+        var closed: URL?
+        try await withEchoServer { server in closed = server.url("/echo") }
+        let url = try #require(closed)
+        do throws(SendError) {
+            _ = try await transport().send(ResolvedRequest(definition: .empty, url: url))
+            Issue.record("a closed port answered")
+        } catch {
+            guard case .transport(let code, _, let host) = error else { Issue.record("\(error)"); return }
+            #expect(code == .cannotConnectToHost)
+            #expect(host == "127.0.0.1:\(url.port ?? 0)")
+        }
+    }
+
     @Test func `a reply past the timeout fails with timedOut and is never retried`() async throws {
         try await withEchoServer { server in
             await #expect(throws: SendError.timedOut) {

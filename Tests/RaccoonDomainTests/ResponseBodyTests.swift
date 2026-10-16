@@ -83,3 +83,25 @@ struct StatusLineTests {
         #expect(StatusLine(status: 200, elapsed: .zero, byteCount: byteCount).size == text)
     }
 }
+
+struct FailureTextTests {
+    @Test(arguments: [
+        (SendError.timedOut, "No response after 60 s", "The server did not answer in time. Raccoon does not send again by itself.", false),
+        (.untrustedCertificate(host: "grafana.staging.internal.example.com"), "Untrusted certificate",
+         "The certificate for grafana.staging.internal.example.com is not trusted by this Mac. It may be self-signed or expired.", true),
+        (.transport(.cannotConnectToHost, "Could not connect to the server.", host: "localhost:8080"), "Could not connect to the server",
+         "NSURLErrorCannotConnectToHost (−1004) · localhost:8080", false),
+        (.transport(.dnsLookupFailed, "A server with the specified hostname could not be found.", host: "nope.invalid"),
+         "A server with the specified hostname could not be found", "NSURLErrorDNSLookupFailed (−1006) · nope.invalid", false),
+        (.transport(URLError.Code(rawValue: -4242), "Something odd.", host: "h"), "Something odd", "URLError (−4242) · h", false),
+        (.fileMissing(path: "~/Desktop/box.jpg"), "File missing", "~/Desktop/box.jpg is missing, so nothing was sent.", false),
+    ])
+    func `each send failure has a title, one sentence, and the fix only when there is one`(
+        error: SendError, title: String, detail: String, offersInsecureTLS: Bool
+    ) {
+        let text = FailureText(error)
+        #expect(text.title == title)
+        #expect(text.detail == detail)
+        #expect(text.offersInsecureTLS == offersInsecureTLS)
+    }
+}

@@ -3,7 +3,6 @@ import Observation
 import RaccoonDomain
 
 /// The status line over the body (design-system.md §6 Response viewer).
-// ponytail: failed and notSent show the error as text until the send-failure states are built.
 final class ResponseViewer: NSView {
     private let model: TabModel
     private let theme: ThemeEnvironment
@@ -24,6 +23,9 @@ final class ResponseViewer: NSView {
     let voidTitle = NSTextField(labelWithString: "")
     let voidText = NSTextField(wrappingLabelWithString: "")
     let keycap = NSTextField(labelWithString: "⌘↩")
+    let failureGlyph = NSImageView()
+    /// The one fix, when a failure has one; only an untrusted certificate does.
+    let fixButton = NSButton()
     let voidStack = NSStackView()
 
     let headerList = NSScrollView()
@@ -149,7 +151,31 @@ final class ResponseViewer: NSView {
         keycap.layer?.cornerRadius = 4
         keycap.layer?.borderColor = theme.color(.border).cgColor
         keycap.layer?.backgroundColor = theme.color(.background).cgColor
-        voidStack.setViews([voidTitle, voidText, keycap], in: .center)
+        failureGlyph.contentTintColor = theme.color(.statusFailed)
+        failureGlyph.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            failureGlyph.widthAnchor.constraint(equalToConstant: 22),
+            failureGlyph.heightAnchor.constraint(equalToConstant: 22),
+        ])
+        // backgroundElevated is the Send/Cancel fill; board 06 draws this one on background.
+        fixButton.isBordered = false
+        fixButton.wantsLayer = true
+        fixButton.layer?.cornerRadius = 6
+        fixButton.layer?.borderWidth = 1
+        fixButton.layer?.borderColor = theme.color(.border).cgColor
+        fixButton.layer?.backgroundColor = theme.color(.background).cgColor
+        fixButton.title = "Allow insecure TLS for this request"
+        fixButton.attributedTitle = NSAttributedString(string: fixButton.title, attributes: [
+            .font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text),
+        ])
+        fixButton.target = self
+        fixButton.action = #selector(allowInsecureTLS)
+        fixButton.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            fixButton.heightAnchor.constraint(equalToConstant: 24),
+            fixButton.widthAnchor.constraint(equalToConstant: fixButton.attributedTitle.size().width.rounded(.up) + 20),
+        ])
+        voidStack.setViews([failureGlyph, voidTitle, voidText, keycap, fixButton], in: .center)
         voidStack.orientation = .vertical
         voidStack.spacing = 8
 
@@ -202,6 +228,8 @@ final class ResponseViewer: NSView {
             headerStack.bottomAnchor.constraint(equalTo: document.bottomAnchor, constant: -8),
         ])
     }
+
+    @objc private func allowInsecureTLS() { model.allowInsecureTLS() }
 
     @objc private func sectionChanged() {
         wantsHeaders = section.selectedSegment == 1
@@ -259,9 +287,14 @@ final class ResponseViewer: NSView {
             section.setLabel("Headers \(response.headers.count)", forSegment: 1)
             section.selectedSegment = wantsHeaders ? 1 : 0
             if wantsHeaders { drawHeaders(response.headers) } else { drawBody(response) }
-        case .failed(let error):
+        case .failed(let error, let after):
             setStatus(("Failed", "", .statusFailed))
-            showVoid(title: "\(error)", text: "", keycap: false, failed: true)
+            elapsedLabel.stringValue = "after " + StatusLine.elapsed(after)
+            elapsedLabel.isHidden = false
+            let text = FailureText(error)
+            showVoid(title: text.title, text: text.detail, keycap: false, failed: true)
+            if case .untrustedCertificate = error { failureGlyph.image = Self.glyph("xmark.shield") }
+            fixButton.isHidden = !text.offersInsecureTLS
         case .notSent(.invalidURL(let text)):
             setStatus(("Not sent", "", .statusFailed))
             showVoid(title: "Invalid URL", text: "After substitution the URL was \(text).", keycap: false, failed: true)
@@ -372,6 +405,13 @@ final class ResponseViewer: NSView {
         voidText.stringValue = text
         voidText.textColor = theme.color(.textTertiary)
         keycap.isHidden = !showsKeycap
+        failureGlyph.isHidden = !failed
+        failureGlyph.image = Self.glyph("exclamationmark.circle")
+        fixButton.isHidden = true
+    }
+
+    private static func glyph(_ name: String) -> NSImage? {
+        NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 20, weight: .regular))
     }
 
     /// Time passing is not a change Observation sees, so look again while sending.

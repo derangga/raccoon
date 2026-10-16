@@ -30,11 +30,11 @@ public final class URLSessionTransport: HTTPTransport {
         let urlRequest = try urlRequest(for: request)
         let delegate = SendDelegate(settings: request.definition.settings)
         let start = ContinuousClock.now
-        let (body, response) = try await lifting(host: request.url.host() ?? "") {
+        let (body, response) = try await lifting(request.url) {
             try await session.data(for: urlRequest, delegate: delegate)
         }
         guard let http = response as? HTTPURLResponse else {
-            throw .transport(.badServerResponse, "The server's reply was not HTTP.")
+            throw .transport(.badServerResponse, "The server's reply was not HTTP.", host: Self.authority(request.url))
         }
         // allHeaderFields is a dictionary that joins duplicates with ", ", and no API keeps wire
         // order (environment-facts.md), so the headers are sorted by name.
@@ -117,7 +117,7 @@ public final class URLSessionTransport: HTTPTransport {
 
     /// URLSession's errors, lifted into SendError. Cancellation stays `.transport(.cancelled)`;
     /// the Tab treats it as `.idle`, not as a failure.
-    private func lifting<A>(host: String, _ body: () async throws -> A) async throws(SendError) -> A {
+    private func lifting<A>(_ url: URL, _ body: () async throws -> A) async throws(SendError) -> A {
         do {
             return try await body()
         } catch let error as URLError {
@@ -126,13 +126,18 @@ public final class URLSessionTransport: HTTPTransport {
                 throw .timedOut
             case .serverCertificateUntrusted, .serverCertificateHasUnknownRoot, .serverCertificateHasBadDate,
                  .serverCertificateNotYetValid:
-                throw .untrustedCertificate(host: host)
+                throw .untrustedCertificate(host: url.host() ?? "")
             default:
-                throw .transport(error.code, error.localizedDescription)
+                throw .transport(error.code, error.localizedDescription, host: Self.authority(url))
             }
         } catch {
-            throw .transport(.unknown, error.localizedDescription)
+            throw .transport(.unknown, error.localizedDescription, host: Self.authority(url))
         }
+    }
+
+    /// "localhost:8080": the port is part of where the send went.
+    private static func authority(_ url: URL) -> String {
+        (url.host() ?? "") + (url.port.map { ":\($0)" } ?? "")
     }
 }
 

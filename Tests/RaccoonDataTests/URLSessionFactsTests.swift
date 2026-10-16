@@ -134,7 +134,7 @@ struct URLSessionFactsTests {
             let returnedAt = ContinuousClock.now
             try await Task.sleep(for: .milliseconds(200))
 
-            guard case .transport(.cancelled, _) = error else { Issue.record("\(String(describing: error))"); return }
+            guard case .transport(.cancelled, _, _) = error else { Issue.record("\(String(describing: error))"); return }
             #expect(returnedAt - cancelledAt < .milliseconds(200))
             let closedAt = try #require(server.closes.first)
             #expect(closedAt - cancelledAt < .milliseconds(200))

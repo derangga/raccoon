@@ -17,7 +17,8 @@ public enum SendError: Error, Equatable, Sendable {
     case fileMissing(path: String)
     case timedOut
     case untrustedCertificate(host: String)
-    case transport(URLError.Code, String)
+    /// URLError's description, and host[:port] the send went to.
+    case transport(URLError.Code, String, host: String)
 }
 
 public enum StoreError: Error, Equatable, Sendable {

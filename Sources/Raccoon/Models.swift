@@ -21,6 +21,15 @@ final class TabModel {
     /// The line under the URL bar; not part of the Tab, so it is never saved.
     var message: MessageLine?
 
+    /// After an `invalidURL` send, the URL field is outlined in `error` until the next edit.
+    private(set) var isURLInvalid = false
+
+    /// The untrusted-certificate fix: turns the Request Setting on and sends nothing. The user
+    /// sends again; Raccoon never does it by itself.
+    func allowInsecureTLS() {
+        tab.definition.settings.allowsInsecureTLS = true
+    }
+
     /// What the URL bar shows: `url` plus the enabled params (editing.md).
     var urlText: String { URLText.join(tab.definition.url, params: tab.definition.params) }
 
@@ -30,6 +39,7 @@ final class TabModel {
         tab.definition.url = base
         tab.definition.params = Params.merge(pairs, into: tab.definition.params)
         message = message?.afterURLEdit
+        isURLInvalid = false
     }
 
     /// Methods are free text, stored uppercased; a blank one changes nothing.
@@ -77,9 +87,11 @@ final class TabModel {
             resolved = try VariableResolver.resolve(tab.definition)
         } catch {
             tab.response = .notSent(error)
+            if case .invalidURL = error { isURLInvalid = true }
             return
         }
-        tab.response = .sending(since: instants.now)
+        let since = instants.now
+        tab.response = .sending(since: since)
         presenting?.cancel()
         presented = nil
         sends += 1
@@ -103,7 +115,7 @@ final class TabModel {
                     if send == sends { self.presented = presented }
                 }
             case .failure(let error):
-                tab.response = .failed(error)
+                tab.response = .failed(error, after: instants.now - since)
             }
         }
     }

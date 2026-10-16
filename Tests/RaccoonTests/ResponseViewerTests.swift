@@ -122,6 +122,60 @@ struct ResponseViewerTests {
         }
     }
 
+    func failed(_ error: SendError, after: Duration) -> (ScriptedTransport, TabModel, ResponseViewer) {
+        let transport = ScriptedTransport(.failure(error))
+        let model = TabModel(transport: transport, secrets: InMemorySecretStore(), instants: FixedInstantSource(now))
+        model.tab.response = .failed(error, after: after)
+        return (transport, model, viewer(model))
+    }
+
+    @Test func `an untrusted certificate names the host and offers the one fix, which sends nothing`() {
+        let host = "grafana.staging.internal.example.com"
+        let (transport, model, viewer) = failed(.untrustedCertificate(host: host), after: .milliseconds(212))
+        #expect(viewer.codeLabel.stringValue == "Failed" && viewer.elapsedLabel.stringValue == "after 212 ms")
+        #expect(viewer.codeLabel.textColor == theme.color(.statusFailed) && !viewer.elapsedLabel.isHidden)
+        #expect(!viewer.failureGlyph.isHidden)
+        #expect(viewer.voidTitle.stringValue == "Untrusted certificate" && viewer.voidTitle.textColor == theme.color(.statusFailed))
+        #expect(viewer.voidText.stringValue == "The certificate for \(host) is not trusted by this Mac. It may be self-signed or expired.")
+        #expect(!viewer.fixButton.isHidden && viewer.fixButton.title == "Allow insecure TLS for this request")
+
+        viewer.fixButton.performClick(nil)
+
+        #expect(model.tab.definition.settings.allowsInsecureTLS)
+        #expect(transport.requests.isEmpty)
+    }
+
+    @Test(arguments: [
+        (SendError.timedOut, Duration.seconds(60), "after 60.0 s", "No response after 60 s",
+         "The server did not answer in time. Raccoon does not send again by itself."),
+        (.transport(.cannotConnectToHost, "Could not connect to the server.", host: "localhost:8080"), .milliseconds(3), "after 3 ms",
+         "Could not connect to the server", "NSURLErrorCannotConnectToHost (−1004) · localhost:8080"),
+    ])
+    func `other failures show title and detail, never the TLS button`(
+        error: SendError, after: Duration, elapsed: String, title: String, detail: String
+    ) {
+        let (_, _, viewer) = failed(error, after: after)
+        #expect(viewer.codeLabel.stringValue == "Failed" && viewer.elapsedLabel.stringValue == elapsed)
+        #expect(viewer.voidTitle.stringValue == title && viewer.voidText.stringValue == detail)
+        #expect(viewer.fixButton.isHidden && !viewer.failureGlyph.isHidden)
+    }
+
+    @Test func `an invalid URL is Not sent and quotes the URL after substitution`() {
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), instants: FixedInstantSource(now))
+        model.tab.definition.url = "https//api.dev.example.com/v1"
+        model.send()
+        let viewer = viewer(model)
+        #expect(viewer.codeLabel.stringValue == "Not sent" && viewer.elapsedLabel.isHidden)
+        #expect(viewer.voidTitle.stringValue == "Invalid URL")
+        #expect(viewer.voidText.stringValue == "After substitution the URL was https//api.dev.example.com/v1.")
+        #expect(viewer.fixButton.isHidden)
+    }
+
+    @Test func `idle shows no failure glyph`() {
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), instants: FixedInstantSource(now))
+        #expect(viewer(model).failureGlyph.isHidden)
+    }
+
     func showHeaders(_ viewer: ResponseViewer) {
         viewer.section.selectedSegment = 1
         viewer.section.sendAction(viewer.section.action, to: viewer.section.target)

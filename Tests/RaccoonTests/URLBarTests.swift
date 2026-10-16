@@ -51,6 +51,19 @@ struct URLBarTests {
         #expect(bar.sendButton.layer?.backgroundColor == theme.color(.accent).cgColor)
     }
 
+    @Test func `an invalid URL outlines the field in error until the next edit`() {
+        let bar = bar()
+        model.tab.definition.url = "not a url"
+        model.send()
+        bar.render()
+        #expect(bar.urlBox.layer?.borderColor == theme.color(.error).cgColor)
+
+        bar.urlField.stringValue = "http://localhost/"
+        bar.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification, object: bar.urlField))
+        bar.render()
+        #expect(bar.urlBox.layer?.borderColor == theme.color(.border).cgColor)
+    }
+
     @Test func `focusing the URL field shows the focus ring before any typing`() {
         let bar = bar()
         #expect(bar.urlBox.layer?.borderColor == theme.color(.border).cgColor)

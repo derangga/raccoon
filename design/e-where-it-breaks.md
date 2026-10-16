@@ -19,7 +19,7 @@ send
                            never flipped automatically
   ⚠ fileMissing(path)    → escape: the multipart row is marked and the send stops before
                            any byte goes out
-  ⚠ transport(code)      → escape: URLError's own description, plus the code
+  ⚠ transport(code)      → escape: URLError's own description, plus the code and host
 resolve
   ⚠ undefined(names)     → escape: every name listed, red underlines already on screen,
                            nothing sent, no spinner

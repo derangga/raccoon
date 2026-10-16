@@ -35,7 +35,7 @@ struct TabModelSendTests {
         model.send()
         await model.inFlight?.value
 
-        #expect(model.tab.response == .failed(.timedOut))
+        #expect(model.tab.response == .failed(.timedOut, after: .zero))
     }
 
     @Test func `a URL that cannot be built sends nothing and never shows sending`() {
@@ -62,7 +62,7 @@ struct TabModelSendTests {
 
     @Test(arguments: [
         SendError.fileMissing(path: "/tmp/gone.pdf"), .timedOut, .untrustedCertificate(host: "localhost"),
-        .transport(.cannotConnectToHost, "Could not connect to the server."),
+        .transport(.cannotConnectToHost, "Could not connect to the server.", host: "localhost:8080"),
     ])
     func `a send error is shown as it came and never retried`(error: SendError) async {
         let transport = ScriptedTransport(.failure(error))
@@ -71,7 +71,7 @@ struct TabModelSendTests {
         model.send()
         await model.inFlight?.value
 
-        #expect(model.tab.response == .failed(error))
+        #expect(model.tab.response == .failed(error, after: .zero))
         #expect(transport.requests.count == 1)
     }
 
@@ -143,5 +143,27 @@ struct TabModelSendTests {
         model.cancel()
 
         #expect(model.tab.response == .received(response))
+    }
+
+    @Test func `Allow insecure TLS turns the Request Setting on and sends nothing`() {
+        let transport = ScriptedTransport(.success(response))
+        let model = makeTab(transport, url: "https://localhost/")
+        model.tab.response = .failed(.untrustedCertificate(host: "localhost"), after: .milliseconds(212))
+
+        model.allowInsecureTLS()
+
+        #expect(model.tab.definition.settings.allowsInsecureTLS)
+        #expect(transport.requests.isEmpty)
+        #expect(model.tab.response == .failed(.untrustedCertificate(host: "localhost"), after: .milliseconds(212)))
+    }
+
+    @Test func `an invalid URL marks the URL field until the next edit`() {
+        let model = makeTab(ScriptedTransport(.success(response)), url: "not a url")
+
+        model.send()
+        #expect(model.isURLInvalid)
+
+        model.typeInURLBar("http://localhost/")
+        #expect(!model.isURLInvalid)
     }
 }

@@ -77,7 +77,7 @@ MessageLine              .error(text) · .note(text)       the line under the UR
                          TabModel, never saved: a note goes on the next URL edit, an error on
                          the next send or paste
 ResponseState            .idle · .sending(since: ContinuousClock.Instant)
-                         · .received(Response) · .failed(SendError)
+                         · .received(Response) · .failed(SendError, after: Duration)
                          · .notSent(ResolveError)          resolution failed, no byte went out
 
 CurlImport               definition, ignoredFlags [String], fileReferences [String]
@@ -139,7 +139,7 @@ SendError                .fileMissing(path)               a multipart file part,
                                                           the transport before sending
                          .timedOut
                          .untrustedCertificate(host)
-                         .transport(URLError.Code, String)
+                         .transport(URLError.Code, String, host)  host[:port] the send went to
 StoreError               .unreadable(path, reason) · .undecodable(path, reason)
                          .unwritable(path, reason)
 SecretError              .unavailable(OSStatus)

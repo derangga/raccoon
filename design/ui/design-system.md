@@ -564,7 +564,7 @@ Every entry of [e-where-it-breaks.md](../e-where-it-breaks.md) with a visible pl
 | untrustedCertificate | Response pane, host named, "Allow insecure TLS for this request" | failed |
 | invalidURL | URL field outlined in `error`; Response pane quotes the substituted URL | URL bar, failed |
 | fileMissing(path) | the multipart chip marked; message line names the path | Body editor |
-| transport(code) | Response pane: description plus the code | failed |
+| transport(code) | Response pane: description plus the code and host | failed |
 | resolve: undefined(names) | red underlines already on screen; message line names every one; no spinner | URL bar, key/value table |
 | Keychain unreadable | becomes undefined; the Environments sheet row says "Not in the Keychain" | Environments sheet |
 | body not UTF-8 | Response pane: binary | Response viewer |

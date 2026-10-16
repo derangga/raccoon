@@ -99,3 +99,54 @@ public struct StatusLine: Equatable, Sendable {
         510: "Not Extended", 511: "Network Authentication Required",
     ]
 }
+
+/// The failed state's text: a title, one sentence of detail, and whether the one fix applies.
+public struct FailureText: Equatable, Sendable {
+    public var title: String
+    public var detail: String
+    /// Only an untrusted certificate has a fix: turning on Allow insecure TLS.
+    public var offersInsecureTLS = false
+
+    public init(_ error: SendError) {
+        switch error {
+        case .timedOut:
+            title = "No response after 60 s"
+            detail = "The server did not answer in time. Raccoon does not send again by itself."
+        case .untrustedCertificate(let host):
+            title = "Untrusted certificate"
+            detail = "The certificate for \(host) is not trusted by this Mac. It may be self-signed or expired."
+            offersInsecureTLS = true
+        case .transport(let code, let description, let host):
+            title = description.hasSuffix(".") ? String(description.dropLast()) : description
+            let number = code.rawValue < 0 ? "−\(-code.rawValue)" : "\(code.rawValue)"
+            detail = "\(Self.names[code.rawValue] ?? "URLError") (\(number)) · \(host)"
+        // ponytail: the pane's text only; the marked multipart chip comes with multipart editing.
+        case .fileMissing(let path):
+            title = "File missing"
+            detail = "\(path) is missing, so nothing was sent."
+        }
+    }
+
+    /// NSURLError.h, for the codes a send can end with.
+    private static let names: [Int: String] = [
+        -1: "NSURLErrorUnknown", -999: "NSURLErrorCancelled", -1000: "NSURLErrorBadURL",
+        -1001: "NSURLErrorTimedOut", -1002: "NSURLErrorUnsupportedURL", -1003: "NSURLErrorCannotFindHost",
+        -1004: "NSURLErrorCannotConnectToHost", -1005: "NSURLErrorNetworkConnectionLost",
+        -1006: "NSURLErrorDNSLookupFailed", -1007: "NSURLErrorHTTPTooManyRedirects",
+        -1008: "NSURLErrorResourceUnavailable", -1009: "NSURLErrorNotConnectedToInternet",
+        -1010: "NSURLErrorRedirectToNonExistentLocation", -1011: "NSURLErrorBadServerResponse",
+        -1012: "NSURLErrorUserCancelledAuthentication", -1013: "NSURLErrorUserAuthenticationRequired",
+        -1014: "NSURLErrorZeroByteResource", -1015: "NSURLErrorCannotDecodeRawData",
+        -1016: "NSURLErrorCannotDecodeContentData", -1017: "NSURLErrorCannotParseResponse",
+        -1018: "NSURLErrorInternationalRoamingOff", -1019: "NSURLErrorCallIsActive",
+        -1020: "NSURLErrorDataNotAllowed", -1021: "NSURLErrorRequestBodyStreamExhausted",
+        -1022: "NSURLErrorAppTransportSecurityRequiresSecureConnection",
+        -1100: "NSURLErrorFileDoesNotExist", -1101: "NSURLErrorFileIsDirectory",
+        -1102: "NSURLErrorNoPermissionsToReadFile", -1103: "NSURLErrorDataLengthExceedsMaximum",
+        -1104: "NSURLErrorFileOutsideSafeArea", -1200: "NSURLErrorSecureConnectionFailed",
+        -1201: "NSURLErrorServerCertificateHasBadDate", -1202: "NSURLErrorServerCertificateUntrusted",
+        -1203: "NSURLErrorServerCertificateHasUnknownRoot", -1204: "NSURLErrorServerCertificateNotYetValid",
+        -1205: "NSURLErrorClientCertificateRejected", -1206: "NSURLErrorClientCertificateRequired",
+        -2000: "NSURLErrorCannotLoadFromNetwork",
+    ]
+}
