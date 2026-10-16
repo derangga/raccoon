@@ -7,8 +7,12 @@ public enum ResponseBody: Equatable, Sendable {
     case raw(String)
     case binary(byteCount: Int)
 
-    /// Above this many bytes the body is shown Raw (environment-facts.md, NSTextView).
+    /// Above this many bytes the body is shown Raw. Measured: 5 MB coloured stays at or under
+    /// 129 ms a step on TextKit 1 (environment-facts.md, "NSTextView with large bodies").
     public static let prettyThreshold = 5_000_000
+
+    /// Beside the disabled Pretty segment, so the number on screen is the one in force.
+    public static let prettyOffNote = "Pretty is off above \(prettyThreshold / 1_000_000) MB"
 
     /// Pretty is decided by parsing, not by `Content-Type`, which only picks the parser tried
     /// first. A body that does not parse is Raw, never an error.

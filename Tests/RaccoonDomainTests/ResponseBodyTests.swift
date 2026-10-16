@@ -37,6 +37,11 @@ struct ResponseBodyTests {
         #expect(ResponseBody.presentation(response(Data(atLimit.utf8))) == .pretty("[]", .json))
         #expect(ResponseBody.presentation(response(Data(over.utf8))) == .raw(over))
     }
+
+    @Test func `the disabled-Pretty note names the measured threshold`() {
+        #expect(ResponseBody.prettyThreshold == 5_000_000)
+        #expect(ResponseBody.prettyOffNote == "Pretty is off above 5 MB")
+    }
 }
 
 struct StatusLineTests {

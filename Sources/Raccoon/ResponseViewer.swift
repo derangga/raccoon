@@ -15,7 +15,7 @@ final class ResponseViewer: NSView {
     let elapsedLabel = NSTextField(labelWithString: "")
     let sizeLabel = NSTextField(labelWithString: "")
     private let dot = NSTextField(labelWithString: "·")
-    let prettyNote = NSTextField(labelWithString: "Pretty is off above 5 MB")
+    let prettyNote = NSTextField(labelWithString: ResponseBody.prettyOffNote)
     let mode = NSSegmentedControl(labels: ["Pretty", "Raw"], trackingMode: .selectOne, target: nil, action: nil)
 
     let textView: NSTextView
