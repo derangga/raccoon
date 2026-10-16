@@ -666,8 +666,9 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
     decodes gzip (measured, see environment-facts.md). Decided 2026-10-16: removed. Request
     Settings has two rows, and `--compressed` is an ignored flag in Curl Import.
 11. **Request body syntax colors.** The raw body editor is specified with JSON/XML colors,
-    which sending.md only requires for the response. Confirm the request editor highlights
-    too.
+    which sending.md only requires for the response. Decided 2026-10-16: it highlights, with
+    the same `Highlighter.ranges` and tokens as the Response viewer, and `{{name}}`
+    highlighting on top (§6 Body editor).
 12. **Shortcuts for the new panes.** Proposed ⌥⌘F to focus the sidebar filter (⌘F stays
     find-in-body) and ⌥⌘I for the inspector, ⌃⌘S for the sidebar (the system default).
     None is decided in design/.
