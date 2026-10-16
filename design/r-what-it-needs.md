@@ -38,7 +38,7 @@ SecretStore       get / set / delete (environment?, name) throws(SecretError)
                   the Keychain. environment nil is Globals
 SessionStore      read -> Data? / write(Data) throws(StoreError)   Application Support;
                   bytes only, SessionFile owns the format
-Pasteboard        setString                                    Copy as Curl
+ClipboardWriter   setString                                    Copy as Curl
 InstantSource     now                                          .sending(since:)
 ```
 
@@ -53,7 +53,7 @@ the models that need them.
 TabModel          HTTPTransport, FileReading, SecretStore, InstantSource
 WindowModel       DataFolderStore, FolderWatch, SessionStore, SecretStore
 CurlImport flow   FileReading                       only for @file references
-Copy as Curl      SecretStore, Pasteboard
+Copy as Curl      SecretStore, ClipboardWriter
 ThemeController   UserDefaults, the app bundle      no port: both are already injectable
 Postman Import    FileReading, DataFolderStore, SecretStore      through the window, which owns
                                                     the index and the WriteLedger

@@ -12,7 +12,7 @@ DataFolderStore(root: ~/Raccoon)       DataFolderStore(root: a fresh temp dir pe
 FolderWatch.fsevents                   FolderWatch.manual       → the test calls emit(paths)
 SecretStore.keychain                   SecretStore.inMemory     → a dictionary
 SessionStore(appSupport)               SessionStore(temp dir)
-Pasteboard.general                     Pasteboard.recording     → keeps the last string
+ClipboardWriter.general                ClipboardWriter.recording → keeps the last string
 InstantSource.continuous               InstantSource.fixed
 ```
 
@@ -41,8 +41,10 @@ questions (`open-questions.md`) are all about what URLSession adds or removes, a
 server that echoes the raw request can answer them.
 
 The test column lives in the `RaccoonTesting` target as `ScriptedTransport`,
-`DictionaryFileReading`, `ManualFolderWatch`, `InMemorySecretStore`, `RecordingPasteboard` and
-`FixedInstantSource`. DataFolderStore and SessionStore have no fake: the live one over a temp dir is
-the test implementation.
+`DictionaryFileReading`, `ManualFolderWatch`, `InMemorySecretStore`,
+`RecordingClipboardWriter` and `FixedInstantSource`. The production column lives in
+`RaccoonData`, named the same way (`DiskFileReading`, `SystemClipboardWriter`,
+`ContinuousInstantSource`, …). DataFolderStore and SessionStore have no fake: the live one
+over a temp dir is the test implementation.
 
 If a test needs anything other than this table to run, the design has a hidden dependency.

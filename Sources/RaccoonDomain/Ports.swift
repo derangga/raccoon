@@ -47,7 +47,7 @@ public protocol SessionStore: Sendable {
     func write(_ data: Data) throws(StoreError)
 }
 
-public protocol Pasteboard: Sendable {
+public protocol ClipboardWriter: Sendable {
     func setString(_ string: String)
 }
 

@@ -56,13 +56,13 @@ struct TestPortsTests {
         #expect(try secrets.get(environment: "Prod", name: token) == nil)
     }
 
-    @Test func `recording pasteboard keeps the last string`() {
-        let pasteboard = RecordingPasteboard()
+    @Test func `recording clipboard writer keeps the last string`() {
+        let clipboard = RecordingClipboardWriter()
 
-        pasteboard.setString("curl a")
-        pasteboard.setString("curl b")
+        clipboard.setString("curl a")
+        clipboard.setString("curl b")
 
-        #expect(pasteboard.string == "curl b")
+        #expect(clipboard.string == "curl b")
     }
 
     @Test func `fixed instant source returns the instant it was given`() {

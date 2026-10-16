@@ -78,7 +78,7 @@ public final class InMemorySecretStore: SecretStore {
     }
 }
 
-public final class RecordingPasteboard: Pasteboard {
+public final class RecordingClipboardWriter: ClipboardWriter {
     private let last = Mutex<String?>(nil)
 
     public init() {}

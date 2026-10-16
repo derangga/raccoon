@@ -103,7 +103,7 @@ Bruno's 53 (`environment-facts.md`):
      -> every value single-quoted, `'` written as `'\''`
      -> Auth rendered as -u or -H 'Authorization: Bearer …', cookies as -b
      -> settings as -k, -L, --compressed
-  -> NSPasteboard.setString                      boundary    R: Pasteboard
+  -> NSPasteboard.setString                      boundary    R: ClipboardWriter
 ```
 
 **The round trip is the test.** `CurlImporter.import(CurlRenderer.render(r))` must give back
