@@ -45,6 +45,14 @@ struct MainWindowTests {
         #expect(separator.frame.height == sidebar.bounds.height)
     }
 
+    @Test func `the sidebar is the native material blended within the window, not with the desktop`() throws {
+        try #require(controller.window).layoutIfNeeded()
+        let material = try #require(split.sidebarItem.viewController.view.subviews.compactMap { $0 as? NSVisualEffectView }.first)
+        #expect(material.material == .sidebar)
+        #expect(material.blendingMode == .withinWindow)
+        #expect(material.frame == split.sidebarItem.viewController.view.bounds)
+    }
+
     @Test func `the inspector opens at 280 pt`() throws {
         let window = try #require(controller.window)
         split.toggleInspector(nil)

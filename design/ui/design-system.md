@@ -36,7 +36,8 @@ or dark (theme.md).
 
 A view asks for a token, never a hex value and never a palette name. The mapping is defined
 once by Catppuccin palette name in `themes/build.py` (`MAPPING`) and holds across all four
-Flavors, with the exceptions below.
+Flavors, with the exceptions below. The resolved hex of every token in every Flavor, and the
+raw palette, are in [themes/catppuccin.md](./themes/catppuccin.md), generated with the JSON.
 
 ### Mapping
 
@@ -626,8 +627,10 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
    inspector open the editor needs 480 pt, so below about 1,000 pt of content the inspector
    overlays the content edge instead of narrowing it.
 3. **Sidebar material contrast.** Method badges are Theme colors on a translucent native
-   material; contrast was checked against estimates (#e8e8ea light, #2a2a2e dark). A bright or
-   dark desktop picture shifts the material. Measure on device; if a badge fails, draw badges
+   material; contrast was checked against estimates (#e8e8ea light, #2a2a2e dark). The sidebar
+   blends within the window, not with the desktop (decided 2026-10-16), so the desktop picture
+   no longer shifts it; the system's wallpaper tinting of window backgrounds still can. Measured
+   on macOS 27: #eaecef light, #343a43 dark with tinting on. Measure on device; if a badge fails, draw badges
    on an opaque 4 pt-radius chip of `background`.
 4. **Draft in scripts without italics.** CJK fonts have no true italic, so a Draft named in
    Japanese is told apart only by its tooltip. Alternative: a leading "Draft" label in

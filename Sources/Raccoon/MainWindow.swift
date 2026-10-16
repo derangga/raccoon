@@ -93,7 +93,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
 final class MainSplitViewController: NSSplitViewController {
     let sidebarItem: NSSplitViewItem
     let inspectorItem: NSSplitViewItem
-    private let sidebarPane = Pane(width: 232, hasTrailingSeparator: true)
+    private let sidebarPane = Pane(width: 232, view: SidebarMaterial(), hasTrailingSeparator: true)
     private let contentPane: Pane
     private let inspectorPane: Pane
 
@@ -304,6 +304,19 @@ private final class Overlay {
         host.removeFromSuperview()
         pane.takeBack()
     }
+}
+
+/// The native sidebar material, blended within the window so the desktop picture does not
+/// tint it (the sidebar item's own material blends behind the window).
+private final class SidebarMaterial: NSVisualEffectView {
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        material = .sidebar
+        blendingMode = .withinWindow
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 }
 
 /// A 1 pt line in the system separator color, redrawn when the appearance changes.
