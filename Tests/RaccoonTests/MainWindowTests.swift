@@ -37,12 +37,28 @@ struct MainWindowTests {
         #expect(items.last?.itemIdentifier == MainWindowController.inspectorToggleID)
     }
 
-    @Test func `the sidebar has a separator on its trailing edge`() throws {
+    @Test func `dividers take no width, so the window background never shows between panes`() throws {
+        try #require(controller.window).layoutIfNeeded()
+        #expect(split.splitView.dividerThickness == 0)
+        let sidebar = split.sidebarItem.viewController.view
+        let content = split.contentItem.viewController.view
+        let (sidebarFrame, contentFrame) = (sidebar.convert(sidebar.bounds, to: split.splitView), content.convert(content.bounds, to: split.splitView))
+        #expect(contentFrame.minX == sidebarFrame.maxX, "\(sidebarFrame) \(contentFrame)")
+    }
+
+    @Test func `the sidebar draws its own separator on its trailing edge`() throws {
         try #require(controller.window).layoutIfNeeded()
         let sidebar = split.sidebarItem.viewController.view
         let separator = try #require(sidebar.subviews.first { $0.frame.width == 1 })
         #expect(separator.frame.maxX == sidebar.bounds.maxX)
         #expect(separator.frame.height == sidebar.bounds.height)
+    }
+
+    @Test func `a zero-width divider still has a 6 pt drag area`() throws {
+        try #require(controller.window).layoutIfNeeded()
+        let drawn = NSRect(x: 232, y: 0, width: 0, height: 600)
+        let effective = split.splitView(split.splitView, effectiveRect: drawn, forDrawnRect: drawn, ofDividerAt: 0)
+        #expect(effective == NSRect(x: 229, y: 0, width: 6, height: 600))
     }
 
     @Test func `the sidebar is the native material blended within the window, not with the desktop`() throws {

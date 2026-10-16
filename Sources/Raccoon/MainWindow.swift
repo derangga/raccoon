@@ -93,6 +93,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
 final class MainSplitViewController: NSSplitViewController {
     let sidebarItem: NSSplitViewItem
     let inspectorItem: NSSplitViewItem
+    let contentItem: NSSplitViewItem
     private let sidebarPane = Pane(width: 232, view: SidebarMaterial(), hasTrailingSeparator: true)
     private let contentPane: Pane
     private let inspectorPane: Pane
@@ -126,9 +127,12 @@ final class MainSplitViewController: NSSplitViewController {
         inspectorItem.maximumThickness = 400
         inspectorItem.allowsFullHeightLayout = false
         inspectorItem.isCollapsed = true
+        contentItem = NSSplitViewItem(viewController: contentPane)
         super.init(nibName: nil, bundle: nil)
+        splitView = MainSplitView()
+        splitView.isVertical = true
         addSplitViewItem(sidebarItem)
-        addSplitViewItem(NSSplitViewItem(viewController: contentPane))
+        addSplitViewItem(contentItem)
         addSplitViewItem(inspectorItem)
         // A docked sidebar can also be collapsed by dragging its divider.
         sidebarObservation = sidebarItem.observe(\.isCollapsed, options: [.new]) { [weak self] item, _ in
@@ -142,6 +146,12 @@ final class MainSplitViewController: NSSplitViewController {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    /// The dividers are drawn 0 pt wide; dragging still gets design-system §4's 6 pt handle.
+    override func splitView(_ splitView: NSSplitView, effectiveRect proposedEffectiveRect: NSRect, forDrawnRect drawnRect: NSRect,
+                            ofDividerAt dividerIndex: Int) -> NSRect {
+        drawnRect.insetBy(dx: -3, dy: 0)
+    }
 
     override func toggleSidebar(_ sender: Any?) {
         guard isNarrow else { return super.toggleSidebar(sender) }
@@ -319,6 +329,13 @@ private final class SidebarMaterial: NSVisualEffectView {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 }
 
+/// Board 01 has one line at each pane edge and nothing between panes. A divider of any width
+/// shows the window background, so dividers take none: the sidebar draws its separator and the
+/// inspector its border token.
+final class MainSplitView: NSSplitView {
+    override var dividerThickness: CGFloat { 0 }
+}
+
 /// A 1 pt line in the system separator color, redrawn when the appearance changes.
 private final class SeparatorLine: NSView {
     override func draw(_ dirtyRect: NSRect) {
@@ -346,7 +363,6 @@ private final class Pane: NSViewController {
     override func loadView() {
         view = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 600))
         takeBack()
-        // The sidebar item hides the split view's divider; board 01 draws a line there.
         if hasTrailingSeparator {
             let separator = SeparatorLine(frame: NSRect(x: width - 1, y: 0, width: 1, height: view.bounds.height))
             separator.autoresizingMask = [.minXMargin, .height]
