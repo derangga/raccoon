@@ -24,7 +24,7 @@ struct MainWindowTests {
 
     @Test func `the inspector opens at 280 pt`() throws {
         let window = try #require(controller.window)
-        split.inspectorItem.isCollapsed = false
+        split.toggleInspector(nil)
         window.layoutIfNeeded()
         #expect(split.inspectorItem.viewController.view.frame.width == 280)
     }
@@ -33,7 +33,7 @@ struct MainWindowTests {
         #expect(controller.sidebarToggle.state == .on)
         #expect(controller.inspectorToggle.state == .off)
 
-        split.inspectorItem.isCollapsed = false
+        split.toggleInspector(nil)
         split.sidebarItem.isCollapsed = true
 
         #expect(controller.inspectorToggle.state == .on)
