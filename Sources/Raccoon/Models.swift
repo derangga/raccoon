@@ -49,6 +49,13 @@ final class TabModel {
         tab.definition.method = method
     }
 
+    /// The body converts (editing.md §Body Type) and the visible Content-Type row follows it.
+    func pickBodyType(_ type: BodyType) {
+        let old = tab.definition.body.type
+        tab.definition.headers = Headers.contentType(tab.definition.headers, from: old, to: type)
+        tab.definition.body = BodyConversion.convert(tab.definition.body, to: type)
+    }
+
     var now: ContinuousClock.Instant { instants.now }
 
     /// Read again once 150 ms have passed; Observation does not see time move.

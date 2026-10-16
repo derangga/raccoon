@@ -50,7 +50,6 @@ enum EditorSection: CaseIterable {
 
 /// The section bar over one pane per section (surfaces.md §1 RequestEditor). Params, Headers
 /// and Cookies are key/value tables writing the Tab's definition.
-// ponytail: Body is an empty pane until its section is built.
 final class RequestEditor: NSView {
     private let model: TabModel
     private let theme: ThemeEnvironment
@@ -60,12 +59,14 @@ final class RequestEditor: NSView {
     private var tables: [EditorSection: KeyValueTable] = [:]
     let settingsPane: SettingsPane
     let authPane: AuthPane
+    let bodyPane: BodyPane
 
     init(model: TabModel, theme: ThemeEnvironment) {
         self.model = model
         self.theme = theme
         settingsPane = SettingsPane(theme: theme)
         authPane = AuthPane(theme: theme)
+        bodyPane = BodyPane(model: model, theme: theme)
         super.init(frame: .zero)
         authPane.onChange = { [weak self] in self?.model.tab.definition.auth = $0 }
         settingsPane.onChange = { [weak self] in self?.model.tab.definition.settings = $0 }
@@ -97,6 +98,8 @@ final class RequestEditor: NSView {
                 pane = settingsPane
             } else if section == .auth {
                 pane = authPane
+            } else if section == .body {
+                pane = bodyPane
             } else {
                 pane = NSView()
             }
@@ -180,6 +183,7 @@ final class RequestEditor: NSView {
             let resolved = try? VariableResolver.resolve(definition)
             settingsPane.setSettings(definition.settings)
             authPane.setAuth(definition.auth)
+            bodyPane.setBody(definition.body)
             table(.headers).setAutomaticRows(resolved.map(AutomaticHeaders.rows) ?? [])
         } onChange: { [weak self] in
             Task { @MainActor in self?.render() }

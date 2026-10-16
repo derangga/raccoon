@@ -169,6 +169,124 @@ struct RequestEditorTests {
 }
 
 @MainActor
+struct BodyPaneTests {
+    let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), instants: FixedInstantSource(.now))
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400), styleMask: [], backing: .buffered, defer: false)
+
+    func pane() -> (RequestEditor, BodyPane) {
+        let editor = RequestEditor(model: model, theme: theme)
+        editor.frame = window.contentView!.bounds
+        window.contentView!.addSubview(editor)
+        editor.select(.body)
+        editor.layoutSubtreeIfNeeded()
+        return (editor, editor.bodyPane)
+    }
+
+    func pick(_ title: String, in menu: NSMenu) {
+        let item = try! #require(menu.item(withTitle: title))
+        menu.performActionForItem(at: menu.index(of: item))
+    }
+
+    func type(_ text: String, in pane: BodyPane) {
+        pane.textView.string = text
+        pane.textView.didChangeText()
+    }
+
+    @Test func `none says the request has no body`() {
+        let (_, pane) = pane()
+        #expect(pane.typeButton.attributedTitle.string.hasPrefix("none"))
+        #expect(!pane.noneNote.isHidden && pane.noneNote.stringValue == "This request has no body.")
+        #expect(pane.kindButton.isHidden && pane.textBox.isHidden && pane.formTable.isHidden)
+        #expect(pane.typeMenu.items.map(\.title) == ["none", "raw", "form-urlencoded", "multipart"])
+    }
+
+    @Test func `picking raw JSON opens the editor and writes the Content-Type row`() {
+        let (editor, pane) = pane()
+        pick("raw", in: pane.typeMenu)
+        #expect(model.tab.definition.body == .raw(.json, ""))
+        #expect(model.tab.definition.headers == [Row(name: "Content-Type", value: "application/json")])
+        editor.render()
+        #expect(!pane.textBox.isHidden && pane.noneNote.isHidden && !pane.kindButton.isHidden)
+        #expect(pane.kindButton.attributedTitle.string.hasPrefix("JSON"))
+        #expect(pane.kindMenu.items.map(\.title) == ["JSON", "text", "XML"])
+        #expect(EditorSection.body.title(in: model.tab.definition) == "Body JSON")
+    }
+
+    @Test func `typing raw JSON writes the body and colors it, text stays uncolored`() {
+        let (editor, pane) = pane()
+        model.tab.definition.body = .raw(.json, "")
+        editor.render()
+        type(#"{"a": 1}"#, in: pane)
+        #expect(model.tab.definition.body == .raw(.json, #"{"a": 1}"#))
+        let storage = pane.textView.textStorage!
+        #expect(storage.attribute(.foregroundColor, at: 1, effectiveRange: nil) as? NSColor == theme.color(.jsonKey))
+        #expect(storage.attribute(.font, at: 1, effectiveRange: nil) as? NSFont == .monospacedSystemFont(ofSize: 12, weight: .regular))
+
+        pick("text", in: pane.kindMenu)
+        editor.render()
+        #expect(model.tab.definition.body == .raw(.text, #"{"a": 1}"#))
+        #expect(pane.textView.textStorage!.attribute(.foregroundColor, at: 1, effectiveRange: nil) as? NSColor == theme.color(.text))
+    }
+
+    @Test func `JSON to none to JSON gives the text back through Undo`() throws {
+        let (editor, pane) = pane()
+        model.tab.definition.body = .raw(.json, #"{"a": 1}"#)
+        model.tab.definition.headers = [Row(name: "Content-Type", value: "application/json")]
+        editor.render()
+        let undo = try #require(window.undoManager)
+        undo.groupsByEvent = false
+        for title in ["none", "raw"] {
+            undo.beginUndoGrouping()
+            pick(title, in: pane.typeMenu)
+            undo.endUndoGrouping()
+        }
+        #expect(model.tab.definition.body == .raw(.json, ""))
+
+        undo.undo()
+        #expect(model.tab.definition.body == .none && model.tab.definition.headers.isEmpty)
+        undo.undo()
+        editor.render()
+        #expect(model.tab.definition.body == .raw(.json, #"{"a": 1}"#))
+        #expect(model.tab.definition.headers == [Row(name: "Content-Type", value: "application/json")])
+        #expect(pane.textView.string == #"{"a": 1}"#)
+    }
+
+    @Test func `form-urlencoded edits rows in the key/value table`() {
+        let (editor, pane) = pane()
+        pick("form-urlencoded", in: pane.typeMenu)
+        editor.render()
+        #expect(!pane.formTable.isHidden && pane.textBox.isHidden && pane.kindButton.isHidden)
+        pane.formTable.onChange([Row(name: "q", value: "a b")])
+        #expect(model.tab.definition.body == .formURLEncoded([Row(name: "q", value: "a b")]))
+    }
+
+    @Test func `Japanese and emoji in a raw body render, color and edit`() {
+        let (editor, pane) = pane()
+        let text = #"{"名前": "🦝 ラクーン"}"#
+        model.tab.definition.body = .raw(.json, text)
+        editor.render()
+        #expect(pane.textView.string == text)
+        let value = (text as NSString).range(of: "\"🦝 ラクーン\"")
+        #expect(pane.textView.textStorage!.attribute(.foregroundColor, at: value.location + value.length - 1, effectiveRange: nil) as? NSColor
+            == theme.color(.jsonString))
+        type(text + " ", in: pane)
+        #expect(model.tab.definition.body == .raw(.json, text + " "))
+    }
+
+    @Test func `the raw editor has line numbers and no wrapping`() {
+        let (editor, pane) = pane()
+        model.tab.definition.body = .raw(.json, "{\n}")
+        editor.render()
+        #expect(pane.textView.enclosingScrollView?.rulersVisible == true)
+        #expect(pane.textView.enclosingScrollView?.verticalRulerView is LineNumberRuler)
+        #expect(pane.textView.textContainer?.widthTracksTextView == false)
+        #expect(pane.textView.layoutManager?.allowsNonContiguousLayout == true)
+        pane.textView.enclosingScrollView?.verticalRulerView?.display()
+    }
+}
+
+@MainActor
 struct EditorSplitTests {
     @Test func `each pane keeps 160 pt`() {
         let split = EditorSplitView()

@@ -1,0 +1,331 @@
+import AppKit
+import RaccoonDomain
+
+/// The Body section: the Body Type pop-up, the raw kind pop-up, then "no body", the raw text
+/// editor or the form table (design-system.md §6 Body editor).
+// ponytail: multipart shows nothing until multipart parts are built.
+final class BodyPane: NSView, NSTextViewDelegate {
+    private let model: TabModel
+    private let theme: ThemeEnvironment
+    let typeButton = PopButton()
+    let kindButton = PopButton()
+    let noneNote = NSTextField(labelWithString: "This request has no body.")
+    let textView: NSTextView
+    /// `background` with a 1 pt `border` and a 6 pt radius around the editor and its line numbers.
+    let textBox = NSView()
+    private let scroll = NSScrollView()
+    private let layoutManager = NSLayoutManager()
+    /// The layout manager does not retain its storage, so the view must.
+    private var storage = NSTextStorage()
+    let formTable: KeyValueTable
+    private var font: NSFont { .monospacedSystemFont(ofSize: 12, weight: .regular) }
+    /// The kind the storage is colored for, so a kind change recolors without new text.
+    private var coloredKind: RawKind?
+
+    init(model: TabModel, theme: ThemeEnvironment) {
+        self.model = model
+        self.theme = theme
+        formTable = KeyValueTable(theme: theme)
+        // TextKit 1 with non-contiguous layout, as the Response body (environment-facts.md).
+        let container = NSTextContainer(size: NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude))
+        container.widthTracksTextView = false
+        layoutManager.allowsNonContiguousLayout = true
+        layoutManager.addTextContainer(container)
+        storage.addLayoutManager(layoutManager)
+        textView = NSTextView(frame: .zero, textContainer: container)
+        super.init(frame: .zero)
+        formTable.onChange = { [weak self] in self?.model.tab.definition.body = .formURLEncoded($0) }
+        buildControls()
+        buildEditor()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    // MARK: Layout
+
+    private func buildControls() {
+        let label = NSTextField(labelWithString: "Body Type")
+        label.font = .systemFont(ofSize: 11)
+        label.textColor = theme.color(.textTertiary)
+        for (button, action) in [(typeButton, #selector(showTypes)), (kindButton, #selector(showKinds))] {
+            button.isBordered = false
+            button.wantsLayer = true
+            button.layer?.cornerRadius = 6
+            button.layer?.borderWidth = 1
+            button.layer?.borderColor = theme.color(.border).cgColor
+            button.layer?.backgroundColor = theme.color(.backgroundElevated).cgColor
+            button.target = self
+            button.action = action
+            button.setAccessibilityRole(.popUpButton)
+            button.translatesAutoresizingMaskIntoConstraints = false
+            button.heightAnchor.constraint(equalToConstant: 24).isActive = true
+        }
+        typeButton.setAccessibilityLabel("Body Type")
+        kindButton.setAccessibilityLabel("Raw kind")
+        noneNote.font = .systemFont(ofSize: 12)
+        noneNote.textColor = theme.color(.textTertiary)
+
+        let row = NSStackView(views: [label, typeButton, kindButton])
+        row.spacing = 8
+        for view in [row, noneNote, formTable] as [NSView] {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(view)
+        }
+        NSLayoutConstraint.activate([
+            row.topAnchor.constraint(equalTo: topAnchor),
+            row.leadingAnchor.constraint(equalTo: leadingAnchor),
+            row.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
+            row.heightAnchor.constraint(equalToConstant: 26),
+            noneNote.centerXAnchor.constraint(equalTo: centerXAnchor),
+            noneNote.centerYAnchor.constraint(equalTo: centerYAnchor, constant: 13),
+            formTable.topAnchor.constraint(equalTo: row.bottomAnchor, constant: 8),
+            formTable.leadingAnchor.constraint(equalTo: leadingAnchor),
+            formTable.trailingAnchor.constraint(equalTo: trailingAnchor),
+            formTable.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor),
+        ])
+    }
+
+    private func buildEditor() {
+        textView.delegate = self
+        textView.isRichText = false
+        textView.allowsUndo = true
+        textView.drawsBackground = false
+        textView.font = font
+        textView.textColor = theme.color(.text)
+        textView.insertionPointColor = theme.color(.text)
+        textView.typingAttributes = [.font: font, .foregroundColor: theme.color(.text)]
+        for substitution in [\NSTextView.isAutomaticQuoteSubstitutionEnabled, \.isAutomaticDashSubstitutionEnabled,
+                             \.isAutomaticTextReplacementEnabled, \.isAutomaticSpellingCorrectionEnabled] {
+            textView[keyPath: substitution] = false
+        }
+        textView.textContainerInset = NSSize(width: 4, height: 8)
+        // Bodies never wrap: the view grows sideways and scrolls.
+        textView.isHorizontallyResizable = true
+        textView.isVerticallyResizable = true
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
+        textView.autoresizingMask = []
+        scroll.documentView = textView
+        scroll.hasVerticalScroller = true
+        scroll.hasHorizontalScroller = true
+        scroll.autohidesScrollers = true
+        scroll.drawsBackground = false
+        scroll.verticalRulerView = LineNumberRuler(textView: textView, theme: theme)
+        scroll.hasVerticalRuler = true
+        scroll.rulersVisible = true
+
+        textBox.wantsLayer = true
+        textBox.layer?.cornerRadius = 6
+        textBox.layer?.borderWidth = 1
+        textBox.layer?.borderColor = theme.color(.border).cgColor
+        textBox.layer?.backgroundColor = theme.color(.background).cgColor
+        textBox.layer?.masksToBounds = true
+        for (view, parent) in [(textBox, self as NSView), (scroll, textBox)] {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            parent.addSubview(view)
+        }
+        NSLayoutConstraint.activate([
+            textBox.topAnchor.constraint(equalTo: topAnchor, constant: 34),
+            textBox.leadingAnchor.constraint(equalTo: leadingAnchor),
+            textBox.trailingAnchor.constraint(equalTo: trailingAnchor),
+            textBox.bottomAnchor.constraint(equalTo: bottomAnchor),
+            scroll.topAnchor.constraint(equalTo: textBox.topAnchor, constant: 1),
+            scroll.leadingAnchor.constraint(equalTo: textBox.leadingAnchor, constant: 1),
+            scroll.trailingAnchor.constraint(equalTo: textBox.trailingAnchor, constant: -1),
+            scroll.bottomAnchor.constraint(equalTo: textBox.bottomAnchor, constant: -1),
+        ])
+    }
+
+    private func popTitle(_ text: String) -> NSAttributedString {
+        let title = NSMutableAttributedString(string: text, attributes: [
+            .font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text),
+        ])
+        title.append(NSAttributedString(string: "  ⌄", attributes: [
+            .font: NSFont.systemFont(ofSize: 10), .foregroundColor: theme.color(.textTertiary), .baselineOffset: 2,
+        ]))
+        return title
+    }
+
+    // MARK: Menus
+
+    private static let types: [(String, BodyType?)] = [("none", BodyType.none), ("raw", nil), ("form-urlencoded", .formURLEncoded),
+                                                       ("multipart", .multipart)]
+    private static let kinds: [(String, RawKind)] = [("JSON", .json), ("text", .text), ("XML", .xml)]
+
+    var typeMenu: NSMenu {
+        menu(Self.types.map(\.0), selected: Self.title(model.tab.definition.body.type), action: #selector(pickType))
+    }
+
+    var kindMenu: NSMenu {
+        let selected: String? = if case .raw(let kind, _) = model.tab.definition.body { Self.title(kind) } else { nil }
+        return menu(Self.kinds.map(\.0), selected: selected, action: #selector(pickKind))
+    }
+
+    private func menu(_ titles: [String], selected: String?, action: Selector) -> NSMenu {
+        let menu = NSMenu()
+        for (index, title) in titles.enumerated() {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+            item.target = self
+            item.tag = index
+            item.state = title == selected ? .on : .off
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    private static func title(_ type: BodyType) -> String {
+        switch type {
+        case .none: "none"
+        case .raw: "raw"
+        case .formURLEncoded: "form-urlencoded"
+        case .multipart: "multipart"
+        }
+    }
+
+    private static func title(_ kind: RawKind) -> String { kinds.first { $0.1 == kind }?.0 ?? "" }
+
+    @objc private func showTypes() { typeMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: typeButton.bounds.height + 4), in: typeButton) }
+    @objc private func showKinds() { kindMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: kindButton.bounds.height + 4), in: kindButton) }
+
+    /// raw keeps the current kind when it is raw already, and starts as JSON otherwise.
+    @objc private func pickType(_ item: NSMenuItem) {
+        let current: RawKind = if case .raw(let kind, _) = model.tab.definition.body { kind } else { .json }
+        pick(Self.types[item.tag].1 ?? .raw(current))
+    }
+
+    @objc private func pickKind(_ item: NSMenuItem) { pick(.raw(Self.kinds[item.tag].1)) }
+
+    /// Body and headers both change, so one undo puts both back: switching to none keeps
+    /// nothing, but the old body is in undo (editing.md).
+    private func pick(_ type: BodyType) {
+        let before = (model.tab.definition.body, model.tab.definition.headers)
+        model.pickBodyType(type)
+        registerUndo(restoring: before)
+    }
+
+    private func registerUndo(restoring state: (body: Body, headers: [Row])) {
+        undoManager?.registerUndo(withTarget: self) { pane in
+            let now = (pane.model.tab.definition.body, pane.model.tab.definition.headers)
+            pane.model.tab.definition.body = state.body
+            pane.model.tab.definition.headers = state.headers
+            pane.registerUndo(restoring: now)
+        }
+        undoManager?.setActionName("Body Type")
+    }
+
+    // MARK: Render
+
+    func setBody(_ body: Body) {
+        typeButton.attributedTitle = popTitle(Self.title(body.type))
+        typeButton.setAccessibilityValue(Self.title(body.type))
+        noneNote.isHidden = body != .none
+        kindButton.isHidden = true
+        textBox.isHidden = true
+        formTable.isHidden = true
+        switch body {
+        case .none, .multipart:
+            coloredKind = nil
+        case .raw(let kind, let text):
+            kindButton.isHidden = false
+            kindButton.attributedTitle = popTitle(Self.title(kind))
+            textBox.isHidden = false
+            show(text, kind: kind)
+        case .formURLEncoded(let rows):
+            coloredKind = nil
+            formTable.isHidden = false
+            formTable.setRows(rows)
+        }
+    }
+
+    /// Text from outside (a Tab, an undo, a Curl Import) gets a new storage: replacing a large
+    /// coloured storage's characters in place ran past ten minutes at 1 MB (environment-facts.md).
+    /// The user's own typing is already in the storage and is only recolored.
+    private func show(_ text: String, kind: RawKind) {
+        if textView.string != text {
+            storage = NSTextStorage(string: text)
+            color(storage, kind: kind)
+            layoutManager.replaceTextStorage(storage)
+            textView.scrollToBeginningOfDocument(nil)
+            scroll.verticalRulerView?.needsDisplay = true
+        } else if coloredKind != kind {
+            color(storage, kind: kind)
+        }
+        coloredKind = kind
+    }
+
+    // ponytail: recolors the whole body per keystroke; move it off the main actor if typing in
+    // multi-MB bodies lags.
+    private func color(_ storage: NSTextStorage, kind: RawKind) {
+        let all = NSRange(location: 0, length: storage.length)
+        storage.beginEditing()
+        storage.setAttributes([.font: font, .foregroundColor: theme.color(.text)], range: all)
+        for range in Highlighter.ranges(storage.string, kind: kind) where NSMaxRange(range.range) <= storage.length {
+            storage.addAttribute(.foregroundColor, value: theme.color(range.token), range: range.range)
+        }
+        storage.endEditing()
+    }
+
+    func textDidChange(_ notification: Notification) {
+        guard case .raw(let kind, _) = model.tab.definition.body else { return }
+        color(storage, kind: kind)
+        model.tab.definition.body = .raw(kind, textView.string)
+        scroll.verticalRulerView?.needsDisplay = true
+    }
+}
+
+/// A pop-up drawn as a bordered button: 10 pt either side of its title.
+final class PopButton: NSButton {
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: attributedTitle.size().width.rounded(.up) + 20, height: 24)
+    }
+}
+
+/// Line numbers in `textTertiary`, right-aligned beside the raw body.
+final class LineNumberRuler: NSRulerView {
+    private let theme: ThemeEnvironment
+
+    init(textView: NSTextView, theme: ThemeEnvironment) {
+        self.theme = theme
+        super.init(scrollView: nil, orientation: .verticalRuler)
+        clientView = textView
+        ruleThickness = 36
+        NotificationCenter.default.addObserver(self, selector: #selector(redraw), name: NSView.boundsDidChangeNotification, object: nil)
+    }
+
+    @available(*, unavailable)
+    required init(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    @objc private func redraw(_ notification: Notification) {
+        if (notification.object as? NSClipView) === scrollView?.contentView { needsDisplay = true }
+    }
+
+    // ponytail: counts the lines above the visible text on every draw, O(n); keep line starts
+    // if scrolling a multi-MB body lags.
+    override func drawHashMarksAndLabels(in rect: NSRect) {
+        guard let textView = clientView as? NSTextView, let layout = textView.layoutManager, let container = textView.textContainer else { return }
+        let text = textView.string as NSString
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular), .foregroundColor: theme.color(.textTertiary),
+        ]
+        func draw(_ number: Int, top: CGFloat) {
+            let label = NSAttributedString(string: "\(number)", attributes: attributes)
+            let y = convert(NSPoint(x: 0, y: top + textView.textContainerInset.height), from: textView).y
+            label.draw(at: NSPoint(x: ruleThickness - 8 - label.size().width, y: y))
+        }
+        guard text.length > 0 else { return draw(1, top: 0) }
+        let glyphs = layout.glyphRange(forBoundingRect: textView.visibleRect, in: container)
+        let visible = layout.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+        var index = text.lineRange(for: NSRange(location: visible.location, length: 0)).location
+        var line = 1
+        text.enumerateSubstrings(in: NSRange(location: 0, length: index), options: [.byLines, .substringNotRequired]) { _, _, _, _ in
+            line += 1
+        }
+        while index < NSMaxRange(visible) {
+            draw(line, top: layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: index), effectiveRange: nil).minY)
+            index = NSMaxRange(text.lineRange(for: NSRange(location: index, length: 0)))
+            line += 1
+        }
+        // The empty last line after a final newline has no characters, only the extra fragment.
+        if index == text.length, text.hasSuffix("\n") { draw(line, top: layout.extraLineFragmentRect.minY) }
+    }
+}
