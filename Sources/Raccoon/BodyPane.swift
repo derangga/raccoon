@@ -2,8 +2,7 @@ import AppKit
 import RaccoonDomain
 
 /// The Body section: the Body Type pop-up, the raw kind pop-up, then "no body", the raw text
-/// editor or the form table (design-system.md §6 Body editor).
-// ponytail: multipart shows nothing until multipart parts are built.
+/// editor, the form table or the multipart table (design-system.md §6 Body editor).
 final class BodyPane: NSView, NSTextViewDelegate {
     private let model: TabModel
     private let theme: ThemeEnvironment
@@ -22,6 +21,7 @@ final class BodyPane: NSView, NSTextViewDelegate {
     /// The layout manager does not retain its storage, so the view must.
     private var storage = NSTextStorage()
     let formTable: KeyValueTable
+    let partsTable: KeyValueTable
     private var font: NSFont { .monospacedSystemFont(ofSize: 12, weight: .regular) }
     private var boxBottom = NSLayoutConstraint()
     /// The kind the storage is colored for, so a kind change recolors without new text.
@@ -31,6 +31,7 @@ final class BodyPane: NSView, NSTextViewDelegate {
         self.model = model
         self.theme = theme
         formTable = KeyValueTable(theme: theme)
+        partsTable = KeyValueTable(theme: theme, allowsFiles: true)
         // TextKit 1 with non-contiguous layout, as the Response body (environment-facts.md).
         let container = NSTextContainer(size: NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude))
         container.widthTracksTextView = false
@@ -40,6 +41,10 @@ final class BodyPane: NSView, NSTextViewDelegate {
         textView = NSTextView(frame: .zero, textContainer: container)
         super.init(frame: .zero)
         formTable.onChange = { [weak self] in self?.model.tab.definition.body = .formURLEncoded($0) }
+        partsTable.onChange = { [weak self] rows in
+            guard let self else { return }
+            model.tab.definition.body = .multipart(partsTable.parts(rows))
+        }
         buildControls()
         buildEditor()
     }
@@ -98,7 +103,7 @@ final class BodyPane: NSView, NSTextViewDelegate {
         spacer.setContentHuggingPriority(.init(1), for: .horizontal)
         let row = NSStackView(views: [label, typeButton, kindButton, spacer, formatButton])
         row.spacing = 8
-        for view in [row, noneNote, formTable] as [NSView] {
+        for view in [row, noneNote, formTable, partsTable] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
         }
@@ -113,6 +118,10 @@ final class BodyPane: NSView, NSTextViewDelegate {
             formTable.leadingAnchor.constraint(equalTo: leadingAnchor),
             formTable.trailingAnchor.constraint(equalTo: trailingAnchor),
             formTable.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor),
+            partsTable.topAnchor.constraint(equalTo: row.bottomAnchor, constant: 8),
+            partsTable.leadingAnchor.constraint(equalTo: leadingAnchor),
+            partsTable.trailingAnchor.constraint(equalTo: trailingAnchor),
+            partsTable.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor),
         ])
     }
 
@@ -284,9 +293,15 @@ final class BodyPane: NSView, NSTextViewDelegate {
         formatButton.isHidden = true
         textBox.isHidden = true
         formTable.isHidden = true
+        partsTable.isHidden = true
         switch body {
-        case .none, .multipart:
+        case .none:
             coloredKind = nil
+        case .multipart(let parts):
+            coloredKind = nil
+            partsTable.isHidden = false
+            partsTable.setParts(parts)
+            partsTable.missingFile = model.missingFile
         case .raw(let kind, let text):
             kindButton.isHidden = false
             kindButton.attributedTitle = popTitle(Self.title(kind))

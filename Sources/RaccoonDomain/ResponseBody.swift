@@ -120,7 +120,7 @@ public struct FailureText: Equatable, Sendable {
             title = description.hasSuffix(".") ? String(description.dropLast()) : description
             let number = code.rawValue < 0 ? "−\(-code.rawValue)" : "\(code.rawValue)"
             detail = "\(Self.names[code.rawValue] ?? "URLError") (\(number)) · \(host)"
-        // ponytail: the pane's text only; the marked multipart chip comes with multipart editing.
+        // The chip is marked and the message line names the path too (design-system.md §7).
         case .fileMissing(let path):
             title = "File missing"
             detail = "\(path) is missing, so nothing was sent."

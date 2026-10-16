@@ -21,6 +21,9 @@ final class TabModel {
     /// The line under the URL bar; not part of the Tab, so it is never saved.
     var message: MessageLine?
 
+    /// The multipart file a send could not read; its chip is marked until the next send.
+    private(set) var missingFile: String?
+
     /// After an `invalidURL` send, the URL field is outlined in `error` until the next edit.
     private(set) var isURLInvalid = false
 
@@ -89,6 +92,7 @@ final class TabModel {
     func send() {
         guard inFlight == nil else { return }
         message = message?.afterSendOrPaste
+        missingFile = nil
         let resolved: ResolvedRequest
         do throws(ResolveError) {
             resolved = try VariableResolver.resolve(tab.definition)
@@ -123,6 +127,10 @@ final class TabModel {
                 }
             case .failure(let error):
                 tab.response = .failed(error, after: instants.now - since)
+                if case .fileMissing(let path) = error {
+                    missingFile = path
+                    message = .error("Not sent. \((path as NSString).abbreviatingWithTildeInPath) is missing.")
+                }
             }
         }
     }

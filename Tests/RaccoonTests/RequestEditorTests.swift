@@ -361,6 +361,63 @@ struct BodyPaneTests {
         editor.render()
         #expect(!undo.canUndo)
     }
+
+    func chip(_ pane: BodyPane, row: Int) -> FileChip? {
+        let cell = pane.partsTable.table.view(atColumn: 2, row: row, makeIfNecessary: true)
+        return cell?.subviews.compactMap { $0 as? FileChip }.first
+    }
+
+    @Test func `multipart shows text and file parts, a file as a chip with its name`() {
+        let (editor, pane) = pane()
+        model.tab.definition.body = .multipart([
+            Part(name: "purpose", content: .text("dispute_evidence")),
+            Part(name: "file", content: .file(path: "~/Documents/receipt-1042.pdf")),
+        ])
+        editor.render()
+        #expect(!pane.partsTable.isHidden && pane.formTable.isHidden && pane.noneNote.isHidden)
+        #expect(chip(pane, row: 0) == nil)
+        let file = try! #require(chip(pane, row: 1))
+        #expect(file.nameLabel.stringValue == "receipt-1042.pdf" && file.toolTip == "~/Documents/receipt-1042.pdf")
+        #expect(!file.isMissing && file.layer?.borderColor == theme.color(.border).cgColor)
+        #expect(file.layer?.backgroundColor == theme.color(.backgroundRecessed).cgColor)
+        let trailing = pane.partsTable.table.view(atColumn: 2, row: 2, makeIfNecessary: true) as? NSTableCellView
+        #expect(trailing?.textField?.placeholderAttributedString?.string == "Value or file")
+    }
+
+    @Test func `a chosen or dropped file becomes a file part, and text edits keep the file parts`() {
+        let (editor, pane) = pane()
+        pick("multipart", in: pane.typeMenu)
+        editor.render()
+        pane.partsTable.setFile("/tmp/box.jpg", at: 0)
+        #expect(model.tab.definition.body == .multipart([Part(name: "", content: .file(path: "/tmp/box.jpg"))]))
+
+        pane.partsTable.onChange(Rows.setName("photo", at: 0, in: pane.partsTable.rows))
+        #expect(model.tab.definition.body == .multipart([Part(name: "photo", content: .file(path: "/tmp/box.jpg"))]))
+        #expect(pane.partsTable.table.menu?.items.map(\.title) == ["Choose File…"])
+    }
+
+    @Test func `a file missing at send marks its chip and the message line until the next send`() async {
+        let path = NSHomeDirectory() + "/Desktop/box.jpg"
+        let transport = ScriptedTransport(.failure(.fileMissing(path: path)))
+        let model = TabModel(transport: transport, secrets: InMemorySecretStore(), instants: FixedInstantSource(.now))
+        model.tab.definition.url = "http://localhost/"
+        model.tab.definition.body = .multipart([Part(name: "photo", content: .file(path: path))])
+        let editor = RequestEditor(model: model, theme: theme)
+        editor.frame = window.contentView!.bounds
+        window.contentView!.addSubview(editor)
+        editor.select(.body)
+
+        model.send()
+        await model.inFlight?.value
+        editor.render()
+        #expect(model.message == .error("Not sent. ~/Desktop/box.jpg is missing."))
+        let missing = try! #require(chip(editor.bodyPane, row: 0))
+        #expect(missing.isMissing && missing.layer?.borderColor == theme.color(.error).cgColor)
+        #expect(missing.nameLabel.textColor == theme.color(.error))
+
+        model.send()
+        #expect(model.missingFile == nil && model.message == nil)
+    }
 }
 
 @MainActor

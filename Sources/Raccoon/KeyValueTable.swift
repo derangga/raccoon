@@ -11,13 +11,22 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
     /// Headers only: what is sent that no row sets, after the trailing empty row, read-only.
     private var automatic: [AutomaticHeader] = []
     private let theme: ThemeEnvironment
+    /// Multipart only: a value can be a file, drawn as a chip, picked or dropped onto a row.
+    private let allowsFiles: Bool
+    /// Beside `rows`, one per row: whether its value is a file path.
+    private(set) var files: [Bool] = []
+    /// The file a send could not read, drawn with its chip in `error`.
+    var missingFile: String? {
+        didSet { if missingFile != oldValue { table.reloadData() } }
+    }
     let table = KeyTableView()
     private let scroll = NSScrollView()
     private let columns = (check: NSTableColumn(identifier: .init("check")), name: NSTableColumn(identifier: .init("name")),
                            value: NSTableColumn(identifier: .init("value")), delete: NSTableColumn(identifier: .init("delete")))
 
-    init(theme: ThemeEnvironment) {
+    init(theme: ThemeEnvironment, allowsFiles: Bool = false) {
         self.theme = theme
+        self.allowsFiles = allowsFiles
         super.init(frame: .zero)
         wantsLayer = true
         layer?.cornerRadius = 6
@@ -46,6 +55,14 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         table.dataSource = self
         table.delegate = self
         table.keys = self
+        if allowsFiles {
+            table.registerForDraggedTypes([.fileURL])
+            let menu = NSMenu()
+            let choose = NSMenuItem(title: "Choose File…", action: #selector(chooseFile), keyEquivalent: "")
+            choose.target = self
+            menu.addItem(choose)
+            table.menu = menu
+        }
 
         scroll.documentView = table
         scroll.hasVerticalScroller = true
@@ -69,6 +86,71 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         rows = new
         table.reloadData()
         invalidateIntrinsicContentSize()
+    }
+
+    func setParts(_ parts: [Part]) {
+        let new = parts.map { part in
+            switch part.content {
+            case .text(let value): Row(name: part.name, value: value, isEnabled: part.isEnabled)
+            case .file(let path): Row(name: part.name, value: path, isEnabled: part.isEnabled)
+            }
+        }
+        let newFiles = parts.map { if case .file = $0.content { true } else { false } }
+        guard new != rows || newFiles != files else { return }
+        files = newFiles
+        rows = new
+        table.reloadData()
+        invalidateIntrinsicContentSize()
+    }
+
+    /// `rows` as Parts, a file row's value being its path.
+    func parts(_ rows: [Row]) -> [Part] {
+        rows.enumerated().map { index, row in
+            let isFile = files.indices.contains(index) && files[index]
+            return Part(name: row.name, isEnabled: row.isEnabled, content: isFile ? .file(path: row.value) : .text(row.value))
+        }
+    }
+
+    /// The trailing row becomes a new file part; any other row's value becomes the file.
+    func setFile(_ path: String, at row: Int) {
+        guard row <= rows.count else { return }
+        if row == rows.count {
+            rows.append(Row(name: "", value: path))
+            files.append(true)
+            table.insertRows(at: IndexSet(integer: rows.count), withAnimation: [])
+            invalidateIntrinsicContentSize()
+        } else {
+            rows[row].value = path
+            files[row] = true
+        }
+        onChange(rows)
+        table.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integersIn: 0..<4))
+    }
+
+    @objc private func chooseFile() {
+        let row = table.clickedRow >= 0 && table.clickedRow <= rows.count ? table.clickedRow : rows.count
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        guard let window else { return }
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            self?.setFile(url.path, at: row)
+        }
+    }
+
+    func tableView(_ tableView: NSTableView, validateDrop info: any NSDraggingInfo, proposedRow row: Int,
+                   proposedDropOperation dropOperation: NSTableView.DropOperation) -> NSDragOperation {
+        guard allowsFiles, row <= rows.count else { return [] }
+        tableView.setDropRow(row, dropOperation: .on)
+        return .copy
+    }
+
+    func tableView(_ tableView: NSTableView, acceptDrop info: any NSDraggingInfo, row: Int, dropOperation: NSTableView.DropOperation) -> Bool {
+        let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]
+        guard let url = urls?.first else { return false }
+        setFile(url.path, at: row)
+        return true
     }
 
     /// Replaces only the automatic rows, so a field being edited above them keeps its editor.
@@ -101,6 +183,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
     private func apply(_ new: [Row]) {
         let added = new.count - rows.count
         rows = new
+        if added > 0 { files += Array(repeating: false, count: added) }
         if added > 0 {
             table.insertRows(at: IndexSet(integer: rows.count), withAnimation: [])
             invalidateIntrinsicContentSize()
@@ -117,6 +200,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
     func delete(row: Int) {
         guard rows.indices.contains(row) else { return }
         rows = Rows.delete(at: row, in: rows)
+        if files.indices.contains(row) { files.remove(at: row) }
         table.removeRows(at: IndexSet(integer: row), withAnimation: [])
         invalidateIntrinsicContentSize()
         onChange(rows)
@@ -180,12 +264,15 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
             return centered(button)
         default:
             let isName = tableColumn?.identifier == columns.name.identifier
+            if !isName, let item, files.indices.contains(row), files[row] {
+                return fileCell(item.value)
+            }
             let field = cellField()
             field.tag = isName ? 0 : 1
             field.stringValue = isName ? item?.name ?? "" : item?.value ?? ""
             field.toolTip = field.stringValue.isEmpty ? nil : field.stringValue
             field.textColor = theme.color(item?.isEnabled == false ? .textDisabled : .text)
-            field.placeholderAttributedString = NSAttributedString(string: isName ? "Name" : "Value", attributes: [
+            field.placeholderAttributedString = NSAttributedString(string: isName ? "Name" : allowsFiles ? "Value or file" : "Value", attributes: [
                 .font: NSFont.systemFont(ofSize: 13), .foregroundColor: theme.color(.textTertiary),
             ])
             field.delegate = self
@@ -207,6 +294,19 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         field.textColor = theme.color(.textTertiary)
         field.setAccessibilityLabel(column === columns.name ? "Automatic header" : "Value")
         return cellView(field)
+    }
+
+    private func fileCell(_ path: String) -> NSView {
+        let chip = FileChip(path: path, isMissing: path == missingFile, theme: theme)
+        let cell = NSView()
+        chip.translatesAutoresizingMaskIntoConstraints = false
+        cell.addSubview(chip)
+        NSLayoutConstraint.activate([
+            chip.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
+            chip.trailingAnchor.constraint(lessThanOrEqualTo: cell.trailingAnchor, constant: -4),
+            chip.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+        ])
+        return cell
     }
 
     private func cellField() -> NSTextField {
@@ -244,6 +344,52 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         ])
         return cell
     }
+}
+
+/// A multipart file value: 20 pt, `backgroundRecessed`, `border`, a document glyph and the file
+/// name, the full path in the tooltip. Missing at send: `error` border and text, a warning glyph.
+final class FileChip: NSView {
+    let nameLabel: NSTextField
+    let isMissing: Bool
+
+    init(path: String, isMissing: Bool, theme: ThemeEnvironment) {
+        self.isMissing = isMissing
+        nameLabel = NSTextField(labelWithString: (path as NSString).lastPathComponent)
+        super.init(frame: .zero)
+        let ink = theme.color(isMissing ? .error : .text)
+        wantsLayer = true
+        layer?.cornerRadius = 4
+        layer?.borderWidth = 1
+        layer?.borderColor = theme.color(isMissing ? .error : .border).cgColor
+        layer?.backgroundColor = theme.color(.backgroundRecessed).cgColor
+        toolTip = path
+        nameLabel.font = .systemFont(ofSize: 11)
+        nameLabel.textColor = ink
+        nameLabel.lineBreakMode = .byTruncatingTail
+        nameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let glyph = NSImageView(image: NSImage(systemSymbolName: isMissing ? "exclamationmark.triangle" : "doc",
+                                               accessibilityDescription: isMissing ? "Missing file" : "File")!)
+        glyph.symbolConfiguration = .init(pointSize: 10, weight: .regular)
+        glyph.contentTintColor = ink
+        let stack = NSStackView(views: [glyph, nameLabel])
+        stack.spacing = 4
+        stack.edgeInsets = NSEdgeInsets(top: 0, left: 6, bottom: 0, right: 6)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            heightAnchor.constraint(equalToConstant: 20),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stack.topAnchor.constraint(equalTo: topAnchor),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+        setAccessibilityElement(true)
+        setAccessibilityRole(.staticText)
+        setAccessibilityLabel(isMissing ? "\(nameLabel.stringValue), missing" : nameLabel.stringValue)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 }
 
 /// Space toggles the selected row, Delete removes it, Return edits its name.
