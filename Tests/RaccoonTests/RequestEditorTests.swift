@@ -103,6 +103,69 @@ struct RequestEditorTests {
         editor.render()
         #expect(insecure.state == .off)
     }
+
+    func pick(_ scheme: Int, in pane: AuthPane) {
+        pane.scheme.selectedSegment = scheme
+        pane.scheme.sendAction(pane.scheme.action, to: pane.scheme.target)
+    }
+
+    func type(_ text: String, in field: NSTextField, of pane: AuthPane) {
+        field.stringValue = text
+        pane.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification, object: field))
+    }
+
+    @Test func `Auth starts at None, which says no header is added`() {
+        let pane = editor().authPane
+        #expect((0..<3).map { pane.scheme.label(forSegment: $0) } == ["None", "Basic", "Bearer"])
+        #expect(pane.scheme.selectedSegment == 0)
+        #expect(!pane.noneNote.isHidden && pane.noneNote.stringValue == "No Authorization header is added.")
+        #expect(pane.basicFields.isHidden && pane.bearerFields.isHidden)
+    }
+
+    @Test func `Basic writes the username and password, and the section label reads the scheme`() {
+        let editor = editor()
+        let pane = editor.authPane
+        pick(1, in: pane)
+        #expect(model.tab.definition.auth == .basic(user: "", password: ""))
+        #expect(!pane.basicFields.isHidden && pane.bearerFields.isHidden && pane.noneNote.isHidden)
+
+        type("ops-bot", in: pane.username, of: pane)
+        type("hunter2", in: pane.password, of: pane)
+        #expect(model.tab.definition.auth == .basic(user: "ops-bot", password: "hunter2"))
+        #expect(EditorSection.auth.title(in: model.tab.definition) == "Auth Basic")
+        #expect(pane.username.font == .monospacedSystemFont(ofSize: 12, weight: .regular))
+    }
+
+    @Test func `the password is bullets, unless it holds a Variable, which shows its name`() {
+        let editor = editor()
+        let pane = editor.authPane
+        model.tab.definition.auth = .basic(user: "ops-bot", password: "hunter2")
+        editor.render()
+        #expect(!pane.password.isHidden && pane.passwordVariable.isHidden)
+
+        model.tab.definition.auth = .basic(user: "ops-bot", password: "{{ops_password}}")
+        editor.render()
+        #expect(pane.password.isHidden && !pane.passwordVariable.isHidden)
+        #expect(pane.passwordVariable.stringValue == "{{ops_password}}")
+    }
+
+    @Test func `Bearer writes its token, and switching schemes away and back keeps what was typed`() {
+        let editor = editor()
+        let pane = editor.authPane
+        pick(2, in: pane)
+        type("{{api_key}}", in: pane.token, of: pane)
+        #expect(model.tab.definition.auth == .bearer(token: "{{api_key}}"))
+        #expect(EditorSection.auth.title(in: model.tab.definition) == "Auth Bearer")
+
+        editor.select(.auth)
+        editor.layoutSubtreeIfNeeded()
+        #expect(pane.token.frame.width > 200 && pane.token.superview!.frame.height == 26)
+
+        pick(0, in: pane)
+        #expect(model.tab.definition.auth == .none)
+        pick(2, in: pane)
+        #expect(model.tab.definition.auth == .bearer(token: "{{api_key}}"))
+    }
 }
 
 @MainActor
