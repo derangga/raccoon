@@ -48,4 +48,39 @@ struct TabModelSendTests {
         #expect(model.inFlight == nil)
         #expect(transport.requests.isEmpty)
     }
+
+    @Test func `a second send while one is in flight sends nothing`() async {
+        let transport = ScriptedTransport(.success(response))
+        let model = makeTab(transport, url: "http://localhost:8080/")
+
+        model.send()
+        model.send()
+        await model.inFlight?.value
+
+        #expect(transport.requests.count == 1)
+    }
+
+    @Test(arguments: [
+        SendError.fileMissing(path: "/tmp/gone.pdf"), .timedOut, .untrustedCertificate(host: "localhost"),
+        .transport(.cannotConnectToHost, "Could not connect to the server."),
+    ])
+    func `a send error is shown as it came and never retried`(error: SendError) async {
+        let transport = ScriptedTransport(.failure(error))
+        let model = makeTab(transport, url: "http://localhost:8080/")
+
+        model.send()
+        await model.inFlight?.value
+
+        #expect(model.tab.response == .failed(error))
+        #expect(transport.requests.count == 1)
+    }
+
+    @Test func `the spinner stays hidden at the instant the send starts`() {
+        let model = makeTab(ScriptedTransport(.success(response)), url: "http://localhost:8080/")
+
+        model.send()
+
+        #expect(model.tab.response == .sending(since: now))
+        #expect(!model.showsSpinner)
+    }
 }

@@ -18,6 +18,9 @@ final class TabModel {
         self.instants = instants
     }
 
+    /// Read again once 150 ms have passed; Observation does not see time move.
+    var showsSpinner: Bool { tab.response.showsSpinner(at: instants.now) }
+
     /// The in-flight send (§8). The Tab is the only thing holding it.
     private(set) var inFlight: Task<Void, Never>?
 

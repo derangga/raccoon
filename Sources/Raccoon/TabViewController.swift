@@ -75,7 +75,7 @@ final class TabViewController: NSViewController, NSTextFieldDelegate {
     /// Redraws from the Tab's Response state, and again whenever it changes.
     private func render() {
         withObservationTracking {
-            let (status, color, body) = Self.text(for: model.tab.response)
+            let (status, color, body) = Self.text(for: model.tab.response, showsSpinner: model.showsSpinner)
             statusLabel.stringValue = status
             statusLabel.textColor = theme.color(color)
             bodyView.string = body
@@ -83,12 +83,21 @@ final class TabViewController: NSViewController, NSTextFieldDelegate {
         } onChange: { [weak self] in
             Task { @MainActor in self?.render() }
         }
+        // Time passing is not a change Observation sees: look again when the spinner is due.
+        if case .sending = model.tab.response, !model.showsSpinner {
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(150))
+                self?.render()
+            }
+        }
     }
 
-    static func text(for state: ResponseState) -> (status: String, color: ColorToken, body: String) {
+    static func text(for state: ResponseState, showsSpinner: Bool) -> (status: String, color: ColorToken, body: String) {
         switch state {
         case .idle:
             ("", .textTertiary, "Send a request to see the Response here.")
+        case .sending where !showsSpinner:
+            ("", .textSecondary, "")
         case .sending:
             ("Sending…", .textSecondary, "Waiting for the server.")
         case .received(let response):

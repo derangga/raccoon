@@ -36,3 +36,11 @@ public enum ResponseState: Equatable, Sendable {
     /// Resolution failed, so no byte went out.
     case notSent(ResolveError)
 }
+
+extension ResponseState {
+    /// A send shows its spinner only once it has run 150 ms, so a fast local API never flashes one.
+    public func showsSpinner(at now: ContinuousClock.Instant) -> Bool {
+        guard case .sending(let since) = self else { return false }
+        return now - since >= .milliseconds(150)
+    }
+}
