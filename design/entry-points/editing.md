@@ -45,8 +45,19 @@ a typed `?flag` is sent as `?flag=`.
 
 ```
 -> toggleRow(table, index)                       Headers, Params, form fields, Cookies
-  -> rows[index].isEnabled.toggle()              pure
+  -> Rows.toggle(at: index, in: rows)            pure: isEnabled flips, nothing else
   -> URLText.join                                only for Params
+```
+
+Every key/value table keeps one trailing empty row after its rows, at index `rows.count`.
+
+```
+-> editRow(table, index, name | value)          every key/value table
+  -> Rows.setName / Rows.setValue                pure: at rows.count, typing appends a row
+                                                 and a new trailing row appears
+  -> URLText.join                                only for Params
+-> deleteRow(table, index)                       the ⊖ on hover, or Delete on the selected row
+  -> Rows.delete(at: index, in: rows)            pure: the trailing row has nothing to delete
 ```
 
 ## Body Type

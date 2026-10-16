@@ -2,8 +2,8 @@ import AppKit
 import Observation
 import RaccoonDomain
 
-/// The editor and Response viewer for the selected Tab. For now: a URL field, Send, and the
-/// status and raw body of the last send.
+/// The editor and Response viewer for the selected Tab. For now: a URL field, Send, the
+/// Headers table, and the status and raw body of the last send.
 // ponytail: tracer only. The URL bar, the RequestEditor and the full Response viewer states
 // replace these views in their own features.
 final class TabViewController: NSViewController, NSTextFieldDelegate {
@@ -13,6 +13,8 @@ final class TabViewController: NSViewController, NSTextFieldDelegate {
     private let sendButton = NSButton(title: "Send", target: nil, action: nil)
     private let statusLabel = NSTextField(labelWithString: "")
     private let bodyView = NSTextView()
+    private let headersLabel = NSTextField(labelWithString: "")
+    private lazy var headersTable = KeyValueTable(theme: theme)
 
     init(model: TabModel, theme: ThemeEnvironment) {
         self.model = model
@@ -53,13 +55,19 @@ final class TabViewController: NSViewController, NSTextFieldDelegate {
 
         let urlRow = NSStackView(views: [urlField, sendButton])
         urlRow.spacing = 8
-        let stack = NSStackView(views: [urlRow, statusLabel, scroll])
+        headersLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+        headersLabel.textColor = theme.color(.textTertiary)
+        headersTable.onChange = { [weak self] in self?.model.tab.definition.headers = $0 }
+        headersTable.heightAnchor.constraint(equalToConstant: 200).isActive = true
+
+        let stack = NSStackView(views: [urlRow, headersLabel, headersTable, statusLabel, scroll])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 8
         stack.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
         urlRow.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -24).isActive = true
         scroll.widthAnchor.constraint(equalTo: urlRow.widthAnchor).isActive = true
+        headersTable.widthAnchor.constraint(equalTo: urlRow.widthAnchor).isActive = true
         view = stack
         render()
     }
@@ -75,6 +83,9 @@ final class TabViewController: NSViewController, NSTextFieldDelegate {
     /// Redraws from the Tab's Response state, and again whenever it changes.
     private func render() {
         withObservationTracking {
+            let headers = model.tab.definition.headers
+            headersLabel.stringValue = "Headers \(headers.count)"
+            headersTable.setRows(headers)
             let (status, color, body) = Self.text(for: model.tab.response, showsSpinner: model.showsSpinner)
             statusLabel.stringValue = status
             statusLabel.textColor = theme.color(color)

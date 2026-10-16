@@ -1,0 +1,278 @@
+import AppKit
+import RaccoonDomain
+
+/// The key/value table shared by Params, Headers, Cookies, form-urlencoded and multipart
+/// (design-system.md §6). Rows come in through `setRows`; every edit goes out through
+/// `onChange`, already applied, so the owner stores it and sets it back without a reload.
+final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate {
+    static let deleteID = NSUserInterfaceItemIdentifier("delete")
+    var onChange: ([Row]) -> Void = { _ in }
+    private(set) var rows: [Row] = []
+    private let theme: ThemeEnvironment
+    let table = KeyTableView()
+    private let scroll = NSScrollView()
+    private let columns = (check: NSTableColumn(identifier: .init("check")), name: NSTableColumn(identifier: .init("name")),
+                           value: NSTableColumn(identifier: .init("value")), delete: NSTableColumn(identifier: .init("delete")))
+
+    init(theme: ThemeEnvironment) {
+        self.theme = theme
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = 6
+        layer?.borderWidth = 1
+        layer?.borderColor = theme.color(.border).cgColor
+        layer?.masksToBounds = true
+
+        for (column, title, width) in [(columns.check, "", 30.0), (columns.name, "Name", 120), (columns.value, "Value", 200), (columns.delete, "", 30)] {
+            column.headerCell = HeaderCell(theme: theme)
+            column.title = title
+            column.width = width
+            column.resizingMask = []
+            table.addTableColumn(column)
+        }
+        table.headerView = NSTableHeaderView(frame: NSRect(x: 0, y: 0, width: 0, height: 24))
+        table.cornerView = nil
+        table.style = .plain
+        table.rowHeight = 28
+        table.intercellSpacing = .zero
+        table.gridStyleMask = [.solidHorizontalGridLineMask, .solidVerticalGridLineMask]
+        table.gridColor = theme.color(.border)
+        table.backgroundColor = theme.color(.background)
+        table.columnAutoresizingStyle = .noColumnAutoresizing
+        table.allowsColumnReordering = false
+        table.focusRingType = .none
+        table.dataSource = self
+        table.delegate = self
+        table.keys = self
+
+        scroll.documentView = table
+        scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = true
+        scroll.scrollerStyle = .overlay
+        scroll.drawsBackground = false
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(scroll)
+        NSLayoutConstraint.activate([
+            scroll.leadingAnchor.constraint(equalTo: leadingAnchor), scroll.trailingAnchor.constraint(equalTo: trailingAnchor),
+            scroll.topAnchor.constraint(equalTo: topAnchor), scroll.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    /// Rows equal to the ones shown are ignored, so an edit echoed back keeps the field editor.
+    func setRows(_ new: [Row]) {
+        guard new != rows else { return }
+        rows = new
+        table.reloadData()
+    }
+
+    /// Name takes 36 %, Value the rest (design-system.md §6).
+    override func layout() {
+        super.layout()
+        let flexible = max(0, bounds.width - 60)
+        columns.name.width = (flexible * 0.36).rounded()
+        columns.value.width = flexible - columns.name.width
+    }
+
+    // MARK: Edits
+
+    private func apply(_ new: [Row]) {
+        let added = new.count - rows.count
+        rows = new
+        if added > 0 { table.insertRows(at: IndexSet(integer: rows.count), withAnimation: []) }
+        onChange(rows)
+    }
+
+    func toggle(row: Int) {
+        guard rows.indices.contains(row) else { return }
+        apply(Rows.toggle(at: row, in: rows))
+        table.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integersIn: 0..<4))
+    }
+
+    func delete(row: Int) {
+        guard rows.indices.contains(row) else { return }
+        rows = Rows.delete(at: row, in: rows)
+        table.removeRows(at: IndexSet(integer: row), withAnimation: [])
+        onChange(rows)
+    }
+
+    @objc private func checkboxClicked(_ sender: NSButton) { toggle(row: table.row(for: sender)) }
+    @objc private func deleteClicked(_ sender: NSButton) { delete(row: table.row(for: sender)) }
+
+    func controlTextDidChange(_ notification: Notification) {
+        guard let field = notification.object as? NSTextField else { return }
+        let row = table.row(for: field)
+        guard row >= 0 else { return }
+        let wasTrailing = row == rows.count
+        apply(field.tag == 0 ? Rows.setName(field.stringValue, at: row, in: rows) : Rows.setValue(field.stringValue, at: row, in: rows))
+        field.toolTip = field.stringValue
+        // The trailing row became a real row: give it its checkbox and its delete button.
+        if wasTrailing { table.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: [0, 3]) }
+    }
+
+    func controlTextDidBeginEditing(_ notification: Notification) {
+        guard let field = notification.object as? NSTextField else { return }
+        field.layer?.borderWidth = 2
+        field.layer?.backgroundColor = theme.color(.background).cgColor
+    }
+
+    func controlTextDidEndEditing(_ notification: Notification) {
+        guard let field = notification.object as? NSTextField else { return }
+        field.layer?.borderWidth = 0
+        field.layer?.backgroundColor = nil
+    }
+
+    // MARK: Data source and cells
+
+    func numberOfRows(in tableView: NSTableView) -> Int { rows.count + 1 }
+
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        HoverRowView(hover: theme.color(.rowHover))
+    }
+
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        let isTrailing = row == rows.count
+        let item = isTrailing ? nil : rows[row]
+        switch tableColumn?.identifier {
+        case columns.check.identifier:
+            let box = NSButton(checkboxWithTitle: "", target: self, action: #selector(checkboxClicked))
+            box.state = item?.isEnabled == true ? .on : .off
+            box.isEnabled = !isTrailing
+            box.bezelColor = theme.color(.accent)
+            box.setAccessibilityLabel(item.map { "Send \($0.name.isEmpty ? "this row" : $0.name)" } ?? "")
+            return centered(box)
+        case columns.delete.identifier:
+            guard !isTrailing else { return NSView() }
+            let button = NSButton(image: NSImage(systemSymbolName: "minus.circle", accessibilityDescription: "Delete row")!,
+                                  target: self, action: #selector(deleteClicked))
+            button.isBordered = false
+            button.contentTintColor = theme.color(.textTertiary)
+            button.setAccessibilityLabel("Delete \(item?.name ?? "row")")
+            button.identifier = Self.deleteID
+            button.isHidden = true
+            return centered(button)
+        default:
+            let isName = tableColumn?.identifier == columns.name.identifier
+            let field = NSTextField()
+            field.tag = isName ? 0 : 1
+            field.stringValue = isName ? item?.name ?? "" : item?.value ?? ""
+            field.toolTip = field.stringValue.isEmpty ? nil : field.stringValue
+            field.isBordered = false
+            field.drawsBackground = false
+            field.focusRingType = .none
+            field.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+            field.textColor = theme.color(item?.isEnabled == false ? .textDisabled : .text)
+            field.lineBreakMode = .byTruncatingTail
+            field.usesSingleLineMode = true
+            field.cell?.isScrollable = false
+            field.placeholderAttributedString = NSAttributedString(string: isName ? "Name" : "Value", attributes: [
+                .font: NSFont.systemFont(ofSize: 13), .foregroundColor: theme.color(.textTertiary),
+            ])
+            field.delegate = self
+            field.wantsLayer = true
+            field.layer?.cornerRadius = 4
+            field.layer?.borderColor = theme.color(.focusRing).cgColor
+            field.setAccessibilityLabel(isName ? "Name" : "Value")
+            let cell = NSTableCellView()
+            cell.textField = field
+            field.translatesAutoresizingMaskIntoConstraints = false
+            cell.addSubview(field)
+            NSLayoutConstraint.activate([
+                field.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
+                field.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
+                field.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+            ])
+            return cell
+        }
+    }
+
+    private func centered(_ control: NSView) -> NSView {
+        let cell = NSView()
+        control.translatesAutoresizingMaskIntoConstraints = false
+        cell.addSubview(control)
+        NSLayoutConstraint.activate([
+            control.centerXAnchor.constraint(equalTo: cell.centerXAnchor),
+            control.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+        ])
+        return cell
+    }
+}
+
+/// Space toggles the selected row, Delete removes it, Return edits its name.
+final class KeyTableView: NSTableView {
+    weak var keys: KeyValueTable?
+
+    override func keyDown(with event: NSEvent) {
+        let row = selectedRow
+        guard row >= 0, let keys else { return super.keyDown(with: event) }
+        switch event.keyCode {
+        case 49: keys.toggle(row: row)
+        case 51, 117: keys.delete(row: row)
+        case 36, 76: editColumn(1, row: row, with: nil, select: true)
+        default: super.keyDown(with: event)
+        }
+    }
+}
+
+/// `rowHover` under the pointer, and the row's delete button shown only then.
+private final class HoverRowView: NSTableRowView {
+    private let hover: NSColor
+    private var isHovered = false {
+        didSet {
+            needsDisplay = true
+            for case let button as NSButton in subviews.flatMap(\.subviews) where button.identifier == KeyValueTable.deleteID {
+                button.isHidden = !isHovered
+            }
+        }
+    }
+
+    init(hover: NSColor) {
+        self.hover = hover
+        super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect], owner: self))
+    }
+
+    override func mouseEntered(with event: NSEvent) { isHovered = true }
+    override func mouseExited(with event: NSEvent) { isHovered = false }
+
+    override func drawBackground(in dirtyRect: NSRect) {
+        guard isHovered else { return super.drawBackground(in: dirtyRect) }
+        hover.setFill()
+        bounds.fill()
+    }
+}
+
+/// "Name" / "Value" in `textTertiary` 11 semibold on `backgroundRecessed`.
+private final class HeaderCell: NSTableHeaderCell {
+    private let theme: ThemeEnvironment
+
+    init(theme: ThemeEnvironment) {
+        self.theme = theme
+        super.init(textCell: "")
+    }
+
+    @available(*, unavailable)
+    required init(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    override func draw(withFrame cellFrame: NSRect, in controlView: NSView) {
+        theme.color(.backgroundRecessed).setFill()
+        cellFrame.fill()
+        theme.color(.border).setFill()
+        NSRect(x: cellFrame.minX, y: cellFrame.maxY - 1, width: cellFrame.width, height: 1).fill()
+        NSRect(x: cellFrame.maxX - 1, y: cellFrame.minY, width: 1, height: cellFrame.height).fill()
+        let title = NSAttributedString(string: stringValue, attributes: [
+            .font: NSFont.systemFont(ofSize: 11, weight: .semibold), .foregroundColor: theme.color(.textTertiary),
+        ])
+        title.draw(at: NSPoint(x: cellFrame.minX + 8, y: cellFrame.midY - title.size().height / 2))
+    }
+}
