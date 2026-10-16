@@ -3,8 +3,7 @@ import Observation
 import RaccoonDomain
 
 /// The status line over the body (design-system.md §6 Response viewer).
-// ponytail: failed and notSent show the error as text until the send-failure states are built,
-// and Body | Headers arrives with the Headers view.
+// ponytail: failed and notSent show the error as text until the send-failure states are built.
 final class ResponseViewer: NSView {
     private let model: TabModel
     private let theme: ThemeEnvironment
@@ -17,6 +16,7 @@ final class ResponseViewer: NSView {
     private let dot = NSTextField(labelWithString: "·")
     let prettyNote = NSTextField(labelWithString: ResponseBody.prettyOffNote)
     let mode = NSSegmentedControl(labels: ["Pretty", "Raw"], trackingMode: .selectOne, target: nil, action: nil)
+    let section = NSSegmentedControl(labels: ["Body", "Headers"], trackingMode: .selectOne, target: nil, action: nil)
 
     let textView: NSTextView
     private let layoutManager = NSLayoutManager()
@@ -24,13 +24,21 @@ final class ResponseViewer: NSView {
     let voidTitle = NSTextField(labelWithString: "")
     let voidText = NSTextField(wrappingLabelWithString: "")
     let keycap = NSTextField(labelWithString: "⌘↩")
-    private let voidStack = NSStackView()
+    let voidStack = NSStackView()
+
+    let headerList = NSScrollView()
+    private let headerStack = NSStackView()
+    private(set) var headerRows: [(name: NSTextField, value: NSTextField)] = []
+    let noHeaders = NSTextField(labelWithString: "No headers.")
+    /// Always under the last row: the transport merged and sorted them before Raccoon saw them.
+    let headerNote = NSTextField(labelWithString: "macOS merges repeated headers and doesn't keep their order.")
 
     /// Which text the view holds, so a render that changes nothing never swaps the storage.
     private var shown: (send: Int, presented: Bool, pretty: Bool)?
     private var ticking: Task<Void, Never>?
     /// The user's Pretty | Raw choice, kept apart from whether Pretty is possible right now.
     private var wantsPretty = true
+    private var wantsHeaders = false
 
     init(model: TabModel, theme: ThemeEnvironment) {
         self.model = model
@@ -48,6 +56,7 @@ final class ResponseViewer: NSView {
         layer?.backgroundColor = theme.color(.backgroundRecessed).cgColor
         buildStatusLine()
         buildBody()
+        buildHeaders()
         render()
     }
 
@@ -80,10 +89,15 @@ final class ResponseViewer: NSView {
         mode.action = #selector(modeChanged)
         mode.controlSize = .small
         mode.setContentCompressionResistancePriority(.required, for: .horizontal)
+        section.selectedSegment = 0
+        section.target = self
+        section.action = #selector(sectionChanged)
+        section.controlSize = .small
+        section.setContentCompressionResistancePriority(.required, for: .horizontal)
 
         let spacer = NSView()
         spacer.setContentHuggingPriority(.init(1), for: .horizontal)
-        let row = NSStackView(views: [spinner, codeLabel, reasonLabel, elapsedLabel, dot, sizeLabel, spacer, prettyNote, mode])
+        let row = NSStackView(views: [spinner, codeLabel, reasonLabel, elapsedLabel, dot, sizeLabel, spacer, prettyNote, mode, section])
         row.spacing = 10
         row.setCustomSpacing(6, after: codeLabel)
         row.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
@@ -155,6 +169,45 @@ final class ResponseViewer: NSView {
         ])
     }
 
+    private func buildHeaders() {
+        let mono = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        noHeaders.font = mono
+        noHeaders.textColor = theme.color(.textTertiary)
+        headerNote.font = .systemFont(ofSize: 11)
+        headerNote.textColor = theme.color(.textTertiary)
+        headerStack.orientation = .vertical
+        headerStack.alignment = .leading
+        headerStack.spacing = 0
+        headerStack.translatesAutoresizingMaskIntoConstraints = false
+        let document = FlippedView()
+        document.translatesAutoresizingMaskIntoConstraints = false
+        document.addSubview(headerStack)
+        headerList.documentView = document
+        headerList.hasVerticalScroller = true
+        headerList.autohidesScrollers = true
+        headerList.drawsBackground = false
+        headerList.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(headerList)
+        NSLayoutConstraint.activate([
+            headerList.topAnchor.constraint(equalTo: topAnchor, constant: 35),
+            headerList.leadingAnchor.constraint(equalTo: leadingAnchor),
+            headerList.trailingAnchor.constraint(equalTo: trailingAnchor),
+            headerList.bottomAnchor.constraint(equalTo: bottomAnchor),
+            document.topAnchor.constraint(equalTo: headerList.contentView.topAnchor),
+            document.leadingAnchor.constraint(equalTo: headerList.contentView.leadingAnchor),
+            document.widthAnchor.constraint(equalTo: headerList.contentView.widthAnchor),
+            headerStack.topAnchor.constraint(equalTo: document.topAnchor, constant: 8),
+            headerStack.leadingAnchor.constraint(equalTo: document.leadingAnchor, constant: 12),
+            headerStack.trailingAnchor.constraint(equalTo: document.trailingAnchor, constant: -12),
+            headerStack.bottomAnchor.constraint(equalTo: document.bottomAnchor, constant: -8),
+        ])
+    }
+
+    @objc private func sectionChanged() {
+        wantsHeaders = section.selectedSegment == 1
+        render()
+    }
+
     @objc private func modeChanged() {
         wantsPretty = mode.selectedSegment == 0
         render()
@@ -177,6 +230,8 @@ final class ResponseViewer: NSView {
         spinner.isHidden = true
         prettyNote.isHidden = true
         mode.isHidden = true
+        section.isHidden = true
+        headerList.isHidden = true
         switch state {
         case .idle:
             showVoid(title: nil, text: "Send a request to see the Response here.", keycap: true)
@@ -200,7 +255,10 @@ final class ResponseViewer: NSView {
             elapsedLabel.stringValue = line.elapsed
             sizeLabel.stringValue = line.size
             [elapsedLabel, dot, sizeLabel].forEach { $0.isHidden = false }
-            drawBody(response)
+            section.isHidden = false
+            section.setLabel("Headers \(response.headers.count)", forSegment: 1)
+            section.selectedSegment = wantsHeaders ? 1 : 0
+            if wantsHeaders { drawHeaders(response.headers) } else { drawBody(response) }
         case .failed(let error):
             setStatus(("Failed", "", .statusFailed))
             showVoid(title: "\(error)", text: "", keycap: false, failed: true)
@@ -238,6 +296,51 @@ final class ResponseViewer: NSView {
         textView.scrollToBeginningOfDocument(nil)
     }
 
+    /// Two columns, name and value, in the order the transport returned them.
+    private func drawHeaders(_ headers: [Response.Header]) {
+        shown = nil
+        scroll.isHidden = true
+        voidStack.isHidden = true
+        headerList.isHidden = false
+        headerRows = headers.map { header in
+            let name = NSTextField(labelWithString: header.name)
+            let value = NSTextField(labelWithString: header.value)
+            name.textColor = theme.color(.textSecondary)
+            value.textColor = theme.color(.text)
+            value.toolTip = header.value
+            for label in [name, value] {
+                label.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+                label.lineBreakMode = .byTruncatingTail
+                label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            }
+            return (name, value)
+        }
+        let rows = headerRows.map { row in
+            let line = NSStackView(views: [row.name, row.value])
+            line.spacing = 0
+            line.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
+            // The name column is 220 pt when there is room; the value truncates first.
+            row.name.widthAnchor.constraint(lessThanOrEqualToConstant: 220).isActive = true
+            let wide = row.name.widthAnchor.constraint(equalToConstant: 220)
+            wide.priority = .init(260)
+            wide.isActive = true
+            row.value.setContentCompressionResistancePriority(.init(250), for: .horizontal)
+            let rule = NSBox()
+            rule.boxType = .custom
+            rule.borderWidth = 0
+            rule.fillColor = theme.color(.border)
+            rule.heightAnchor.constraint(equalToConstant: 1).isActive = true
+            let cell = NSStackView(views: [line, rule])
+            cell.orientation = .vertical
+            cell.spacing = 0
+            return cell
+        }
+        noHeaders.isHidden = !headers.isEmpty
+        headerStack.setViews(rows + [noHeaders, headerNote], in: .top)
+        headerStack.setCustomSpacing(8, after: rows.last ?? noHeaders)
+        for row in rows { row.widthAnchor.constraint(equalTo: headerStack.widthAnchor).isActive = true }
+    }
+
     private func bodyText(_ response: Response, _ presented: TabModel.Presented?, pretty: Bool) -> NSAttributedString {
         let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         if pretty, let presented, case .pretty(let text, _) = presented.body {
@@ -260,6 +363,7 @@ final class ResponseViewer: NSView {
 
     private func showVoid(title: String?, text: String, keycap showsKeycap: Bool, failed: Bool = false) {
         shown = nil
+        headerList.isHidden = true
         scroll.isHidden = true
         voidStack.isHidden = false
         voidTitle.stringValue = title ?? ""
@@ -280,4 +384,9 @@ final class ResponseViewer: NSView {
             draw(model.tab.response)
         }
     }
+}
+
+/// Lays the header rows out from the top of their scroll view.
+private final class FlippedView: NSView {
+    override var isFlipped: Bool { true }
 }

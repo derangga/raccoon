@@ -122,6 +122,46 @@ struct ResponseViewerTests {
         }
     }
 
+    func showHeaders(_ viewer: ResponseViewer) {
+        viewer.section.selectedSegment = 1
+        viewer.section.sendAction(viewer.section.action, to: viewer.section.target)
+    }
+
+    @Test func `Headers shows one row per header, sorted as received, with the merged-headers note`() async {
+        // URLSession has already joined the two Set-Cookie headers and sorted by name.
+        let headers = [
+            Response.Header(name: "Content-Length", value: "0"),
+            Response.Header(name: "Location", value: "https://payments.example.com/v2/charges"),
+            Response.Header(name: "Set-Cookie", value: "session=7f3a; Path=/; HttpOnly, locale=en; Path=/"),
+        ]
+        let (_, viewer) = await received(Response(status: 301, headers: headers, body: Data(), elapsed: .milliseconds(55), byteCount: 0))
+        #expect(viewer.section.label(forSegment: 0) == "Body" && viewer.section.label(forSegment: 1) == "Headers 3")
+        #expect(viewer.section.selectedSegment == 0 && viewer.headerList.isHidden)
+
+        showHeaders(viewer)
+        #expect(!viewer.headerList.isHidden && viewer.voidStack.isHidden && viewer.mode.isHidden)
+        #expect(viewer.headerRows.map { [$0.name.stringValue, $0.value.stringValue] } == headers.map { [$0.name, $0.value] })
+        #expect(viewer.headerNote.stringValue == "macOS merges repeated headers and doesn't keep their order.")
+        #expect(!viewer.headerNote.isHidden)
+    }
+
+    @Test func `a header value end-truncates with the full value in its tooltip`() async {
+        let long = String(repeating: "a", count: 400)
+        let (_, viewer) = await received(Response(status: 200, headers: [.init(name: "X-Long", value: long)], body: Data(), elapsed: .zero, byteCount: 0))
+        showHeaders(viewer)
+        let row = try! #require(viewer.headerRows.first)
+        #expect(row.value.lineBreakMode == .byTruncatingTail && row.value.toolTip == long)
+        #expect(row.name.textColor == theme.color(.textSecondary) && row.value.textColor == theme.color(.text))
+    }
+
+    @Test func `no headers says so, and the note stays`() async {
+        let (_, viewer) = await received(response(Data("x".utf8)))
+        #expect(viewer.section.label(forSegment: 1) == "Headers 0")
+        showHeaders(viewer)
+        #expect(viewer.headerRows.isEmpty && viewer.noHeaders.stringValue == "No headers." && !viewer.noHeaders.isHidden)
+        #expect(!viewer.headerNote.isHidden)
+    }
+
     @Test func `drawing the same Response again keeps its text storage`() async {
         let (_, viewer) = await received(response(Data(#"{"a":1}"#.utf8)))
         let storage = viewer.textView.textStorage
