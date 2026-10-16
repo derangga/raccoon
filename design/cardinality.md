@@ -28,7 +28,8 @@ Bounded:  VariableScope          valid for one send or one highlight pass. Rebui
 
 **A send is one value, not a stream.** v1 reads the whole body and then shows it. Streaming
 bodies (SSE, chunked progress) are a Stream on this graph when they arrive, and they are
-outside the design session's scope.
+outside the design session's scope. Reading whole costs about twice the body at peak
+(environment-facts.md), accepted for v1: no size cap and no "Save to file…".
 
 **The Session write is an Effect wrapped by §7.** Each change schedules it; the coalescing
 is what turns "every keystroke" into "at most once a second".
