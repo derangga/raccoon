@@ -69,8 +69,10 @@ public final class URLSessionTransport: HTTPTransport {
         for header in headers {
             urlRequest.addValue(header.value, forHTTPHeaderField: header.name)
         }
+        // Request Cookies and any Cookie row are one header: addValue would join them with ", ".
         if !definition.cookies.isEmpty {
-            urlRequest.addValue(definition.cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; "), forHTTPHeaderField: "Cookie")
+            let cookies = [urlRequest.value(forHTTPHeaderField: "Cookie")].compactMap { $0 } + definition.cookies.map { "\($0.name)=\($0.value)" }
+            urlRequest.setValue(cookies.joined(separator: "; "), forHTTPHeaderField: "Cookie")
         }
         return urlRequest
     }

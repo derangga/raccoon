@@ -49,6 +49,28 @@ struct URLSessionTransportTests {
         }
     }
 
+    @Test func `enabled Request Cookies go out as one Cookie header and a Disabled Row does not`() async throws {
+        try await withEchoServer { server in
+            var definition = RequestDefinition.empty
+            definition.url = server.url("/echo").absoluteString
+            definition.cookies = [Row(name: "a", value: "1"), Row(name: "off", value: "0", isEnabled: false), Row(name: "b", value: "2")]
+
+            let text = String(decoding: try await transport().send(VariableResolver.resolve(definition)).body, as: UTF8.self)
+
+            #expect(text.components(separatedBy: "\r\n").filter { $0.hasPrefix("Cookie:") } == ["Cookie: a=1; b=2"])
+        }
+    }
+
+    @Test func `a Cookie header row and Request Cookies go out as one header`() async throws {
+        try await withEchoServer { server in
+            let request = resolved(server, "/echo", headers: [Row(name: "Cookie", value: "x=0")], cookies: [Row(name: "a", value: "1")])
+
+            let text = String(decoding: try await transport().send(request).body, as: UTF8.self)
+
+            #expect(text.components(separatedBy: "\r\n").filter { $0.hasPrefix("Cookie:") } == ["Cookie: x=0; a=1"])
+        }
+    }
+
     @Test func `a form body is percent-encoded`() async throws {
         try await withEchoServer { server in
             let request = resolved(server, "/echo", method: "POST",
