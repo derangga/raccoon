@@ -47,9 +47,14 @@ public struct StatusLine: Equatable, Sendable {
         case ..<500: .status4xx
         default: .status5xx
         }
-        let ms = Int(elapsed / .milliseconds(1))
-        self.elapsed = ms < 1_000 ? "\(ms) ms" : Self.oneDecimal(Double(ms) / 1_000) + " s"
+        self.elapsed = Self.elapsed(elapsed)
         size = Self.size(byteCount)
+    }
+
+    /// "88 ms" under a second, then "1.4 s"; also the live time while sending.
+    public static func elapsed(_ duration: Duration) -> String {
+        let ms = Int(duration / .milliseconds(1))
+        return ms < 1_000 ? "\(ms) ms" : oneDecimal(Double(ms) / 1_000) + " s"
     }
 
     private static func size(_ bytes: Int) -> String {

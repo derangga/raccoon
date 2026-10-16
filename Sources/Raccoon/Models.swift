@@ -39,11 +39,33 @@ final class TabModel {
         tab.definition.method = method
     }
 
+    var now: ContinuousClock.Instant { instants.now }
+
     /// Read again once 150 ms have passed; Observation does not see time move.
     var showsSpinner: Bool { tab.response.showsSpinner(at: instants.now) }
 
     /// The in-flight send (§8). The Tab is the only thing holding it.
     private(set) var inFlight: Task<Void, Never>?
+
+    /// The received body as the viewer draws it: computed once per Response, off the main
+    /// actor, and kept here so switching Tabs never recomputes it (cardinality.md). Until it
+    /// lands the viewer shows Raw.
+    private(set) var presented: Presented?
+    private(set) var presenting: Task<Void, Never>?
+    /// Counts sends, so a view can tell its text is already this Response's.
+    private(set) var sends = 0
+
+    struct Presented: Equatable, Sendable {
+        var body: ResponseBody
+        var ranges: [HighlightRange]
+    }
+
+    @concurrent
+    nonisolated static func present(_ response: Response) async -> Presented {
+        let body = ResponseBody.presentation(response)
+        guard case .pretty(let text, let kind) = body else { return Presented(body: body, ranges: []) }
+        return Presented(body: body, ranges: Highlighter.ranges(text, kind: kind))
+    }
 
     /// Resolution runs first, so a request that cannot be sent never shows `.sending`.
     /// One send at a time (§7): a second ⌘↩ while sending does nothing.
@@ -58,9 +80,19 @@ final class TabModel {
             return
         }
         tab.response = .sending(since: instants.now)
+        presenting?.cancel()
+        presented = nil
+        sends += 1
+        let send = sends
         inFlight = Task {
             do throws(SendError) {
-                tab.response = .received(try await transport.send(resolved))
+                let response = try await transport.send(resolved)
+                tab.response = .received(response)
+                presenting = Task {
+                    let presented = await Self.present(response)
+                    // A newer send owns the viewer now.
+                    if send == sends { self.presented = presented }
+                }
             } catch {
                 tab.response = .failed(error)
             }

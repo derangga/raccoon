@@ -83,4 +83,27 @@ struct TabModelSendTests {
         #expect(model.tab.response == .sending(since: now))
         #expect(!model.showsSpinner)
     }
+
+    @Test func `a received body is presented off the main actor and kept with the Tab`() async {
+        let json = Response(status: 200, headers: [], body: Data(#"{"a":1}"#.utf8), elapsed: .milliseconds(5), byteCount: 7)
+        let model = makeTab(ScriptedTransport(.success(json)), url: "http://localhost:8080/")
+
+        model.send()
+        await model.inFlight?.value
+        await model.presenting?.value
+
+        #expect(model.presented?.body == .pretty("{\n  \"a\": 1\n}", .json))
+        #expect(model.presented?.ranges.isEmpty == false)
+    }
+
+    @Test func `a new send drops the old presentation`() async {
+        let model = makeTab(ScriptedTransport(.success(response)), url: "http://localhost:8080/")
+        model.send()
+        await model.inFlight?.value
+        await model.presenting?.value
+        #expect(model.presented?.body == .raw("hello"))
+
+        model.send()
+        #expect(model.presented == nil)
+    }
 }

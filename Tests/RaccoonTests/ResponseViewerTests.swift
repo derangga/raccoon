@@ -1,0 +1,131 @@
+import AppKit
+import Foundation
+@testable import Raccoon
+import RaccoonDomain
+import RaccoonTesting
+import Testing
+
+@MainActor
+struct ResponseViewerTests {
+    let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
+    let now = ContinuousClock.now
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 300), styleMask: [], backing: .buffered, defer: false)
+
+    func response(_ body: Data, status: Int = 200) -> Response {
+        Response(status: status, headers: [], body: body, elapsed: .milliseconds(184), byteCount: body.count)
+    }
+
+    /// A Tab that has received `response` and finished presenting it.
+    func received(_ response: Response) async -> (TabModel, ResponseViewer) {
+        let model = TabModel(transport: ScriptedTransport(.success(response)), secrets: InMemorySecretStore(), instants: FixedInstantSource(now))
+        model.tab.definition.url = "http://localhost/"
+        model.send()
+        await model.inFlight?.value
+        await model.presenting?.value
+        return (model, viewer(model))
+    }
+
+    func viewer(_ model: TabModel) -> ResponseViewer {
+        let viewer = ResponseViewer(model: model, theme: theme)
+        viewer.frame = window.contentView!.bounds
+        window.contentView!.addSubview(viewer)
+        viewer.layoutSubtreeIfNeeded()
+        return viewer
+    }
+
+    @Test func `idle says how to send, with the key cap`() {
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), instants: FixedInstantSource(now))
+        let viewer = viewer(model)
+        #expect(viewer.voidText.stringValue == "Send a request to see the Response here.")
+        #expect(!viewer.keycap.isHidden && viewer.keycap.stringValue == "⌘↩")
+        #expect(viewer.codeLabel.stringValue == "")
+    }
+
+    @Test func `sending shows nothing for 150 ms, then the spinner and the live time`() {
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), instants: FixedInstantSource(now))
+        model.tab.response = .sending(since: now - .milliseconds(100))
+        let early = viewer(model)
+        #expect(early.codeLabel.stringValue == "" && early.voidText.stringValue == "")
+
+        model.tab.response = .sending(since: now - .milliseconds(1_440))
+        let later = viewer(model)
+        #expect(later.codeLabel.stringValue == "Sending…")
+        #expect(later.elapsedLabel.stringValue == "1.4 s")
+        #expect(later.elapsedLabel.font == .monospacedDigitSystemFont(ofSize: 12, weight: .regular))
+        #expect(later.voidText.stringValue == "Waiting for the server.")
+    }
+
+    @Test func `a JSON body is shown Pretty and colored, and Raw on demand`() async {
+        let (_, viewer) = await received(response(Data(#"{"a":1}"#.utf8)))
+        #expect(viewer.codeLabel.stringValue == "200" && viewer.reasonLabel.stringValue == "OK")
+        #expect(viewer.elapsedLabel.stringValue == "184 ms" && viewer.sizeLabel.stringValue == "7 B")
+        #expect(viewer.mode.isEnabled(forSegment: 0) && viewer.mode.selectedSegment == 0)
+        let text = viewer.textView.textStorage!
+        #expect(text.string == "{\n  \"a\": 1\n}")
+        #expect(text.attribute(.foregroundColor, at: 4, effectiveRange: nil) as? NSColor == theme.color(.jsonKey))
+
+        viewer.mode.selectedSegment = 1
+        viewer.mode.sendAction(viewer.mode.action, to: viewer.mode.target)
+        #expect(viewer.textView.textStorage!.string == #"{"a":1}"#)
+    }
+
+    @Test func `Raw shows first, and Pretty takes over once the presentation lands`() async {
+        let model = TabModel(transport: ScriptedTransport(.success(response(Data(#"{"a":1}"#.utf8)))), secrets: InMemorySecretStore(),
+                             instants: FixedInstantSource(now))
+        model.tab.definition.url = "http://localhost/"
+        let viewer = viewer(model)
+        model.send()
+        await model.inFlight?.value
+        viewer.render()
+        #expect(viewer.textView.textStorage!.string == #"{"a":1}"#)
+
+        await model.presenting?.value
+        viewer.render()
+        #expect(viewer.mode.selectedSegment == 0)
+        #expect(viewer.textView.textStorage!.string == "{\n  \"a\": 1\n}")
+    }
+
+    @Test func `a body that does not parse is Raw with Pretty unavailable`() async {
+        let (_, viewer) = await received(response(Data("<html><p>Hi<br></html>".utf8)))
+        #expect(!viewer.mode.isEnabled(forSegment: 0) && viewer.mode.selectedSegment == 1)
+        #expect(viewer.textView.textStorage!.string == "<html><p>Hi<br></html>")
+        #expect(viewer.prettyNote.isHidden)
+    }
+
+    @Test func `above the threshold Pretty is off and says why`() async {
+        let big = Data(("[" + String(repeating: " ", count: ResponseBody.prettyThreshold) + "]").utf8)
+        let (_, viewer) = await received(response(big))
+        #expect(!viewer.mode.isEnabled(forSegment: 0))
+        #expect(!viewer.prettyNote.isHidden && viewer.prettyNote.stringValue == "Pretty is off above 5 MB")
+        #expect(viewer.textView.textContainer?.widthTracksTextView == false)
+    }
+
+    @Test func `a binary body says so instead of drawing bytes`() async {
+        let (_, viewer) = await received(response(Data([0xFF, 0xFE, 0x00, 0x81])))
+        #expect(viewer.voidTitle.stringValue == "Binary body")
+        #expect(viewer.voidText.stringValue == "4 B that is not UTF-8 text. Raccoon shows text bodies only.")
+    }
+
+    @Test func `an empty body says so, and the status line stays`() async {
+        let (_, viewer) = await received(response(Data(), status: 204))
+        #expect(viewer.voidText.stringValue == "Empty body.")
+        #expect(viewer.codeLabel.stringValue == "204" && viewer.sizeLabel.stringValue == "0 B")
+    }
+
+    @Test func `only the reason truncates, never the code, time or size`() async {
+        let (_, viewer) = await received(response(Data("x".utf8), status: 511))
+        #expect(viewer.reasonLabel.stringValue == "Network Authentication Required")
+        #expect(viewer.reasonLabel.lineBreakMode == .byTruncatingTail)
+        let low = viewer.reasonLabel.contentCompressionResistancePriority(for: .horizontal)
+        for label in [viewer.codeLabel, viewer.elapsedLabel, viewer.sizeLabel] {
+            #expect(label.contentCompressionResistancePriority(for: .horizontal) > low)
+        }
+    }
+
+    @Test func `drawing the same Response again keeps its text storage`() async {
+        let (_, viewer) = await received(response(Data(#"{"a":1}"#.utf8)))
+        let storage = viewer.textView.textStorage
+        viewer.render()
+        #expect(viewer.textView.textStorage === storage)
+    }
+}
