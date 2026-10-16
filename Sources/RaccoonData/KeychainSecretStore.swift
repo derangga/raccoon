@@ -1,0 +1,59 @@
+import Foundation
+import RaccoonDomain
+import Security
+
+/// Secret Variables in the login keychain, one generic password each: service `<service>` for
+/// Globals or `<service>/<Environment>`, account the Variable name. A VariableName holds no `/`
+/// and an Environment name is a file name, so two keys never collide.
+public struct KeychainSecretStore: SecretStore {
+    private let service: String
+    private let usesDataProtectionKeychain: Bool
+
+    public init(service: String) {
+        self.init(service: service, usesDataProtectionKeychain: false)
+    }
+
+    /// The data protection keychain needs an entitlement an unsigned build lacks, which is how
+    /// tests get a real failure.
+    init(service: String, usesDataProtectionKeychain: Bool) {
+        self.service = service
+        self.usesDataProtectionKeychain = usesDataProtectionKeychain
+    }
+
+    private func query(_ environment: String?, _ name: VariableName) -> [CFString: Any] {
+        var query: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: environment.map { "\(service)/\($0)" } ?? service,
+            kSecAttrAccount: name.rawValue,
+        ]
+        if usesDataProtectionKeychain { query[kSecUseDataProtectionKeychain] = true }
+        return query
+    }
+
+    /// A value that is not UTF-8 is absent, so it surfaces as an Undefined Variable.
+    public func get(environment: String?, name: VariableName) throws(SecretError) -> String? {
+        var search = query(environment, name)
+        search[kSecReturnData] = true
+        search[kSecMatchLimit] = kSecMatchLimitOne
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(search as CFDictionary, &result)
+        guard status != errSecItemNotFound else { return nil }
+        guard status == errSecSuccess else { throw .unavailable(status) }
+        return (result as? Data).flatMap { String(data: $0, encoding: .utf8) }
+    }
+
+    public func set(_ value: String, environment: String?, name: VariableName) throws(SecretError) {
+        let item = query(environment, name)
+        let data = Data(value.utf8)
+        var status = SecItemAdd(item.merging([kSecValueData: data]) { $1 } as CFDictionary, nil)
+        if status == errSecDuplicateItem {
+            status = SecItemUpdate(item as CFDictionary, [kSecValueData: data] as CFDictionary)
+        }
+        guard status == errSecSuccess else { throw .unavailable(status) }
+    }
+
+    public func delete(environment: String?, name: VariableName) throws(SecretError) {
+        let status = SecItemDelete(query(environment, name) as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else { throw .unavailable(status) }
+    }
+}

@@ -36,7 +36,9 @@ DataFolderStore   ensureExists, scan -> [path: Data], read, write (atomic), move
                   The root is given to init; every path is relative to it
 FolderWatch       events(root) -> AsyncStream<[String]>        changed paths
 SecretStore       get / set / delete (environment?, name) throws(SecretError)
-                  the Keychain. environment nil is Globals
+                  the Keychain. environment nil is Globals. One generic password per
+                  secret: service `Raccoon` for Globals or `Raccoon/<Environment>`,
+                  account the Variable name
 SessionStore      read -> Data? / write(Data) throws(StoreError)   Application Support;
                   bytes only, SessionFile owns the format
 ClipboardWriter   setString                                    Copy as Curl
