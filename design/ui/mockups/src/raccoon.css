@@ -226,6 +226,7 @@
 .hdrs { display:grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); font-size:12px; row-gap:0; }
 .hdrs div { padding:4px 0; border-bottom:1px solid var(--border); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .hdrs .hn { color:var(--textSecondary); }
+.hnote { padding-top:8px; color:var(--textTertiary); font-size:11px; }
 
 /* overlays */
 .scrim { position:absolute; inset:52px 0 0 0; background:var(--sys-scrim); display:flex; justify-content:center; align-items:flex-start; }

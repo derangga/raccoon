@@ -363,8 +363,11 @@ Anatomy: status line (34 pt) over the body area, on `backgroundRecessed`.
 - **binary**: "Binary body", then "48.2 KB that is not UTF-8 text. Raccoon shows text bodies
   only."
 - **empty body** (0 B): "Empty body." Status line unchanged.
-- **Headers**: two columns, name `textSecondary`, value `text`, SF Mono 12, wire order,
-  duplicates kept (two Set-Cookie rows), end-truncated with the full value in a tooltip.
+- **Headers**: two columns, name `textSecondary`, value `text`, SF Mono 12, end-truncated
+  with the full value in a tooltip. Wire order and duplicates are gone before Raccoon sees
+  them (environment-facts.md), so rows are sorted by name (as the transport returns them), and two
+  Set-Cookie headers are one row with the values joined by `, `. Under the last row, always:
+  "macOS merges repeated headers and doesn't keep their order." in `textTertiary`, 11 pt.
 
 Seen on: 01, 02, 04, 06, 09, 10.
 
@@ -647,8 +650,9 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
 8. **Close confirmation** (Save · Don't Save · Cancel) is a native alert and is not drawn;
    confirm that a sheet-style alert attached to the window is wanted over an app-modal one.
 9. **Headers merged by the system.** There is no ordered-headers API (measured, see
-   environment-facts.md), so the Headers view needs a "merged by the system" note; its wording
-   and place are not designed.
+   environment-facts.md). Decided 2026-10-16: a footer under the last header row, always
+   shown, reading "macOS merges repeated headers and doesn't keep their order." (§6 Response
+   viewer). Rows are sorted by name.
 10. **`requestsCompression`** changes nothing under URLSession, which always asks for and
     decodes gzip (measured, see environment-facts.md). Decided 2026-10-16: removed. Request
     Settings has two rows, and `--compressed` is an ignored flag in Curl Import.

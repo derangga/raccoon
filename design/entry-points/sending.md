@@ -66,5 +66,5 @@ first, and a parse failure is `.raw`, never an error.
 
 **Headers cannot be shown in wire order.** Two `Set-Cookie` headers reach Raccoon as one value
 joined with `, `, and `HTTPURLResponse` offers only a dictionary, so the order is gone too
-(measured, `environment-facts.md`). The Headers view says the system merged them rather than
-claiming to be raw.
+(measured, `environment-facts.md`). The Headers view sorts them by name and says the system
+merged them rather than claiming to be raw.

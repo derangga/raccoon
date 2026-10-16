@@ -63,8 +63,8 @@ body{margin:0}
     <div class="ct">Response: binary, empty, Headers</div>
     <div class="mini-resp" style="border-top: 0"><div class="statusline"><span class="status" style="color: var(--status2xx)">200 OK</span><span class="meta">88 ms</span><span class="meta">48.2 KB</span></div><div class="void"><span class="vt">Binary body</span><span class="vs">48.2 KB that is not UTF-8 text. Raccoon shows text bodies only.</span></div></div>
     <div class="mini-resp" style="height: 110px"><div class="statusline"><span class="status" style="color: var(--status2xx)">204 No Content</span><span class="meta">41 ms</span><span class="meta">0 B</span></div><div class="void"><span class="vs">Empty body.</span></div></div>
-    <div class="mini-resp" style="height: 150px"><div class="statusline"><span class="status" style="color: var(--status3xx)">301 Moved Permanently</span><span class="meta">55 ms</span><span class="grow"></span><span class="segctl"><span>Body</span><span class="on">Headers 4</span></span></div>
-      <div class="rbody"><div class="hdrs mono"><div class="hn">Location</div><div>https://payments.example.com/v2/charges</div><div class="hn">Set-Cookie</div><div>session=7f3a; Path=/; HttpOnly</div><div class="hn">Set-Cookie</div><div>locale=en; Path=/</div></div></div></div>
+    <div class="mini-resp" style="height: 150px"><div class="statusline"><span class="status" style="color: var(--status3xx)">301 Moved Permanently</span><span class="meta">55 ms</span><span class="grow"></span><span class="segctl"><span>Body</span><span class="on">Headers 3</span></span></div>
+      <div class="rbody"><div class="hdrs mono"><div class="hn">Content-Length</div><div>0</div><div class="hn">Location</div><div>https://payments.example.com/v2/charges</div><div class="hn">Set-Cookie</div><div>session=7f3a; Path=/; HttpOnly, locale=en; Path=/</div></div><div class="hnote">macOS merges repeated headers and doesn't keep their order.</div></div></div>
   </div>
 
   <div class="card">

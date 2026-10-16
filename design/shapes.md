@@ -71,7 +71,7 @@ ResolvedRequest          a RequestDefinition with every {{name}} substituted and
                          header (auth is .none), plus url: URL, the base and the
                          percent-encoded params built once. What the transport sends, and
                          what Copy as Curl renders. Only `VariableResolver` can build one
-Response                 status, headers [(name, value)] in wire order, body Data,
+Response                 status, headers [(name, value)] sorted by name, body Data,
                          elapsed Duration, byteCount
 ResponseState            .idle · .sending(since: ContinuousClock.Instant)
                          · .received(Response) · .failed(SendError)
