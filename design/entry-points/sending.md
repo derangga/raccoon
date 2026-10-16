@@ -54,6 +54,12 @@ and a file that changed since it was picked is sent as it is now, which is what 
   -> Theme colours applied to the ranges         R: ThemeChoice (theme.md)
 ```
 
+**5 MB is measured, and so is the text engine.** The body views are `NSTextView`s on TextKit 1
+with non-contiguous layout. On the default TextKit 2, scrolling to the end of a 20 MB body
+takes 19 s plain and 36 s coloured; on TextKit 1 every step at 5 MB coloured stays at or under
+129 ms, and 20 MB stays under 0.5 s coloured and 130 ms plain, so Raw above the threshold
+stays usable (environment-facts.md).
+
 **Pretty is decided by parsing the body, not by trusting `Content-Type`.** Servers send JSON
 as `text/plain` and HTML as `application/json`. The header is a hint for which parser to try
 first, and a parse failure is `.raw`, never an error.

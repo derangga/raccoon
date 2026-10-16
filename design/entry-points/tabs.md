@@ -21,7 +21,8 @@ TabViewController                    only the selected Tab has one. Switching Ta
 per-Tab *state*: the definition, the baseline and the last Response. It is not per-Tab
 `NSTextView`s. Ten Tabs cost ten `Tab` values and at most ten Response bodies, not ten editor
 hierarchies. Switching rebinds one editor, and scroll position and selection are part of the
-`TabModel` so they come back.
+`TabModel` so they come back. Rebinding swaps the view's whole `NSTextStorage`: replacing the
+characters of a large coloured storage in place takes minutes (environment-facts.md).
 
 ## Entry points
 
