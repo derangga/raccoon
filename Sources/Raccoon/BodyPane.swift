@@ -10,6 +10,10 @@ final class BodyPane: NSView, NSTextViewDelegate {
     let typeButton = PopButton()
     let kindButton = PopButton()
     let noneNote = NSTextField(labelWithString: "This request has no body.")
+    /// Raw JSON and XML only; manual, never on paste or save (Open UI question 15).
+    let formatButton = PopButton()
+    /// "Couldn't format: …" under the editor until the next edit.
+    let formatError = NSTextField(labelWithString: "")
     let textView: NSTextView
     /// `background` with a 1 pt `border` and a 6 pt radius around the editor and its line numbers.
     let textBox = NSView()
@@ -19,6 +23,7 @@ final class BodyPane: NSView, NSTextViewDelegate {
     private var storage = NSTextStorage()
     let formTable: KeyValueTable
     private var font: NSFont { .monospacedSystemFont(ofSize: 12, weight: .regular) }
+    private var boxBottom = NSLayoutConstraint()
     /// The kind the storage is colored for, so a kind change recolors without new text.
     private var coloredKind: RawKind?
 
@@ -66,7 +71,32 @@ final class BodyPane: NSView, NSTextViewDelegate {
         noneNote.font = .systemFont(ofSize: 12)
         noneNote.textColor = theme.color(.textTertiary)
 
-        let row = NSStackView(views: [label, typeButton, kindButton])
+        formatButton.isBordered = false
+        formatButton.wantsLayer = true
+        formatButton.layer?.cornerRadius = 6
+        formatButton.layer?.borderWidth = 1
+        formatButton.layer?.borderColor = theme.color(.border).cgColor
+        formatButton.layer?.backgroundColor = theme.color(.background).cgColor
+        formatButton.title = "Format"
+        formatButton.attributedTitle = NSAttributedString(string: "Format", attributes: [
+            .font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text),
+        ])
+        formatButton.image = NSImage(systemSymbolName: "list.bullet.indent", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 11, weight: .regular))
+        formatButton.imagePosition = .imageLeading
+        formatButton.contentTintColor = theme.color(.text)
+        formatButton.target = self
+        formatButton.action = #selector(format)
+        // Uppercase: with Shift held, the event's charactersIgnoringModifiers is "F".
+        formatButton.keyEquivalent = "F"
+        formatButton.keyEquivalentModifierMask = [.shift, .option]
+        formatError.font = .systemFont(ofSize: 11)
+        formatError.textColor = theme.color(.error)
+        formatError.isHidden = true
+
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        let row = NSStackView(views: [label, typeButton, kindButton, spacer, formatButton])
         row.spacing = 8
         for view in [row, noneNote, formTable] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
@@ -75,7 +105,7 @@ final class BodyPane: NSView, NSTextViewDelegate {
         NSLayoutConstraint.activate([
             row.topAnchor.constraint(equalTo: topAnchor),
             row.leadingAnchor.constraint(equalTo: leadingAnchor),
-            row.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
+            row.trailingAnchor.constraint(equalTo: trailingAnchor),
             row.heightAnchor.constraint(equalToConstant: 26),
             noneNote.centerXAnchor.constraint(equalTo: centerXAnchor),
             noneNote.centerYAnchor.constraint(equalTo: centerYAnchor, constant: 13),
@@ -120,15 +150,20 @@ final class BodyPane: NSView, NSTextViewDelegate {
         textBox.layer?.borderColor = theme.color(.border).cgColor
         textBox.layer?.backgroundColor = theme.color(.background).cgColor
         textBox.layer?.masksToBounds = true
-        for (view, parent) in [(textBox, self as NSView), (scroll, textBox)] {
+        for (view, parent) in [(textBox, self as NSView), (scroll, textBox), (formatError, self)] {
             view.translatesAutoresizingMaskIntoConstraints = false
             parent.addSubview(view)
         }
+        // The error line takes 20 pt from the bottom of the box only while it shows.
+        boxBottom = textBox.bottomAnchor.constraint(equalTo: bottomAnchor)
         NSLayoutConstraint.activate([
             textBox.topAnchor.constraint(equalTo: topAnchor, constant: 34),
             textBox.leadingAnchor.constraint(equalTo: leadingAnchor),
             textBox.trailingAnchor.constraint(equalTo: trailingAnchor),
-            textBox.bottomAnchor.constraint(equalTo: bottomAnchor),
+            boxBottom,
+            formatError.leadingAnchor.constraint(equalTo: leadingAnchor),
+            formatError.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
+            formatError.bottomAnchor.constraint(equalTo: bottomAnchor),
             scroll.topAnchor.constraint(equalTo: textBox.topAnchor, constant: 1),
             scroll.leadingAnchor.constraint(equalTo: textBox.leadingAnchor, constant: 1),
             scroll.trailingAnchor.constraint(equalTo: textBox.trailingAnchor, constant: -1),
@@ -200,17 +235,43 @@ final class BodyPane: NSView, NSTextViewDelegate {
     private func pick(_ type: BodyType) {
         let before = (model.tab.definition.body, model.tab.definition.headers)
         model.pickBodyType(type)
-        registerUndo(restoring: before)
+        showFormatError(nil)
+        registerUndo(restoring: before, name: "Body Type")
     }
 
-    private func registerUndo(restoring state: (body: Body, headers: [Row])) {
+    private func registerUndo(restoring state: (body: Body, headers: [Row]), name: String) {
         undoManager?.registerUndo(withTarget: self) { pane in
             let now = (pane.model.tab.definition.body, pane.model.tab.definition.headers)
             pane.model.tab.definition.body = state.body
             pane.model.tab.definition.headers = state.headers
-            pane.registerUndo(restoring: now)
+            pane.registerUndo(restoring: now, name: name)
         }
-        undoManager?.setActionName("Body Type")
+        undoManager?.setActionName(name)
+    }
+
+    /// Whitespace only (editing.md §Format the body). A body that does not parse is left as it
+    /// is, and the line under the editor says where it stopped.
+    @objc private func format() {
+        guard case .raw(let kind, let text) = model.tab.definition.body, kind != .text else { return }
+        do throws(FormatError) {
+            let formatted = try BodyFormatter.format(text, kind: kind)
+            showFormatError(nil)
+            guard formatted != text else { return }
+            let before = (model.tab.definition.body, model.tab.definition.headers)
+            model.tab.definition.body = .raw(kind, formatted)
+            registerUndo(restoring: before, name: "Format")
+        } catch {
+            switch error {
+            case .notValid(let line, let column):
+                showFormatError("Couldn't format: not valid \(Self.title(kind)) at line \(line), column \(column).")
+            }
+        }
+    }
+
+    private func showFormatError(_ text: String?) {
+        formatError.stringValue = text ?? ""
+        formatError.isHidden = text == nil
+        boxBottom.constant = text == nil ? 0 : -20
     }
 
     // MARK: Render
@@ -220,6 +281,7 @@ final class BodyPane: NSView, NSTextViewDelegate {
         typeButton.setAccessibilityValue(Self.title(body.type))
         noneNote.isHidden = body != .none
         kindButton.isHidden = true
+        formatButton.isHidden = true
         textBox.isHidden = true
         formTable.isHidden = true
         switch body {
@@ -228,6 +290,8 @@ final class BodyPane: NSView, NSTextViewDelegate {
         case .raw(let kind, let text):
             kindButton.isHidden = false
             kindButton.attributedTitle = popTitle(Self.title(kind))
+            formatButton.isHidden = kind == .text
+            formatButton.toolTip = "Format \(Self.title(kind)) (⇧⌥F)"
             textBox.isHidden = false
             show(text, kind: kind)
         case .formURLEncoded(let rows):
@@ -242,6 +306,8 @@ final class BodyPane: NSView, NSTextViewDelegate {
     /// The user's own typing is already in the storage and is only recolored.
     private func show(_ text: String, kind: RawKind) {
         if textView.string != text {
+            // Typing undo is registered on the storage; its ranges mean nothing in new text.
+            undoManager?.removeAllActions(withTarget: storage)
             storage = NSTextStorage(string: text)
             color(storage, kind: kind)
             layoutManager.replaceTextStorage(storage)
@@ -268,6 +334,7 @@ final class BodyPane: NSView, NSTextViewDelegate {
     func textDidChange(_ notification: Notification) {
         guard case .raw(let kind, _) = model.tab.definition.body else { return }
         color(storage, kind: kind)
+        showFormatError(nil)
         model.tab.definition.body = .raw(kind, textView.string)
         scroll.verticalRulerView?.needsDisplay = true
     }

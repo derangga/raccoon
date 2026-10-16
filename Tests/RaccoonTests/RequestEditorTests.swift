@@ -284,6 +284,83 @@ struct BodyPaneTests {
         #expect(pane.textView.layoutManager?.allowsNonContiguousLayout == true)
         pane.textView.enclosingScrollView?.verticalRulerView?.display()
     }
+
+    @Test(arguments: [
+        (Body.raw(.json, "{}"), false, "Format JSON (⇧⌥F)"), (.raw(.xml, "<a/>"), false, "Format XML (⇧⌥F)"),
+        (.raw(.text, "x"), true, nil), (.none, true, nil), (.formURLEncoded([]), true, nil), (.multipart([]), true, nil),
+    ] as [(Body, Bool, String?)])
+    func `Format shows for raw JSON and XML only`(body: Body, hidden: Bool, tooltip: String?) {
+        let (editor, pane) = pane()
+        model.tab.definition.body = body
+        editor.render()
+        #expect(pane.formatButton.isHidden == hidden)
+        if let tooltip { #expect(pane.formatButton.toolTip == tooltip && pane.formatButton.title == "Format") }
+    }
+
+    @Test func `Format re-indents in one undo step`() throws {
+        let (editor, pane) = pane()
+        model.tab.definition.body = .raw(.json, #"{"a":1,"b":{{n}}}"#)
+        editor.render()
+        let undo = try #require(window.undoManager)
+        undo.groupsByEvent = false
+        undo.beginUndoGrouping()
+        pane.formatButton.performClick(nil)
+        undo.endUndoGrouping()
+        editor.render()
+        #expect(model.tab.definition.body == .raw(.json, "{\n  \"a\": 1,\n  \"b\": {{n}}\n}"))
+        #expect(pane.textView.string == "{\n  \"a\": 1,\n  \"b\": {{n}}\n}")
+
+        undo.undo()
+        editor.render()
+        #expect(model.tab.definition.body == .raw(.json, #"{"a":1,"b":{{n}}}"#))
+        #expect(pane.textView.string == #"{"a":1,"b":{{n}}}"#)
+    }
+
+    @Test func `⇧⌥F formats`() throws {
+        let (editor, pane) = pane()
+        model.tab.definition.body = .raw(.json, #"{"a":1}"#)
+        editor.render()
+        let event = try #require(NSEvent.keyEvent(
+            with: .keyDown, location: .zero, modifierFlags: [.shift, .option], timestamp: 0, windowNumber: window.windowNumber,
+            context: nil, characters: "Ï", charactersIgnoringModifiers: "F", isARepeat: false, keyCode: 3))
+        #expect(pane.formatButton.performKeyEquivalent(with: event))
+        #expect(model.tab.definition.body == .raw(.json, "{\n  \"a\": 1\n}"))
+    }
+
+    @Test func `a body that does not parse is left alone, with one line saying where, until the next edit`() {
+        let (editor, pane) = pane()
+        let text = "{\n  \"amount\": 2000,\n  \"currency\" \"usd\",\n}"
+        model.tab.definition.body = .raw(.json, text)
+        editor.render()
+        #expect(pane.formatError.isHidden)
+
+        pane.formatButton.performClick(nil)
+        #expect(model.tab.definition.body == .raw(.json, text))
+        #expect(!pane.formatError.isHidden)
+        #expect(pane.formatError.stringValue == "Couldn't format: not valid JSON at line 3, column 14.")
+        #expect(pane.formatError.textColor == theme.color(.error))
+
+        type(text + " ", in: pane)
+        #expect(pane.formatError.isHidden)
+    }
+
+    @Test func `text from outside drops undo for the old text, so typing undo never lands in new text`() throws {
+        let (editor, pane) = pane()
+        model.tab.definition.body = .raw(.json, "ab")
+        editor.render()
+        let undo = try #require(window.undoManager)
+        undo.groupsByEvent = false
+        window.makeFirstResponder(pane.textView)
+        undo.beginUndoGrouping()
+        pane.textView.setSelectedRange(NSRange(location: 2, length: 0))
+        pane.textView.insertText("c", replacementRange: NSRange(location: NSNotFound, length: 0))
+        undo.endUndoGrouping()
+        #expect(model.tab.definition.body == .raw(.json, "abc") && undo.canUndo)
+
+        model.tab.definition.body = .raw(.json, "other")
+        editor.render()
+        #expect(!undo.canUndo)
+    }
 }
 
 @MainActor
