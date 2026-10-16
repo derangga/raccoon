@@ -19,6 +19,8 @@ final class ResponseViewer: NSView {
 
     let textView: NSTextView
     private let layoutManager = NSLayoutManager()
+    /// The layout manager does not retain its storage, so the view must.
+    private var storage = NSTextStorage()
     private let scroll = NSScrollView()
     let voidTitle = NSTextField(labelWithString: "")
     let voidText = NSTextField(wrappingLabelWithString: "")
@@ -51,7 +53,7 @@ final class ResponseViewer: NSView {
         container.widthTracksTextView = false
         layoutManager.allowsNonContiguousLayout = true
         layoutManager.addTextContainer(container)
-        NSTextStorage().addLayoutManager(layoutManager)
+        storage.addLayoutManager(layoutManager)
         textView = NSTextView(frame: .zero, textContainer: container)
         super.init(frame: .zero)
         wantsLayer = true
@@ -325,7 +327,8 @@ final class ResponseViewer: NSView {
         shown = key
         // A new storage, never an in-place edit: replacing a large coloured storage's characters
         // ran past ten minutes at 1 MB (environment-facts.md).
-        layoutManager.replaceTextStorage(NSTextStorage(attributedString: bodyText(response, presented, pretty: pretty)))
+        storage = NSTextStorage(attributedString: bodyText(response, presented, pretty: pretty))
+        layoutManager.replaceTextStorage(storage)
         textView.scrollToBeginningOfDocument(nil)
     }
 
