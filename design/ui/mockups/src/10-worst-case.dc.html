@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Worst case</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./raccoon.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.thumb{position:absolute;right:2px;width:6px;border-radius:3px;background:var(--border)}
+</style>
+</helmet>
+<div class="sheet-page" style="width: 2120px; height: 1500px">
+<h1>break-ui: the same window under worst-case data</h1>
+<p class="lede">30 open Tabs, the strip scrolled to the selected one, Request names in Japanese and with emoji, a free-text method (PROPFIND), a 2,000-character URL, 60 headers including a 1.2 KB JWT with no spaces, and a 20.4 MB Response. Fixes from design-system.md, Worst case, are applied.</p>
+<div class="pair">
+<sc-for list="{{flavors}}" as="f" hint-placeholder-count="2">
+<div class="pair-col">
+<div class="pair-label">{{f.label}}</div>
+<div class="win {{f.cls}}" style="height: 1300px">
+  <div class="titlebar">
+    <div class="lights"><span></span><span></span><span></span></div>
+    <button class="tb-btn" aria-label="Toggle sidebar"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M6 3v10"/></svg></button>
+    <span class="tb-title">Raccoon</span>
+    <span class="tb-spacer"></span>
+    <span class="popup-label">Environment</span>
+    <button class="popup" style="max-width: 200px"><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Production (eu-central-1, read-only replica)</span><svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button>
+    <button class="tb-btn" aria-label="Toggle inspector" aria-pressed="false"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M10 3v10"/></svg></button>
+  </div>
+  <div class="wbody">
+    <aside class="sidebar">
+      <div class="sb-search"><svg class="i" viewBox="0 0 16 16" style="width: 12px; height: 12px" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg><input placeholder="Filter Collections" aria-label="Filter Collections"></div>
+      <div class="sb-section">Collections</div>
+      <div class="sb-row"><svg class="i disc" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg><svg class="i ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 5.5l5.5-3 5.5 3-5.5 3z"/><path d="M2.5 8.5l5.5 3 5.5-3"/></svg><span class="name">決済API（本番環境・東京リージョン）</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">請求書の一覧を取得する</span></div>
+      <div class="sb-row indent1 sel"><span class="badge" style="color: var(--methodOther)">PROPFIND</span><span class="name">🦝 Webhooks テスト 🚀</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodOptions)">OPTIONS</span><span class="name">CORS preflight for the merchant onboarding dashboard</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodDelete)">DELETE</span><span class="name">x</span></div>
+      <div class="sb-row indent1"><svg class="i disc" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg><svg class="i ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4.5h4l1.5 1.5H14v6.5H2z"/></svg><span class="name">Legacy v1 (do not use after 2027-01-01)</span></div>
+      <div class="sb-row indent2 unreadable"><svg class="i warn" viewBox="0 0 16 16" aria-label="Unreadable"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2M8 11.6v.1"/></svg><span class="name">Create charge (conflicted copy 2026-10-14).json</span><button class="reveal" aria-label="Reveal in Finder" title="Reveal in Finder"><svg class="i" viewBox="0 0 16 16" style="width: 11px; height: 11px" aria-hidden="true"><path d="M6 3H3v10h10v-3M9 3h4v4M13 3L7.5 8.5"/></svg></button></div>
+      <div class="sb-sub">Unknown file version 3. Raccoon won't change this file.</div>
+    </aside>
+    <main class="content">
+      <div class="tabstrip">
+        <div class="tabscroll scrolls">
+          <div class="tab"><span class="m" style="color: var(--methodGet)">GET</span><span class="t">List charges</span><span class="slot"></span></div>
+          <div class="tab"><span class="m" style="color: var(--methodPost)">POST</span><span class="t">Create charge</span><span class="slot" aria-label="Edited"><span class="dot"></span></span></div>
+          <div class="tab draft"><span class="m" style="color: var(--methodGet)">GET</span><span class="t">Draft</span><span class="slot"></span></div>
+          <div class="tab"><span class="m" style="color: var(--methodGet)">GET</span><span class="t">請求書の一覧を取得する</span><span class="slot"></span></div>
+          <div class="tab sel"><span class="m" style="color: var(--methodOther)">PROPFIND</span><span class="t">🦝 Webhooks テスト 🚀</span><span class="slot"><button class="x" aria-label="Close Tab"><svg class="i" viewBox="0 0 16 16" style="width: 10px; height: 10px" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></span></div>
+          <div class="tab"><span class="spin" aria-label="Sending"></span><span class="t">Refund charge</span><span class="slot"></span></div>
+          <div class="tab"><svg class="i warnico" viewBox="0 0 16 16" aria-label="Changed on Disk"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2M8 11.6v.1"/></svg><span class="m" style="color: var(--methodPatch)">PATCH</span><span class="t">Update charge</span><span class="slot"><span class="dot"></span></span></div>
+          <div class="tab"><span class="m" style="color: var(--methodDelete)">DELETE</span><span class="t">x</span><span class="slot"></span></div>
+          <div class="tab"><span class="m" style="color: var(--methodPut)">PUT</span><span class="t">Replace metadata</span><span class="slot"></span></div>
+          <div class="tab"><span class="m" style="color: var(--methodHead)">HEAD</span><span class="t">Health</span><span class="slot"></span></div>
+        </div>
+        <button class="tab-new" aria-label="New Tab"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
+      </div>
+      <div class="urlbar">
+        <button class="method" style="color: var(--methodOther)"><span style="overflow: hidden; text-overflow: ellipsis">PROPFIND</span><svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button>
+        <div class="url" style="-webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent)"><span class="v-def">{{v.base_url}}</span>/v1/search<span class="q">?</span>filter<span class="q">=</span>%7B%22and%22%3A%5B%7B%22field%22%3A%22created%22%2C%22op%22%3A%22gte%22%2C%22value%22%3A%222026-01-01T00%3A00%3A00Z%22%7D%2C%7B%22field%22%3A%22merchant</div>
+        <button class="send">Send</button>
+      </div>
+      <div class="editor" style="flex-basis: 50%">
+        <div class="seg">
+          <span class="s">Params <span class="n">9</span></span><span class="s on">Headers <span class="n">60</span></span><span class="s">Body</span><span class="s">Auth</span><span class="s">Cookies <span class="n">14</span></span><span class="s">Settings</span>
+        </div>
+        <div class="pane" style="position: relative">
+          <div class="kv" style="flex: 1; min-height: 0; overflow: hidden; position: relative">
+            <div class="hd"><div></div><div>Name</div><div class="vline">Value</div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">Authorization-Proxy</div><div class="vline"><span class="cell">eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2YmY5ZTQ3LWQ1MzAtNGI0Ny1iY2EwLTc2NWJmZTE5NjRkNyIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJvcHMtYm90QHBheW1lbnRzLmV4YW1wbGUuY29tIiwiaWF0IjoxNzkyMTM4MzMyfQ</span></div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">X-Request-Correlation-Identifier-For-Distributed-Tracing</div><div class="vline"><span class="cell">0af7651916cd43dd8448eb211c80319c</span></div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">Accept-Language</div><div class="vline"><span class="cell">ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7</span></div><div></div></div>
+            <div class="r off"><div><span class="cb"></span></div><div class="cell">X-Debug</div><div class="vline"><span class="cell">1</span></div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">X-Empty</div><div class="vline"><span class="cell"></span></div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">X-Tenant</div><div class="vline"><span class="cell"><span class="v-def">{{v.tenant_id}}</span>-<span class="v-sec">{{v.region_secret}}</span>-<span class="v-undef">{{v.shard}}</span></span></div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">Cache-Control</div><div class="vline"><span class="cell">no-cache</span></div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">If-None-Match</div><div class="vline"><span class="cell">W/"5e1a2c7b9d3f40e8a6b1c2d3e4f50617"</span></div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">User-Agent</div><div class="vline"><span class="cell">Raccoon/1.0 (Macintosh; macOS 15.6)</span></div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">X-Feature-Flags</div><div class="vline"><span class="cell">checkout_v3,refunds_async,payouts_instant,webhooks_signing_v2</span></div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">Idempotency-Key</div><div class="vline"><span class="cell">3f9c1d2e-7b8a-4c6d-9e0f-1a2b3c4d5e6f</span></div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">Accept</div><div class="vline"><span class="cell">application/json</span></div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">X-Client-Version</div><div class="vline"><span class="cell">2026.10.16-rc.3+build.8812</span></div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">X-Forwarded-For</div><div class="vline"><span class="cell">203.0.113.195, 70.41.3.18, 150.172.238.178</span></div><div></div></div>
+            <span class="thumb" style="top: 26px; height: 64px" aria-hidden="true"></span>
+          </div>
+        </div>
+      </div>
+      <div class="split" role="separator" aria-label="Resize editor and Response"></div>
+      <div class="response" style="flex-basis: 50%">
+        <div class="statusline">
+          <span class="status" style="color: var(--status5xx)">511 Network Authentication Required</span><span class="meta">2.1 s</span><span class="meta">20.4 MB</span>
+          <span class="grow"></span>
+          <span class="lbl">Pretty is off above 5 MB</span>
+          <span class="segctl"><span class="dis">Pretty</span><span class="on">Raw</span></span>
+          <span class="segctl"><span class="on">Body</span><span>Headers 31</span></span>
+        </div>
+        <div class="rbody">
+<div class="code"><span class="ln">1</span>{"object":"list","data":[{"id":"ch_3PqL8x2eZvKYlo2C0001","amount":2000,"currency":"usd","description":"決済テスト 🦝","metadata":{"order_id":"1042","note":"
+<span class="ln">2</span>{"id":"ch_3PqL8x2eZvKYlo2C0002","amount":0,"currency":"jpy","refunded":false,"failure_code":null,"failure_message":null,"customer":"cus_9s6XKzkNRiz8i3",
+<span class="ln">3</span>{"id":"ch_3PqL8x2eZvKYlo2C0003","amount":99999999,"currency":"usd","refunded":true,"failure_code":"card_declined","failure_message":"Your card was decl
+<span class="ln">4</span>…</div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2120,"height":1500}}'>
+class Component extends DCLogic {
+renderVals() {
+return { v: { base_url: '{{base_url}}', tenant_id: '{{tenant_id}}', region_secret: '{{region_secret}}', shard: '{{shard}}' }, flavors: [{ cls: 'latte', label: 'Latte · light' }, { cls: 'mocha', label: 'Mocha · dark' }] };
+}
+}
+</script>
+</body>
+</html>

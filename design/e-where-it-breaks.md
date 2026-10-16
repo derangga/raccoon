@@ -1,0 +1,96 @@
+# §4 E — where it breaks
+
+Part of the [Raccoon design graph](../DESIGN.md).
+
+Each break is one of three verdicts: `RETRY` (transient, try again), `escape` (recoverable,
+return an alternative and tell the user), `DIE` (our own assumption was false: a bug, not a
+failure of the world). Raccoon has no `RETRY`, and the first entry says why.
+
+```
+send
+  ⚠ any SendError        → escape: the Response pane shows the error. NEVER retried.
+                           Raccoon cannot know whether a POST that timed out was applied,
+                           and an HTTP client that retries a payment request on its own is
+                           the one thing the user cannot undo. Send again is one key
+  ⚠ cancelled            → not an error: .idle. The user asked for it
+  ⚠ timedOut             → escape: "No response after 60 s"
+  ⚠ untrustedCertificate → escape: the message names the host and offers "Allow insecure
+                           TLS for this request", which flips the Request Setting. It is
+                           never flipped automatically
+  ⚠ invalidURL           → escape: the URL bar is outlined, the message quotes the URL
+                           after substitution, because that is the one that failed
+  ⚠ fileMissing(path)    → escape: the multipart row is marked and the send stops before
+                           any byte goes out
+  ⚠ transport(code)      → escape: URLError's own description, plus the code
+resolve
+  ⚠ undefined(names)     → escape: every name listed, red underlines already on screen,
+                           nothing sent, no spinner
+  ⚠ Keychain unreadable  → becomes undefined for that secret. One path, not two: the user
+                           sees "token is not defined" and the Environments sheet shows
+                           why
+showResponse
+  ⚠ body not UTF-8       → not an error: .binary(byteCount)
+  ⚠ JSON did not parse   → not an error: .raw. A server that says json and sends HTML
+                           is the server's fact
+Curl Import
+  ⚠ unterminatedQuote    → escape: a message under the URL bar with the position. The
+                           Tab is unchanged and the pasted text is not inserted, because a
+                           half-curl in the URL bar is not a URL either
+  ⚠ noURL                → escape: same place, "No URL in this curl command"
+  ⚠ unknown flag         → not an error: the ignored note
+  ⚠ @file unreadable     → escape, per file: a multipart part keeps the path (send will
+                           fail with fileMissing if it is still gone); a --data-binary
+                           body becomes .none and the note says which file
+  ⚠ @file not UTF-8      → escape: same as unreadable, "binary bodies are not supported"
+  ⚠ two commands pasted  → not an error: the first is imported, the note says how many
+                           were skipped
+Postman Import
+  ⚠ file not JSON, or not a v2 Collection / Environment / Globals export
+                         → escape: that file's row on the Import sheet says "Not a Postman
+                           export Raccoon reads"; the other files still import
+  ⚠ file unreadable      → escape: same row, with the reason
+  ⚠ something Raccoon cannot represent (scripts, OAuth, binary body, dynamic variables)
+                         → not an error: an ImportNote, shown on the sheet before Import
+  ⚠ Data Folder not writable → escape: the sheet says so and Import is disabled
+  ⚠ a Collection fails to write → escape: written to a temp folder and renamed, so it lands
+                           whole or not at all; the sheet's result names it, the others land
+  ⚠ SecretStore.set fails for an imported secret → escape: the Variable is written as a
+                           secret with no value (undefined until set) and noted. Never
+                           written in clear
+Data Folder
+  ⚠ root not writable    → escape: banner with Choose Folder…, sidebar empty, Drafts and
+                           sending still work. A missing Data Folder must not stop the
+                           app from being an HTTP client
+  ⚠ file undecodable     → escape: an .unreadable row, the file kept byte-for-byte, never
+                           rewritten
+  ⚠ duplicate RequestID  → escape: the second by path order is .unreadable
+  ⚠ write failed         → escape: banner, Tab stays Dirty. Nothing on screen claims a
+                           save that did not land
+  ⚠ file deleted under a Tab → escape: the Tab becomes a Draft with its content
+Session
+  ⚠ undecodable          → escape: start with one empty Tab; the bad file is renamed
+                           session.corrupt-<date>.json, not deleted
+  ⚠ unwritable on quit   → escape: quit anyway and log it. Blocking quit on a cache file
+                           is worse than losing Drafts once
+  ⚠ snapshot names a Request that is gone → escape: restored as a Draft
+  ⚠ Active Environment file gone → escape: none active
+Secrets
+  ⚠ SecretStore.set fails → escape: the Variable stays unsaved in the sheet with the
+                           OSStatus message; the file is not touched (variables.md order)
+  ⚠ Environment renamed  → not an error: its secrets move with it, Keychain first, file
+                           second
+Theme
+  ⚠ bundled theme JSON undecodable or missing a token → DIE. The file ships inside the
+                           app; a bad one is our bug, and a test over every bundled Flavor
+                           fails before it can ship
+  ⚠ stored ThemeChoice names an unknown Theme → escape: Catppuccin Latte / Mocha
+Invariants
+  ⚠ two Tabs with the same .request(id)    → DIE (assertion). openRequest and relaunch
+                           are the only ways in and both check
+  ⚠ ResolvedRequest built outside the resolver → impossible: no public init (shapes.md)
+```
+
+**Every escape says what happened in the place it happened.** A send error is in the
+Response pane, a curl error under the URL bar, a file error on the sidebar row. A global
+alert is used only for the Data Folder itself, because that is the one failure with no
+smaller place to show it.

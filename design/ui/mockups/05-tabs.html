@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Several Tabs</title>
+<style>
+/* Raccoon mockups. Theme tokens come from design/ui/themes/catppuccin.json (Latte, Mocha).
+   --sys-* are stand-ins for the NSColor the native chrome uses; they are not Theme tokens. */
+.latte {
+  --background:#eff1f5; --backgroundElevated:#eff1f5; --backgroundRecessed:#e6e9ef; --border:#bcc0cc; --selection:#ccd0da; --rowHover:#e6e9ef;
+  --text:#4c4f69; --textSecondary:#5c5f77; --textTertiary:#63667a; --textDisabled:#636679; --textOnAccent:#eff1f5;
+  --accent:#145ff5; --focusRing:#145ff5;
+  --methodGet:#2d701e; --methodPost:#ac4001; --methodPut:#0b59f4; --methodPatch:#8230ee; --methodDelete:#c80e36; --methodHead:#127076; --methodOptions:#be1d93; --methodOther:#63667a;
+  --status1xx:#036b95; --status2xx:#307820; --status3xx:#177181; --status4xx:#b74301; --status5xx:#c80e36; --statusFailed:#c80e36;
+  --jsonKey:#0b59f4; --jsonString:#307820; --jsonNumber:#b74301; --jsonBoolean:#8230ee; --jsonNull:#c91b2a; --jsonPunctuation:#636679;
+  --xmlTag:#0b59f4; --xmlAttribute:#8e5a12; --xmlValue:#307820;
+  --variableDefined:#0b59f4; --variableSecret:#8230ee; --variableUndefined:#c80e36;
+  --dirtyDot:#df5201; --warning:#8e5a12; --error:#c80e36; --success:#307820;
+  --elevatedShadow: 0 0 0 0.5px rgba(76,79,105,.18), 0 1px 2px rgba(76,79,105,.10);
+  --sys-window:#ececec; --sys-titlebar:#e3e3e3; --sys-sidebar:#e8e8ea; --sys-label:#262626; --sys-secondaryLabel:#6b6b70;
+  --sys-separator:#d1d1d6; --sys-control:#ffffff; --sys-accent:#007aff; --sys-sidebarSelection:rgba(0,0,0,.09);
+  --sys-menu:#f2f2f4; --sys-shadow: 0 12px 40px rgba(0,0,0,.18), 0 0 0 .5px rgba(0,0,0,.18);
+  --sys-scrim: rgba(0,0,0,.12); --sys-red:#c4001a; --sys-find:rgba(255,204,0,.45); --sys-orange:#b25000;
+  color-scheme: light;
+}
+.mocha {
+  --background:#1e1e2e; --backgroundElevated:#313244; --backgroundRecessed:#181825; --border:#45475a; --selection:#45475a; --rowHover:#313244;
+  --text:#cdd6f4; --textSecondary:#bac2de; --textTertiary:#a6adc8; --textDisabled:#999fb6; --textOnAccent:#1e1e2e;
+  --accent:#89b4fa; --focusRing:#89b4fa;
+  --methodGet:#a6e3a1; --methodPost:#fab387; --methodPut:#89b4fa; --methodPatch:#cba6f7; --methodDelete:#f38ba8; --methodHead:#94e2d5; --methodOptions:#f5c2e7; --methodOther:#a6adc8;
+  --status1xx:#89dceb; --status2xx:#a6e3a1; --status3xx:#74c7ec; --status4xx:#fab387; --status5xx:#f38ba8; --statusFailed:#f38ba8;
+  --jsonKey:#89b4fa; --jsonString:#a6e3a1; --jsonNumber:#fab387; --jsonBoolean:#cba6f7; --jsonNull:#eba0ac; --jsonPunctuation:#9399b2;
+  --xmlTag:#89b4fa; --xmlAttribute:#f9e2af; --xmlValue:#a6e3a1;
+  --variableDefined:#89b4fa; --variableSecret:#cba6f7; --variableUndefined:#f38ba8;
+  --dirtyDot:#fab387; --warning:#f9e2af; --error:#f38ba8; --success:#a6e3a1;
+  --elevatedShadow: none;
+  --sys-window:#262626; --sys-titlebar:#2e2e2e; --sys-sidebar:#2a2a2e; --sys-label:#ececec; --sys-secondaryLabel:#a1a1a6;
+  --sys-separator:#3c3c3f; --sys-control:#48484a; --sys-accent:#0a84ff; --sys-sidebarSelection:rgba(255,255,255,.10);
+  --sys-menu:#2c2c2e; --sys-shadow: 0 12px 40px rgba(0,0,0,.5), 0 0 0 .5px rgba(255,255,255,.12);
+  --sys-scrim: rgba(0,0,0,.35); --sys-red:#ff6961; --sys-find:rgba(255,204,0,.32); --sys-orange:#ff9f0a;
+  color-scheme: dark;
+}
+
+/* page */
+.sheet-page { box-sizing:border-box; padding:40px; display:flex; flex-direction:column; gap:20px; background:#d5d6db;
+  font: 13px/1.38 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; }
+.sheet-page h1 { margin:0; font-size:22px; font-weight:600; letter-spacing:-.01em; color:#1c1c1e; }
+.sheet-page .lede { margin:0; color:#3a3a3c; max-width:900px; }
+.pair { display:flex; gap:40px; align-items:flex-start; }
+.pair-col { display:flex; flex-direction:column; gap:8px; }
+.pair-label { font-size:11px; font-weight:600; color:#3a3a3c; letter-spacing:.02em; text-transform:uppercase; }
+.mono, code, .url, .cell, .code { font-family: "SF Mono", ui-monospace, Menlo, monospace; }
+* { box-sizing:border-box; }
+
+/* window: native chrome */
+.win { width:1000px; height:640px; border-radius:10px; overflow:hidden; display:flex; flex-direction:column; position:relative;
+  background:var(--sys-window); color:var(--sys-label); box-shadow:var(--sys-shadow); font-size:13px; }
+.titlebar { height:52px; flex:none; display:flex; align-items:center; gap:12px; padding:0 12px 0 16px; background:var(--sys-titlebar);
+  border-bottom:1px solid var(--sys-separator); }
+.lights { display:flex; gap:8px; flex:none; }
+.lights span { width:12px; height:12px; border-radius:50%; background:#ff5f57; }
+.lights span:nth-child(2){ background:#febc2e; } .lights span:nth-child(3){ background:#28c840; }
+.tb-btn { height:28px; min-width:28px; padding:0 6px; border:0; border-radius:6px; background:transparent; color:var(--sys-secondaryLabel);
+  display:inline-flex; align-items:center; justify-content:center; gap:4px; font:inherit; }
+.tb-title { font-weight:600; font-size:13px; }
+.tb-spacer { flex:1; }
+.popup { height:24px; padding:0 8px 0 10px; border-radius:6px; border:0; background:var(--sys-control); color:var(--sys-label); font:inherit;
+  display:inline-flex; align-items:center; gap:6px; box-shadow:0 0 0 .5px var(--sys-separator), 0 1px 1px rgba(0,0,0,.06); }
+.popup .chev { width:9px; height:9px; color:var(--sys-secondaryLabel); }
+.popup-label { font-size:11px; color:var(--sys-secondaryLabel); margin-right:-4px; }
+.wbody { flex:1; display:flex; min-height:0; }
+
+/* sidebar: native */
+.sidebar { width:232px; flex:none; background:var(--sys-sidebar); border-right:1px solid var(--sys-separator); padding:8px 10px;
+  display:flex; flex-direction:column; gap:1px; overflow:hidden; }
+.sb-section { font-size:11px; font-weight:600; color:var(--sys-secondaryLabel); padding:8px 6px 4px; }
+.sb-row { height:24px; display:flex; align-items:center; gap:6px; padding:0 6px; border-radius:6px; min-width:0; }
+.sb-row.sel { background:var(--sys-sidebarSelection); }
+.sb-row .disc { width:10px; height:10px; flex:none; color:var(--sys-secondaryLabel); }
+.sb-row .ico { width:14px; height:14px; flex:none; color:var(--sys-secondaryLabel); }
+.sb-row .name { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sb-row .badge { width:52px; flex:none; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font: 700 9.5px/1 "SF Mono", ui-monospace, monospace; letter-spacing:.02em; }
+.sb-row.unreadable .name { color:var(--sys-secondaryLabel); font-style:normal; }
+.sb-row.unreadable .warn { width:14px; height:14px; flex:none; color:var(--warning); }
+.sb-row .reveal { flex:none; width:20px; height:18px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:4px; border:0; color:var(--sys-label);
+  background:var(--sys-control); box-shadow:0 0 0 .5px var(--sys-separator); }
+.sb-sub { font-size:11px; color:var(--sys-secondaryLabel); padding:0 6px 4px 64px; line-height:1.3; }
+.sb-empty { padding:16px 8px; font-size:12px; color:var(--sys-secondaryLabel); line-height:1.4; }
+.sb-empty .path { font-family:"SF Mono", ui-monospace, monospace; font-size:11px; display:block; margin-top:4px; overflow-wrap:anywhere; }
+.sb-footer { margin-top:auto; display:flex; gap:2px; padding-top:6px; }
+.indent1 { padding-left:22px; } .indent2 { padding-left:38px; }
+
+/* content: themed */
+.content { flex:1; min-width:0; display:flex; flex-direction:column; background:var(--background); color:var(--text); }
+.tabstrip { height:34px; flex:none; display:flex; align-items:stretch; background:var(--backgroundRecessed); border-bottom:1px solid var(--border); overflow:hidden; }
+.tab { position:relative; flex:0 1 196px; min-width:104px; display:flex; align-items:center; gap:6px; padding:0 6px 0 10px;
+  color:var(--textSecondary); border-right:1px solid var(--border); }
+.tab.sel { min-width:168px; }
+.tab.sel { background:var(--background); color:var(--text); margin-bottom:-1px; }
+.tab.sel::before { content:""; position:absolute; left:0; right:0; top:0; height:2px; background:var(--accent); }
+.tab.hover { background:var(--rowHover); }
+.tab .m { flex:none; max-width:64px; overflow:hidden; text-overflow:ellipsis; font: 700 10px/1 "SF Mono", ui-monospace, monospace; letter-spacing:.02em; }
+.tab .t { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tab.draft .t { font-style:italic; }
+.tab .slot { width:16px; height:16px; flex:none; display:flex; align-items:center; justify-content:center; border-radius:4px; }
+.tab .dot { width:8px; height:8px; border-radius:50%; background:var(--dirtyDot); }
+.tab .x { width:16px; height:16px; border:0; padding:0; background:transparent; color:var(--textSecondary); border-radius:4px;
+  display:flex; align-items:center; justify-content:center; }
+.tab.hover .x { background:var(--selection); }
+.tab .warnico { width:12px; height:12px; flex:none; color:var(--warning); }
+.tabscroll { flex:1; min-width:0; display:flex; overflow:hidden; }
+.tabscroll.scrolls { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%); }
+.tabscroll .tab { flex:0 0 auto; width:104px; }
+.tabscroll .tab.sel { width:196px; }
+.tab-new { width:34px; flex:none; border:0; background:transparent; color:var(--textSecondary); display:flex; align-items:center; justify-content:center; }
+.spin { width:12px; height:12px; flex:none; border-radius:50%; border:1.5px solid var(--border); border-top-color:var(--textSecondary); }
+
+.banner { flex:none; min-height:36px; display:flex; align-items:center; gap:8px; padding:6px 12px; background:var(--backgroundElevated);
+  border-bottom:1px solid var(--border); color:var(--text); }
+.banner .bico { width:16px; height:16px; flex:none; }
+.banner .bico.warn { color:var(--warning); } .banner .bico.err { color:var(--error); }
+.banner .btxt { flex:1; min-width:0; }
+.banner .btxt b { font-weight:600; }
+.banner .btxt span { color:var(--textSecondary); }
+.btn { height:24px; padding:0 10px; border-radius:6px; border:1px solid var(--border); background:var(--background); color:var(--text);
+  font:inherit; font-size:12px; white-space:nowrap; flex:none; }
+.btn.primary { background:var(--accent); color:var(--textOnAccent); border-color:var(--accent); font-weight:600; }
+
+.urlbar { flex:none; display:flex; gap:8px; align-items:center; padding:10px 12px 6px; }
+.method { height:30px; width:auto; min-width:84px; max-width:128px; gap:6px; flex:none; white-space:nowrap; overflow:hidden; display:flex; align-items:center; justify-content:space-between; padding:0 8px 0 10px;
+  border-radius:6px; border:1px solid var(--border); background:var(--backgroundElevated); box-shadow:var(--elevatedShadow);
+  font: 700 12px/1 "SF Mono", ui-monospace, monospace; }
+.method .chev { width:9px; height:9px; color:var(--textTertiary); }
+.url { flex:1; min-width:0; height:30px; display:flex; align-items:center; padding:0 10px; border-radius:6px; border:1px solid var(--border);
+  background:var(--backgroundElevated); box-shadow:var(--elevatedShadow); font-size:12px; white-space:nowrap; overflow:hidden; color:var(--text); }
+.url.focus { border-color:var(--focusRing); box-shadow:0 0 0 3px color-mix(in srgb, var(--focusRing) 35%, transparent); }
+.url.invalid { border-color:var(--error); }
+.url .q { color:var(--textSecondary); }
+.url .ph { color:var(--textTertiary); font-family:-apple-system, BlinkMacSystemFont, sans-serif; font-size:13px; }
+.send { height:30px; min-width:76px; flex:none; padding:0 14px; border-radius:6px; border:1px solid var(--accent); background:var(--accent);
+  color:var(--textOnAccent); font:inherit; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px; }
+.send.cancel { background:var(--backgroundElevated); color:var(--text); border-color:var(--border); }
+.send[disabled] { opacity:1; }
+
+.msgline { flex:none; display:flex; align-items:flex-start; gap:6px; padding:0 12px 6px 104px; font-size:11px; line-height:16px; color:var(--textSecondary); }
+.msgline.err { color:var(--error); }
+.msgline .mico { width:12px; height:12px; flex:none; margin-top:2px; }
+.msgline .mtxt { flex:1; min-width:0; }
+.msgline code { font-size:11px; }
+.msgline .mx { border:0; background:transparent; color:inherit; padding:0; width:14px; height:14px; flex:none; display:flex; }
+
+/* {{name}} highlighting: colour AND a second cue */
+.v-def { color:var(--variableDefined); }
+.v-sec { color:var(--variableSecret); text-decoration:underline dotted; text-underline-offset:3px; }
+.v-undef { color:var(--variableUndefined); text-decoration:underline wavy; text-decoration-thickness:1px; text-underline-offset:3px; }
+
+.editor { flex:1 1 52%; min-height:0; display:flex; flex-direction:column; }
+.seg { display:flex; gap:2px; padding:4px 12px 0; border-bottom:1px solid var(--border); flex:none; }
+.seg .s { height:28px; padding:0 10px; display:flex; align-items:center; gap:4px; color:var(--textSecondary); border-bottom:2px solid transparent; margin-bottom:-1px; }
+.seg .s.on { color:var(--text); border-bottom-color:var(--accent); font-weight:600; }
+.seg .s .n { color:var(--textTertiary); font-weight:400; font-variant-numeric:tabular-nums; }
+.seg .s .n.undef { color:var(--variableUndefined); font-weight:600; }
+.pane { flex:1; min-height:0; overflow:hidden; padding:8px 12px; display:flex; flex-direction:column; gap:8px; }
+
+.kv { border:1px solid var(--border); border-radius:6px; overflow:hidden; flex:none; }
+.kv .hd, .kv .r { display:grid; grid-template-columns: 30px minmax(0, 36%) minmax(0, 1fr) 30px; align-items:center; }
+.kv .hd { height:24px; background:var(--backgroundRecessed); color:var(--textTertiary); font-size:11px; font-weight:600; border-bottom:1px solid var(--border); }
+.kv .hd > div, .kv .r > div { padding:0 8px; min-width:0; }
+.kv .r { height:28px; border-bottom:1px solid var(--border); }
+.kv .r:last-child { border-bottom:0; }
+.kv .r.hover { background:var(--rowHover); }
+.kv .r .cell { font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kv .r .cell.ph { color:var(--textTertiary); font-family:-apple-system, BlinkMacSystemFont, sans-serif; font-size:13px; }
+.kv .r.off .cell { color:var(--textDisabled); }
+.kv .r.off .cell .v-def, .kv .r.off .cell .v-sec, .kv .r.off .cell .v-undef { color:var(--textDisabled); }
+.kv .r .cell.editing { margin:0 4px; padding:4px; border-radius:4px; outline:2px solid var(--focusRing); background:var(--background); overflow:hidden; }
+.kv .vline { border-left:1px solid var(--border); height:100%; display:flex; align-items:center; }
+.cb { width:14px; height:14px; border-radius:4px; border:1px solid var(--textTertiary); background:var(--background); display:flex; align-items:center; justify-content:center; margin:0 auto; }
+.cb.on { background:var(--accent); border-color:var(--accent); color:var(--textOnAccent); }
+.cb svg { width:10px; height:10px; }
+.del { border:0; background:transparent; color:var(--textTertiary); width:20px; height:20px; padding:0; display:flex; align-items:center; justify-content:center; margin:0 auto; border-radius:4px; }
+.del.hidden { visibility:hidden; }
+.file-chip { display:inline-flex; align-items:center; gap:4px; height:20px; padding:0 6px; border-radius:4px; background:var(--backgroundRecessed); border:1px solid var(--border); font-size:11px; max-width:100%; }
+.file-chip .fn { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.file-chip.missing { border-color:var(--error); color:var(--error); }
+.typecell { font-size:11px; color:var(--textSecondary); }
+
+.row-ctrls { display:flex; align-items:center; gap:8px; flex:none; }
+.segctl { display:inline-flex; border:1px solid var(--border); border-radius:6px; overflow:hidden; background:var(--backgroundElevated); flex:none; }
+.segctl span { height:22px; padding:0 10px; display:flex; align-items:center; font-size:12px; color:var(--textSecondary); border-right:1px solid var(--border); }
+.segctl span:last-child { border-right:0; }
+.segctl span.on { background:var(--selection); color:var(--text); font-weight:600; }
+.segctl span.dis { color:var(--textDisabled); }
+.lbl { font-size:11px; color:var(--textTertiary); }
+
+.code { font-size:12px; line-height:18px; white-space:pre; color:var(--text); overflow:hidden; flex:1; min-height:0; }
+.code .ln { display:inline-block; width:28px; color:var(--textTertiary); text-align:right; margin-right:12px; user-select:none; }
+.code-box { border:1px solid var(--border); border-radius:6px; padding:8px 8px 8px 0; background:var(--background); flex:1; min-height:0; overflow:hidden; display:flex; }
+.jk { color:var(--jsonKey); } .js { color:var(--jsonString); } .jn { color:var(--jsonNumber); } .jb { color:var(--jsonBoolean); }
+.jz { color:var(--jsonNull); } .jp { color:var(--jsonPunctuation); }
+.xt { color:var(--xmlTag); } .xa { color:var(--xmlAttribute); } .xv { color:var(--xmlValue); }
+
+.formgrid { display:grid; grid-template-columns: 140px minmax(0, 360px); gap:8px 12px; align-items:center; }
+.formgrid label { color:var(--textSecondary); text-align:right; }
+.field { height:26px; display:flex; align-items:center; padding:0 8px; border-radius:6px; border:1px solid var(--border); background:var(--backgroundElevated); font-size:12px; min-width:0; overflow:hidden; white-space:nowrap; }
+.check { display:flex; align-items:flex-start; gap:8px; }
+.check .cb { margin:2px 0 0; flex:none; }
+.check .hint { display:block; color:var(--textTertiary); font-size:11px; }
+.radio-row { display:flex; gap:16px; }
+.radio { display:flex; align-items:center; gap:6px; }
+.radio i { width:14px; height:14px; border-radius:50%; border:1px solid var(--textTertiary); background:var(--background); display:inline-block; }
+.radio.on i { border:4px solid var(--accent); }
+
+.split { height:6px; flex:none; background:var(--background); border-top:1px solid var(--border); position:relative; }
+.split::after { content:""; position:absolute; left:50%; top:1px; width:32px; height:3px; margin-left:-16px; border-radius:2px; background:var(--border); }
+
+.response { flex:1 1 48%; min-height:0; display:flex; flex-direction:column; background:var(--backgroundRecessed); }
+.statusline { height:34px; flex:none; display:flex; align-items:center; gap:10px; padding:0 12px; border-bottom:1px solid var(--border); }
+.status { font: 700 12px/1 "SF Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:0 1 auto; }
+.statusline .meta, .statusline .lbl, .statusline .segctl { white-space:nowrap; flex:none; }
+.meta { color:var(--textSecondary); font-size:12px; font-variant-numeric:tabular-nums; }
+.meta + .meta::before { content:"·"; margin-right:10px; color:var(--textTertiary); }
+.statusline .grow { flex:1; }
+.rbody { flex:1; min-height:0; padding:8px 12px; display:flex; flex-direction:column; overflow:hidden; }
+.void { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; color:var(--textTertiary); padding:16px; }
+.void .vt { color:var(--textSecondary); font-weight:600; }
+.void .vs { max-width:440px; font-size:12px; line-height:1.45; }
+.void.err .vt { color:var(--statusFailed); }
+.void .vico { width:22px; height:22px; }
+.void.err .vico { color:var(--statusFailed); }
+.kbd { font-size:11px; padding:1px 5px; border-radius:4px; border:1px solid var(--border); color:var(--textSecondary); background:var(--background); }
+.hdrs { display:grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); font-size:12px; row-gap:0; }
+.hdrs div { padding:4px 0; border-bottom:1px solid var(--border); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hdrs .hn { color:var(--textSecondary); }
+
+/* overlays */
+.scrim { position:absolute; inset:52px 0 0 0; background:var(--sys-scrim); display:flex; justify-content:center; align-items:flex-start; }
+.nsheet { margin-top:-1px; background:var(--sys-window); color:var(--sys-label); border-radius:0 0 12px 12px; box-shadow:var(--sys-shadow); display:flex; flex-direction:column; }
+.nsheet h2 { margin:0; font-size:13px; font-weight:600; }
+.nsheet .foot { display:flex; justify-content:flex-end; gap:8px; padding:12px 16px; border-top:1px solid var(--sys-separator); }
+.nbtn { height:24px; padding:0 12px; border-radius:6px; border:0; font:inherit; background:var(--sys-control); color:var(--sys-label); box-shadow:0 0 0 .5px var(--sys-separator), 0 1px 1px rgba(0,0,0,.06); }
+.nbtn.default { background:var(--sys-accent); color:#fff; box-shadow:none; }
+.nfield { height:24px; border-radius:5px; background:var(--sys-control); box-shadow:0 0 0 .5px var(--sys-separator); display:flex; align-items:center; padding:0 8px; min-width:0; overflow:hidden; white-space:nowrap; }
+.nfield.focus { box-shadow:0 0 0 3.5px color-mix(in srgb, var(--sys-accent) 45%, transparent), 0 0 0 .5px var(--sys-accent); }
+.nlabel { color:var(--sys-label); text-align:right; }
+.nhint { color:var(--sys-secondaryLabel); font-size:11px; }
+
+.tooltip { position:absolute; z-index:5; background:var(--backgroundElevated); color:var(--text); border:1px solid var(--border); border-radius:6px;
+  padding:6px 8px; font-size:11px; line-height:1.4; box-shadow:0 6px 18px rgba(0,0,0,.18); max-width:320px; }
+.tooltip .tn { font-family:"SF Mono", ui-monospace, monospace; font-weight:700; }
+.tooltip .tv { font-family:"SF Mono", ui-monospace, monospace; overflow-wrap:anywhere; color:var(--text); }
+.tooltip .tsrc { color:var(--textTertiary); }
+
+.menu { position:absolute; z-index:6; background:var(--sys-menu); color:var(--sys-label); border-radius:8px; padding:5px; box-shadow:var(--sys-shadow); min-width:200px; font-size:13px; }
+.menu .mi { height:22px; display:flex; align-items:center; gap:6px; padding:0 8px 0 4px; border-radius:4px; white-space:nowrap; }
+.menu .mi .ck { width:14px; flex:none; text-align:center; font-size:12px; }
+.menu .mi .sc { margin-left:auto; padding-left:24px; color:var(--sys-secondaryLabel); }
+.menu .mi.hl { background:var(--sys-accent); color:#fff; }
+.menu .mi.hl .sc { color:rgba(255,255,255,.85); }
+.menu .mh { font-size:11px; font-weight:600; color:var(--sys-secondaryLabel); padding:6px 8px 2px 22px; }
+.menu .sep { height:1px; background:var(--sys-separator); margin:5px 8px; }
+.menubar { height:24px; display:flex; align-items:center; gap:18px; padding:0 14px; font-size:13px; background:var(--sys-titlebar); border-bottom:1px solid var(--sys-separator); }
+.menubar .on { background:var(--sys-sidebarSelection); border-radius:4px; padding:1px 8px; margin:0 -8px; }
+
+svg.i { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+
+/* sidebar filter: native NSSearchField */
+.sb-search { height:24px; margin:2px 0 4px; flex:none; display:flex; align-items:center; gap:6px; padding:0 6px 0 8px; border-radius:6px;
+  background:var(--sys-control); box-shadow:0 0 0 .5px var(--sys-separator); color:var(--sys-secondaryLabel); font-size:12px; }
+.sb-search.focus { box-shadow:0 0 0 3.5px color-mix(in srgb, var(--sys-accent) 45%, transparent), 0 0 0 .5px var(--sys-accent); }
+.sb-search .q { flex:1; min-width:0; color:var(--sys-label); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sb-search .ph { flex:1; min-width:0; white-space:nowrap; overflow:hidden; }
+.sb-search .clr { width:14px; height:14px; border:0; padding:0; border-radius:50%; background:var(--sys-secondaryLabel); color:var(--sys-control); display:flex; align-items:center; justify-content:center; flex:none; }
+.sb-row mark { background:var(--sys-find); color:inherit; font-weight:600; border-radius:2px; padding:0 1px; }
+.sb-count { font-size:11px; color:var(--sys-secondaryLabel); padding:0 6px 2px; }
+
+/* inspector: themed, right of the content */
+.inspector { width:280px; flex:none; min-height:0; display:flex; flex-direction:column; background:var(--backgroundRecessed); color:var(--text); border-left:1px solid var(--border); }
+.insp-head { height:34px; flex:none; display:flex; align-items:center; justify-content:center; border-bottom:1px solid var(--border); }
+.insp-body { flex:1; min-height:0; overflow:hidden; padding:10px 12px; display:flex; flex-direction:column; gap:12px; }
+.insp-group { display:flex; flex-direction:column; }
+.insp-gt { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:var(--textTertiary); padding-bottom:4px; }
+.insp-gt.undef { color:var(--variableUndefined); }
+.insp-gt .tag { font-weight:400; }
+.insp-row { display:grid; grid-template-columns:minmax(0, 46%) minmax(0, 1fr); gap:8px; align-items:center; min-height:24px; border-bottom:1px solid var(--border); font-size:12px; }
+.insp-row > span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.insp-row .nm { font-family:"SF Mono", ui-monospace, monospace; }
+.insp-row .vl { font-family:"SF Mono", ui-monospace, monospace; color:var(--textSecondary); }
+.insp-row .vl.secret { font-family:inherit; color:var(--variableSecret); display:flex; align-items:center; gap:4px; }
+.insp-row .vl.none { font-family:inherit; color:var(--variableUndefined); white-space:normal; }
+.insp-row.over .nm, .insp-row.over .vl { color:var(--textDisabled); text-decoration:line-through; }
+.insp-note { font-size:11px; color:var(--textTertiary); line-height:1.4; }
+.insp-foot { flex:none; display:flex; align-items:center; gap:8px; padding:8px 12px; border-top:1px solid var(--border); }
+.insp-foot .grow { flex:1; }
+.curl { font:11px/17px "SF Mono", ui-monospace, monospace; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--text); background:var(--background);
+  border:1px solid var(--border); border-radius:6px; padding:8px 10px; flex:1; min-height:0; overflow:hidden; }
+.curl .fl { color:var(--textSecondary); }
+.sb-search input { flex:1; min-width:0; border:0; padding:0; background:transparent; font:inherit; color:var(--sys-label); outline:none; }
+.sb-search input::placeholder { color:var(--sys-secondaryLabel); }
+.tb-btn.on { background:var(--sys-sidebarSelection); color:var(--sys-label); }
+.insp-head.titled { justify-content:space-between; padding:0 8px 0 12px; }
+.insp-title { font-size:12px; font-weight:600; color:var(--text); }
+.segctl.icon button { width:30px; height:22px; padding:0; border:0; border-right:1px solid var(--border); background:transparent; color:var(--textSecondary);
+  display:flex; align-items:center; justify-content:center; }
+.segctl.icon button:last-child { border-right:0; }
+.segctl.icon button.on { background:var(--selection); color:var(--text); }
+
+/* Postman Import sheet (native) */
+.imp-list { border-radius:6px; background:var(--sys-control); box-shadow:0 0 0 .5px var(--sys-separator); overflow:hidden; }
+.imp-row { display:grid; grid-template-columns:22px 18px minmax(0,1fr) auto; gap:8px; align-items:center; min-height:38px; padding:4px 10px; border-bottom:1px solid var(--sys-separator); }
+.imp-row:last-child { border-bottom:0; }
+.imp-row .t { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.imp-row .d { font-size:11px; color:var(--sys-secondaryLabel); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.imp-row .side { font-size:11px; color:var(--sys-secondaryLabel); white-space:nowrap; }
+.imp-row.off .t, .imp-row.off .ico2 { color:var(--sys-secondaryLabel); font-weight:400; }
+.imp-row .ico2 { width:16px; height:16px; color:var(--sys-secondaryLabel); }
+.imp-notes { display:flex; flex-direction:column; gap:6px; font-size:12px; }
+.imp-note { display:grid; grid-template-columns:16px minmax(0,1fr); gap:6px; align-items:start; }
+.imp-note svg { width:14px; height:14px; margin-top:1px; }
+.imp-note.warn svg { color:var(--sys-orange); }
+.imp-note.info svg { color:var(--sys-secondaryLabel); }
+.imp-note .sub { display:block; font-size:11px; color:var(--sys-secondaryLabel); }
+.imp-h { font-size:11px; font-weight:600; color:var(--sys-secondaryLabel); }
+</style>
+</head>
+<body>
+<style>
+body{margin:0}
+</style>
+<div class="sheet-page" style="width: 2120px; height: 840px">
+<h1>5 · Several Tabs: Dirty, Draft, sending, Changed on Disk</h1>
+<p class="lede">Left to right: a clean Tab, a Dirty Tab (dot in the close slot), a Draft (italic name), a Tab that is sending (spinner in place of the method), the Tab under the pointer (close button replaces its dot), and the selected Tab, which is Changed on Disk (warning glyph plus dot). Its banner sits between the tab strip and the URL bar because it belongs to that Tab.</p>
+<div class="pair">
+<div class="pair-col">
+<div class="pair-label">Latte · light</div>
+<div class="win latte">
+  <div class="titlebar">
+    <div class="lights"><span></span><span></span><span></span></div>
+    <button class="tb-btn" aria-label="Toggle sidebar"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M6 3v10"/></svg></button>
+    <span class="tb-title">Raccoon</span>
+    <span class="tb-spacer"></span>
+    <span class="popup-label">Environment</span>
+    <button class="popup">Dev<svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button>
+    <button class="tb-btn" aria-label="Toggle inspector" aria-pressed="false"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M10 3v10"/></svg></button>
+  </div>
+  <div class="wbody">
+    <aside class="sidebar">
+      <div class="sb-search"><svg class="i" viewBox="0 0 16 16" style="width: 12px; height: 12px" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg><input placeholder="Filter Collections" aria-label="Filter Collections"></div>
+      <div class="sb-section">Collections</div>
+      <div class="sb-row"><svg class="i disc" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg><svg class="i ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 5.5l5.5-3 5.5 3-5.5 3z"/><path d="M2.5 8.5l5.5 3 5.5-3"/></svg><span class="name">Payments API</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">List charges</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodPost)">POST</span><span class="name">Create charge</span></div>
+      <div class="sb-row indent1 sel"><span class="badge" style="color: var(--methodPatch)">PATCH</span><span class="name">Update charge</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodPost)">POST</span><span class="name">Refund charge</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodHead)">HEAD</span><span class="name">Health check</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodOptions)">OPTIONS</span><span class="name">CORS preflight</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodPut)">PUT</span><span class="name">Replace metadata</span></div>
+      <div class="sb-footer">
+        <button class="tb-btn" aria-label="New Collection"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
+      </div>
+    </aside>
+    <main class="content">
+      <div class="tabstrip">
+        <div class="tab"><span class="m" style="color: var(--methodGet)">GET</span><span class="t">List charges</span><span class="slot"></span></div>
+        <div class="tab"><span class="m" style="color: var(--methodPost)">POST</span><span class="t">Create charge</span><span class="slot" aria-label="Edited"><span class="dot"></span></span></div>
+        <div class="tab draft"><span class="m" style="color: var(--methodPost)">POST</span><span class="t">/v1/webhooks</span><span class="slot"></span></div>
+        <div class="tab"><span class="spin" aria-label="Sending"></span><span class="t">Refund charge</span><span class="slot"></span></div>
+        <div class="tab hover"><span class="m" style="color: var(--methodHead)">HEAD</span><span class="t">Health check</span><span class="slot"><button class="x" aria-label="Close Tab"><svg class="i" viewBox="0 0 16 16" style="width: 10px; height: 10px" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></span></div>
+        <div class="tab sel"><svg class="i warnico" viewBox="0 0 16 16" aria-label="Changed on Disk"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2M8 11.6v.1"/></svg><span class="m" style="color: var(--methodPatch)">PATCH</span><span class="t">Update charge</span><span class="slot" aria-label="Edited"><span class="dot"></span></span></div>
+        <button class="tab-new" aria-label="New Tab"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
+      </div>
+      <div class="banner" role="alert">
+        <svg class="i bico warn" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2M8 11.6v.1"/></svg>
+        <span class="btxt"><b>Changed on Disk.</b> <span>Update charge.json was changed outside Raccoon. Your edits are kept until you choose.</span></span>
+        <button class="btn">Keep Mine</button>
+        <button class="btn primary">Reload</button>
+      </div>
+      <div class="urlbar">
+        <button class="method" style="color: var(--methodPatch)">PATCH<svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button>
+        <div class="url"><span class="v-def">{{base_url}}</span>/v1/charges/<span class="v-def">{{charge_id}}</span></div>
+        <button class="send">Send</button>
+      </div>
+      <div class="editor">
+        <div class="seg">
+          <span class="s">Params</span><span class="s">Headers <span class="n">1</span></span><span class="s on">Body <span class="n">form</span></span><span class="s">Auth <span class="n">Basic</span></span><span class="s">Cookies</span><span class="s">Settings</span>
+        </div>
+        <div class="pane">
+          <div class="row-ctrls">
+            <span class="lbl">Body Type</span>
+            <button class="method" style="width: auto; gap: 8px; font-family: inherit; font-weight: 400; color: var(--text)">form-urlencoded<svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button>
+          </div>
+          <div class="kv">
+            <div class="hd"><div></div><div>Name</div><div class="vline">Value</div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">description</div><div class="vline"><span class="cell">Order #1042, gift wrap</span></div><div><button class="del hidden" aria-label="Delete row"></button></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">metadata[order_id]</div><div class="vline"><span class="cell">1042</span></div><div><button class="del hidden" aria-label="Delete row"></button></div></div>
+            <div class="r"><div><span class="cb"></span></div><div class="cell ph">Name</div><div class="vline"><span class="cell ph">Value</span></div><div><button class="del hidden" aria-label="Delete row"></button></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="split" role="separator" aria-label="Resize editor and Response"></div>
+      <div class="response" style="flex-basis: 30%">
+        <div class="statusline"><span class="meta">Response</span></div>
+        <div class="rbody">
+          <div class="void"><span class="vs">Send a request to see the Response here.</span><span class="kbd">⌘↩</span></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</div>
+<div class="pair-col">
+<div class="pair-label">Mocha · dark</div>
+<div class="win mocha">
+  <div class="titlebar">
+    <div class="lights"><span></span><span></span><span></span></div>
+    <button class="tb-btn" aria-label="Toggle sidebar"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M6 3v10"/></svg></button>
+    <span class="tb-title">Raccoon</span>
+    <span class="tb-spacer"></span>
+    <span class="popup-label">Environment</span>
+    <button class="popup">Dev<svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button>
+    <button class="tb-btn" aria-label="Toggle inspector" aria-pressed="false"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M10 3v10"/></svg></button>
+  </div>
+  <div class="wbody">
+    <aside class="sidebar">
+      <div class="sb-search"><svg class="i" viewBox="0 0 16 16" style="width: 12px; height: 12px" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg><input placeholder="Filter Collections" aria-label="Filter Collections"></div>
+      <div class="sb-section">Collections</div>
+      <div class="sb-row"><svg class="i disc" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg><svg class="i ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 5.5l5.5-3 5.5 3-5.5 3z"/><path d="M2.5 8.5l5.5 3 5.5-3"/></svg><span class="name">Payments API</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">List charges</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodPost)">POST</span><span class="name">Create charge</span></div>
+      <div class="sb-row indent1 sel"><span class="badge" style="color: var(--methodPatch)">PATCH</span><span class="name">Update charge</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodPost)">POST</span><span class="name">Refund charge</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodHead)">HEAD</span><span class="name">Health check</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodOptions)">OPTIONS</span><span class="name">CORS preflight</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodPut)">PUT</span><span class="name">Replace metadata</span></div>
+      <div class="sb-footer">
+        <button class="tb-btn" aria-label="New Collection"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
+      </div>
+    </aside>
+    <main class="content">
+      <div class="tabstrip">
+        <div class="tab"><span class="m" style="color: var(--methodGet)">GET</span><span class="t">List charges</span><span class="slot"></span></div>
+        <div class="tab"><span class="m" style="color: var(--methodPost)">POST</span><span class="t">Create charge</span><span class="slot" aria-label="Edited"><span class="dot"></span></span></div>
+        <div class="tab draft"><span class="m" style="color: var(--methodPost)">POST</span><span class="t">/v1/webhooks</span><span class="slot"></span></div>
+        <div class="tab"><span class="spin" aria-label="Sending"></span><span class="t">Refund charge</span><span class="slot"></span></div>
+        <div class="tab hover"><span class="m" style="color: var(--methodHead)">HEAD</span><span class="t">Health check</span><span class="slot"><button class="x" aria-label="Close Tab"><svg class="i" viewBox="0 0 16 16" style="width: 10px; height: 10px" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></span></div>
+        <div class="tab sel"><svg class="i warnico" viewBox="0 0 16 16" aria-label="Changed on Disk"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2M8 11.6v.1"/></svg><span class="m" style="color: var(--methodPatch)">PATCH</span><span class="t">Update charge</span><span class="slot" aria-label="Edited"><span class="dot"></span></span></div>
+        <button class="tab-new" aria-label="New Tab"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
+      </div>
+      <div class="banner" role="alert">
+        <svg class="i bico warn" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2M8 11.6v.1"/></svg>
+        <span class="btxt"><b>Changed on Disk.</b> <span>Update charge.json was changed outside Raccoon. Your edits are kept until you choose.</span></span>
+        <button class="btn">Keep Mine</button>
+        <button class="btn primary">Reload</button>
+      </div>
+      <div class="urlbar">
+        <button class="method" style="color: var(--methodPatch)">PATCH<svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button>
+        <div class="url"><span class="v-def">{{base_url}}</span>/v1/charges/<span class="v-def">{{charge_id}}</span></div>
+        <button class="send">Send</button>
+      </div>
+      <div class="editor">
+        <div class="seg">
+          <span class="s">Params</span><span class="s">Headers <span class="n">1</span></span><span class="s on">Body <span class="n">form</span></span><span class="s">Auth <span class="n">Basic</span></span><span class="s">Cookies</span><span class="s">Settings</span>
+        </div>
+        <div class="pane">
+          <div class="row-ctrls">
+            <span class="lbl">Body Type</span>
+            <button class="method" style="width: auto; gap: 8px; font-family: inherit; font-weight: 400; color: var(--text)">form-urlencoded<svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button>
+          </div>
+          <div class="kv">
+            <div class="hd"><div></div><div>Name</div><div class="vline">Value</div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">description</div><div class="vline"><span class="cell">Order #1042, gift wrap</span></div><div><button class="del hidden" aria-label="Delete row"></button></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">metadata[order_id]</div><div class="vline"><span class="cell">1042</span></div><div><button class="del hidden" aria-label="Delete row"></button></div></div>
+            <div class="r"><div><span class="cb"></span></div><div class="cell ph">Name</div><div class="vline"><span class="cell ph">Value</span></div><div><button class="del hidden" aria-label="Delete row"></button></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="split" role="separator" aria-label="Resize editor and Response"></div>
+      <div class="response" style="flex-basis: 30%">
+        <div class="statusline"><span class="meta">Response</span></div>
+        <div class="rbody">
+          <div class="void"><span class="vs">Send a request to see the Response here.</span><span class="kbd">⌘↩</span></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

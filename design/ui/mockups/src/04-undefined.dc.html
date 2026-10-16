@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Blocked by Undefined Variables</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./raccoon.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="sheet-page" style="width: 2120px; height: 840px">
+<h1>4 · A send blocked by Undefined Variables</h1>
+<p class="lede">The red wavy underlines were on screen before ⌘↩. The send adds only the message, which names every missing Variable, and starts no spinner. The Response pane keeps the last Response, because nothing was sent. Defined Variables stay blue with no underline. The inspector is open on Variables: the two missing names sit at the top with where this Tab uses them, then Staging, then Globals.</p>
+<div class="pair">
+<sc-for list="{{flavors}}" as="f" hint-placeholder-count="2">
+<div class="pair-col">
+<div class="pair-label">{{f.label}}</div>
+<div class="win {{f.cls}}">
+  <div class="titlebar">
+    <div class="lights"><span></span><span></span><span></span></div>
+    <button class="tb-btn" aria-label="Toggle sidebar"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M6 3v10"/></svg></button>
+    <span class="tb-title">Raccoon</span>
+    <span class="tb-spacer"></span>
+    <span class="popup-label">Environment</span>
+    <button class="popup">Staging<svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button>
+    <button class="tb-btn on" aria-label="Toggle inspector" aria-pressed="true"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M10 3v10"/></svg></button>
+  </div>
+  <div class="wbody">
+    <aside class="sidebar">
+      <div class="sb-search"><svg class="i" viewBox="0 0 16 16" style="width: 12px; height: 12px" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg><input placeholder="Filter Collections" aria-label="Filter Collections"></div>
+      <div class="sb-section">Collections</div>
+      <div class="sb-row"><svg class="i disc" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg><svg class="i ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 5.5l5.5-3 5.5 3-5.5 3z"/><path d="M2.5 8.5l5.5 3 5.5-3"/></svg><span class="name">Payments API</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">List charges</span></div>
+      <div class="sb-row indent1 sel"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">Retrieve charge</span></div>
+      <div class="sb-row indent1"><span class="badge" style="color: var(--methodPost)">POST</span><span class="name">Create charge</span></div>
+      <div class="sb-footer">
+        <button class="tb-btn" aria-label="New Collection"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
+      </div>
+    </aside>
+    <main class="content">
+      <div class="tabstrip">
+        <div class="tab sel"><span class="m" style="color: var(--methodGet)">GET</span><span class="t">Retrieve charge</span><span class="slot"><button class="x" aria-label="Close Tab"><svg class="i" viewBox="0 0 16 16" style="width: 10px; height: 10px" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></span></div>
+        <button class="tab-new" aria-label="New Tab"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
+      </div>
+      <div class="urlbar">
+        <button class="method" style="color: var(--methodGet)">GET<svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button>
+        <div class="url"><span class="v-def">{{v.host}}</span>/v1/charges/<span class="v-undef">{{v.charge_id}}</span></div>
+        <button class="send">Send</button>
+      </div>
+      <div class="msgline err" role="alert">
+        <svg class="i mico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 10.9v.1"/></svg>
+        <span class="mtxt">Not sent. <code>charge_id</code> and <code>tenant_id</code> are not defined in Staging or in Globals.</span>
+      </div>
+      <div class="editor">
+        <div class="seg">
+          <span class="s">Params</span><span class="s on">Headers <span class="n undef">2</span></span><span class="s">Body</span><span class="s">Auth</span><span class="s">Cookies</span><span class="s">Settings</span>
+        </div>
+        <div class="pane">
+          <div class="kv">
+            <div class="hd"><div></div><div>Name</div><div class="vline">Value</div><div></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">Accept</div><div class="vline"><span class="cell">application/json</span></div><div><button class="del hidden" aria-label="Delete row"></button></div></div>
+            <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">X-Tenant</div><div class="vline"><span class="cell"><span class="v-undef">{{v.tenant_id}}</span></span></div><div><button class="del hidden" aria-label="Delete row"></button></div></div>
+            <div class="r"><div><span class="cb"></span></div><div class="cell ph">Name</div><div class="vline"><span class="cell ph">Value</span></div><div><button class="del hidden" aria-label="Delete row"></button></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="split" role="separator" aria-label="Resize editor and Response"></div>
+      <div class="response">
+        <div class="statusline">
+          <span class="status" style="color: var(--status4xx)">404 Not Found</span><span class="meta">96 ms</span><span class="meta">212 B</span>
+          <span class="grow"></span>
+          <span class="segctl"><span class="on">Pretty</span><span>Raw</span></span>
+          <span class="segctl"><span class="on">Body</span><span>Headers 9</span></span>
+        </div>
+        <div class="rbody">
+<div class="code"><span class="ln">1</span><span class="jp">{</span>
+<span class="ln">2</span>  <span class="jk">"error"</span><span class="jp">: {</span>
+<span class="ln">3</span>    <span class="jk">"type"</span><span class="jp">:</span> <span class="js">"invalid_request_error"</span><span class="jp">,</span>
+<span class="ln">4</span>    <span class="jk">"message"</span><span class="jp">:</span> <span class="js">"No such charge: 'ch_old'"</span>
+<span class="ln">5</span>  <span class="jp">}</span>
+<span class="ln">6</span><span class="jp">}</span></div>
+        </div>
+      </div>
+    </main>
+    <aside class="inspector" aria-label="Inspector">
+      <div class="insp-head titled"><span class="insp-title">Variables</span><span class="segctl icon" role="tablist" aria-label="Inspector pane"><button role="tab" aria-selected="true" aria-label="Variables" title="Variables" class="on"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2.5c-1.4 0-2 .7-2 2v1.7c0 .9-.5 1.6-1.5 1.8 1 .2 1.5.9 1.5 1.8v1.7c0 1.3.6 2 2 2M10 2.5c1.4 0 2 .7 2 2v1.7c0 .9.5 1.6 1.5 1.8-1 .2-1.5.9-1.5 1.8v1.7c0 1.3-.6 2-2 2"/></svg></button><button role="tab" aria-selected="false" aria-label="Curl" title="Curl"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M5 6.5l2 1.5-2 1.5M8.5 10H11"/></svg></button></span></div>
+      <div class="insp-body">
+        <div class="insp-group">
+          <div class="insp-gt undef"><svg class="i" viewBox="0 0 16 16" style="width: 12px; height: 12px" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 10.9v.1"/></svg>Not defined · used by this Tab</div>
+          <div class="insp-row"><span class="nm v-undef">charge_id</span><span class="vl none">URL</span></div>
+          <div class="insp-row"><span class="nm v-undef">tenant_id</span><span class="vl none">Headers</span></div>
+        </div>
+        <div class="insp-group">
+          <div class="insp-gt">Staging <span class="tag">· Active Environment</span></div>
+          <div class="insp-row"><span class="nm">host</span><span class="vl" title="https://api.staging.payments.example.com">https://api.staging.payments.example.com</span></div>
+          <div class="insp-row"><span class="nm">api_key</span><span class="vl secret"><svg class="i" viewBox="0 0 16 16" style="width: 11px; height: 11px" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0V7"/></svg>Secret</span></div>
+          <div class="insp-row"><span class="nm">region</span><span class="vl">eu-central-1</span></div>
+        </div>
+        <div class="insp-group">
+          <div class="insp-gt">Globals</div>
+          <div class="insp-row over" title="Overridden by Staging"><span class="nm">host</span><span class="vl">http://localhost:4000</span></div>
+          <div class="insp-row"><span class="nm">user_agent</span><span class="vl">Raccoon/1.0</span></div>
+        </div>
+        <div class="insp-note">A struck-out Global is overridden by Staging. Disabled Variables are not listed.</div>
+      </div>
+      <div class="insp-foot"><span class="grow"></span><button class="btn">Edit Environments…</button></div>
+    </aside>
+  </div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2120,"height":840}}'>
+class Component extends DCLogic {
+renderVals() {
+return { v: { host: '{{host}}', charge_id: '{{charge_id}}', tenant_id: '{{tenant_id}}' }, flavors: [{ cls: 'latte', label: 'Latte · light' }, { cls: 'mocha', label: 'Mocha · dark' }] };
+}
+}
+</script>
+</body>
+</html>

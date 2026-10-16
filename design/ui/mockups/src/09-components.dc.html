@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Components and void states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./raccoon.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.cgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;width:1000px}
+.card{background:var(--background);color:var(--text);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--sys-shadow);font-size:13px;position:relative}
+.card.wide{grid-column:span 2}
+.card.native{background:var(--sys-window);color:var(--sys-label)}
+.ct{font-size:11px;font-weight:600;color:var(--textTertiary);padding:8px 12px 4px;text-transform:uppercase;letter-spacing:.02em}
+.card.native .ct{color:var(--sys-secondaryLabel)}
+.stack{display:flex;flex-direction:column;gap:8px;padding:4px 12px 12px}
+.mini-resp{height:150px;display:flex;flex-direction:column;background:var(--backgroundRecessed);border-top:1px solid var(--border)}
+</style>
+</helmet>
+<div class="sheet-page" style="width: 2120px; height: 2000px">
+<h1>Components and the void states not shown on the eight screens</h1>
+<p class="lede">Each one is drawn in the place design/e-where-it-breaks.md gives it: Tab banners above the URL bar, Curl Import errors under it, send errors in the Response pane, file errors on the sidebar row, Keychain errors on the Variable row.</p>
+<div class="pair">
+<sc-for list="{{flavors}}" as="f" hint-placeholder-count="2">
+<div class="pair-col">
+<div class="pair-label">{{f.label}}</div>
+<div class="cgrid {{f.cls}}">
+
+  <div class="card wide">
+    <div class="ct">Banners</div>
+    <div class="banner" role="alert"><svg class="i bico warn" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2M8 11.6v.1"/></svg><span class="btxt"><b>Deleted on disk.</b> <span>Update charge.json is gone. This Tab is now a Draft with your content, and ⌘S saves it again.</span></span><button class="btn">Dismiss</button></div>
+    <div class="banner" role="alert"><svg class="i bico err" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 10.9v.1"/></svg><span class="btxt"><b>Not saved.</b> <span>Couldn't write Update charge.json: permission denied. The Tab keeps your edits.</span></span><button class="btn">Dismiss</button></div>
+    <div class="banner" role="alert" style="border-bottom: 0"><svg class="i bico err" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 10.9v.1"/></svg><span class="btxt"><b>Raccoon can't write to the Data Folder.</b> <span><code>~/Raccoon</code> is read-only. Collections are unavailable; Drafts and sending still work.</span></span><button class="btn primary">Choose Folder…</button></div>
+  </div>
+
+  <div class="card">
+    <div class="ct">URL bar: sending, and Cancel</div>
+    <div class="urlbar" style="padding-top: 4px">
+      <button class="method" style="color: var(--methodPost)">POST<svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button>
+      <div class="url">https://api.payments.example.com/v1/refunds</div>
+      <button class="send cancel">Cancel</button>
+    </div>
+    <div class="mini-resp"><div class="statusline"><span class="spin" aria-hidden="true"></span><span class="meta">Sending… 1.4 s</span></div><div class="void"><span class="vs">Waiting for the server. <span class="kbd">⌘.</span> cancels.</span></div></div>
+  </div>
+
+  <div class="card">
+    <div class="ct">URL bar: Curl Import errors</div>
+    <div class="urlbar" style="padding-top: 4px">
+      <button class="method" style="color: var(--methodGet)">GET<svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button>
+      <div class="url focus"><span class="ph">Enter a URL, or paste a curl command</span></div>
+      <button class="send">Send</button>
+    </div>
+    <div class="msgline err" role="alert"><svg class="i mico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 10.9v.1"/></svg><span class="mtxt">Couldn't import: unterminated quote at character 48. Nothing was changed.</span></div>
+    <div class="msgline err" role="alert"><svg class="i mico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 10.9v.1"/></svg><span class="mtxt">No URL in this curl command.</span></div>
+    <div class="msgline" role="status"><svg class="i mico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.6M8 5v.1"/></svg><span class="mtxt">Ignored: <code>--digest</code> (Auth is Basic), 2 more commands. <code>payload.bin</code> is not text, so the body is none.</span></div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Response: binary, empty, Headers</div>
+    <div class="mini-resp" style="border-top: 0"><div class="statusline"><span class="status" style="color: var(--status2xx)">200 OK</span><span class="meta">88 ms</span><span class="meta">48.2 KB</span></div><div class="void"><span class="vt">Binary body</span><span class="vs">48.2 KB that is not UTF-8 text. Raccoon shows text bodies only.</span></div></div>
+    <div class="mini-resp" style="height: 110px"><div class="statusline"><span class="status" style="color: var(--status2xx)">204 No Content</span><span class="meta">41 ms</span><span class="meta">0 B</span></div><div class="void"><span class="vs">Empty body.</span></div></div>
+    <div class="mini-resp" style="height: 150px"><div class="statusline"><span class="status" style="color: var(--status3xx)">301 Moved Permanently</span><span class="meta">55 ms</span><span class="grow"></span><span class="segctl"><span>Body</span><span class="on">Headers 4</span></span></div>
+      <div class="rbody"><div class="hdrs mono"><div class="hn">Location</div><div>https://payments.example.com/v2/charges</div><div class="hn">Set-Cookie</div><div>session=7f3a; Path=/; HttpOnly</div><div class="hn">Set-Cookie</div><div>locale=en; Path=/</div></div></div></div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Response: failed</div>
+    <div class="mini-resp" style="border-top: 0; height: 120px"><div class="statusline"><span class="status" style="color: var(--statusFailed)">Failed</span><span class="meta">after 60 s</span></div><div class="void err"><span class="vt">No response after 60 s</span><span class="vs">The server did not answer in time. Raccoon does not send again by itself.</span></div></div>
+    <div class="mini-resp" style="height: 120px"><div class="statusline"><span class="status" style="color: var(--statusFailed)">Failed</span><span class="meta">after 3 ms</span></div><div class="void err"><span class="vt">Couldn't connect to the server</span><span class="vs">NSURLErrorCannotConnectToHost (−1004) · localhost:8080</span></div></div>
+    <div class="mini-resp" style="height: 120px"><div class="statusline"><span class="status" style="color: var(--statusFailed)">Not sent</span></div><div class="void err"><span class="vt">Invalid URL</span><span class="vs">After substitution the URL was <code>https//api.dev.example.com/v1</code>.</span></div></div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Auth</div>
+    <div class="stack">
+      <div class="row-ctrls"><span class="lbl">Type</span><span class="segctl"><span>None</span><span class="on">Basic</span><span>Bearer</span></span></div>
+      <div class="formgrid" style="grid-template-columns: 80px minmax(0, 1fr)"><label>Username</label><div class="field mono">ops-bot</div><label>Password</label><div class="field mono"><span class="v-sec">{{v.ops_password}}</span></div></div>
+      <div class="row-ctrls" style="margin-top: 8px"><span class="lbl">Type</span><span class="segctl"><span>None</span><span>Basic</span><span class="on">Bearer</span></span></div>
+      <div class="formgrid" style="grid-template-columns: 80px minmax(0, 1fr)"><label>Token</label><div class="field mono"><span class="v-sec">{{v.api_key}}</span></div></div>
+      <div class="row-ctrls" style="margin-top: 8px"><span class="lbl">Type</span><span class="segctl"><span class="on">None</span><span>Basic</span><span>Bearer</span></span><span class="lbl">No Authorization header is added.</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Body: multipart</div>
+    <div class="stack">
+      <div class="row-ctrls"><span class="lbl">Body Type</span><button class="method" style="width: auto; gap: 8px; font-family: inherit; font-weight: 400; color: var(--text)">multipart<svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button></div>
+      <div class="kv">
+        <div class="hd"><div></div><div>Name</div><div class="vline">Value</div><div></div></div>
+        <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">purpose</div><div class="vline"><span class="cell">dispute_evidence</span></div><div></div></div>
+        <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">file</div><div class="vline"><span class="file-chip"><svg class="i" viewBox="0 0 16 16" style="width: 11px; height: 11px" aria-hidden="true"><path d="M4 2h5l3 3v9H4z"/></svg><span class="fn" title="~/Documents/receipt-1042.pdf">receipt-1042.pdf</span></span></div><div></div></div>
+        <div class="r"><div><span class="cb on"><svg class="i" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4"/></svg></span></div><div class="cell">photo</div><div class="vline"><span class="file-chip missing"><svg class="i" viewBox="0 0 16 16" style="width: 11px; height: 11px" aria-hidden="true"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2"/></svg><span class="fn" title="~/Desktop/box.jpg">box.jpg</span></span></div><div></div></div>
+        <div class="r"><div><span class="cb"></span></div><div class="cell ph">Name</div><div class="vline"><span class="cell ph">Value or file</span></div><div></div></div>
+      </div>
+      <div class="msgline err" style="padding: 0"><svg class="i mico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 10.9v.1"/></svg><span class="mtxt">Not sent. <code>~/Desktop/box.jpg</code> is missing.</span></div>
+    </div>
+  </div>
+
+  <div class="card native">
+    <div class="ct">Sidebar rows (native)</div>
+    <div class="sidebar" style="width: auto; border: 0; padding: 4px 10px 10px">
+      <div class="sb-row"><svg class="i disc" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg><svg class="i ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 5.5l5.5-3 5.5 3-5.5 3z"/><path d="M2.5 8.5l5.5 3 5.5-3"/></svg><span class="name">Payments API</span></div>
+      <div class="sb-row indent1"><svg class="i disc" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg><svg class="i ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4.5h4l1.5 1.5H14v6.5H2z"/></svg><span class="name">Refunds</span></div>
+      <div class="sb-row indent2 sel"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">List refunds</span></div>
+      <div class="sb-row indent2 unreadable"><svg class="i warn" viewBox="0 0 16 16" aria-label="Unreadable"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2M8 11.6v.1"/></svg><span class="name">Cancel refund.json</span><button class="reveal" aria-label="Reveal in Finder" title="Reveal in Finder"><svg class="i" viewBox="0 0 16 16" style="width: 11px; height: 11px" aria-hidden="true"><path d="M6 3H3v10h10v-3M9 3h4v4M13 3L7.5 8.5"/></svg></button></div>
+      <div class="sb-sub">Not valid JSON at line 14. Raccoon won't change this file.</div>
+      <div class="sb-row indent2 unreadable"><svg class="i warn" viewBox="0 0 16 16" aria-label="Unreadable"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2M8 11.6v.1"/></svg><span class="name">List refunds copy.json</span><button class="reveal" aria-label="Reveal in Finder" title="Reveal in Finder"><svg class="i" viewBox="0 0 16 16" style="width: 11px; height: 11px" aria-hidden="true"><path d="M6 3H3v10h10v-3M9 3h4v4M13 3L7.5 8.5"/></svg></button></div>
+      <div class="sb-sub">Same id as List refunds.json.</div>
+    </div>
+  </div>
+
+  <div class="card" style="min-height: 190px">
+    <div class="ct">Variable hover tooltip</div>
+    <div class="stack" style="flex-direction: row; gap: 12px; align-items: flex-start">
+      <div class="tooltip" style="position: static"><div><span class="tn">base_url</span> <span class="tsrc">· Dev</span></div><div class="tv">https://api.dev.payments.example.com</div></div>
+      <div class="tooltip" style="position: static"><div><span class="tn">api_key</span> <span class="tsrc">· Staging</span></div><div class="tv">Secret</div></div>
+      <div class="tooltip" style="position: static"><div><span class="tn">charge_id</span></div><div class="tv" style="color: var(--variableUndefined)">Not defined in Staging or Globals</div></div>
+    </div>
+  </div>
+
+  <div class="card native">
+    <div class="ct">Save Draft sheet (native)</div>
+    <div style="padding: 8px 16px 0; display: flex; flex-direction: column; gap: 10px">
+      <h2 style="margin: 0; font-size: 13px; font-weight: 600">Save Request</h2>
+      <div style="display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 8px 10px; align-items: center">
+        <span class="nlabel">Name</span><span class="nfield focus">Create webhook</span>
+        <span class="nlabel">Location</span><button class="popup" style="justify-content: space-between">Payments API ▸ Webhooks<svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button>
+      </div>
+    </div>
+    <div class="foot" style="display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; margin-top: 8px"><button class="nbtn">Cancel</button><button class="nbtn default">Save</button></div>
+  </div>
+
+  <div class="card native">
+    <div class="ct">Environments sheet: Keychain error</div>
+    <div style="padding: 4px 16px 14px; font-size: 12px; display: flex; flex-direction: column; gap: 4px">
+      <div style="display: grid; grid-template-columns: 150px minmax(0, 1fr) 30px; gap: 8px; align-items: center"><span class="mono">api_key</span><span class="nfield mono">••••••••</span><svg class="i" viewBox="0 0 16 16" aria-label="Secret"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0V7"/></svg></div>
+      <div class="nhint" style="color: var(--sys-red)">Not saved. The Keychain refused the write (OSStatus −25308, user interaction not allowed).</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Response: XML, and a 1xx status</div>
+    <div class="mini-resp" style="border-top: 0; height: 140px"><div class="statusline"><span class="status" style="color: var(--status2xx)">200 OK</span><span class="meta">63 ms</span><span class="meta">418 B</span><span class="grow"></span><span class="segctl"><span class="on">Pretty</span><span>Raw</span></span></div>
+<div class="rbody"><div class="code"><span class="ln">1</span><span class="xt">&lt;invoice</span> <span class="xa">id</span><span class="jp">=</span><span class="xv">"1042"</span> <span class="xa">currency</span><span class="jp">=</span><span class="xv">"usd"</span><span class="xt">&gt;</span>
+<span class="ln">2</span>  <span class="xt">&lt;amount&gt;</span>2000<span class="xt">&lt;/amount&gt;</span>
+<span class="ln">3</span><span class="xt">&lt;/invoice&gt;</span></div></div></div>
+    <div class="mini-resp" style="height: 90px"><div class="statusline"><span class="status" style="color: var(--status1xx)">101 Switching Protocols</span><span class="meta">12 ms</span><span class="meta">0 B</span></div><div class="void"><span class="vs">Empty body.</span></div></div>
+  </div>
+
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2120,"height":2000}}'>
+class Component extends DCLogic {
+renderVals() {
+return { v: { ops_password: '{{ops_password}}', api_key: '{{api_key}}' }, flavors: [{ cls: 'latte', label: 'Latte · light' }, { cls: 'mocha', label: 'Mocha · dark' }] };
+}
+}
+</script>
+</body>
+</html>
