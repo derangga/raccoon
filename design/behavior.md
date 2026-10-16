@@ -13,7 +13,10 @@ slow-only 150ms  ⟳ send                      // the spinner appears only after
 coalesce 1s      ⟳ SessionWriter.schedule    // at most one session.json write a second,
                                              //   plus writeNow on quit
 coalesce 300ms   ⟳ FolderWatch               // FSEvents latency; a git checkout of 200
-                                             //   files is one filesChanged, not 200
+                                             //   files is one filesChanged, not 200.
+                                             //   FSEvents delivers a window in chunks of
+                                             //   32 paths within ~1 ms; a 50 ms tail joins
+                                             //   them into that one batch
 ledger           ⟳ filesChanged              // WriteLedger: path + SHA-256 of the bytes
                                              //   Raccoon wrote. An event whose file still
                                              //   hashes to that is ours and is dropped.
