@@ -140,6 +140,7 @@ StoreError               .unreadable(path, reason) · .undecodable(path, reason)
                          .unwritable(path, reason)
 SecretError              .unavailable(OSStatus)
 ImportError              .unwritable(collection, reason)    per Collection; the others still land
+FormatError              .notValid(line, column)          the body text is left unchanged
 ```
 
 Cancelling a send is not an error. It is `ResponseState.idle` (§4).

@@ -29,3 +29,8 @@ public enum StoreError: Error, Equatable, Sendable {
 public enum SecretError: Error, Equatable, Sendable {
     case unavailable(OSStatus)
 }
+
+/// Where a raw JSON or XML body stopped parsing; the text is left unchanged. 1-based.
+public enum FormatError: Error, Equatable, Sendable {
+    case notValid(line: Int, column: Int)
+}

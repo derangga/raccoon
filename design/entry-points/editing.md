@@ -75,10 +75,11 @@ know it: the row shows `multipart/form-data` and the transport appends `; bounda
 ```
 -> formatBody(tab)                               the Format button, ⇧⌥F; raw JSON or XML only
   -> BodyFormatter.format(text, kind)            pure        R: none
-     -> each {{name}} is replaced by a placeholder token before parsing and put back after,
-        so `"amount": {{amount}}` formats instead of failing as invalid JSON
+     -> each {{name}} is read as one value token by Raccoon's own lexer, so
+        `"amount": {{amount}}` formats instead of failing as invalid JSON
      -> JSON: 2-space indent, key order kept; XML: 2-space indent, attributes kept as written
-                                                 E: did not parse -> escape: one line under the
+                                                 E: FormatError.notValid(line, column)
+                                                 -> escape: one line under the
                                                  body editor with the line and column; the text
                                                  is unchanged
   -> body text replaced                          one undo step
