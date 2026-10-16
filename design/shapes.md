@@ -62,7 +62,8 @@ Session                  tabs: [TabSnapshot], selected: TabID?, activeEnvironmen
 TabSnapshot              id, source, definition, baseline       a Tab minus its Response
 
 ResolvedRequest          a RequestDefinition with every {{name}} substituted and every
-                         Disabled Row dropped, plus url: URL, the base and the
+                         Disabled Row dropped, Auth turned into an Authorization
+                         header (auth is .none), plus url: URL, the base and the
                          percent-encoded params built once. What the transport sends, and
                          what Copy as Curl renders. Only `VariableResolver` can build one
 Response                 status, headers [(name, value)] in wire order, body Data,

@@ -101,7 +101,8 @@ Bruno's 53 (`environment-facts.md`):
   -> CurlRenderer.render(resolved)               pure
      -> one flag per line, joined with ` \` + newline
      -> every value single-quoted, `'` written as `'\''`
-     -> Auth rendered as -u or -H 'Authorization: Bearer …', cookies as -b
+     -> Auth is already an Authorization header (variables.md), rendered as -H;
+        cookies as -b
      -> settings as -k, -L, --compressed
   -> NSPasteboard.setString                      boundary    R: ClipboardWriter
 ```

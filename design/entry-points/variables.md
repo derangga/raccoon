@@ -19,6 +19,8 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
      form/multipart values, Auth fields, multipart file paths
   -> any name not in scope -> collect it, keep going
   -> collected non-empty -> throw ResolveError.undefined(all of them)
+  -> Auth -> an Authorization header appended to headers, auth = .none
+     Basic: base64 of user:password; Bearer: `Bearer <token>`
   -> build the URL: base + percent-encoded params    E: ResolveError.invalidURL
   -> ResolvedRequest
 ```
