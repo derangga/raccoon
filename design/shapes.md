@@ -7,7 +7,7 @@ Part of the [Raccoon design graph](../DESIGN.md).
 Branded where two of them could be swapped:
 
 `RequestID` (UUID, written inside the Request file) · `TabID` (UUID, lives in the Session) ·
-`VariableName` (validated: letters, digits, `_`, `-`, `.`)
+`VariableName` (validated: ASCII letters and digits, `_`, `-`, `.`; not empty)
 
 A Request's identity is its `RequestID`, not its path. A path changes when a Folder is renamed
 or a `git mv` happens, and "a Request is open in at most one Tab" must survive both. The path
@@ -38,6 +38,8 @@ Body                     .none
 Part                     name, isEnabled, .text(String) | .file(path: String)
 Auth                     .none · .basic(user, password) · .bearer(token)
 RequestSettings          allowsInsecureTLS, followsRedirects, requestsCompression
+                         all false in RequestDefinition.empty, as in curl: -k, -L and
+                         --compressed are what turn them on
 
 Request                  id: RequestID, name, definition         one file in the Data Folder
 TreeNode                 .folder(name, [TreeNode]) · .request(RequestID, name, path)
@@ -85,6 +87,8 @@ Theme                    name, flavors [Flavor]
 Flavor                   name, appearance: .light | .dark, colors [ColorToken: Color]
 ThemeChoice              theme name, light Flavor name, dark Flavor name
 ```
+
+`RequestDefinition.empty` is the empty Draft: method `GET`, every other field empty or off.
 
 ## Why these are not simpler
 
