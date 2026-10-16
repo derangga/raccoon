@@ -39,6 +39,9 @@ a Tab cancels the send.
 **`HTTPTransport.urlSession` gets its own tests against a local server**, because the open
 questions (`open-questions.md`) are all about what URLSession adds or removes, and only a
 server that echoes the raw request can answer them.
+That server is `withEchoServer(tls:)` in `Tests/RaccoonDataTests`: a fresh localhost port per
+test, `/echo`, `/delay/<ms>`, `/redirect` and `/bytes/<n>`, and a self-signed `localhost`
+certificate from `Fixtures/localhost.p12` (password `raccoon`, imported in memory only).
 
 The test column lives in the `RaccoonTesting` target as `ScriptedTransport`,
 `DictionaryFileReading`, `ManualFolderWatch`, `InMemorySecretStore`,

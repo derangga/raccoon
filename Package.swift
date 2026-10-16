@@ -16,7 +16,7 @@ let package = Package(
             swiftSettings: [.defaultIsolation(MainActor.self)]
         ),
         .testTarget(name: "RaccoonDomainTests", dependencies: ["RaccoonDomain", "RaccoonTesting"]),
-        .testTarget(name: "RaccoonDataTests", dependencies: ["RaccoonData"]),
+        .testTarget(name: "RaccoonDataTests", dependencies: ["RaccoonData"], resources: [.copy("Fixtures")]),
         .testTarget(name: "RaccoonTests", dependencies: ["Raccoon"]),
     ],
     swiftLanguageModes: [.v6]
