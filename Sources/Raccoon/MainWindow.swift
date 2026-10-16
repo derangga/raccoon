@@ -153,6 +153,11 @@ final class MainSplitViewController: NSSplitViewController {
         drawnRect.insetBy(dx: -3, dy: 0)
     }
 
+    /// Binds the content pane to the selected Tab's editor.
+    func showTab(_ controller: NSViewController) {
+        contentPane.embed(controller)
+    }
+
     override func toggleSidebar(_ sender: Any?) {
         guard isNarrow else { return super.toggleSidebar(sender) }
         if isSidebarOverlaid { closeSidebarOverlay() } else { openSidebarOverlay() }
@@ -360,6 +365,15 @@ private final class Pane: NSViewController {
             separator.autoresizingMask = [.minXMargin, .height]
             view.addSubview(separator)
         }
+    }
+
+    /// Shows a child controller's view filling the pane's content, in place of any earlier one.
+    func embed(_ child: NSViewController) {
+        children.forEach { $0.view.removeFromSuperview(); $0.removeFromParent() }
+        addChild(child)
+        child.view.frame = content.bounds
+        child.view.autoresizingMask = [.width, .height]
+        content.addSubview(child.view)
     }
 
     func lend() -> NSView {

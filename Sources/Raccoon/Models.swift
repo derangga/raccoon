@@ -17,6 +17,31 @@ final class TabModel {
         self.secrets = secrets
         self.instants = instants
     }
+
+    /// The in-flight send (§8). The Tab is the only thing holding it.
+    private(set) var inFlight: Task<Void, Never>?
+
+    /// Resolution runs first, so a request that cannot be sent never shows `.sending`.
+    /// One send at a time (§7): a second ⌘↩ while sending does nothing.
+    func send() {
+        guard inFlight == nil else { return }
+        let resolved: ResolvedRequest
+        do throws(ResolveError) {
+            resolved = try VariableResolver.resolve(tab.definition)
+        } catch {
+            tab.response = .notSent(error)
+            return
+        }
+        tab.response = .sending(since: instants.now)
+        inFlight = Task {
+            do throws(SendError) {
+                tab.response = .received(try await transport.send(resolved))
+            } catch {
+                tab.response = .failed(error)
+            }
+            inFlight = nil
+        }
+    }
 }
 
 /// The window's Tabs and the ports that touch the Data Folder, the Session and the Keychain.

@@ -17,9 +17,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.mainMenu = MainMenu.make()
-        windowModel = CompositionRoot.live()
+        let windowModel = CompositionRoot.live()
+        self.windowModel = windowModel
         let isDark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        let windowController = MainWindowController(theme: ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: isDark))
+        let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: isDark)
+        let windowController = MainWindowController(theme: theme)
+        windowController.split.showTab(TabViewController(model: windowModel.tabs[0], theme: theme))
         windowController.showWindow(nil)
         self.windowController = windowController
         NSApp.activate()
