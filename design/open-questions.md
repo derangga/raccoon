@@ -5,12 +5,7 @@ Part of the [Raccoon design graph](../DESIGN.md).
 Claims the design leans on that nobody has measured. Each one gets answered by a test
 against a local server that echoes the raw request bytes, and the answer moves to
 [environment-facts.md](./environment-facts.md) with what was measured. Numbers stay as they
-were, because other files cite them; Q1, Q3 and Q4 are answered there.
-
-**Q2. Does `--compressed` mean anything under URLSession?** If URLSession always sends
-`Accept-Encoding` and always decompresses, `requestsCompression` is a setting that
-changes nothing. Then it is dropped from Request Settings, and Curl Import ignores the
-flag with a note, which also changes CONTEXT.md.
+were, because other files cite them; Q1 to Q4 are answered there.
 
 **Q5. Does cancelling the `Task` around `data(for:delegate:)` cancel the URLSessionTask
 immediately?** §8 depends on it. Measure: a server that delays 10 s, cancel at 1 s,

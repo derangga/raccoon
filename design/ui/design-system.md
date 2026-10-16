@@ -336,8 +336,8 @@ section label carries the scheme: "Auth Bearer". Seen on: 03 (label), 09.
 
 Three checkboxes, each with a one-line hint in `textTertiary`:
 "Allow insecure TLS" (hint: "Accept certificates the system does not trust, for this Request
-only."), "Follow redirects", "Request compressed responses". The last may be removed
-(open-questions Q2 in design/). Seen on: 06.
+only."), "Follow redirects", "Request compressed responses". The last changes nothing under URLSession
+(environment-facts.md) and may be removed, Open UI question 10. Seen on: 06.
 
 ### Response viewer
 
@@ -648,8 +648,9 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
 9. **Headers merged by the system.** There is no ordered-headers API (measured, see
    environment-facts.md), so the Headers view needs a "merged by the system" note; its wording
    and place are not designed.
-10. **`requestsCompression`** may be removed (open-questions Q2), which removes a row from
-    Request Settings and a flag from the Ignored note.
+10. **`requestsCompression`** changes nothing under URLSession, which always asks for and
+    decodes gzip (measured, see environment-facts.md). Removing it removes a row from Request
+    Settings and turns `--compressed` into an ignored flag.
 11. **Request body syntax colors.** The raw body editor is specified with JSON/XML colors,
     which sending.md only requires for the response. Confirm the request editor highlights
     too.

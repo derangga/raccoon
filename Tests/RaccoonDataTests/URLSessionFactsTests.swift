@@ -94,4 +94,23 @@ struct URLSessionFactsTests {
             #expect(http.allHeaderFields.count == 6)  // a dictionary: one Set-Cookie key, no order
         }
     }
+
+    @Test(arguments: [nil, "identity", "gzip"])
+    func `a gzip reply arrives decoded whatever Accept-Encoding asked for`(acceptEncoding: String?) async throws {
+        try await withEchoServer { server in
+            var definition = RequestDefinition.empty
+            definition.headers = acceptEncoding.map { [Row(name: "Accept-Encoding", value: $0)] } ?? []
+            let transport = URLSessionTransport(files: DictionaryFileReading([:]))
+
+            let response = try await transport.send(ResolvedRequest(definition: definition, url: server.url("/gzip")))
+
+            let request = try #require(server.requests.last)
+            #expect(value("Accept-Encoding", in: request) == acceptEncoding ?? "gzip, deflate")
+            #expect(String(decoding: response.body, as: UTF8.self) == "compressed hello")
+            // byteCount is the decoded size; the wire carried 36 bytes.
+            #expect(response.byteCount == 16)
+            #expect(response.headers.contains(.init(name: "Content-Length", value: "36")))
+            #expect(response.headers.contains(.init(name: "Content-Encoding", value: "gzip")))
+        }
+    }
 }
