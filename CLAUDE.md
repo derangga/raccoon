@@ -26,7 +26,8 @@ The design is approved and no code exists yet. The work is a graph of beads issu
 
 Three modules, one direction, enforced by `Package.swift`: `RaccoonDomain` (models, rules,
 port protocols, no I/O) ← `RaccoonData` (every boundary) ← `Raccoon.app` (AppKit). A rule
-that wants a file reads it through a port.
+that wants a file reads it through a port. `RaccoonTesting` holds the ports' test
+implementations (§9) and is linked by test targets only.
 
 ## How to work
 

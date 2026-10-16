@@ -5,7 +5,7 @@ Part of the [Raccoon design graph](../DESIGN.md).
 ```
 // Production                          // Tests
 HTTPTransport.urlSession               HTTPTransport.scripted   → returns a canned Response
-  (RaccoonData)                          (RaccoonDomain tests)    or SendError, and records
+  (RaccoonData)                          (RaccoonTesting)         or SendError, and records
                                                                   the ResolvedRequest it got
 FileReading.disk                       FileReading.dictionary   → [path: Data]
 DataFolderStore(root: ~/Raccoon)       DataFolderStore(root: a fresh temp dir per test)
@@ -39,5 +39,10 @@ a Tab cancels the send.
 **`HTTPTransport.urlSession` gets its own tests against a local server**, because the open
 questions (`open-questions.md`) are all about what URLSession adds or removes, and only a
 server that echoes the raw request can answer them.
+
+The test column lives in the `RaccoonTesting` target as `ScriptedTransport`,
+`DictionaryFileReading`, `ManualFolderWatch`, `InMemorySecretStore`, `RecordingPasteboard` and
+`FixedClock`. DataFolderStore and SessionStore have no fake: the live one over a temp dir is
+the test implementation.
 
 If a test needs anything other than this table to run, the design has a hidden dependency.

@@ -8,12 +8,14 @@ let package = Package(
     targets: [
         .target(name: "RaccoonDomain"),
         .target(name: "RaccoonData", dependencies: ["RaccoonDomain"]),
+        // The ports' test implementations (§9). Test targets only: no fake ships in the app.
+        .target(name: "RaccoonTesting", dependencies: ["RaccoonDomain"]),
         .executableTarget(
             name: "Raccoon",
             dependencies: ["RaccoonDomain", "RaccoonData"],
             swiftSettings: [.defaultIsolation(MainActor.self)]
         ),
-        .testTarget(name: "RaccoonDomainTests", dependencies: ["RaccoonDomain"]),
+        .testTarget(name: "RaccoonDomainTests", dependencies: ["RaccoonDomain", "RaccoonTesting"]),
         .testTarget(name: "RaccoonDataTests", dependencies: ["RaccoonData"]),
         .testTarget(name: "RaccoonTests", dependencies: ["Raccoon"]),
     ],

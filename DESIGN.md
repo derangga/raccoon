@@ -60,6 +60,9 @@ RaccoonDomain  ← RaccoonData  ← Raccoon.app (AppKit)
   models, rules,   every boundary:    windows, views, view models,
   port protocols   URLSession, files,  wiring of ports to rules
   no I/O           Keychain, FSEvents
+       ↑
+RaccoonTesting     the §9 test implementations of the ports; linked by test targets only,
+                   so no fake ships in the app
 ```
 
 Enforced by `Package.swift`, not by convention: `RaccoonDomain` may import Foundation for

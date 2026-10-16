@@ -27,17 +27,23 @@ without crashing, and none of them needs a socket, a file or a window to test.
 ## Ports: protocols in RaccoonDomain, implemented in RaccoonData
 
 ```
-HTTPTransport     send(ResolvedRequest, settings) async throws(SendError) -> Response
-FileReading       read(path) throws -> Data                    @file and multipart parts
-DataFolderStore   scan, read, write (atomic), move, trash, createDirectory, writeDirectory (temp + rename)
+HTTPTransport     send(ResolvedRequest) async throws(SendError) -> Response
+                  the Request Settings ride inside the ResolvedRequest
+FileReading       read(path) throws(StoreError) -> Data       @file and multipart parts
+DataFolderStore   ensureExists, scan -> [path: Data], read, write (atomic), move, trash,
+                  createDirectory, writeDirectory (temp + rename); all throws(StoreError).
+                  The root is given to init; every path is relative to it
 FolderWatch       events(root) -> AsyncStream<[String]>        changed paths
-SecretStore       get / set / delete (environment, name)       the Keychain
-SessionStore      read / write                                 Application Support
+SecretStore       get / set / delete (environment?, name) throws(SecretError)
+                  the Keychain. environment nil is Globals
+SessionStore      read -> Data? / write(Data) throws(StoreError)   Application Support;
+                  bytes only, SessionFile owns the format
 Pasteboard        setString                                    Copy as Curl
 Clock             now                                          .sending(since:)
 ```
 
-Each port is a protocol with one live implementation and one test implementation (§9). No
+Each port is a protocol with one live implementation and one test implementation (§9). The
+test implementations live in the `RaccoonTesting` target, which only test targets link. No
 port has a `shared` instance; the app's composition root builds them once and hands them to
 the models that need them.
 
