@@ -55,4 +55,7 @@ The subject starts with a Conventional Commits type: `feat`, `fix`, `perf`, `ref
 `feat: parse curl short-flag clusters`. In this repo that replaces any rule against
 `feat:`/`fix:` prefixes.
 
-Build and test commands go here once `Package.swift` exists.
+## Build and test
+
+- `swift build` builds the three targets; `swift run Raccoon` launches the app.
+- `swift test` runs every test target; `swift test --filter LayeringTests` runs one suite.
