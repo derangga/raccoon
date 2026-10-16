@@ -62,12 +62,14 @@ Session                  tabs: [TabSnapshot], selected: TabID?, activeEnvironmen
 TabSnapshot              id, source, definition, baseline       a Tab minus its Response
 
 ResolvedRequest          a RequestDefinition with every {{name}} substituted and every
-                         Disabled Row dropped. What the transport sends, and what Copy as
-                         Curl renders. Only `VariableResolver` can build one
+                         Disabled Row dropped, plus url: URL, the base and the
+                         percent-encoded params built once. What the transport sends, and
+                         what Copy as Curl renders. Only `VariableResolver` can build one
 Response                 status, headers [(name, value)] in wire order, body Data,
                          elapsed Duration, byteCount
 ResponseState            .idle · .sending(since: ContinuousClock.Instant)
                          · .received(Response) · .failed(SendError)
+                         · .notSent(ResolveError)          resolution failed, no byte went out
 
 CurlImport               definition, ignoredFlags [String], fileReferences [String]
                          the second is the "ignored flags" note, the third are the
@@ -122,8 +124,9 @@ Named, typed, carrying what the user needs to see:
 ```
 CurlImportError          .unterminatedQuote(position) · .noURL
 ResolveError             .undefined([VariableName])       every missing one, not the first
-SendError                .invalidURL(String)
-                         .fileMissing(path)               a multipart file part
+                         .invalidURL(String)              the URL text after substitution
+SendError                .fileMissing(path)               a multipart file part, read by
+                                                          the transport before sending
                          .timedOut
                          .untrustedCertificate(host)
                          .transport(URLError.Code, String)

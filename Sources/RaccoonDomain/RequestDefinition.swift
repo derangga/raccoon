@@ -1,3 +1,5 @@
+import Foundation
+
 /// What a Request and a Draft share, and the only thing a Tab edits.
 public struct RequestDefinition: Equatable, Sendable {
     /// Uppercased. Not an enum: `curl -X PURGE` is a real method.
@@ -106,13 +108,16 @@ public struct Request: Equatable, Sendable {
     }
 }
 
-/// A RequestDefinition with every `{{name}}` substituted and every Disabled Row dropped.
+/// A RequestDefinition with every `{{name}}` substituted and every Disabled Row dropped, and
+/// the URL built once from its base and percent-encoded params.
 /// The init is internal so only `VariableResolver` can build one: a request with an
 /// Undefined Variable never becomes a type the transport accepts.
 public struct ResolvedRequest: Equatable, Sendable {
     public let definition: RequestDefinition
+    public let url: URL
 
-    init(definition: RequestDefinition) {
+    init(definition: RequestDefinition, url: URL) {
         self.definition = definition
+        self.url = url
     }
 }

@@ -28,7 +28,8 @@ without crashing, and none of them needs a socket, a file or a window to test.
 
 ```
 HTTPTransport     send(ResolvedRequest) async throws(SendError) -> Response
-                  the Request Settings ride inside the ResolvedRequest
+                  the Request Settings ride inside the ResolvedRequest. The live one
+                  reads multipart file parts through the FileReading given to its init
 FileReading       read(path) throws(StoreError) -> Data       @file and multipart parts
 DataFolderStore   ensureExists, scan -> [path: Data], read, write (atomic), move, trash,
                   createDirectory, writeDirectory (temp + rename); all throws(StoreError).
@@ -50,7 +51,7 @@ the models that need them.
 ## Who needs what
 
 ```
-TabModel          HTTPTransport, FileReading, SecretStore, InstantSource
+TabModel          HTTPTransport, SecretStore, InstantSource
 WindowModel       DataFolderStore, FolderWatch, SessionStore, SecretStore
 CurlImport flow   FileReading                       only for @file references
 Copy as Curl      SecretStore, ClipboardWriter

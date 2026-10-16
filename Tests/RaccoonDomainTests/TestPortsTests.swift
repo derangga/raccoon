@@ -7,7 +7,7 @@ struct TestPortsTests {
     let resolved = ResolvedRequest(definition: RequestDefinition(
         method: "POST", url: "https://example.com/a", params: [], headers: [], cookies: [],
         body: .raw(.json, "{}"), auth: .none, settings: RequestDefinition.empty.settings
-    ))
+    ), url: URL(string: "https://example.com/a")!)
 
     @Test func `scripted transport returns its Response and records the request`() async throws {
         let response = Response(status: 201, headers: [.init(name: "A", value: "1")], body: Data("ok".utf8), elapsed: .milliseconds(5), byteCount: 2)

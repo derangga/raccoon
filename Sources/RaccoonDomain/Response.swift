@@ -33,4 +33,6 @@ public enum ResponseState: Equatable, Sendable {
     case sending(since: ContinuousClock.Instant)
     case received(Response)
     case failed(SendError)
+    /// Resolution failed, so no byte went out.
+    case notSent(ResolveError)
 }

@@ -31,7 +31,7 @@ struct ResolvedRequestAccessTests {
     }
 
     @Test func `ResolvedRequest cannot be built outside RaccoonDomain`() throws {
-        let result = try Self.typecheck("import RaccoonDomain\nlet r = ResolvedRequest(definition: .empty)\n")
+        let result = try Self.typecheck("import Foundation\nimport RaccoonDomain\nlet r = ResolvedRequest(definition: .empty, url: URL(string: \"https://a\")!)\n")
         #expect(!result.succeeded)
         #expect(result.output.contains("inaccessible") || result.output.contains("no accessible initializers"), "\(result.output)")
     }

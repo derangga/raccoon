@@ -19,7 +19,7 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
      form/multipart values, Auth fields, multipart file paths
   -> any name not in scope -> collect it, keep going
   -> collected non-empty -> throw ResolveError.undefined(all of them)
-  -> build the URL: base + percent-encoded params                   E: invalidURL
+  -> build the URL: base + percent-encoded params    E: ResolveError.invalidURL
   -> ResolvedRequest
 ```
 

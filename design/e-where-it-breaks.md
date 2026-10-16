@@ -17,14 +17,14 @@ send
   ⚠ untrustedCertificate → escape: the message names the host and offers "Allow insecure
                            TLS for this request", which flips the Request Setting. It is
                            never flipped automatically
-  ⚠ invalidURL           → escape: the URL bar is outlined, the message quotes the URL
-                           after substitution, because that is the one that failed
   ⚠ fileMissing(path)    → escape: the multipart row is marked and the send stops before
                            any byte goes out
   ⚠ transport(code)      → escape: URLError's own description, plus the code
 resolve
   ⚠ undefined(names)     → escape: every name listed, red underlines already on screen,
                            nothing sent, no spinner
+  ⚠ invalidURL           → escape: .notSent. The URL bar is outlined, the message quotes
+                           the URL after substitution, because that is the one that failed
   ⚠ Keychain unreadable  → becomes undefined for that secret. One path, not two: the user
                            sees "token is not defined" and the Environments sheet shows
                            why

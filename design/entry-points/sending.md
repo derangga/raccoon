@@ -8,13 +8,15 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
 ```
 -> send(tab)                                     ⌘↩ or the Send button
   -> VariableScope(active, globals)              pure        R: none
-  -> VariableResolver.resolve(definition, scope) pure        E: ResolveError.undefined
-                                                             -> escape, nothing is sent
+  -> VariableResolver.resolve(definition, scope) pure        E: ResolveError -> escape:
+                                                             .notSent, nothing is sent
   -> tab.response = .sending(now)                            R: InstantSource
-  -> MultipartFiles.read(parts)                  boundary    R: FileReading
-                                                             E: fileMissing -> escape
   -> HTTPTransport.send(resolved)                boundary    R: HTTPTransport
-                                                             E: SendError -> escape
+    -> read every multipart file part            boundary    R: FileReading, given to
+                                                             the transport's init
+                                                             E: fileMissing -> escape,
+                                                             before any byte goes out
+    -> URLSession data(for:delegate:)                        E: SendError -> escape
                                                              never retried, see §4
   -> tab.response = .received(response)
 ```

@@ -8,12 +8,12 @@ public enum CurlImportError: Error, Equatable, Sendable {
 public enum ResolveError: Error, Equatable, Sendable {
     /// Every missing name, not the first.
     case undefined([VariableName])
+    /// The URL text after substitution, because that is the one that failed.
+    case invalidURL(String)
 }
 
 public enum SendError: Error, Equatable, Sendable {
-    /// The URL after substitution, because that is the one that failed.
-    case invalidURL(String)
-    /// A multipart file part.
+    /// A multipart file part, read by the transport before any byte goes out.
     case fileMissing(path: String)
     case timedOut
     case untrustedCertificate(host: String)
