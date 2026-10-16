@@ -677,9 +677,9 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
 14. **Inspector state across relaunch.** Whether it is open, its width and Variables vs Curl
     could be part of the Session or of UserDefaults; the Session is for Tabs, so
     UserDefaults is proposed.
-15. **Format on paste or on save.** Format is manual only. Formatting on save would rewrite
-    what the user typed into the file in git, so it is not proposed; ⇧⌥F is proposed as the
-    shortcut.
+15. **Format on paste or on save.** Decided 2026-10-16: Format is manual only, from the
+    Format button or ⇧⌥F. Formatting on save would rewrite what the user typed into the file
+    in git, and formatting on paste would change text the user did not ask to change.
 16. **Re-importing a newer Postman export.** Import never overwrites, so a second import makes
     "Payments API 2". A merge (match by Postman item id, update changed Requests, keep
     Raccoon-side edits) is the obvious next step for people who keep using Postman in
