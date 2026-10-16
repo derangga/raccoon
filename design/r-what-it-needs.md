@@ -39,7 +39,7 @@ SecretStore       get / set / delete (environment?, name) throws(SecretError)
 SessionStore      read -> Data? / write(Data) throws(StoreError)   Application Support;
                   bytes only, SessionFile owns the format
 Pasteboard        setString                                    Copy as Curl
-Clock             now                                          .sending(since:)
+InstantSource     now                                          .sending(since:)
 ```
 
 Each port is a protocol with one live implementation and one test implementation (§9). The
@@ -50,7 +50,7 @@ the models that need them.
 ## Who needs what
 
 ```
-TabModel          HTTPTransport, FileReading, SecretStore, Clock
+TabModel          HTTPTransport, FileReading, SecretStore, InstantSource
 WindowModel       DataFolderStore, FolderWatch, SessionStore, SecretStore
 CurlImport flow   FileReading                       only for @file references
 Copy as Curl      SecretStore, Pasteboard

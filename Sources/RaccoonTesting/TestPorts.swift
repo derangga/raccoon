@@ -90,7 +90,7 @@ public final class RecordingPasteboard: Pasteboard {
     }
 }
 
-public struct FixedClock: RaccoonDomain.Clock {
+public struct FixedInstantSource: InstantSource {
     public let now: ContinuousClock.Instant
 
     public init(_ now: ContinuousClock.Instant) {

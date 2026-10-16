@@ -65,9 +65,9 @@ struct TestPortsTests {
         #expect(pasteboard.string == "curl b")
     }
 
-    @Test func `fixed clock returns the instant it was given`() {
+    @Test func `fixed instant source returns the instant it was given`() {
         let instant = ContinuousClock.now
-        let clock = FixedClock(instant)
+        let clock = FixedInstantSource(instant)
 
         #expect(clock.now == instant)
         #expect(clock.now == instant)

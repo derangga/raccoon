@@ -52,6 +52,6 @@ public protocol Pasteboard: Sendable {
 }
 
 /// Where `.sending(since:)` gets its instant.
-public protocol Clock: Sendable {
+public protocol InstantSource: Sendable {
     var now: ContinuousClock.Instant { get }
 }

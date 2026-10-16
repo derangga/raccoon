@@ -10,7 +10,7 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
   -> VariableScope(active, globals)              pure        R: none
   -> VariableResolver.resolve(definition, scope) pure        E: ResolveError.undefined
                                                              -> escape, nothing is sent
-  -> tab.response = .sending(now)                            R: Clock
+  -> tab.response = .sending(now)                            R: InstantSource
   -> MultipartFiles.read(parts)                  boundary    R: FileReading
                                                              E: fileMissing -> escape
   -> HTTPTransport.send(resolved)                boundary    R: HTTPTransport
