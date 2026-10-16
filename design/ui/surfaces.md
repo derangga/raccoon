@@ -27,7 +27,7 @@ Window                          one, native chrome
       unit: KeyValueRow         Params, Headers, Cookies, form and multipart fields
       BodyEditor                Body Type picker, text editor, multipart rows
       AuthSection               None · Basic · Bearer
-      RequestSettings           three checkboxes
+      RequestSettings           two checkboxes
     Split                       draggable divider
     ResponseViewer              StatusLine · Body (Pretty | Raw) · Headers
   Inspector                     themed, right of the content, closed by default

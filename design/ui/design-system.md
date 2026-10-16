@@ -274,6 +274,15 @@ Anatomy: `[method pop-up] [URL field] [Send]`, then the message line.
 
 Seen on: 01, 03, 04, 09, 10.
 
+### Section bar
+
+Params · Headers · Body · Auth · Cookies · Settings over the RequestEditor's pane, 28 pt each,
+13 pt `textSecondary`, 10 pt padding, 2 pt apart, over a 1 pt `border` rule. Selected: `text`
+semibold with a 2 pt `accent` underline over the rule. Params, Headers and Cookies carry their
+row count in tabular `textTertiary` ("Params 3", Disabled Rows included); a section with no rows
+shows no count. Body and Auth show the Body Type and the scheme ("Body JSON", "Auth Bearer").
+Seen on: 01, 02, 05.
+
 ### Key/value table
 
 Shared by Params, Headers, Cookies, form-urlencoded and multipart.

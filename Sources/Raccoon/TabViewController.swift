@@ -2,10 +2,9 @@ import AppKit
 import Observation
 import RaccoonDomain
 
-/// The editor and Response viewer for the selected Tab. For now: a URL field, Send, the
-/// Headers table, and the status and raw body of the last send.
-// ponytail: tracer only. The URL bar, the RequestEditor and the full Response viewer states
-// replace these views in their own features.
+/// The selected Tab: the URL bar, then the RequestEditor over the ResponseViewer in a Split.
+// ponytail: tracer URL field and Response pane. The URL bar and the full Response viewer
+// states replace them in their own features.
 final class TabViewController: NSViewController, NSTextFieldDelegate {
     private let model: TabModel
     private let theme: ThemeEnvironment
@@ -13,8 +12,7 @@ final class TabViewController: NSViewController, NSTextFieldDelegate {
     private let sendButton = NSButton(title: "Send", target: nil, action: nil)
     private let statusLabel = NSTextField(labelWithString: "")
     private let bodyView = NSTextView()
-    private let headersLabel = NSTextField(labelWithString: "")
-    private lazy var headersTable = KeyValueTable(theme: theme)
+    private let split = EditorSplitView()
 
     init(model: TabModel, theme: ThemeEnvironment) {
         self.model = model
@@ -33,6 +31,7 @@ final class TabViewController: NSViewController, NSTextFieldDelegate {
         urlField.delegate = self
         urlField.cell?.isScrollable = true
         urlField.cell?.wraps = false
+        urlField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         sendButton.target = self
         sendButton.action = #selector(send(_:))
@@ -55,22 +54,52 @@ final class TabViewController: NSViewController, NSTextFieldDelegate {
 
         let urlRow = NSStackView(views: [urlField, sendButton])
         urlRow.spacing = 8
-        headersLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
-        headersLabel.textColor = theme.color(.textTertiary)
-        headersTable.onChange = { [weak self] in self?.model.tab.definition.headers = $0 }
-        headersTable.heightAnchor.constraint(equalToConstant: 200).isActive = true
+        urlRow.edgeInsets = NSEdgeInsets(top: 10, left: 12, bottom: 6, right: 12)
 
-        let stack = NSStackView(views: [urlRow, headersLabel, headersTable, statusLabel, scroll])
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 8
-        stack.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
-        urlRow.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -24).isActive = true
-        scroll.widthAnchor.constraint(equalTo: urlRow.widthAnchor).isActive = true
-        headersTable.widthAnchor.constraint(equalTo: urlRow.widthAnchor).isActive = true
-        view = stack
+        let response = NSStackView(views: [statusLabel, scroll])
+        response.orientation = .vertical
+        response.alignment = .leading
+        response.spacing = 8
+        response.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        scroll.widthAnchor.constraint(equalTo: response.widthAnchor, constant: -24).isActive = true
+        // The split sets its panes' frames, so the stack sits inside a plain view it can size.
+        let responsePane = NSView()
+        responsePane.wantsLayer = true
+        responsePane.layer?.backgroundColor = theme.color(.backgroundRecessed).cgColor
+        response.translatesAutoresizingMaskIntoConstraints = false
+        responsePane.addSubview(response)
+        NSLayoutConstraint.activate([
+            response.topAnchor.constraint(equalTo: responsePane.topAnchor),
+            response.bottomAnchor.constraint(equalTo: responsePane.bottomAnchor),
+            response.leadingAnchor.constraint(equalTo: responsePane.leadingAnchor),
+            response.trailingAnchor.constraint(equalTo: responsePane.trailingAnchor),
+        ])
+
+        split.background = theme.color(.background)
+        split.border = theme.color(.border)
+        split.addSubview(RequestEditor(model: model, theme: theme))
+        split.addSubview(responsePane)
+
+        let root = NSView()
+        root.wantsLayer = true
+        root.layer?.backgroundColor = theme.color(.background).cgColor
+        for part in [urlRow, split] as [NSView] {
+            part.translatesAutoresizingMaskIntoConstraints = false
+            root.addSubview(part)
+        }
+        NSLayoutConstraint.activate([
+            urlRow.topAnchor.constraint(equalTo: root.topAnchor),
+            urlRow.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            urlRow.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            split.topAnchor.constraint(equalTo: urlRow.bottomAnchor),
+            split.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            split.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            split.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+        ])
+        view = root
         render()
     }
+
 
     func controlTextDidChange(_ notification: Notification) {
         model.tab.definition.url = urlField.stringValue
@@ -83,9 +112,6 @@ final class TabViewController: NSViewController, NSTextFieldDelegate {
     /// Redraws from the Tab's Response state, and again whenever it changes.
     private func render() {
         withObservationTracking {
-            let headers = model.tab.definition.headers
-            headersLabel.stringValue = "Headers \(headers.count)"
-            headersTable.setRows(headers)
             let (status, color, body) = Self.text(for: model.tab.response, showsSpinner: model.showsSpinner)
             statusLabel.stringValue = status
             statusLabel.textColor = theme.color(color)

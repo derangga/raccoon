@@ -119,4 +119,38 @@ struct KeyValueTableTests {
         table.setRows(rows)
         #expect(try field(table, column: 1, row: 0) === before)
     }
+
+    @Test func `automatic rows follow the trailing row, read-only, with no checkbox or delete`() throws {
+        let table = table(rows)
+        table.setAutomaticRows([AutomaticHeader(name: "Host", value: "example.com"), AutomaticHeader(name: "Content-Length", value: nil)])
+        #expect(table.table.numberOfRows == 5)
+        let (name, value) = (try field(table, column: 1, row: 3), try field(table, column: 2, row: 3))
+        #expect((name.stringValue, value.stringValue) == ("Host", "example.com"))
+        #expect(!name.isEditable && !value.isEditable)
+        #expect(name.textColor == theme.color(.textTertiary))
+        #expect(try field(table, column: 2, row: 4).stringValue == "calculated when sent")
+        #expect(table.table.view(atColumn: 0, row: 3, makeIfNecessary: true)?.subviews.isEmpty == true)
+        #expect(table.table.view(atColumn: 3, row: 3, makeIfNecessary: true)?.subviews.isEmpty == true)
+    }
+
+    @Test func `changing the automatic rows keeps the rows above them, so the field editor survives`() throws {
+        let table = table(rows)
+        table.setAutomaticRows([AutomaticHeader(name: "Host", value: "example.com")])
+        let before = try field(table, column: 1, row: 0)
+        table.setAutomaticRows([])
+        #expect(table.table.numberOfRows == 3)
+        #expect(try field(table, column: 1, row: 0) === before)
+    }
+
+    @Test func `an automatic row cannot be toggled or deleted from the keyboard`() {
+        let table = table(rows)
+        table.setAutomaticRows([AutomaticHeader(name: "Host", value: "example.com")])
+        var changed = false
+        table.onChange = { _ in changed = true }
+        table.table.selectRowIndexes([3], byExtendingSelection: false)
+        table.table.keyDown(with: key(49, " "))
+        table.table.keyDown(with: key(51, "\u{7F}"))
+        #expect(!changed)
+        #expect(table.table.numberOfRows == 4)
+    }
 }

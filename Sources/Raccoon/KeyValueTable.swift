@@ -8,6 +8,8 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
     static let deleteID = NSUserInterfaceItemIdentifier("delete")
     var onChange: ([Row]) -> Void = { _ in }
     private(set) var rows: [Row] = []
+    /// Headers only: what is sent that no row sets, after the trailing empty row, read-only.
+    private var automatic: [AutomaticHeader] = []
     private let theme: ThemeEnvironment
     let table = KeyTableView()
     private let scroll = NSScrollView()
@@ -66,6 +68,24 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         guard new != rows else { return }
         rows = new
         table.reloadData()
+        invalidateIntrinsicContentSize()
+    }
+
+    /// Replaces only the automatic rows, so a field being edited above them keeps its editor.
+    func setAutomaticRows(_ new: [AutomaticHeader]) {
+        guard new != automatic else { return }
+        let start = rows.count + 1
+        table.beginUpdates()
+        table.removeRows(at: IndexSet(integersIn: start..<start + automatic.count), withAnimation: [])
+        automatic = new
+        table.insertRows(at: IndexSet(integersIn: start..<start + automatic.count), withAnimation: [])
+        table.endUpdates()
+        invalidateIntrinsicContentSize()
+    }
+
+    /// As tall as its rows; the owner caps it at the pane, and past that the rows scroll.
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: NSView.noIntrinsicMetric, height: 24 + CGFloat(table.numberOfRows) * table.rowHeight + 2)
     }
 
     /// Name takes 36 %, Value the rest (design-system.md §6).
@@ -81,7 +101,10 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
     private func apply(_ new: [Row]) {
         let added = new.count - rows.count
         rows = new
-        if added > 0 { table.insertRows(at: IndexSet(integer: rows.count), withAnimation: []) }
+        if added > 0 {
+            table.insertRows(at: IndexSet(integer: rows.count), withAnimation: [])
+            invalidateIntrinsicContentSize()
+        }
         onChange(rows)
     }
 
@@ -95,6 +118,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         guard rows.indices.contains(row) else { return }
         rows = Rows.delete(at: row, in: rows)
         table.removeRows(at: IndexSet(integer: row), withAnimation: [])
+        invalidateIntrinsicContentSize()
         onChange(rows)
     }
 
@@ -126,13 +150,14 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
 
     // MARK: Data source and cells
 
-    func numberOfRows(in tableView: NSTableView) -> Int { rows.count + 1 }
+    func numberOfRows(in tableView: NSTableView) -> Int { rows.count + 1 + automatic.count }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
         HoverRowView(hover: theme.color(.rowHover))
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        if row > rows.count { return automaticCell(automatic[row - rows.count - 1], column: tableColumn) }
         let isTrailing = row == rows.count
         let item = isTrailing ? nil : rows[row]
         switch tableColumn?.identifier {
@@ -155,18 +180,11 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
             return centered(button)
         default:
             let isName = tableColumn?.identifier == columns.name.identifier
-            let field = NSTextField()
+            let field = cellField()
             field.tag = isName ? 0 : 1
             field.stringValue = isName ? item?.name ?? "" : item?.value ?? ""
             field.toolTip = field.stringValue.isEmpty ? nil : field.stringValue
-            field.isBordered = false
-            field.drawsBackground = false
-            field.focusRingType = .none
-            field.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
             field.textColor = theme.color(item?.isEnabled == false ? .textDisabled : .text)
-            field.lineBreakMode = .byTruncatingTail
-            field.usesSingleLineMode = true
-            field.cell?.isScrollable = false
             field.placeholderAttributedString = NSAttributedString(string: isName ? "Name" : "Value", attributes: [
                 .font: NSFont.systemFont(ofSize: 13), .foregroundColor: theme.color(.textTertiary),
             ])
@@ -175,17 +193,45 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
             field.layer?.cornerRadius = 4
             field.layer?.borderColor = theme.color(.focusRing).cgColor
             field.setAccessibilityLabel(isName ? "Name" : "Value")
-            let cell = NSTableCellView()
-            cell.textField = field
-            field.translatesAutoresizingMaskIntoConstraints = false
-            cell.addSubview(field)
-            NSLayoutConstraint.activate([
-                field.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
-                field.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
-                field.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-            ])
-            return cell
+            return cellView(field)
         }
+    }
+
+    /// No checkbox, no delete, not editable: only a row of the same name replaces it.
+    private func automaticCell(_ header: AutomaticHeader, column: NSTableColumn?) -> NSView {
+        guard column === columns.name || column === columns.value else { return NSView() }
+        let field = cellField()
+        field.isEditable = false
+        field.stringValue = column === columns.name ? header.name : header.value ?? "calculated when sent"
+        field.toolTip = field.stringValue
+        field.textColor = theme.color(.textTertiary)
+        field.setAccessibilityLabel(column === columns.name ? "Automatic header" : "Value")
+        return cellView(field)
+    }
+
+    private func cellField() -> NSTextField {
+        let field = NSTextField()
+        field.isBordered = false
+        field.drawsBackground = false
+        field.focusRingType = .none
+        field.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        field.lineBreakMode = .byTruncatingTail
+        field.usesSingleLineMode = true
+        field.cell?.isScrollable = false
+        return field
+    }
+
+    private func cellView(_ field: NSTextField) -> NSTableCellView {
+        let cell = NSTableCellView()
+        cell.textField = field
+        field.translatesAutoresizingMaskIntoConstraints = false
+        cell.addSubview(field)
+        NSLayoutConstraint.activate([
+            field.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
+            field.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
+            field.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+        ])
+        return cell
     }
 
     private func centered(_ control: NSView) -> NSView {
@@ -204,13 +250,19 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
 final class KeyTableView: NSTableView {
     weak var keys: KeyValueTable?
 
+    /// Grid lines stop at the last row instead of filling the empty space below it.
+    override func drawGrid(inClipRect clipRect: NSRect) {
+        let used = numberOfRows > 0 ? rect(ofRow: numberOfRows - 1).maxY : 0
+        super.drawGrid(inClipRect: clipRect.intersection(NSRect(x: 0, y: 0, width: bounds.width, height: used)))
+    }
+
     override func keyDown(with event: NSEvent) {
         let row = selectedRow
         guard row >= 0, let keys else { return super.keyDown(with: event) }
         switch event.keyCode {
         case 49: keys.toggle(row: row)
         case 51, 117: keys.delete(row: row)
-        case 36, 76: editColumn(1, row: row, with: nil, select: true)
+        case 36, 76: if row <= keys.rows.count { editColumn(1, row: row, with: nil, select: true) }
         default: super.keyDown(with: event)
         }
     }
