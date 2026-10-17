@@ -26,10 +26,14 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
                                                  unknown flags -> ignoredFlags, with their
                                                  value consumed if the table says they take one
     -> CurlMapping.definition(flags, positionals)
-      -> url        --url, else first positional                E: noURL
+      -> url        --url, else first positional; with no `://`, `http://` is
+                    prefixed, as curl does                     E: noURL
       -> params     the URL's `?` part, then --url-query, then -d values when -G
-      -> headers    -H / --header, in order; `Name;` is an empty header
+      -> headers    -H / --header, and -A / --user-agent as `User-Agent`, in order;
+                    `Name;` is an empty header. --json adds `Content-Type` and
+                    `Accept: application/json` after them unless -H set either
       -> cookies    -b / --cookie `a=1; b=2` split into rows, plus any `Cookie:` header
+                    (a part with no `=`, like `secure`, is not a cookie and is dropped)
                     split into rows and removed from headers; a -b value with no `=` is
                     a cookie file curl would read, so --cookie goes to ignoredFlags
       -> auth       Authorization: Bearer x -> .bearer, header removed
@@ -37,7 +41,8 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
                     else the header stays a header
                     -u user:pass -> .basic, unless an Authorization header won
       -> body       see the body table below
-      -> method     -X / --request, else POST if there is a body, else GET
+      -> method     -X / --request, else HEAD with -I / --head, else POST if there
+                    is a body, else GET
       -> settings   -k / --insecure, -L / --location
   -> PasteTarget.for(tab)                        pure
      .currentTab   tab is a Draft, its definition equals the empty Draft, no Response
@@ -59,9 +64,9 @@ Cookie extraction.
 |---|---|
 | `-F name=value`, `-F name=@path` | `.multipart`, a text or file Part per `-F`; a `;type=…` after the path is dropped |
 | `--data-raw` whose `Content-Type` is `multipart/form-data; boundary=…` | `.multipart`, parsed from the raw body (what Chrome's Copy as cURL produces) |
-| `-d` / `--data` / `--data-ascii` / `--data-binary` `@path` | `.raw(kind, contents)`, the kind from a json, xml or text `Content-Type`, else `.text`, when the file is UTF-8, else §4. `--data-raw @x` is the text `@x`, as in curl |
+| `-d` / `--data` / `--data-ascii` / `--data-binary` / `--json` `@path` | `.raw(kind, contents)`, the kind from a json, xml or text `Content-Type`, else `.text`, when the file is UTF-8, else §4. `--data-raw @x` is the text `@x`, as in curl |
 | `-d` / `--data` / `--data-urlencode` with no `Content-Type`, or `application/x-www-form-urlencoded` | `.formURLEncoded`, split at `&` then the first `=`, each value percent-decoded |
-| `-d` / `--data-raw` / `--data-binary` with `Content-Type` json, xml or text | `.raw(kind, text)`, joined with `&` when there are several |
+| `-d` / `--data-raw` / `--data-binary` / `--json` with `Content-Type` json, xml or text | `.raw(kind, text)`, joined with `&` when there are several |
 | any other data | `.raw(.text, text)` |
 | no data | `.none` |
 
@@ -69,6 +74,9 @@ Cookie extraction.
 mean "send these bytes", and raw text keeps them exact. The wire is the same either way,
 because URLSession adds `application/x-www-form-urlencoded` to a body with no `Content-Type`
 (environment-facts.md).
+
+`--json` is `--data-binary` plus its two headers (above), so it lands on the json row, or
+the `@path` row for `--json @file`.
 
 `-G` moves every data value into `params` instead, and the body stays `.none`.
 

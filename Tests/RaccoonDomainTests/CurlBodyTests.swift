@@ -89,4 +89,20 @@ struct CurlBodyTests {
         #expect(definition.body == .none)
         #expect(definition.method == "GET")
     }
+
+    @Test(arguments: [
+        ("--json '{\"a\":1}'", [Row(name: "Content-Type", value: "application/json"), Row(name: "Accept", value: "application/json")],
+         Body.raw(.json, "{\"a\":1}"), [String]()),
+        ("-H 'accept: */*' --json '[]'", [Row(name: "accept", value: "*/*"), Row(name: "Content-Type", value: "application/json")],
+         .raw(.json, "[]"), []),
+        ("--json @body.json", [Row(name: "Content-Type", value: "application/json"), Row(name: "Accept", value: "application/json")],
+         .raw(.json, ""), ["body.json"]),
+    ])
+    func `--json is a JSON body with its two headers unless -H set them`(flags: String, headers: [Row], body: Body, files: [String]) throws {
+        let imported = try CurlImporter.import("curl http://h/ \(flags)")
+        #expect(imported.definition.headers == headers)
+        #expect(imported.definition.body == body)
+        #expect(imported.definition.method == "POST")
+        #expect(imported.fileReferences == files)
+    }
 }

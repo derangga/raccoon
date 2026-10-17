@@ -14,9 +14,20 @@ public enum CurlImporter {
 public enum CurlMapping {
     public static func definition(_ flags: CurlFlags) throws(CurlImportError) -> CurlImport {
         guard let urlText = flags.values("url").first ?? flags.positionals.first, !urlText.isEmpty else { throw .noURL }
-        let (url, query) = URLText.split(urlText)
+        let (url, query) = URLText.split(urlText.contains("://") ? urlText : "http://" + urlText)
         var ignoredFlags = flags.ignoredFlags
-        var headers = flags.values("header").map(header)
+        var headers = flags.options.compactMap { option in
+            switch (option.name, option.value) {
+            case ("header", let value?): header(value)
+            case ("user-agent", let value?): Row(name: "User-Agent", value: value)
+            default: nil
+            }
+        }
+        if flags.has("json") {
+            for name in ["Content-Type", "Accept"] where !headers.contains(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
+                headers.append(Row(name: name, value: "application/json"))
+            }
+        }
 
         // curl reads cookies from a file when the value has no `=`; Raccoon does not.
         let cookieValues = flags.values("cookie")
@@ -40,7 +51,7 @@ public enum CurlMapping {
         let (body, dataParams, fileReferences) = body(flags, contentType: contentType)
         return CurlImport(
             definition: RequestDefinition(
-                method: flags.values("request").last?.uppercased() ?? (body == .none ? "GET" : "POST"),
+                method: flags.values("request").last?.uppercased() ?? (flags.has("head") ? "HEAD" : body == .none ? "GET" : "POST"),
                 url: url,
                 params: query + flags.values("url-query").map { pair in
                     let (name, value) = splitOnce(pair, "=")
@@ -86,7 +97,7 @@ public enum CurlMapping {
         return (.raw(rawKind(mediaType), text), [], [])
     }
 
-    private static let dataFlags: Set<String> = ["data", "data-ascii", "data-binary", "data-raw", "data-urlencode"]
+    private static let dataFlags: Set<String> = ["data", "data-ascii", "data-binary", "data-raw", "data-urlencode", "json"]
 
     /// json and xml by name, so `application/vnd.api+json` and `text/xml` count; anything else is text.
     private static func rawKind(_ mediaType: String?) -> RawKind {
@@ -147,11 +158,11 @@ public enum CurlMapping {
         return Row(name: trimmed, value: value.trimmingCharacters(in: .whitespaces))
     }
 
-    /// `a=1; b=2` → two rows.
+    /// `a=1; b=2` → two rows; `secure` is an attribute, not a cookie.
     private static func cookieRows(_ text: String) -> [Row] {
         text.split(separator: ";").compactMap { pair in
             let pair = pair.trimmingCharacters(in: .whitespaces)
-            guard !pair.isEmpty else { return nil }
+            guard pair.contains("=") else { return nil }
             let (name, value) = splitOnce(pair, "=")
             return Row(name: name, value: value ?? "")
         }

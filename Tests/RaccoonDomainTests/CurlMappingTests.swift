@@ -81,4 +81,28 @@ struct CurlMappingTests {
         ))
         #expect(imported.ignoredFlags == ["--compressed"])
     }
+
+    @Test(arguments: [
+        ("echo.usebruno.com/a?b=1", "http://echo.usebruno.com/a"),
+        ("https://h/", "https://h/"),
+        ("ftp://h/", "ftp://h/"),
+    ])
+    func `a URL with no scheme gets http://, as curl sends it`(text: String, url: String) throws {
+        #expect(try CurlImporter.import("curl \(text)").definition.url == url)
+    }
+
+    @Test func `-I is HEAD unless -X says otherwise`() throws {
+        #expect(try CurlImporter.import("curl -I http://h/").definition.method == "HEAD")
+        #expect(try CurlImporter.import("curl --head -X GET http://h/").definition.method == "GET")
+    }
+
+    @Test func `-A is a User-Agent header in command order`() throws {
+        let definition = try CurlImporter.import("curl -H 'X: 1' -A 'Custom Agent' --user-agent Two http://h/").definition
+        #expect(definition.headers == [row("X", "1"), row("User-Agent", "Custom Agent"), row("User-Agent", "Two")])
+    }
+
+    @Test func `a cookie part with no = is dropped`() throws {
+        let definition = try CurlImporter.import("curl http://h/ -b 'a=1; path=/; secure; HttpOnly'").definition
+        #expect(definition.cookies == [row("a", "1"), row("path", "/")])
+    }
 }
