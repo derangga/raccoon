@@ -66,6 +66,42 @@ struct URLSessionFactsTests {
         }
     }
 
+    @Test func `a GET with a body is refused before any byte goes out`() async throws {
+        try await withEchoServer { server in
+            var get = RequestDefinition.empty
+            get.body = .raw(.text, "a=1")
+            await #expect {
+                try await send(server, get)
+            } throws: { error in
+                guard case SendError.transport(.dataLengthExceedsMaximum, _, _) = error else { return false }
+                return true
+            }
+            #expect(server.requests.isEmpty)
+        }
+    }
+
+    @Test func `a GET with an empty body goes out with no body`() async throws {
+        try await withEchoServer { server in
+            var get = RequestDefinition.empty
+            get.body = .raw(.text, "")
+            let request = try await send(server, get)
+            #expect(String(decoding: request, as: UTF8.self).hasSuffix("\r\n\r\n"))
+            #expect(value("Content-Length", in: request) == nil)
+        }
+    }
+
+    @Test func `a DELETE with a body is sent, with no Content-Type added`() async throws {
+        try await withEchoServer { server in
+            var delete = RequestDefinition.empty
+            delete.method = "DELETE"
+            delete.body = .raw(.text, "a=1")
+            let request = try await send(server, delete)
+            #expect(String(decoding: request, as: UTF8.self).hasSuffix("\r\n\r\na=1"))
+            #expect(value("Content-Length", in: request) == "3")
+            #expect(value("Content-Type", in: request) == nil)
+        }
+    }
+
     @Test func `a Cookie header set by hand is sent with no cookie storage`() async throws {
         try await withEchoServer { server in
             var definition = RequestDefinition.empty
