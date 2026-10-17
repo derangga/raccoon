@@ -80,9 +80,11 @@ ResponseState            .idle · .sending(since: ContinuousClock.Instant)
                          · .received(Response) · .failed(SendError, after: Duration)
                          · .notSent(ResolveError)          resolution failed, no byte went out
 
-CurlImport               definition, ignoredFlags [String], fileReferences [String]
+CurlImport               definition, ignoredFlags [String], fileReferences [String],
+                         skippedCommands Int
                          the second is the "ignored flags" note, the third are the
-                         `@path`s that still have to be read (§6)
+                         `@path`s that still have to be read (§6), the fourth is the
+                         "2 more commands" note
 PasteTarget              .currentTab · .newDraftTab
 
 PostmanFile              .collection(Collection) · .environment(Environment)

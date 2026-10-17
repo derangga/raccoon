@@ -13,13 +13,15 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
                                                  no -> an ordinary paste, this tree ends
   -> CurlImporter.import(text)                   pure        R: none
                                                  E: CurlImportError -> escape, Tab unchanged
-    -> CurlLexer.commands(text)                  join `\`+newline (and `\`+spaces+newline,
+    -> CurlLexer.commands(text)                  one pass: POSIX shell words ('…', "…", $'…',
+                                                 \x), `\`+newline joined (and `\`+spaces+newline,
                                                  and CRLF), split on unquoted `;` and newline
-                                                 -> keep the first command that starts `curl`
-    -> CurlLexer.tokens(command)                 POSIX shell words: '…', "…", $'…', \x
-                                                 E: unterminatedQuote
+                                                 -> the words of the first command that starts
+                                                 `curl`, and how many other curl commands
+                                                 E: unterminatedQuote(position in the pasted text)
     -> CurlLexer.expandShortFlags(tokens)        -fsSL is four flags, -XPOST is -X POST,
-                                                 -H'a: b' is -H 'a: b'
+                                                 -H'a: b' is -H 'a: b'; a word that is a flag's
+                                                 value is never expanded (-d '-abc')
     -> CurlFlags.collect(tokens)                 -> [flag: [value]] + positionals
                                                  unknown flags -> ignoredFlags, with their
                                                  value consumed if the table says they take one
@@ -76,6 +78,9 @@ Bruno's 53 (`environment-facts.md`):
 - Only the first `=` splits a name from a value: `token=abc==` keeps its padding.
 - Data that starts with dashes (`------WebKitFormBoundary`) is a value, not a flag.
 - `$'…'` strings with `\'` and `\n` escapes, and a `\;` outside quotes, do not split commands.
+
+Splitting commands and splitting words is one pass, not two. Two passes track quotes twice,
+and every place they disagree is a command split inside a quote.
 
 ### Where this differs from Yaak, deliberately
 
