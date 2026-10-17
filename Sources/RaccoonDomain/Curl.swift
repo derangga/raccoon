@@ -19,3 +19,10 @@ public enum PasteTarget: Equatable, Sendable {
     case currentTab
     case newDraftTab
 }
+
+extension PasteTarget {
+    /// The empty Draft is replaced; anything with something in it is kept and gets a new Tab.
+    public static func `for`(_ tab: Tab) -> PasteTarget {
+        tab.source == .draft && tab.definition == .empty && tab.response == .idle ? .currentTab : .newDraftTab
+    }
+}
