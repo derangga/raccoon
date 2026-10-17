@@ -36,7 +36,8 @@ public enum CurlMapping {
             auth = .none
         }
 
-        let body = Body.none
+        let contentType = headers.first { $0.name.caseInsensitiveCompare("Content-Type") == .orderedSame }?.value
+        let (body, dataParams, fileReferences) = body(flags, contentType: contentType)
         return CurlImport(
             definition: RequestDefinition(
                 method: flags.values("request").last?.uppercased() ?? (body == .none ? "GET" : "POST"),
@@ -44,7 +45,7 @@ public enum CurlMapping {
                 params: query + flags.values("url-query").map { pair in
                     let (name, value) = splitOnce(pair, "=")
                     return Row(name: name, value: value ?? "")
-                },
+                } + dataParams,
                 headers: headers,
                 cookies: cookies,
                 body: body,
@@ -52,9 +53,90 @@ public enum CurlMapping {
                 settings: RequestSettings(allowsInsecureTLS: flags.has("insecure"), followsRedirects: flags.has("location"))
             ),
             ignoredFlags: ignoredFlags,
-            fileReferences: [],
+            fileReferences: fileReferences,
             skippedCommands: 0
         )
+    }
+
+    /// The body table in curl.md: the first matching row wins. `-G` turns the data into params
+    /// instead, and an `@path` leaves the text to be read.
+    private static func body(_ flags: CurlFlags, contentType: String?) -> (Body, params: [Row], fileReferences: [String]) {
+        let forms = flags.values("form")
+        if !forms.isEmpty { return (.multipart(forms.map(part)), [], []) }
+        let data = flags.options.compactMap { option in
+            dataFlags.contains(option.name) ? option.value.map { (flag: option.name, value: $0) } : nil
+        }
+        guard !data.isEmpty else { return (.none, [], []) }
+        if flags.has("get") { return (.none, data.flatMap(formRows), []) }
+
+        let mediaType = contentType?.split(separator: ";").first?.trimmingCharacters(in: .whitespaces).lowercased()
+        let text = data.map(\.value).joined(separator: "&")
+        if mediaType == "multipart/form-data",
+           let boundary = contentType?.firstMatch(of: /(?i)boundary=([^\s;]+)/)?.output.1,
+           let parts = multipart(text, boundary: boundary.trimmingCharacters(in: CharacterSet(charactersIn: "\""))) {
+            return (.multipart(parts), [], [])
+        }
+        // curl reads the file for every data flag but --data-raw; --data-urlencode's @ is not a body.
+        let files = data.filter { !["data-raw", "data-urlencode"].contains($0.flag) && $0.value.hasPrefix("@") }
+        if !files.isEmpty { return (.raw(rawKind(mediaType), ""), [], files.map { String($0.value.dropFirst()) }) }
+        if data.allSatisfy({ ["data", "data-ascii", "data-urlencode"].contains($0.flag) }),
+           mediaType == nil || mediaType == "application/x-www-form-urlencoded" {
+            return (.formURLEncoded(data.flatMap(formRows)), [], [])
+        }
+        return (.raw(rawKind(mediaType), text), [], [])
+    }
+
+    private static let dataFlags: Set<String> = ["data", "data-ascii", "data-binary", "data-raw", "data-urlencode"]
+
+    /// json and xml by name, so `application/vnd.api+json` and `text/xml` count; anything else is text.
+    private static func rawKind(_ mediaType: String?) -> RawKind {
+        guard let mediaType else { return .text }
+        if mediaType.contains("json") { return .json }
+        if mediaType.contains("xml") { return .xml }
+        return .text
+    }
+
+    /// `-d` splits at `&` then the first `=`, decoded. `--data-urlencode` is one value curl encodes
+    /// itself, so it is neither split nor decoded.
+    private static func formRows(_ data: (flag: String, value: String)) -> [Row] {
+        if data.flag == "data-urlencode" {
+            let (name, value) = splitOnce(data.value, "=")
+            return [Row(name: name, value: value ?? "")]
+        }
+        return data.value.split(separator: "&").map { pair in
+            let (name, value) = splitOnce(String(pair), "=")
+            return Row(name: percentDecoded(name), value: percentDecoded(value ?? ""))
+        }
+    }
+
+    /// Each valid `%XX` run decoded and the rest kept, so `100%` is not an error.
+    private static func percentDecoded(_ text: String) -> String {
+        text.removingPercentEncoding ?? text.replacing(/(?:%[0-9A-Fa-f]{2})+/) { run in
+            run.output.removingPercentEncoding ?? String(run.output)
+        }
+    }
+
+    /// `name=value` or `name=@path`; a `;type=…` after the path is dropped.
+    private static func part(_ text: String) -> Part {
+        let (name, value) = splitOnce(text, "=")
+        let content = value ?? ""
+        guard content.hasPrefix("@") else { return Part(name: name, content: .text(content)) }
+        return Part(name: name, content: .file(path: String(content.dropFirst().prefix { $0 != ";" })))
+    }
+
+    /// What Chrome's Copy as cURL writes for a multipart body: a file part names its file but not
+    /// its bytes, so it imports as that file name. nil when no part parses.
+    private static func multipart(_ raw: String, boundary: String) -> [Part]? {
+        let parts = raw.components(separatedBy: "--" + boundary).compactMap { chunk -> Part? in
+            guard let split = chunk.range(of: "\r\n\r\n"),
+                  let disposition = chunk[..<split.lowerBound].firstMatch(of: /(?i)content-disposition:\s*form-data;\s*name="([^"]*)"(?:;\s*filename="([^"]*)")?/)
+            else { return nil }
+            if let filename = disposition.output.2 { return Part(name: String(disposition.output.1), content: .file(path: String(filename))) }
+            var content = chunk[split.upperBound...]
+            if content.hasSuffix("\r\n") { content = content.dropLast() }
+            return Part(name: String(disposition.output.1), content: .text(String(content)))
+        }
+        return parts.isEmpty ? nil : parts
     }
 
     /// `Name: value`, trimmed; `Name;` is the empty header.
