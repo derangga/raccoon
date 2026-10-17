@@ -99,6 +99,11 @@ and every place they disagree is a command split inside a quote.
   scheme changed.
 - **`--compressed` is ignored.** URLSession always asks for gzip and decodes it
   (environment-facts.md), so there is no setting to turn on and the note lists it.
+- **No Content-Type row is added.** Yaak adds one for `-d` and `-F`. Raccoon keeps only the
+  headers the command has; with none, the Headers table shows the `Content-Type` URLSession
+  adds as an automatic row (AutomaticHeaders), which is what curl sends too.
+- **Headers keep command order across `-H` and `--header`.** Yaak lists `--header` first.
+- **`-L` sets Follow redirects and `-k` Allow insecure TLS.** Yaak ignores both.
 - **No GraphQL detection.** GraphQL is not a Body Type in v1, so a GraphQL body imports as
   `.raw(.json)`, which is what it is on the wire.
 
