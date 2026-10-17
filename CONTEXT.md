@@ -106,6 +106,20 @@ _Avoid_: Hidden variable, sensitive value
 A `{{name}}` reference that neither the Active Environment nor Globals defines; a request containing one cannot be sent.
 _Avoid_: Missing var, unresolved placeholder
 
+### Response viewer
+
+**Gutter**:
+The column left of a body's text that holds its line numbers and, in a Pretty Response, a chevron on every line that opens a Fold Region.
+_Avoid_: Ruler, margin, line-number bar
+
+**Fold Region**:
+A block of a Pretty Response body that opens on one line and closes on a later one, such as a JSON object or an XML element with children.
+_Avoid_: Section, node, block
+
+**Fold**:
+To show a Fold Region on its opening line only, as `{ … }`; unfolding shows its lines again. The text keeps every line, so Copy and selection still see a folded one. Fold state is view state: every send starts unfolded and it is never saved.
+_Avoid_: Collapse, expand, hide
+
 ### Appearance
 
 **Theme**:

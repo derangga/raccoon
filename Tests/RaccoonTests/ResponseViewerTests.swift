@@ -69,6 +69,127 @@ struct ResponseViewerTests {
         #expect(viewer.textView.textStorage!.string == #"{"a":1}"#)
     }
 
+    /// Postman's example: Pretty puts a chevron on lines 1 and 3.
+    let postman = Data(#"{"id":1,"rating":{"rate":3.9,"count":120}}"#.utf8)
+    let pretty = "{\n  \"id\": 1,\n  \"rating\": {\n    \"rate\": 3.9,\n    \"count\": 120\n  }\n}"
+
+    /// The Gutter as drawn: the number, then ⌄ unfolded or › folded.
+    func gutter(_ viewer: ResponseViewer) -> [String] {
+        viewer.gutter.rows().map { "\($0.number)" + ($0.chevron.map { $0 ? "›" : "⌄" } ?? "") }
+    }
+
+    @Test func `Pretty has line numbers and a chevron on every line that opens a block`() async {
+        let (_, viewer) = await received(response(postman))
+        #expect(viewer.textView.enclosingScrollView?.verticalRulerView === viewer.gutter)
+        #expect(viewer.textView.enclosingScrollView?.rulersVisible == true)
+        #expect(gutter(viewer) == ["1⌄", "2", "3⌄", "4", "5", "6", "7"])
+        #expect(viewer.gutter.ruleThickness == 50)
+    }
+
+    @Test func `an indent guide runs down each unfolded block, from under its opening line to its closing line`() async {
+        let (_, viewer) = await received(response(postman))
+        let rows = viewer.gutter.rows()
+        let guides = viewer.gutter.guides()
+        #expect(guides.map(\.indent) == [0, 2])
+        #expect(guides.map(\.top) == [rows[1].top, rows[3].top])
+        #expect(guides.map(\.bottom) == [rows[6].top, rows[5].top])
+
+        viewer.toggleFold(line: 2)
+        #expect(viewer.gutter.guides().map(\.indent) == [0])
+        viewer.foldAll(nil)
+        #expect(viewer.gutter.guides().isEmpty)
+    }
+
+    @Test func `an unfolded chevron shows only while the pointer is over the Gutter, a folded one always`() async throws {
+        let (_, viewer) = await received(response(postman))
+        viewer.toggleFold(line: 2)
+        let rows = viewer.gutter.rows()
+        let open = try #require(rows.first), folded = rows[2]
+        #expect(!viewer.gutter.showsChevron(open) && viewer.gutter.showsChevron(folded))
+        viewer.gutter.isPointerInside = true
+        #expect(viewer.gutter.showsChevron(open) && !viewer.gutter.showsChevron(rows[1]))
+    }
+
+    @Test func `a folded block reads { … } on its line, skips its numbers, and Copy still gives the whole body`() async {
+        let (_, viewer) = await received(response(postman))
+        viewer.toggleFold(line: 2)
+        #expect(viewer.textView.string == "{\n  \"id\": 1,\n  \"rating\": { … }\n}")
+        #expect(gutter(viewer) == ["1⌄", "2", "3›", "7"])
+        #expect(viewer.textView.textStorage!.attribute(.backgroundColor, at: 27, effectiveRange: nil) as? NSColor == theme.color(.selection))
+        #expect(viewer.textView.textStorage!.attribute(.foregroundColor, at: 29, effectiveRange: nil) as? NSColor == theme.color(.jsonPunctuation))
+
+        let board = NSPasteboard(name: NSPasteboard.Name("raccoon.tests.\(UUID())"))
+        viewer.textView.pasteboard = board
+        viewer.textView.selectAll(nil)
+        viewer.textView.copy(nil)
+        #expect(board.string(forType: .string) == pretty)
+
+        #expect(!viewer.unfold(atMarker: 25))
+        #expect(viewer.unfold(atMarker: 27))
+        #expect(viewer.textView.string == pretty)
+        #expect(gutter(viewer) == ["1⌄", "2", "3⌄", "4", "5", "6", "7"])
+    }
+
+    @Test func `folding a block far down the body keeps it where it was on screen`() async throws {
+        let items = (0..<40).map { #"{"id":\#($0),"name":"x"}"# }.joined(separator: ",")
+        let (_, viewer) = await received(response(Data("[\(items)]".utf8)))
+        // Item 17 opens on line 69 (0-based): "[", then four lines an item.
+        let line = 69
+        let clip = try #require(viewer.textView.enclosingScrollView?.contentView)
+        let top = { try #require(viewer.gutter.rows().first { $0.line == line }).top - clip.bounds.minY }
+        viewer.textView.scrollRangeToVisible(NSRange(location: viewer.foldedText.display(viewer.gutter.lines!.starts[line + 5]), length: 0))
+        viewer.layoutSubtreeIfNeeded()
+        let before = try top()
+        #expect(clip.bounds.minY > 0)
+
+        viewer.toggleFold(line: line)
+        viewer.layoutSubtreeIfNeeded()
+        #expect(viewer.textView.string.contains("  { … },"))
+        #expect(try top() == before)
+    }
+
+    @Test func `Fold All, Unfold All, and the caret's block with ⌥⌘[ and ⌥⌘]`() async throws {
+        let (_, viewer) = await received(response(postman))
+        #expect(viewer.foldItems().map(\.title) == ["Fold", "Unfold", "Fold All", "Unfold All"])
+        viewer.foldAll(nil)
+        #expect(viewer.textView.string == "{ … }" && gutter(viewer) == ["1›"])
+        viewer.unfoldAll(nil)
+        #expect(viewer.textView.string == pretty)
+
+        window.makeFirstResponder(viewer.textView)
+        viewer.textView.setSelectedRange(NSRange(location: 40, length: 0))
+        let key = { (character: String) in
+            try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.command, .option], timestamp: 0, windowNumber: 0,
+                                          context: nil, characters: character, charactersIgnoringModifiers: character, isARepeat: false, keyCode: 0))
+        }
+        #expect(viewer.textView.performKeyEquivalent(with: try key("[")))
+        #expect(gutter(viewer) == ["1⌄", "2", "3›", "7"])
+        viewer.foldAtCaret(nil)
+        #expect(gutter(viewer) == ["1›"])
+        #expect(viewer.textView.performKeyEquivalent(with: try key("]")))
+        #expect(gutter(viewer) == ["1⌄", "2", "3›", "7"])
+    }
+
+    @Test func `every send starts unfolded`() async {
+        let (model, viewer) = await received(response(postman))
+        viewer.foldAll(nil)
+        model.send()
+        await model.inFlight?.value
+        await model.presenting?.value
+        viewer.render()
+        #expect(viewer.textView.string == pretty)
+        #expect(gutter(viewer) == ["1⌄", "2", "3⌄", "4", "5", "6", "7"])
+    }
+
+    @Test func `Raw is numbered and never folded`() async {
+        let (_, viewer) = await received(response(postman))
+        viewer.foldAll(nil)
+        viewer.mode.selectedSegment = 1
+        viewer.mode.sendAction(viewer.mode.action, to: viewer.mode.target)
+        #expect(gutter(viewer) == ["1"])
+        #expect(viewer.foldItems().isEmpty)
+    }
+
     @Test func `Raw shows first, and Pretty takes over once the presentation lands`() async {
         let model = TabModel(transport: ScriptedTransport(.success(response(Data(#"{"a":1}"#.utf8)))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                              instants: FixedInstantSource(now))

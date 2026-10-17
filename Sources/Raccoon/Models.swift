@@ -128,13 +128,24 @@ final class TabModel {
     struct Presented: Equatable, Sendable {
         var body: ResponseBody
         var ranges: [HighlightRange]
+        /// The lines of the text `body` shows, and of the bytes as text, which Raw shows when
+        /// the body is Pretty.
+        var lines: LineIndex
+        var rawLines: LineIndex
+        /// Pretty only: Raw is never folded.
+        var regions: [FoldRegion]
     }
 
     @concurrent
     nonisolated static func present(_ response: Response) async -> Presented {
         let body = ResponseBody.presentation(response)
-        guard case .pretty(let text, let kind) = body else { return Presented(body: body, ranges: []) }
-        return Presented(body: body, ranges: Highlighter.ranges(text, kind: kind))
+        let rawLines = LineIndex(String(decoding: response.body, as: UTF8.self))
+        guard case .pretty(let text, let kind) = body else {
+            return Presented(body: body, ranges: [], lines: rawLines, rawLines: rawLines, regions: [])
+        }
+        let lines = LineIndex(text)
+        return Presented(body: body, ranges: Highlighter.ranges(text, kind: kind), lines: lines, rawLines: rawLines,
+                         regions: FoldRegion.find(text, lines: lines))
     }
 
     /// Resolution runs first, so a request that cannot be sent never shows `.sending`.

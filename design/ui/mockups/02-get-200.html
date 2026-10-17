@@ -194,7 +194,13 @@
 .lbl { font-size:11px; color:var(--textTertiary); }
 
 .code { font-size:12px; line-height:18px; white-space:pre; color:var(--text); overflow:hidden; flex:1; min-height:0; }
-.code .ln { display:inline-block; width:28px; color:var(--textTertiary); text-align:right; margin-right:12px; user-select:none; }
+.code .ln { display:inline-block; width:38px; position:relative; color:var(--textTertiary); text-align:right; margin-right:28px; user-select:none; }
+.code .ln.open::after, .code .ln.shut::after { content:""; position:absolute; right:-17px; top:5px; width:4px; height:4px; border-right:1.5px solid var(--textTertiary); border-bottom:1.5px solid var(--textTertiary); transform:rotate(45deg); }
+.code .ln.open::after { opacity:0; }
+.code:hover .ln.open::after { opacity:1; }
+.code .ln.shut::after { right:-16px; top:6px; transform:rotate(-45deg); }
+.code .ig { box-shadow:inset 1px 0 0 var(--border); }
+.code .fm { background:var(--selection); color:var(--textSecondary); border-radius:3px; padding:0 3px; }
 .code-box { border:1px solid var(--border); border-radius:6px; padding:8px 8px 8px 0; background:var(--background); flex:1; min-height:0; overflow:hidden; display:flex; }
 .jk { color:var(--jsonKey); } .js { color:var(--jsonString); } .jn { color:var(--jsonNumber); } .jb { color:var(--jsonBoolean); }
 .jz { color:var(--jsonNull); } .jp { color:var(--jsonPunctuation); }
@@ -399,17 +405,19 @@ body{margin:0}
           <span class="segctl"><span class="on">Body</span><span>Headers 12</span></span>
         </div>
         <div class="rbody">
-<div class="code"><span class="ln">1</span><span class="jp">{</span>
-<span class="ln">2</span>  <span class="jk">"object"</span><span class="jp">:</span> <span class="js">"list"</span><span class="jp">,</span>
-<span class="ln">3</span>  <span class="jk">"has_more"</span><span class="jp">:</span> <span class="jb">true</span><span class="jp">,</span>
-<span class="ln">4</span>  <span class="jk">"data"</span><span class="jp">: [</span>
-<span class="ln">5</span>    <span class="jp">{</span>
-<span class="ln">6</span>      <span class="jk">"id"</span><span class="jp">:</span> <span class="js">"ch_3PqL8x2eZvKYlo2C"</span><span class="jp">,</span>
-<span class="ln">7</span>      <span class="jk">"amount"</span><span class="jp">:</span> <span class="jn">2000</span><span class="jp">,</span>
-<span class="ln">8</span>      <span class="jk">"currency"</span><span class="jp">:</span> <span class="js">"usd"</span><span class="jp">,</span>
-<span class="ln">9</span>      <span class="jk">"refunded"</span><span class="jp">:</span> <span class="jb">false</span><span class="jp">,</span>
-<span class="ln">10</span>      <span class="jk">"failure_code"</span><span class="jp">:</span> <span class="jz">null</span>
-<span class="ln">11</span>    <span class="jp">},</span></div>
+<div class="code"><span class="ln open">1</span><span class="jp">{</span>
+<span class="ln">2</span><span class="ig">  </span><span class="jk">"object"</span><span class="jp">:</span> <span class="js">"list"</span><span class="jp">,</span>
+<span class="ln">3</span><span class="ig">  </span><span class="jk">"has_more"</span><span class="jp">:</span> <span class="jb">true</span><span class="jp">,</span>
+<span class="ln open">4</span><span class="ig">  </span><span class="jk">"data"</span><span class="jp">: [</span>
+<span class="ln open">5</span><span class="ig">  </span><span class="ig">  </span><span class="jp">{</span>
+<span class="ln">6</span><span class="ig">  </span><span class="ig">  </span><span class="ig">  </span><span class="jk">"id"</span><span class="jp">:</span> <span class="js">"ch_3PqL8x2eZvKYlo2C"</span><span class="jp">,</span>
+<span class="ln">7</span><span class="ig">  </span><span class="ig">  </span><span class="ig">  </span><span class="jk">"amount"</span><span class="jp">:</span> <span class="jn">2000</span><span class="jp">,</span>
+<span class="ln">8</span><span class="ig">  </span><span class="ig">  </span><span class="ig">  </span><span class="jk">"currency"</span><span class="jp">:</span> <span class="js">"usd"</span><span class="jp">,</span>
+<span class="ln">9</span><span class="ig">  </span><span class="ig">  </span><span class="ig">  </span><span class="jk">"refunded"</span><span class="jp">:</span> <span class="jb">false</span><span class="jp">,</span>
+<span class="ln">10</span><span class="ig">  </span><span class="ig">  </span><span class="ig">  </span><span class="jk">"failure_code"</span><span class="jp">:</span> <span class="jz">null</span>
+<span class="ln">11</span><span class="ig">  </span><span class="ig">  </span><span class="jp">},</span>
+<span class="ln shut">12</span><span class="ig">  </span><span class="ig">  </span><span class="jp">{</span> <span class="fm">…</span> <span class="jp">},</span>
+<span class="ln shut">19</span><span class="ig">  </span><span class="ig">  </span><span class="jp">{</span> <span class="fm">…</span> <span class="jp">}</span></div>
         </div>
       </div>
     </main>
@@ -483,17 +491,19 @@ body{margin:0}
           <span class="segctl"><span class="on">Body</span><span>Headers 12</span></span>
         </div>
         <div class="rbody">
-<div class="code"><span class="ln">1</span><span class="jp">{</span>
-<span class="ln">2</span>  <span class="jk">"object"</span><span class="jp">:</span> <span class="js">"list"</span><span class="jp">,</span>
-<span class="ln">3</span>  <span class="jk">"has_more"</span><span class="jp">:</span> <span class="jb">true</span><span class="jp">,</span>
-<span class="ln">4</span>  <span class="jk">"data"</span><span class="jp">: [</span>
-<span class="ln">5</span>    <span class="jp">{</span>
-<span class="ln">6</span>      <span class="jk">"id"</span><span class="jp">:</span> <span class="js">"ch_3PqL8x2eZvKYlo2C"</span><span class="jp">,</span>
-<span class="ln">7</span>      <span class="jk">"amount"</span><span class="jp">:</span> <span class="jn">2000</span><span class="jp">,</span>
-<span class="ln">8</span>      <span class="jk">"currency"</span><span class="jp">:</span> <span class="js">"usd"</span><span class="jp">,</span>
-<span class="ln">9</span>      <span class="jk">"refunded"</span><span class="jp">:</span> <span class="jb">false</span><span class="jp">,</span>
-<span class="ln">10</span>      <span class="jk">"failure_code"</span><span class="jp">:</span> <span class="jz">null</span>
-<span class="ln">11</span>    <span class="jp">},</span></div>
+<div class="code"><span class="ln open">1</span><span class="jp">{</span>
+<span class="ln">2</span><span class="ig">  </span><span class="jk">"object"</span><span class="jp">:</span> <span class="js">"list"</span><span class="jp">,</span>
+<span class="ln">3</span><span class="ig">  </span><span class="jk">"has_more"</span><span class="jp">:</span> <span class="jb">true</span><span class="jp">,</span>
+<span class="ln open">4</span><span class="ig">  </span><span class="jk">"data"</span><span class="jp">: [</span>
+<span class="ln open">5</span><span class="ig">  </span><span class="ig">  </span><span class="jp">{</span>
+<span class="ln">6</span><span class="ig">  </span><span class="ig">  </span><span class="ig">  </span><span class="jk">"id"</span><span class="jp">:</span> <span class="js">"ch_3PqL8x2eZvKYlo2C"</span><span class="jp">,</span>
+<span class="ln">7</span><span class="ig">  </span><span class="ig">  </span><span class="ig">  </span><span class="jk">"amount"</span><span class="jp">:</span> <span class="jn">2000</span><span class="jp">,</span>
+<span class="ln">8</span><span class="ig">  </span><span class="ig">  </span><span class="ig">  </span><span class="jk">"currency"</span><span class="jp">:</span> <span class="js">"usd"</span><span class="jp">,</span>
+<span class="ln">9</span><span class="ig">  </span><span class="ig">  </span><span class="ig">  </span><span class="jk">"refunded"</span><span class="jp">:</span> <span class="jb">false</span><span class="jp">,</span>
+<span class="ln">10</span><span class="ig">  </span><span class="ig">  </span><span class="ig">  </span><span class="jk">"failure_code"</span><span class="jp">:</span> <span class="jz">null</span>
+<span class="ln">11</span><span class="ig">  </span><span class="ig">  </span><span class="jp">},</span>
+<span class="ln shut">12</span><span class="ig">  </span><span class="ig">  </span><span class="jp">{</span> <span class="fm">…</span> <span class="jp">},</span>
+<span class="ln shut">19</span><span class="ig">  </span><span class="ig">  </span><span class="jp">{</span> <span class="fm">…</span> <span class="jp">}</span></div>
         </div>
       </div>
     </main>

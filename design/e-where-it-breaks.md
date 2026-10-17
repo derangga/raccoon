@@ -32,6 +32,10 @@ showResponse
   ⚠ body not UTF-8       → not an error: .binary(byteCount)
   ⚠ JSON did not parse   → not an error: .raw. A server that says json and sends HTML
                            is the server's fact
+  ⚠ body does not nest   → not an error: no Fold Regions, no chevrons
+Folding
+  ⚠ a Folded region past the end of the body → DIE. Regions and body come from the
+                           same Presented text; a mismatch is our bug
 Curl Import
   ⚠ unterminatedQuote    → escape: a message under the URL bar with the position. The
                            Tab is unchanged and the pasted text is not inserted, because a

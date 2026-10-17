@@ -366,6 +366,23 @@ Anatomy: status line (34 pt) over the body area, on `backgroundRecessed`.
 - **received**: Pretty (parsed JSON/XML, syntax tokens) or Raw (no colors). Raw shows first
   while Pretty is computed off the main thread (behavior.md). Above 5 MB Pretty is disabled
   (`textDisabled`) with "Pretty is off above 5 MB" beside it.
+- **Gutter**: left of the body text in Pretty and Raw, drawn on the body's own background
+  with no fill and no divider; 50 pt, wider when the last line number needs it (a 5 MB body
+  passes 200,000 lines). Line numbers SF Mono 12, `textTertiary`, right-aligned; then a
+  16 pt fold column; then the text. In Pretty JSON and XML the fold column holds a 9 pt
+  chevron in `textTertiary` beside every line that opens a Fold Region, pointing down when
+  unfolded, right when folded. Unfolded chevrons show only while the pointer is over the
+  Gutter; folded ones always show. Clicking a line's number or chevron folds or unfolds.
+  The request body has the same Gutter, numbers only. The Gutter is empty until the
+  off-main presentation lands.
+- **Indent guides**: in Pretty, a 1 pt vertical line in `border` for every unfolded Fold
+  Region, at the column where its opening line's text starts, from the line under the
+  opening line down to the closing line.
+- **Folded**: the opening line ends in a " … " marker, the `…` in `textSecondary` on
+  `selection`, then the closing token on the same line: `"rating": { … },`. Clicking the
+  marker unfolds. Numbers skip the hidden lines (1, 8, 12). Context menu: Fold ⌥⌘[, Unfold
+  ⌥⌘] (the Fold Region at the caret), Fold All, Unfold All. Every send starts unfolded. Copy gives the
+  body's text: a selection across a marker copies the folded lines.
 - **failed**: status line "Failed" + "after N ms" in `statusFailed`; body: an error glyph, a
   title in `statusFailed` 13 semibold, one sentence of detail in `textTertiary`, and the
   single fix as a button when one exists. Titles: "Untrusted certificate" (names the host;

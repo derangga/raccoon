@@ -17,7 +17,8 @@ final class ResponseViewer: NSView {
     let mode: SegmentedControl
     let section: SegmentedControl
 
-    let textView: NSTextView
+    let textView: ResponseTextView
+    let gutter: Gutter
     private let layoutManager = NSLayoutManager()
     /// The layout manager does not retain its storage, so the view must.
     private var storage = NSTextStorage()
@@ -44,6 +45,13 @@ final class ResponseViewer: NSView {
     private var wantsPretty = true
     private var wantsHeaders = false
 
+    /// The whole coloured body for the current mode; the storage shows it with folds cut.
+    private var body = NSAttributedString()
+    private var regions: [FoldRegion] = []
+    /// View state: every send and every Pretty | Raw switch starts unfolded.
+    private var folds = FoldSet()
+    private(set) var foldedText = FoldedText(regions: [], folds: FoldSet())
+
     init(model: TabModel, theme: ThemeEnvironment) {
         self.model = model
         self.theme = theme
@@ -54,7 +62,8 @@ final class ResponseViewer: NSView {
         layoutManager.allowsNonContiguousLayout = true
         layoutManager.addTextContainer(container)
         storage.addLayoutManager(layoutManager)
-        textView = NSTextView(frame: .zero, textContainer: container)
+        textView = ResponseTextView(frame: .zero, textContainer: container)
+        gutter = Gutter(textView: textView, theme: theme)
         mode = SegmentedControl(labels: ["Pretty", "Raw"], theme: theme)
         section = SegmentedControl(labels: ["Body", "Headers"], theme: theme)
         super.init(frame: .zero)
@@ -141,6 +150,11 @@ final class ResponseViewer: NSView {
         scroll.hasHorizontalScroller = true
         scroll.autohidesScrollers = true
         scroll.drawsBackground = false
+        scroll.verticalRulerView = gutter
+        scroll.hasVerticalRuler = true
+        scroll.rulersVisible = true
+        textView.viewer = self
+        gutter.toggle = { [weak self] region in self?.toggle(region) }
 
         voidTitle.font = .systemFont(ofSize: 13, weight: .semibold)
         voidText.font = .systemFont(ofSize: 12)
@@ -327,9 +341,130 @@ final class ResponseViewer: NSView {
         shown = key
         // A new storage, never an in-place edit: replacing a large coloured storage's characters
         // ran past ten minutes at 1 MB (environment-facts.md).
-        storage = NSTextStorage(attributedString: bodyText(response, presented, pretty: pretty))
-        layoutManager.replaceTextStorage(storage)
+        body = bodyText(response, presented, pretty: pretty)
+        regions = pretty ? presented?.regions ?? [] : []
+        // Raw before the presentation lands has no numbers yet.
+        gutter.lines = presented.map { pretty ? $0.lines : $0.rawLines }
+        folds = FoldSet()
+        refold(keeping: nil)
         textView.scrollToBeginningOfDocument(nil)
+    }
+
+    // MARK: Folding
+
+    /// Swaps in the body with each outermost Folded region cut to the marker, keeping
+    /// `anchor`'s line where it was on screen.
+    private func refold(keeping anchor: Int?) {
+        let offset = anchor.map { top(of: $0) - scroll.contentView.bounds.minY }
+        let x = scroll.contentView.bounds.minX
+        foldedText = FoldedText(regions: regions, folds: folds)
+        storage = Self.cut(body, foldedText.folded, marker: marker)
+        layoutManager.replaceTextStorage(storage)
+        gutter.show(regions: regions, folds: folds, shown: foldedText)
+        guard let anchor, let offset, let lines = gutter.lines else { return }
+        let at = foldedText.display(lines.starts[anchor])
+        textView.setSelectedRange(NSRange(location: at, length: 0))
+        // A fresh storage is laid out from the top only, so the view is too short and the
+        // anchor's position a guess (y 169 for line 69) until the view scrolls to it.
+        textView.scrollRangeToVisible(NSRange(location: at, length: 0))
+        textView.scroll(NSPoint(x: x, y: top(of: anchor) - offset))
+    }
+
+    private func top(of line: Int) -> CGFloat {
+        guard let lines = gutter.lines, storage.length > 0 else { return 0 }
+        let glyph = layoutManager.glyphIndexForCharacter(at: min(foldedText.display(lines.starts[line]), storage.length - 1))
+        return layoutManager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).minY
+    }
+
+    /// " … ", the `…` on `selection`.
+    private var marker: NSAttributedString {
+        let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        let marker = NSMutableAttributedString(string: FoldedText.marker, attributes: [.font: font, .foregroundColor: theme.color(.text)])
+        marker.addAttributes([.foregroundColor: theme.color(.textSecondary), .backgroundColor: theme.color(.selection)], range: NSRange(location: 1, length: 1))
+        return marker
+    }
+
+    /// Few cuts are replaced in a copy from the back; many are built from small pieces, because
+    /// appending a large piece to a non-empty string is slow (environment-facts.md).
+    static func cut(_ body: NSAttributedString, _ folded: [FoldRegion], marker: NSAttributedString) -> NSTextStorage {
+        precondition(folded.last.map { $0.cut.upperBound <= body.length } ?? true, "a Folded region past the end of the body")
+        guard folded.count >= 64 else {
+            let text = NSTextStorage(attributedString: body)
+            for region in folded.reversed() { text.replaceCharacters(in: NSRange(region.cut), with: marker) }
+            return text
+        }
+        let text = NSMutableAttributedString()
+        var at = 0
+        for region in folded {
+            text.append(body.attributedSubstring(from: NSRange(at..<region.cut.lowerBound)))
+            text.append(marker)
+            at = region.cut.upperBound
+        }
+        text.append(body.attributedSubstring(from: NSRange(at..<body.length)))
+        return NSTextStorage(attributedString: text)
+    }
+
+    private func toggle(_ region: FoldRegion) {
+        folds.toggle(region)
+        refold(keeping: region.openLine)
+    }
+
+    /// A click on a line's chevron.
+    func toggleFold(line: Int) {
+        guard let region = regions.first(where: { $0.openLine == line }) else { return }
+        toggle(region)
+    }
+
+    /// A click on a `…`; false when `index` is not on one.
+    func unfold(atMarker index: Int) -> Bool {
+        guard let region = foldedText.region(atMarker: index) else { return false }
+        toggle(region)
+        return true
+    }
+
+    @objc func foldAtCaret(_ sender: Any?) { atCaret(folded: false) }
+    @objc func unfoldAtCaret(_ sender: Any?) { atCaret(folded: true) }
+
+    private func atCaret(folded: Bool) {
+        guard let lines = gutter.lines else { return }
+        let line = lines.line(containing: foldedText.source(textView.selectedRange().location))
+        guard let region = folds.innermost(at: line, in: regions, folded: folded) else { return }
+        toggle(region)
+    }
+
+    @objc func foldAll(_ sender: Any?) {
+        let top = gutter.rows().first?.line
+        folds = FoldSet(folding: regions)
+        refold(keeping: top)
+    }
+
+    @objc func unfoldAll(_ sender: Any?) {
+        let top = gutter.rows().first?.line
+        folds = FoldSet()
+        refold(keeping: top)
+    }
+
+    var gutterGuideColor: NSColor { theme.color(.border) }
+
+    /// Pretty with at least one Fold Region.
+    var canFold: Bool { !regions.isEmpty }
+
+    /// The context menu's folding items, in Pretty only.
+    func foldItems() -> [NSMenuItem] {
+        guard canFold else { return [] }
+        let items = [("Fold", "[", #selector(foldAtCaret)), ("Unfold", "]", #selector(unfoldAtCaret)),
+                     ("Fold All", "", #selector(foldAll)), ("Unfold All", "", #selector(unfoldAll))].map { title, key, action in
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            item.keyEquivalentModifierMask = [.command, .option]
+            item.target = self
+            return item
+        }
+        return items
+    }
+
+    /// The body text a shown selection covers, folded lines included.
+    func bodyText(of selection: NSRange) -> String {
+        (body.string as NSString).substring(with: NSRange(foldedText.sourceRange(selection.location ..< NSMaxRange(selection))))
     }
 
     /// Two columns, name and value, in the order the transport returned them.
@@ -438,4 +573,63 @@ final class ResponseViewer: NSView {
 /// Lays the header rows out from the top of their scroll view.
 private final class FlippedView: NSView {
     override var isFlipped: Bool { true }
+}
+
+/// The Response body's text view: Copy reads the body behind the folds, a click on a `…`
+/// unfolds it, and ⌥⌘[ / ⌥⌘] fold and unfold at the caret.
+final class ResponseTextView: NSTextView {
+    weak var viewer: ResponseViewer?
+    var pasteboard = NSPasteboard.general
+
+    override func copy(_ sender: Any?) {
+        guard let viewer, !viewer.foldedText.folded.isEmpty, selectedRange().length > 0 else { return super.copy(sender) }
+        pasteboard.clearContents()
+        pasteboard.setString(viewer.bodyText(of: selectedRange()), forType: .string)
+    }
+
+    /// The indent guides, under the text.
+    override func drawBackground(in rect: NSRect) {
+        super.drawBackground(in: rect)
+        guard let viewer, let font, let container = textContainer else { return }
+        let column = NSAttributedString(string: " ", attributes: [.font: font]).size().width
+        viewer.gutterGuideColor.setFill()
+        for guide in viewer.gutter.guides() {
+            let x = (textContainerOrigin.x + container.lineFragmentPadding + CGFloat(guide.indent) * column).rounded(.down)
+            NSRect(x: x, y: guide.top, width: 1, height: guide.bottom - guide.top).intersection(rect).fill()
+        }
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if let viewer, let layout = layoutManager, let container = textContainer {
+            let point = convert(event.locationInWindow, from: nil)
+            let inContainer = NSPoint(x: point.x - textContainerOrigin.x, y: point.y - textContainerOrigin.y)
+            let glyph = layout.glyphIndex(for: inContainer, in: container, fractionOfDistanceThroughGlyph: nil)
+            if layout.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: container).contains(inContainer),
+               viewer.unfold(atMarker: layout.characterIndexForGlyph(at: glyph)) { return }
+        }
+        super.mouseDown(with: event)
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let menu = super.menu(for: event)
+        if let items = viewer?.foldItems(), !items.isEmpty, let menu {
+            menu.addItem(.separator())
+            items.forEach(menu.addItem)
+        }
+        return menu
+    }
+
+    /// Only while the body has focus: a key equivalent reaches every view in the window.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard window?.firstResponder === self, let viewer, viewer.canFold,
+              event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command, .option] else {
+            return super.performKeyEquivalent(with: event)
+        }
+        switch event.charactersIgnoringModifiers {
+        case "[": viewer.foldAtCaret(nil)
+        case "]": viewer.unfoldAtCaret(nil)
+        default: return super.performKeyEquivalent(with: event)
+        }
+        return true
+    }
 }

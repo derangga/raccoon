@@ -23,8 +23,9 @@ ledger           ⟳ filesChanged              // WriteLedger: path + SHA-256 of
                                              //   Comparing hashes, not timestamps, so a
                                              //   git checkout that restores identical
                                              //   bytes is also correctly a no-op
-off-main         ⟳ ResponseBody.presentation // pretty-print and highlight on a background
-                                             //   task; the Raw view shows first
+off-main         ⟳ ResponseBody.presentation // pretty-print, highlight, line index and Fold
+                                             //   Regions on a background task; the Raw
+                                             //   view shows first, without a Gutter
 undo grouping    ⟳ Curl Import               // one paste is one undo step on the
                                              //   current Tab, whatever it changed
 ```

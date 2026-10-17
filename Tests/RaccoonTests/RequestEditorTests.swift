@@ -274,12 +274,16 @@ struct BodyPaneTests {
         #expect(model.tab.definition.body == .raw(.json, text + " "))
     }
 
-    @Test func `the raw editor has line numbers and no wrapping`() {
+    @Test func `the raw editor has line numbers and no wrapping`() throws {
         let (editor, pane) = pane()
         model.tab.definition.body = .raw(.json, "{\n}")
         editor.render()
         #expect(pane.textView.enclosingScrollView?.rulersVisible == true)
-        #expect(pane.textView.enclosingScrollView?.verticalRulerView is LineNumberRuler)
+        let gutter = try #require(pane.textView.enclosingScrollView?.verticalRulerView as? Gutter)
+        #expect(gutter.rows().map(\.number) == [1, 2])
+        type("{\n\n}", in: pane)
+        #expect(gutter.rows().map(\.number) == [1, 2, 3])
+        #expect(gutter.rows().allSatisfy { $0.chevron == nil })
         #expect(pane.textView.textContainer?.widthTracksTextView == false)
         #expect(pane.textView.layoutManager?.allowsNonContiguousLayout == true)
         pane.textView.enclosingScrollView?.verticalRulerView?.display()
