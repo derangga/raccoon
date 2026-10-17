@@ -1,4 +1,63 @@
-public enum CurlFlags {
+/// The options of one curl command that Curl Import reads, and everything else it was given.
+public struct CurlFlags: Equatable, Sendable {
+    public struct Option: Equatable, Sendable {
+        /// The long name without dashes: `-H` is `header`.
+        public var name: String
+        /// nil for a switch, and for an option missing its value at the end of the command.
+        public var value: String?
+
+        public init(name: String, value: String?) {
+            self.name = name
+            self.value = value
+        }
+    }
+
+    /// In command order, so headers and data keep theirs.
+    public var options: [Option]
+    public var positionals: [String]
+    /// As typed (`-s`, `--retry`), without the value they consumed.
+    public var ignoredFlags: [String]
+
+    /// `words` is a whole command after `expandShortFlags`, starting with `curl`.
+    public static func collect(_ words: [String]) -> CurlFlags {
+        var flags = CurlFlags(options: [], positionals: [], ignoredFlags: [])
+        var words = words.dropFirst().makeIterator()
+        while let word = words.next() {
+            guard let name = name(word) else {
+                flags.positionals.append(word)
+                continue
+            }
+            let value = takesValue.contains(String(name)) ? words.next() : nil
+            let long = word.hasPrefix("--") ? String(name) : longNames[String(name)]
+            if let long, read.contains(long) {
+                flags.options.append(Option(name: long, value: value))
+            } else {
+                flags.ignoredFlags.append(word)
+            }
+        }
+        return flags
+    }
+
+    public func values(_ name: String) -> [String] {
+        options.compactMap { $0.name == name ? $0.value : nil }
+    }
+
+    public func has(_ name: String) -> Bool {
+        options.contains { $0.name == name }
+    }
+
+    /// What Curl Import maps. `--digest` and `--compressed` are not here on purpose (curl.md).
+    static let read: Set<String> = [
+        "url", "url-query", "request", "header", "cookie", "user", "form", "get", "insecure", "location",
+        "data", "data-ascii", "data-binary", "data-raw", "data-urlencode",
+    ]
+
+    /// The short names of the options in `read`.
+    static let longNames = [
+        "X": "request", "H": "header", "b": "cookie", "u": "user", "F": "form", "G": "get", "k": "insecure",
+        "L": "location", "d": "data",
+    ]
+
     /// Every curl option that takes a value, short and long, without dashes: the options with an
     /// argument in `curl --help all` (curl 8.7.1), less `--help`, whose category is optional. An
     /// option not in this table is a switch, so the word after it is never consumed.
