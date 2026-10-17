@@ -112,10 +112,16 @@ and every place they disagree is a command split inside a quote.
                                                  secrets off -> a Secret Variable stays
                                                  as {{name}} in the output
   -> CurlRenderer.render(resolved)               pure
-     -> one flag per line, joined with ` \` + newline
-     -> every value single-quoted, `'` written as `'\''`
-     -> Auth is already an Authorization header (variables.md), rendered as -H;
-        cookies as -b
+     -> the first line is `curl`, `-X METHOD` unless it is a GET with no body, and
+        the URL (board 11)
+     -> then one flag per line, joined with ` \` + newline + two spaces
+     -> every value single-quoted, `'` written as `'\''`; the method only when it
+        is not all letters
+     -> Auth is already an Authorization header (variables.md), rendered as -H, and
+        an empty header as -H 'Name;'; cookies as one -b
+     -> body: raw as --data-raw, form-urlencoded as --data-urlencode per row (curl
+        encodes the value as the transport does), multipart as -F name=value or
+        -F name=@path
      -> settings as -k, -L
   -> NSPasteboard.setString                      boundary    R: ClipboardWriter
 ```
