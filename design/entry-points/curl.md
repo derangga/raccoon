@@ -13,28 +13,36 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
                                                  no -> an ordinary paste, this tree ends
   -> CurlImporter.import(text)                   pure        R: none
                                                  E: CurlImportError -> escape, Tab unchanged
-    -> CurlLexer.commands(text)                  join `\`+newline (and `\`+spaces+newline,
+    -> CurlLexer.commands(text)                  one pass: POSIX shell words ('…', "…", $'…',
+                                                 \x), `\`+newline joined (and `\`+spaces+newline,
                                                  and CRLF), split on unquoted `;` and newline
-                                                 -> keep the first command that starts `curl`
-    -> CurlLexer.tokens(command)                 POSIX shell words: '…', "…", $'…', \x
-                                                 E: unterminatedQuote
+                                                 -> the words of the first command that starts
+                                                 `curl`, and how many other curl commands
+                                                 E: unterminatedQuote(position in the pasted text)
     -> CurlLexer.expandShortFlags(tokens)        -fsSL is four flags, -XPOST is -X POST,
-                                                 -H'a: b' is -H 'a: b'
+                                                 -H'a: b' is -H 'a: b'; a word that is a flag's
+                                                 value is never expanded (-d '-abc')
     -> CurlFlags.collect(tokens)                 -> [flag: [value]] + positionals
                                                  unknown flags -> ignoredFlags, with their
                                                  value consumed if the table says they take one
     -> CurlMapping.definition(flags, positionals)
-      -> url        --url, else first positional                E: noURL
+      -> url        --url, else first positional; with no `://`, `http://` is
+                    prefixed, as curl does                     E: noURL
       -> params     the URL's `?` part, then --url-query, then -d values when -G
-      -> headers    -H / --header, in order; `Name;` is an empty header
+      -> headers    -H / --header, and -A / --user-agent as `User-Agent`, in order;
+                    `Name;` is an empty header. --json adds `Content-Type` and
+                    `Accept: application/json` after them unless -H set either
       -> cookies    -b / --cookie `a=1; b=2` split into rows, plus any `Cookie:` header
-                    split into rows and removed from headers
+                    (a part with no `=`, like `secure`, is not a cookie and is dropped)
+                    split into rows and removed from headers; a -b value with no `=` is
+                    a cookie file curl would read, so --cookie goes to ignoredFlags
       -> auth       Authorization: Bearer x -> .bearer, header removed
                     Authorization: Basic b64 -> .basic if it decodes to `user:pass`,
                     else the header stays a header
                     -u user:pass -> .basic, unless an Authorization header won
       -> body       see the body table below
-      -> method     -X / --request, else POST if there is a body, else GET
+      -> method     -X / --request, else HEAD with -I / --head, else POST if there
+                    is a body, else GET
       -> settings   -k / --insecure, -L / --location
   -> PasteTarget.for(tab)                        pure
      .currentTab   tab is a Draft, its definition equals the empty Draft, no Response
@@ -54,13 +62,21 @@ Cookie extraction.
 
 | curl | Body |
 |---|---|
-| `-F name=value`, `-F name=@path` | `.multipart`, a text or file Part per `-F` |
+| `-F name=value`, `-F name=@path` | `.multipart`, a text or file Part per `-F`; a `;type=…` after the path is dropped |
 | `--data-raw` whose `Content-Type` is `multipart/form-data; boundary=…` | `.multipart`, parsed from the raw body (what Chrome's Copy as cURL produces) |
+| `-d` / `--data` / `--data-ascii` / `--data-binary` / `--json` `@path` | `.raw(kind, contents)`, the kind from a json, xml or text `Content-Type`, else `.text`, when the file is UTF-8, else §4. `--data-raw @x` is the text `@x`, as in curl |
 | `-d` / `--data` / `--data-urlencode` with no `Content-Type`, or `application/x-www-form-urlencoded` | `.formURLEncoded`, split at `&` then the first `=`, each value percent-decoded |
-| `-d` / `--data-raw` / `--data-binary` with `Content-Type` json, xml or text | `.raw(kind, text)`, joined with `&` when there are several |
-| `--data-binary @path` | `.raw(.text, contents)` when the file is UTF-8, else §4 |
+| `-d` / `--data-raw` / `--data-binary` / `--json` with `Content-Type` json, xml or text | `.raw(kind, text)`, joined with `&` when there are several |
 | any other data | `.raw(.text, text)` |
 | no data | `.none` |
+
+`--data-raw` and `--data-binary` with no `Content-Type` are raw text, not form rows: they
+mean "send these bytes", and raw text keeps them exact. The wire is the same either way,
+because URLSession adds `application/x-www-form-urlencoded` to a body with no `Content-Type`
+(environment-facts.md).
+
+`--json` is `--data-binary` plus its two headers (above), so it lands on the json row, or
+the `@path` row for `--json @file`.
 
 `-G` moves every data value into `params` instead, and the body stays `.none`.
 
@@ -77,17 +93,25 @@ Bruno's 53 (`environment-facts.md`):
 - Data that starts with dashes (`------WebKitFormBoundary`) is a value, not a flag.
 - `$'…'` strings with `\'` and `\n` escapes, and a `\;` outside quotes, do not split commands.
 
+Splitting commands and splitting words is one pass, not two. Two passes track quotes twice,
+and every place they disagree is a command split inside a quote.
+
 ### Where this differs from Yaak, deliberately
 
 - **Cookies become Request Cookies rows, not one `Cookie` header.** Raccoon has a Cookies
   table (CONTEXT, Request Cookies), and a cookie a user wants to disable is one row.
 - **Several pasted commands import only the first.** Yaak makes one request per command.
   A paste lands in one Tab, so the rest are listed in the ignored note as "2 more commands".
-- **`--digest` is ignored, not mapped.** Auth has no Digest (CONTEXT, Auth). The `-u` value
-  still becomes `.basic`, and the note says `--digest` was ignored so the user knows the
-  scheme changed.
+- **`--digest` and `--ntlm` are ignored, not mapped.** Auth has no Digest or NTLM (CONTEXT,
+  Auth). The `-u` value still becomes `.basic`, and the note says the flag was ignored so the
+  user knows the scheme changed.
 - **`--compressed` is ignored.** URLSession always asks for gzip and decodes it
   (environment-facts.md), so there is no setting to turn on and the note lists it.
+- **No Content-Type row is added.** Yaak adds one for `-d` and `-F`. Raccoon keeps only the
+  headers the command has; with none, the Headers table shows the `Content-Type` URLSession
+  adds as an automatic row (AutomaticHeaders), which is what curl sends too.
+- **Headers keep command order across `-H` and `--header`.** Yaak lists `--header` first.
+- **`-L` sets Follow redirects and `-k` Allow insecure TLS.** Yaak ignores both.
 - **No GraphQL detection.** GraphQL is not a Body Type in v1, so a GraphQL body imports as
   `.raw(.json)`, which is what it is on the wire.
 
@@ -101,10 +125,16 @@ Bruno's 53 (`environment-facts.md`):
                                                  secrets off -> a Secret Variable stays
                                                  as {{name}} in the output
   -> CurlRenderer.render(resolved)               pure
-     -> one flag per line, joined with ` \` + newline
-     -> every value single-quoted, `'` written as `'\''`
-     -> Auth is already an Authorization header (variables.md), rendered as -H;
-        cookies as -b
+     -> the first line is `curl`, `-X METHOD` unless it is a GET with no body, and
+        the URL (board 11)
+     -> then one flag per line, joined with ` \` + newline + two spaces
+     -> every value single-quoted, `'` written as `'\''`; the method only when it
+        is not all letters
+     -> Auth is already an Authorization header (variables.md), rendered as -H, and
+        an empty header as -H 'Name;'; cookies as one -b
+     -> body: raw as --data-raw, form-urlencoded as --data-urlencode per row (curl
+        encodes the value as the transport does), multipart as -F name=value or
+        -F name=@path
      -> settings as -k, -L
   -> NSPasteboard.setString                      boundary    R: ClipboardWriter
 ```
