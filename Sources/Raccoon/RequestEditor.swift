@@ -16,24 +16,16 @@ enum EditorSection: CaseIterable {
         }
     }
 
-    /// What follows the name: a row count (Disabled Rows too, none for no rows), the Body Type,
-    /// or the Auth scheme.
+    /// What follows the name: a row count (Disabled Rows too, none for no rows) or
+    /// the Auth scheme.
     func detail(in definition: RequestDefinition) -> String? {
         func count(_ rows: [Row]) -> String? { rows.isEmpty ? nil : "\(rows.count)" }
         return switch self {
         case .params: count(definition.params)
         case .headers: count(definition.headers)
         case .cookies: count(definition.cookies)
-        case .settings: nil
-        case .body:
-            switch definition.body {
-            case .none: nil
-            case .raw(.json, _): "JSON"
-            case .raw(.text, _): "text"
-            case .raw(.xml, _): "XML"
-            case .formURLEncoded: "form"
-            case .multipart: "multipart"
-            }
+        // Body shows no Body Type: its pane's pop-ups already name it.
+        case .body, .settings: nil
         case .auth:
             switch definition.auth {
             case .none: nil

@@ -7,7 +7,7 @@ import Testing
 @MainActor
 struct URLBarTests {
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
-    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), instants: FixedInstantSource(.now))
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now))
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 120), styleMask: [], backing: .buffered, defer: false)
 
     func bar() -> URLBar {
@@ -90,10 +90,10 @@ struct URLBarTests {
         #expect(text.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor == theme.color(.text))
     }
 
-    @Test func `the method menu lists the seven methods, then Other…`() {
+    @Test func `the method menu lists the seven methods and nothing else`() {
         let bar = bar()
         #expect(bar.methodMenu.items.filter { !$0.isSeparatorItem }.map(\.title)
-            == ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "Other…"])
+            == ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
     }
 
     @Test func `picking a method sets it and colors the label`() throws {
@@ -104,16 +104,6 @@ struct URLBarTests {
         #expect(model.tab.definition.method == "POST")
         let title = bar.methodButton.attributedTitle
         #expect(title.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor == theme.color(.methodPost))
-    }
-
-    @Test func `Other… takes free text, stored uppercased`() {
-        let bar = bar()
-        bar.editOtherMethod()
-        #expect(!bar.methodField.isHidden)
-        bar.methodField.stringValue = "propfind"
-        bar.controlTextDidEndEditing(Notification(name: NSControl.textDidEndEditingNotification, object: bar.methodField))
-        #expect(model.tab.definition.method == "PROPFIND")
-        #expect(bar.methodField.isHidden)
     }
 
     @Test func `PROPFIND fits the pop-up without truncation`() {
@@ -152,5 +142,106 @@ struct URLBarTests {
         bar.render()
         #expect(bar.messageText.textColor == theme.color(.error))
         #expect(bar.messageClose.isHidden)
+    }
+
+    // MARK: Curl Import
+
+    static let chrome = """
+        curl --url 'https://primo.rangga.site/provinces.json' \\
+          -H 'accept: */*' \\
+          -H 'if-none-match: W/"bba270476df82b3bcd972302f70835ad"' \\
+          -H 'priority: u=1, i' \\
+          -H 'sec-ch-ua: "Google Chrome";v="155", "Chromium";v="155", "Not(A:Brand";v="24"' \\
+          -H 'sec-ch-ua-mobile: ?0' \\
+          -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)'
+        """
+
+    @Test func `a pasted Chrome curl fills the URL, the headers and the field, and is not inserted`() {
+        let bar = bar()
+        #expect(bar.pasteCurl(Self.chrome))
+        let definition = model.tab.definition
+        #expect(definition.method == "GET" && definition.url == "https://primo.rangga.site/provinces.json")
+        #expect(definition.params.isEmpty && definition.body == .none)
+        #expect(definition.headers.map(\.name) == ["accept", "if-none-match", "priority", "sec-ch-ua", "sec-ch-ua-mobile", "user-agent"])
+        #expect(definition.headers[1].value == #"W/"bba270476df82b3bcd972302f70835ad""#)
+        #expect(definition.headers[2].value == "u=1, i")
+        #expect(bar.urlField.stringValue == "https://primo.rangga.site/provinces.json")
+        #expect(model.message == nil)
+    }
+
+    @Test func `a paste that is not curl is left to the field`() {
+        let bar = bar()
+        #expect(!bar.pasteCurl("https://h/a?b=1"))
+        #expect(model.tab.definition == .empty)
+    }
+
+    @Test(arguments: [
+        ("curl 'https://h", "Unterminated quote in this curl command, at character 6."), ("curl -s", "No URL in this curl command."),
+    ])
+    func `a curl error is a message, the Tab is unchanged and the text is not inserted`(text: String, line: String) {
+        let bar = bar()
+        #expect(bar.pasteCurl(text))
+        #expect(model.tab.definition == .empty)
+        #expect(model.message == .error(line))
+    }
+
+    @Test(arguments: [("curl https://h/a\ncurl https://h/b", "1 more command"), ("curl https://h/a\ncurl https://h/b\ncurl https://h/c", "2 more commands")])
+    func `the count of extra commands agrees with its noun`(text: String, note: String) {
+        let bar = bar()
+        #expect(bar.pasteCurl(text))
+        #expect(model.message == .note(note))
+    }
+
+    @Test func `unknown flags and extra commands go in one note`() {
+        let bar = bar()
+        #expect(bar.pasteCurl("curl --retry 3 -s https://h/a\ncurl https://h/b\ncurl https://h/c"))
+        #expect(model.message == .note("Ignored: --retry, -s. 2 more commands"))
+        #expect(model.tab.definition.url == "https://h/a")
+    }
+
+    @Test func `a data file is read as the body, and one that cannot be read leaves no body and names it`() {
+        let files = DictionaryFileReading(["/tmp/a.json": Data(#"{"a":1}"#.utf8), "/tmp/bin": Data([0xFF, 0xFE])])
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: files, instants: FixedInstantSource(.now))
+        #expect(model.pasteInURLBar("curl -H 'Content-Type: application/json' --data-binary @/tmp/a.json https://h"))
+        #expect(model.tab.definition.body == .raw(.json, #"{"a":1}"#))
+        #expect(model.pasteInURLBar("curl --data-binary @/tmp/bin https://h"))
+        #expect(model.tab.definition.body == .none)
+        #expect(model.message == .note("/tmp/bin is not text, and binary bodies are not supported"))
+    }
+
+    @Test func `after a pasted curl the field shows the URL with a caret at the end, not selected`() throws {
+        let bar = bar()
+        window.makeFirstResponder(bar.urlField)
+        #expect(bar.pasteCurl(Self.chrome))
+        let editor = try #require(bar.urlField.currentEditor())
+        let end = ("https://primo.rangga.site/provinces.json" as NSString).length
+        #expect(editor.selectedRange == NSRange(location: end, length: 0))
+    }
+
+    @Test func `Undo with the field focused puts back the Tab, the field and the note, and Redo imports again`() throws {
+        let bar = bar()
+        window.makeFirstResponder(bar.urlField)
+        #expect(bar.pasteCurl("curl --retry 3 https://h/a -H 'x-one: 1'"))
+        #expect(model.message == .note("Ignored: --retry"))
+        let undo = try #require(bar.undoManager)
+        undo.undo()
+        #expect(model.tab.definition == .empty && model.message == nil)
+        #expect(bar.urlField.stringValue == "" && (bar.urlField.currentEditor()?.string ?? "") == "")
+        #expect(undo.canRedo)
+        undo.redo()
+        #expect(model.tab.definition.url == "https://h/a" && model.tab.definition.headers.map(\.name) == ["x-one"])
+        #expect(model.message == .note("Ignored: --retry"))
+        #expect(bar.urlField.stringValue == "https://h/a")
+    }
+
+    @Test func `the field editor offers a paste to the field before inserting it`() throws {
+        let bar = bar()
+        let editor = try #require(bar.urlField.cell?.fieldEditor(for: bar.urlField) as? PasteFieldEditor)
+        editor.pasteboard = NSPasteboard(name: NSPasteboard.Name("raccoon-tests-paste"))
+        editor.pasteboard.clearContents()
+        editor.pasteboard.setString(Self.chrome, forType: .string)
+        editor.paste(nil)
+        #expect(model.tab.definition.url == "https://primo.rangga.site/provinces.json")
+        #expect(editor.string == "")
     }
 }

@@ -82,14 +82,15 @@ final class BodyPane: NSView, NSTextViewDelegate {
         formatButton.layer?.borderWidth = 1
         formatButton.layer?.borderColor = theme.color(.border).cgColor
         formatButton.layer?.backgroundColor = theme.color(.background).cgColor
-        formatButton.title = "Format"
-        formatButton.attributedTitle = NSAttributedString(string: "Format", attributes: [
-            .font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text),
-        ])
-        formatButton.image = NSImage(systemSymbolName: "list.bullet.indent", accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(pointSize: 11, weight: .regular))
-        formatButton.imagePosition = .imageLeading
-        formatButton.contentTintColor = theme.color(.text)
+        // The glyph is part of the title, so the pair centers as one and PopButton's 10 pt hold.
+        let glyph = NSTextAttachment()
+        glyph.image = NSImage(systemSymbolName: "list.bullet.indent", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(paletteColors: [theme.color(.text)]).applying(.init(pointSize: 11, weight: .regular)))
+        let title = NSMutableAttributedString(attachment: glyph)
+        title.append(NSAttributedString(string: " Format"))
+        title.addAttributes([.font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text)], range: NSRange(location: 0, length: title.length))
+        formatButton.attributedTitle = title
+        formatButton.setAccessibilityLabel("Format")
         formatButton.target = self
         formatButton.action = #selector(format)
         // Uppercase: with Shift held, the event's charactersIgnoringModifiers is "F".

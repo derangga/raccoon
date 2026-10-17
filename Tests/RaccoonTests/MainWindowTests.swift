@@ -99,3 +99,17 @@ struct MainWindowTests {
         #expect(view.item(withTitle: "Show Inspector")?.action == #selector(NSSplitViewController.toggleInspector(_:)))
     }
 }
+
+@MainActor
+struct EditMenuTests {
+    @Test func `the Edit menu sends Select All, Cut, Copy and Paste to the first responder`() throws {
+        let edit = try #require(MainMenu.make().item(withTitle: "Edit")?.submenu)
+        let all = try #require(edit.item(withTitle: "Select All"))
+        #expect(all.keyEquivalent == "a" && all.keyEquivalentModifierMask == .command && all.target == nil)
+        #expect(all.action == #selector(NSText.selectAll(_:)))
+        #expect(edit.item(withTitle: "Cut")?.action == #selector(NSText.cut(_:)))
+        #expect(edit.item(withTitle: "Copy")?.action == #selector(NSText.copy(_:)))
+        #expect(edit.item(withTitle: "Paste")?.action == #selector(NSText.paste(_:)))
+        #expect(edit.item(withTitle: "Redo")?.keyEquivalentModifierMask == [.command, .shift])
+    }
+}

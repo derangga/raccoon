@@ -8,8 +8,12 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
     static let deleteID = NSUserInterfaceItemIdentifier("delete")
     var onChange: ([Row]) -> Void = { _ in }
     private(set) var rows: [Row] = []
-    /// Headers only: what is sent that no row sets, after the trailing empty row, read-only.
+    /// Headers only: what is sent that no row sets, above the rows, read-only. Table row `r` is
+    /// `automatic[r]` while `r < lead`, then `rows[r - lead]`, then the trailing empty row.
     private var automatic: [AutomaticHeader] = []
+    private var lead: Int { automatic.count }
+    /// The automatic rows above the user's, for the table view's keys.
+    var leadRows: Int { lead }
     private let theme: ThemeEnvironment
     /// Multipart only: a value can be a file, drawn as a chip, picked or dropped onto a row.
     private let allowsFiles: Bool
@@ -35,7 +39,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         layer?.masksToBounds = true
 
         for (column, title, width) in [(columns.check, "", 30.0), (columns.name, "Name", 120), (columns.value, "Value", 200), (columns.delete, "", 30)] {
-            column.headerCell = HeaderCell(theme: theme)
+            column.headerCell = HeaderCell(theme: theme, ruleBefore: column === columns.value)
             column.title = title
             column.width = width
             column.resizingMask = []
@@ -46,7 +50,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         table.style = .plain
         table.rowHeight = 28
         table.intercellSpacing = .zero
-        table.gridStyleMask = [.solidHorizontalGridLineMask, .solidVerticalGridLineMask]
+        table.gridStyleMask = [.solidHorizontalGridLineMask]
         table.gridColor = theme.color(.border)
         table.backgroundColor = theme.color(.background)
         table.columnAutoresizingStyle = .noColumnAutoresizing
@@ -117,18 +121,19 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         if row == rows.count {
             rows.append(Row(name: "", value: path))
             files.append(true)
-            table.insertRows(at: IndexSet(integer: rows.count), withAnimation: [])
+            table.insertRows(at: IndexSet(integer: lead + rows.count), withAnimation: [])
             invalidateIntrinsicContentSize()
         } else {
             rows[row].value = path
             files[row] = true
         }
         onChange(rows)
-        table.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integersIn: 0..<4))
+        table.reloadData(forRowIndexes: IndexSet(integer: lead + row), columnIndexes: IndexSet(integersIn: 0..<4))
     }
 
     @objc private func chooseFile() {
-        let row = table.clickedRow >= 0 && table.clickedRow <= rows.count ? table.clickedRow : rows.count
+        let clicked = table.clickedRow - lead
+        let row = clicked >= 0 && clicked <= rows.count ? clicked : rows.count
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
@@ -141,7 +146,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
 
     func tableView(_ tableView: NSTableView, validateDrop info: any NSDraggingInfo, proposedRow row: Int,
                    proposedDropOperation dropOperation: NSTableView.DropOperation) -> NSDragOperation {
-        guard allowsFiles, row <= rows.count else { return [] }
+        guard allowsFiles, row >= lead, row - lead <= rows.count else { return [] }
         tableView.setDropRow(row, dropOperation: .on)
         return .copy
     }
@@ -149,25 +154,24 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
     func tableView(_ tableView: NSTableView, acceptDrop info: any NSDraggingInfo, row: Int, dropOperation: NSTableView.DropOperation) -> Bool {
         let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]
         guard let url = urls?.first else { return false }
-        setFile(url.path, at: row)
+        setFile(url.path, at: row - lead)
         return true
     }
 
-    /// Replaces only the automatic rows, so a field being edited above them keeps its editor.
+    /// Replaces only the automatic rows, so a field being edited below them keeps its editor.
     func setAutomaticRows(_ new: [AutomaticHeader]) {
         guard new != automatic else { return }
-        let start = rows.count + 1
         table.beginUpdates()
-        table.removeRows(at: IndexSet(integersIn: start..<start + automatic.count), withAnimation: [])
+        table.removeRows(at: IndexSet(integersIn: 0..<lead), withAnimation: [])
         automatic = new
-        table.insertRows(at: IndexSet(integersIn: start..<start + automatic.count), withAnimation: [])
+        table.insertRows(at: IndexSet(integersIn: 0..<lead), withAnimation: [])
         table.endUpdates()
         invalidateIntrinsicContentSize()
     }
 
     /// As tall as its rows; the owner caps it at the pane, and past that the rows scroll.
     override var intrinsicContentSize: NSSize {
-        NSSize(width: NSView.noIntrinsicMetric, height: 24 + CGFloat(table.numberOfRows) * table.rowHeight + 2)
+        NSSize(width: NSView.noIntrinsicMetric, height: 24 + CGFloat(table.numberOfRows) * table.rowHeight)
     }
 
     /// Name takes 36 %, Value the rest (design-system.md §6).
@@ -185,7 +189,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         rows = new
         if added > 0 { files += Array(repeating: false, count: added) }
         if added > 0 {
-            table.insertRows(at: IndexSet(integer: rows.count), withAnimation: [])
+            table.insertRows(at: IndexSet(integer: lead + rows.count), withAnimation: [])
             invalidateIntrinsicContentSize()
         }
         onChange(rows)
@@ -194,30 +198,54 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
     func toggle(row: Int) {
         guard rows.indices.contains(row) else { return }
         apply(Rows.toggle(at: row, in: rows))
-        table.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integersIn: 0..<4))
+        table.reloadData(forRowIndexes: IndexSet(integer: lead + row), columnIndexes: IndexSet(integersIn: 0..<4))
     }
 
     func delete(row: Int) {
         guard rows.indices.contains(row) else { return }
         rows = Rows.delete(at: row, in: rows)
         if files.indices.contains(row) { files.remove(at: row) }
-        table.removeRows(at: IndexSet(integer: row), withAnimation: [])
+        table.removeRows(at: IndexSet(integer: lead + row), withAnimation: [])
         invalidateIntrinsicContentSize()
         onChange(rows)
     }
 
-    @objc private func checkboxClicked(_ sender: NSButton) { toggle(row: table.row(for: sender)) }
-    @objc private func deleteClicked(_ sender: NSButton) { delete(row: table.row(for: sender)) }
+    @objc private func checkboxClicked(_ sender: NSButton) { toggle(row: table.row(for: sender) - lead) }
+    @objc private func deleteClicked(_ sender: NSButton) { delete(row: table.row(for: sender) - lead) }
 
     func controlTextDidChange(_ notification: Notification) {
         guard let field = notification.object as? NSTextField else { return }
-        let row = table.row(for: field)
+        let row = table.row(for: field) - lead
         guard row >= 0 else { return }
         let wasTrailing = row == rows.count
         apply(field.tag == 0 ? Rows.setName(field.stringValue, at: row, in: rows) : Rows.setValue(field.stringValue, at: row, in: rows))
         field.toolTip = field.stringValue
         // The trailing row became a real row: give it its checkbox and its delete button.
-        if wasTrailing { table.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: [0, 3]) }
+        if wasTrailing { activate(row: lead + row) } else if field.tag == 0 { relabel(row: lead + row) }
+    }
+
+    /// The trailing row became a real row: its checkbox and delete button come alive. Updated in
+    /// place, because reloading the row's cells ends the editing of the field being typed in.
+    private func activate(row: Int) {
+        if let box = table.view(atColumn: 0, row: row, makeIfNecessary: false)?.subviews.first as? NSButton {
+            box.isEnabled = true
+            box.state = .on
+        }
+        if let button = table.view(atColumn: 3, row: row, makeIfNecessary: false)?.subviews.first as? NSButton {
+            button.isEnabled = true
+        }
+        relabel(row: row)
+        (table.rowView(atRow: row, makeIfNecessary: false) as? HoverRowView)?.showDeleteIfHovered()
+    }
+
+    /// The checkbox and delete button name the row as it is now, after every keystroke.
+    private func relabel(row: Int) {
+        guard rows.indices.contains(row - lead) else { return }
+        let name = rows[row - lead].name
+        (table.view(atColumn: 0, row: row, makeIfNecessary: false)?.subviews.first as? NSButton)?
+            .setAccessibilityLabel("Send \(name.isEmpty ? "this row" : name)")
+        (table.view(atColumn: 3, row: row, makeIfNecessary: false)?.subviews.first as? NSButton)?
+            .setAccessibilityLabel("Delete \(name.isEmpty ? "row" : name)")
     }
 
     func controlTextDidBeginEditing(_ notification: Notification) {
@@ -237,11 +265,17 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
     func numberOfRows(in tableView: NSTableView) -> Int { rows.count + 1 + automatic.count }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-        HoverRowView(hover: theme.color(.rowHover))
+        HoverRowView(hover: theme.color(.rowHover), selection: theme.color(.selection), rule: theme.color(.border)) { [weak self] in
+            self?.table.rect(ofColumn: 2).minX ?? 0
+        }
     }
 
+    /// An automatic row is read-only and has nothing to toggle or delete, so it is not selected.
+    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool { row >= lead }
+
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        if row > rows.count { return automaticCell(automatic[row - rows.count - 1], column: tableColumn) }
+        if row < lead { return automaticCell(automatic[row], column: tableColumn) }
+        let row = row - lead
         let isTrailing = row == rows.count
         let item = isTrailing ? nil : rows[row]
         switch tableColumn?.identifier {
@@ -253,11 +287,12 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
             box.setAccessibilityLabel(item.map { "Send \($0.name.isEmpty ? "this row" : $0.name)" } ?? "")
             return centered(box)
         case columns.delete.identifier:
-            guard !isTrailing else { return NSView() }
             let button = NSButton(image: NSImage(systemSymbolName: "minus.circle", accessibilityDescription: "Delete row")!,
                                   target: self, action: #selector(deleteClicked))
             button.isBordered = false
             button.contentTintColor = theme.color(.textTertiary)
+            // The trailing row has the button too, inert until typing makes it a row.
+            button.isEnabled = !isTrailing
             button.setAccessibilityLabel("Delete \(item?.name ?? "row")")
             button.identifier = Self.deleteID
             button.isHidden = true
@@ -273,7 +308,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
             field.toolTip = field.stringValue.isEmpty ? nil : field.stringValue
             field.textColor = theme.color(item?.isEnabled == false ? .textDisabled : .text)
             field.placeholderAttributedString = NSAttributedString(string: isName ? "Name" : allowsFiles ? "Value or file" : "Value", attributes: [
-                .font: NSFont.systemFont(ofSize: 13), .foregroundColor: theme.color(.textTertiary),
+                .font: NSFont.systemFont(ofSize: 13), .foregroundColor: theme.color(.textTertiary).withAlphaComponent(0.6),
             ])
             field.delegate = self
             field.wantsLayer = true
@@ -284,8 +319,17 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         }
     }
 
-    /// No checkbox, no delete, not editable: only a row of the same name replaces it.
+    /// A locked checked box, no delete, not editable: only a row of the same name replaces it.
     private func automaticCell(_ header: AutomaticHeader, column: NSTableColumn?) -> NSView {
+        if column === columns.check {
+            // Sent whatever the user does, so the box is checked and cannot be changed.
+            let box = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+            box.state = .on
+            box.isEnabled = false
+            box.toolTip = "Always sent. Add a row with the same name to replace it."
+            box.setAccessibilityLabel("\(header.name) is always sent")
+            return centered(box)
+        }
         guard column === columns.name || column === columns.value else { return NSView() }
         let field = cellField()
         field.isEditable = false
@@ -310,7 +354,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
     }
 
     private func cellField() -> NSTextField {
-        let field = NSTextField()
+        let field = KeyField()
         field.isBordered = false
         field.drawsBackground = false
         field.focusRingType = .none
@@ -329,7 +373,9 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         NSLayoutConstraint.activate([
             field.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
             field.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
-            field.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+            // The whole row less 2 pt: what the editing ring surrounds.
+            field.topAnchor.constraint(equalTo: cell.topAnchor, constant: 2),
+            field.bottomAnchor.constraint(equalTo: cell.bottomAnchor, constant: -2),
         ])
         return cell
     }
@@ -343,6 +389,39 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
             control.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
         ])
         return cell
+    }
+}
+
+/// A cell's text field: its text and its editor sit 4 pt inside the box, so the 2 pt editing ring
+/// does not touch the letters.
+final class KeyField: NSTextField {
+    override class var cellClass: AnyClass? {
+        get { KeyFieldCell.self }
+        set {}
+    }
+}
+
+final class KeyFieldCell: NSTextFieldCell {
+    private static let inset: CGFloat = 4
+
+    /// Inset 4 pt either side, and one line tall in the middle of the box: a text cell draws at
+    /// the top of a box taller than its text.
+    override func drawingRect(forBounds rect: NSRect) -> NSRect {
+        var box = super.drawingRect(forBounds: rect).insetBy(dx: Self.inset, dy: 0)
+        let line = ceil(max(font?.boundingRectForFont.height ?? 0, placeholderAttributedString?.size().height ?? 0))
+        if line > 0, line < box.height {
+            box.origin.y += ((box.height - line) / 2).rounded()
+            box.size.height = line
+        }
+        return box
+    }
+
+    override func edit(withFrame rect: NSRect, in controlView: NSView, editor: NSText, delegate: Any?, event: NSEvent?) {
+        super.edit(withFrame: drawingRect(forBounds: rect), in: controlView, editor: editor, delegate: delegate, event: event)
+    }
+
+    override func select(withFrame rect: NSRect, in controlView: NSView, editor: NSText, delegate: Any?, start: Int, length: Int) {
+        super.select(withFrame: drawingRect(forBounds: rect), in: controlView, editor: editor, delegate: delegate, start: start, length: length)
     }
 }
 
@@ -396,19 +475,20 @@ final class FileChip: NSView {
 final class KeyTableView: NSTableView {
     weak var keys: KeyValueTable?
 
-    /// Grid lines stop at the last row instead of filling the empty space below it.
+    /// Grid lines stop at the last row instead of filling the empty space below it. The vertical
+    /// rule between Name and Value is drawn by each row view: a row view paints over the table.
     override func drawGrid(inClipRect clipRect: NSRect) {
         let used = numberOfRows > 0 ? rect(ofRow: numberOfRows - 1).maxY : 0
         super.drawGrid(inClipRect: clipRect.intersection(NSRect(x: 0, y: 0, width: bounds.width, height: used)))
     }
 
     override func keyDown(with event: NSEvent) {
-        let row = selectedRow
-        guard row >= 0, let keys else { return super.keyDown(with: event) }
+        guard let keys, selectedRow - keys.leadRows >= 0 else { return super.keyDown(with: event) }
+        let row = selectedRow - keys.leadRows
         switch event.keyCode {
         case 49: keys.toggle(row: row)
         case 51, 117: keys.delete(row: row)
-        case 36, 76: if row <= keys.rows.count { editColumn(1, row: row, with: nil, select: true) }
+        case 36, 76: if row <= keys.rows.count { editColumn(1, row: selectedRow, with: nil, select: true) }
         default: super.keyDown(with: event)
         }
     }
@@ -417,17 +497,28 @@ final class KeyTableView: NSTableView {
 /// `rowHover` under the pointer, and the row's delete button shown only then.
 private final class HoverRowView: NSTableRowView {
     private let hover: NSColor
+    private let selection: NSColor
+    private let rule: NSColor
+    /// Where the Value column starts, in the row's coordinates.
+    private let ruleX: () -> CGFloat
     private var isHovered = false {
         didSet {
             needsDisplay = true
-            for case let button as NSButton in subviews.flatMap(\.subviews) where button.identifier == KeyValueTable.deleteID {
-                button.isHidden = !isHovered
-            }
+            showDeleteIfHovered()
         }
     }
 
-    init(hover: NSColor) {
+    func showDeleteIfHovered() {
+        for case let button as NSButton in subviews.flatMap(\.subviews) where button.identifier == KeyValueTable.deleteID {
+            button.isHidden = !(isHovered && button.isEnabled)
+        }
+    }
+
+    init(hover: NSColor, selection: NSColor, rule: NSColor, ruleX: @escaping () -> CGFloat) {
         self.hover = hover
+        self.selection = selection
+        self.rule = rule
+        self.ruleX = ruleX
         super.init(frame: .zero)
     }
 
@@ -443,6 +534,24 @@ private final class HoverRowView: NSTableRowView {
     override func mouseEntered(with event: NSEvent) { isHovered = true }
     override func mouseExited(with event: NSEvent) { isHovered = false }
 
+    /// The `selection` fill, not the system accent: the row's text keeps its own colors on it.
+    override func drawSelection(in dirtyRect: NSRect) {
+        selection.setFill()
+        bounds.fill()
+    }
+
+    override var isEmphasized: Bool {
+        get { false }
+        set {}
+    }
+
+    /// The one vertical rule, between Name and Value, on top of the fill and under the cells.
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        rule.setFill()
+        NSRect(x: ruleX(), y: 0, width: 1, height: bounds.height).fill()
+    }
+
     override func drawBackground(in dirtyRect: NSRect) {
         guard isHovered else { return super.drawBackground(in: dirtyRect) }
         hover.setFill()
@@ -453,9 +562,11 @@ private final class HoverRowView: NSTableRowView {
 /// "Name" / "Value" in `textTertiary` 11 semibold on `backgroundRecessed`.
 private final class HeaderCell: NSTableHeaderCell {
     private let theme: ThemeEnvironment
+    private let ruleBefore: Bool
 
-    init(theme: ThemeEnvironment) {
+    init(theme: ThemeEnvironment, ruleBefore: Bool) {
         self.theme = theme
+        self.ruleBefore = ruleBefore
         super.init(textCell: "")
     }
 
@@ -467,7 +578,7 @@ private final class HeaderCell: NSTableHeaderCell {
         cellFrame.fill()
         theme.color(.border).setFill()
         NSRect(x: cellFrame.minX, y: cellFrame.maxY - 1, width: cellFrame.width, height: 1).fill()
-        NSRect(x: cellFrame.maxX - 1, y: cellFrame.minY, width: 1, height: cellFrame.height).fill()
+        if ruleBefore { NSRect(x: cellFrame.minX, y: cellFrame.minY, width: 1, height: cellFrame.height).fill() }
         let title = NSAttributedString(string: stringValue, attributes: [
             .font: NSFont.systemFont(ofSize: 11, weight: .semibold), .foregroundColor: theme.color(.textTertiary),
         ])

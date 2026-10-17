@@ -251,8 +251,9 @@ Accessibility: each Tab is an `NSAccessibility` tab with title "<method> <name>"
 Anatomy: `[method pop-up] [URL field] [Send]`, then the message line.
 
 - **Method pop-up**: `backgroundElevated`, `border`, the method in its `method*` token, SF Mono
-  12 bold. The menu lists GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, then "Other…" which
-  makes the label editable for free text.
+  12 bold. The menu lists GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS and nothing
+  else. A method that arrived from a curl import or a Postman file is shown as it is and
+  stays until another is picked.
 - **URL field**: `backgroundElevated`, `border`, SF Mono 12, one line, scrolls horizontally;
   32 pt fade at the trailing edge when it overflows. Focus: `focusRing` border + 3 pt ring at
   35 %. Invalid after an `invalidURL` send: `error` border until the next edit. The query part
@@ -280,7 +281,8 @@ Params · Headers · Body · Auth · Cookies · Settings over the RequestEditor'
 13 pt `textSecondary`, 10 pt padding, 2 pt apart, over a 1 pt `border` rule. Selected: `text`
 semibold with a 2 pt `accent` underline over the rule. Params, Headers and Cookies carry their
 row count in tabular `textTertiary` ("Params 3", Disabled Rows included); a section with no rows
-shows no count. Body and Auth show the Body Type and the scheme ("Body JSON", "Auth Bearer").
+shows no count. Auth shows its scheme ("Auth Bearer"). Body shows nothing more: the Body Type
+pop-ups in its pane already name it.
 Seen on: 01, 02, 05.
 
 ### Key/value table
@@ -288,18 +290,19 @@ Seen on: 01, 02, 05.
 Shared by Params, Headers, Cookies, form-urlencoded and multipart.
 
 Anatomy: header row (24 pt, `backgroundRecessed`, `textTertiary` 11 semibold "Name" "Value"),
-then 28 pt rows: `[checkbox 30] [name 36 %] [value] [delete 30]`, 1 pt `border` between rows
-and columns, 6 pt radius outer border.
+then 28 pt rows: `[checkbox 30] [name 36 %] [value] [delete 30]`, 1 pt `border` between rows,
+one vertical rule between Name and Value, 6 pt radius outer border.
 
 | State | Treatment |
 |---|---|
 | rest | cells SF Mono 12 `text`, single line, end-truncated with the full value in the field editor and a tooltip |
 | hover | `rowHover`; the delete button (⊖, `textTertiary`) appears |
+| selected | `selection` fill, not the system accent; name and value keep their own colors. An automatic row is never selected |
 | editing | the cell becomes a field editor with a 2 pt `focusRing` outline on `background` |
 | Disabled Row | checkbox **unchecked** and name/value in `textDisabled`. Both cues, never one |
-| trailing empty row | always present; "Name" / "Value" placeholders in `textTertiary` SF Pro 13; typing in it creates a row and a new trailing row |
+| trailing empty row | always present, last; "Name" / "Value" placeholders in `textTertiary` at 60 % opacity, SF Pro 13 (at full strength Latte's `textTertiary` reads as a value); typing in it creates a row and a new trailing row |
 | 60 rows | the table scrolls inside the pane; the header row stays put; an overlay scroller |
-| automatic row | Headers only, after the trailing empty row: the headers sent that no row sets (`AutomaticHeaders`), name and value in `textTertiary`, no checkbox, no delete, not editable. A value computed at send reads "calculated when sent". Typing a row with the same name replaces it; the section count leaves them out. Not drawn on a board yet |
+| automatic row | Headers only, above the user's rows (the trailing empty row is always last): the headers sent that no row sets (`AutomaticHeaders`), name and value in `textTertiary`, a checked checkbox that is disabled (sent whatever the user does, so it cannot be unticked; tooltip "Always sent. Add a row with the same name to replace it."), no delete, not editable, not selectable. A value computed at send reads "calculated when sent". Typing a row with the same name replaces it; the section count leaves them out. Not drawn on a board yet |
 
 The section label carries the count of rows ("Headers 60"), `textTertiary`, tabular. A count
 holding an Undefined Variable is drawn in `variableUndefined` semibold, so the reason a send

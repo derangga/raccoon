@@ -7,7 +7,7 @@ import Testing
 @MainActor
 struct RequestEditorTests {
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
-    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), instants: FixedInstantSource(.now))
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now))
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400), styleMask: [], backing: .buffered, defer: false)
 
     func editor() -> RequestEditor {
@@ -26,14 +26,14 @@ struct RequestEditorTests {
             == ["Params 3", "Headers 1", "Body", "Auth", "Cookies", "Settings"])
     }
 
-    @Test func `Body shows its Body Type and Auth its scheme`() {
+    @Test func `Auth shows its scheme and Body shows no Body Type`() {
         var definition = RequestDefinition.empty
         definition.body = .raw(.json, "{}")
         definition.auth = .bearer(token: "t")
-        #expect((EditorSection.body.title(in: definition), EditorSection.auth.title(in: definition)) == ("Body JSON", "Auth Bearer"))
+        #expect((EditorSection.body.title(in: definition), EditorSection.auth.title(in: definition)) == ("Body", "Auth Bearer"))
         definition.body = .formURLEncoded([])
         definition.auth = .basic(user: "u", password: "p")
-        #expect((EditorSection.body.title(in: definition), EditorSection.auth.title(in: definition)) == ("Body form", "Auth Basic"))
+        #expect((EditorSection.body.title(in: definition), EditorSection.auth.title(in: definition)) == ("Body", "Auth Basic"))
     }
 
     @Test func `a count needs no plural change`() {
@@ -71,7 +71,7 @@ struct RequestEditorTests {
         model.tab.definition.url = "https://example.com"
         editor.render()
         #expect(headers.numberOfRows == 7)
-        #expect(((headers.view(atColumn: 2, row: 1, makeIfNecessary: true) as? NSTableCellView)?.textField?.stringValue) == "example.com")
+        #expect(((headers.view(atColumn: 2, row: 0, makeIfNecessary: true) as? NSTableCellView)?.textField?.stringValue) == "example.com")
 
         model.tab.definition.headers = [Row(name: "host", value: "other")]
         editor.render()
@@ -171,7 +171,7 @@ struct RequestEditorTests {
 @MainActor
 struct BodyPaneTests {
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
-    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), instants: FixedInstantSource(.now))
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now))
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400), styleMask: [], backing: .buffered, defer: false)
 
     func pane() -> (RequestEditor, BodyPane) {
@@ -210,7 +210,7 @@ struct BodyPaneTests {
         #expect(!pane.textBox.isHidden && pane.noneNote.isHidden && !pane.kindButton.isHidden)
         #expect(pane.kindButton.attributedTitle.string.hasPrefix("JSON"))
         #expect(pane.kindMenu.items.map(\.title) == ["JSON", "text", "XML"])
-        #expect(EditorSection.body.title(in: model.tab.definition) == "Body JSON")
+        #expect(EditorSection.body.title(in: model.tab.definition) == "Body")
     }
 
     @Test func `typing raw JSON writes the body and colors it, text stays uncolored`() {
@@ -294,7 +294,15 @@ struct BodyPaneTests {
         model.tab.definition.body = body
         editor.render()
         #expect(pane.formatButton.isHidden == hidden)
-        if let tooltip { #expect(pane.formatButton.toolTip == tooltip && pane.formatButton.title == "Format") }
+        if let tooltip { #expect(pane.formatButton.toolTip == tooltip && pane.formatButton.accessibilityLabel() == "Format") }
+    }
+
+    @Test func `the Format button holds its glyph and title with 10 pt either side`() {
+        let (_, pane) = pane()
+        let button = pane.formatButton
+        #expect(button.image == nil && button.attributedTitle.string.hasSuffix("Format"))
+        #expect(button.attributedTitle.attribute(.attachment, at: 0, effectiveRange: nil) != nil)
+        #expect(button.intrinsicContentSize.width == button.attributedTitle.size().width.rounded(.up) + 20)
     }
 
     @Test func `Format re-indents in one undo step`() throws {
@@ -399,7 +407,7 @@ struct BodyPaneTests {
     @Test func `a file missing at send marks its chip and the message line until the next send`() async {
         let path = NSHomeDirectory() + "/Desktop/box.jpg"
         let transport = ScriptedTransport(.failure(.fileMissing(path: path)))
-        let model = TabModel(transport: transport, secrets: InMemorySecretStore(), instants: FixedInstantSource(.now))
+        let model = TabModel(transport: transport, secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now))
         model.tab.definition.url = "http://localhost/"
         model.tab.definition.body = .multipart([Part(name: "photo", content: .file(path: path))])
         let editor = RequestEditor(model: model, theme: theme)
@@ -432,3 +440,83 @@ struct EditorSplitTests {
         #expect(split.dividerThickness == 6)
     }
 }
+
+@MainActor
+struct ImportedRowsTests {
+    let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now))
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400), styleMask: [], backing: .buffered, defer: false)
+
+    @Test func `rows from a pasted curl are checked, and a click on the box disables the row and dims its text`() async throws {
+        let editor = RequestEditor(model: model, theme: theme)
+        editor.frame = window.contentView!.bounds
+        window.contentView!.addSubview(editor)
+        editor.select(.headers)
+        editor.layoutSubtreeIfNeeded()
+        #expect(model.pasteInURLBar("curl https://h/a -H 'x-one: 1' -H 'x-two: 2'"))
+        await Task.yield()
+        let table = editor.table(.headers)
+        let lead = table.leadRows
+        #expect(lead == 6)
+        func box(_ row: Int) throws -> NSButton { try #require(table.table.view(atColumn: 0, row: lead + row, makeIfNecessary: true)?.subviews.first as? NSButton) }
+        func name(_ row: Int) throws -> NSTextField { try #require((table.table.view(atColumn: 1, row: lead + row, makeIfNecessary: true) as? NSTableCellView)?.textField) }
+        #expect(try box(0).state == .on && box(1).state == .on)
+        #expect(try name(0).textColor == theme.color(.text))
+
+        try box(0).performClick(nil)
+        await Task.yield()
+        #expect(model.tab.definition.headers.map(\.isEnabled) == [false, true])
+        #expect(try box(0).state == .off && box(1).state == .on)
+        #expect(try name(0).textColor == theme.color(.textDisabled) && name(1).textColor == theme.color(.text))
+
+        try #require(table.table.view(atColumn: 3, row: lead + 1, makeIfNecessary: true)?.subviews.first as? NSButton).performClick(nil)
+        #expect(model.tab.definition.headers.map(\.name) == ["x-one"])
+    }
+
+    @Test func `an automatic row cannot be selected, and the rows under it can`() {
+        let table = KeyValueTable(theme: theme)
+        table.frame = NSRect(x: 0, y: 0, width: 600, height: 300)
+        table.setRows([Row(name: "a", value: "1")])
+        table.setAutomaticRows([AutomaticHeader(name: "Host", value: "h")])
+        #expect(!table.tableView(table.table, shouldSelectRow: 0))
+        #expect(table.tableView(table.table, shouldSelectRow: 1))
+        #expect(table.tableView(table.table, shouldSelectRow: 2))
+    }
+}
+
+@MainActor
+struct TypingTests {
+    let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now))
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400), styleMask: [.titled], backing: .buffered, defer: false)
+
+    @Test(arguments: [EditorSection.params, .headers])
+    func `typing several characters in the empty row keeps the caret in the same field`(section: EditorSection) async throws {
+        let editor = RequestEditor(model: model, theme: theme)
+        editor.frame = window.contentView!.bounds
+        window.contentView!.addSubview(editor)
+        editor.select(section)
+        editor.layoutSubtreeIfNeeded()
+        if section == .headers { #expect(model.pasteInURLBar("curl https://h/a")) }
+        await Task.yield()
+        let table = editor.table(section)
+        let trailing = table.table.numberOfRows - 1
+        table.table.editColumn(1, row: trailing, with: nil, select: true)
+        for (index, character) in "abc".enumerated() {
+            let text = try #require(window.firstResponder as? NSTextView, "typing \(index): no field editor")
+            text.insertText(String(character), replacementRange: text.selectedRange)
+            await Task.yield()
+        }
+        let rows = section == .headers ? model.tab.definition.headers : model.tab.definition.params
+        #expect(rows.map(\.name) == ["abc"])
+        let text = try #require(window.firstResponder as? NSTextView)
+        #expect(text.string == "abc")
+        // The typed-in row now has a live checkbox and delete button, and a new empty row follows.
+        let row = trailing
+        let box = try #require(table.table.view(atColumn: 0, row: row, makeIfNecessary: false)?.subviews.first as? NSButton)
+        let delete = try #require(table.table.view(atColumn: 3, row: row, makeIfNecessary: false)?.subviews.first as? NSButton)
+        #expect(box.isEnabled && box.state == .on && delete.isEnabled)
+        #expect(table.table.numberOfRows == trailing + 2)
+    }
+}
+

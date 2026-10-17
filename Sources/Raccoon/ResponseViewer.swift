@@ -14,8 +14,8 @@ final class ResponseViewer: NSView {
     let sizeLabel = NSTextField(labelWithString: "")
     private let dot = NSTextField(labelWithString: "·")
     let prettyNote = NSTextField(labelWithString: ResponseBody.prettyOffNote)
-    let mode = NSSegmentedControl(labels: ["Pretty", "Raw"], trackingMode: .selectOne, target: nil, action: nil)
-    let section = NSSegmentedControl(labels: ["Body", "Headers"], trackingMode: .selectOne, target: nil, action: nil)
+    let mode: SegmentedControl
+    let section: SegmentedControl
 
     let textView: NSTextView
     private let layoutManager = NSLayoutManager()
@@ -55,6 +55,8 @@ final class ResponseViewer: NSView {
         layoutManager.addTextContainer(container)
         storage.addLayoutManager(layoutManager)
         textView = NSTextView(frame: .zero, textContainer: container)
+        mode = SegmentedControl(labels: ["Pretty", "Raw"], theme: theme)
+        section = SegmentedControl(labels: ["Body", "Headers"], theme: theme)
         super.init(frame: .zero)
         wantsLayer = true
         layer?.backgroundColor = theme.color(.backgroundRecessed).cgColor
@@ -91,12 +93,10 @@ final class ResponseViewer: NSView {
         mode.selectedSegment = 0
         mode.target = self
         mode.action = #selector(modeChanged)
-        mode.controlSize = .small
         mode.setContentCompressionResistancePriority(.required, for: .horizontal)
         section.selectedSegment = 0
         section.target = self
         section.action = #selector(sectionChanged)
-        section.controlSize = .small
         section.setContentCompressionResistancePriority(.required, for: .horizontal)
 
         let spacer = NSView()
@@ -354,12 +354,15 @@ final class ResponseViewer: NSView {
         let rows = headerRows.map { row in
             let line = NSStackView(views: [row.name, row.value])
             line.spacing = 0
+            line.distribution = .fill
+            line.alignment = .firstBaseline
             line.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
-            // The name column is 220 pt when there is room; the value truncates first.
+            // The name column is 220 pt when there is room; the value takes the rest and truncates first.
             row.name.widthAnchor.constraint(lessThanOrEqualToConstant: 220).isActive = true
             let wide = row.name.widthAnchor.constraint(equalToConstant: 220)
-            wide.priority = .init(260)
+            wide.priority = .init(750)
             wide.isActive = true
+            row.value.setContentHuggingPriority(.init(1), for: .horizontal)
             row.value.setContentCompressionResistancePriority(.init(250), for: .horizontal)
             let rule = NSBox()
             rule.boxType = .custom
@@ -368,7 +371,10 @@ final class ResponseViewer: NSView {
             rule.heightAnchor.constraint(equalToConstant: 1).isActive = true
             let cell = NSStackView(views: [line, rule])
             cell.orientation = .vertical
+            cell.alignment = .leading
             cell.spacing = 0
+            line.widthAnchor.constraint(equalTo: cell.widthAnchor).isActive = true
+            rule.widthAnchor.constraint(equalTo: cell.widthAnchor).isActive = true
             return cell
         }
         noHeaders.isHidden = !headers.isEmpty

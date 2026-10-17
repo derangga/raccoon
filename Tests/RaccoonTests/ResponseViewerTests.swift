@@ -17,7 +17,7 @@ struct ResponseViewerTests {
 
     /// A Tab that has received `response` and finished presenting it.
     func received(_ response: Response) async -> (TabModel, ResponseViewer) {
-        let model = TabModel(transport: ScriptedTransport(.success(response)), secrets: InMemorySecretStore(), instants: FixedInstantSource(now))
+        let model = TabModel(transport: ScriptedTransport(.success(response)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now))
         model.tab.definition.url = "http://localhost/"
         model.send()
         await model.inFlight?.value
@@ -34,7 +34,7 @@ struct ResponseViewerTests {
     }
 
     @Test func `idle says how to send, with the key cap`() {
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), instants: FixedInstantSource(now))
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now))
         let viewer = viewer(model)
         #expect(viewer.voidText.stringValue == "Send a request to see the Response here.")
         #expect(!viewer.keycap.isHidden && viewer.keycap.stringValue == "⌘↩")
@@ -42,7 +42,7 @@ struct ResponseViewerTests {
     }
 
     @Test func `sending shows nothing for 150 ms, then the spinner and the live time`() {
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), instants: FixedInstantSource(now))
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now))
         model.tab.response = .sending(since: now - .milliseconds(100))
         let early = viewer(model)
         #expect(early.codeLabel.stringValue == "" && early.voidText.stringValue == "")
@@ -70,7 +70,7 @@ struct ResponseViewerTests {
     }
 
     @Test func `Raw shows first, and Pretty takes over once the presentation lands`() async {
-        let model = TabModel(transport: ScriptedTransport(.success(response(Data(#"{"a":1}"#.utf8)))), secrets: InMemorySecretStore(),
+        let model = TabModel(transport: ScriptedTransport(.success(response(Data(#"{"a":1}"#.utf8)))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                              instants: FixedInstantSource(now))
         model.tab.definition.url = "http://localhost/"
         let viewer = viewer(model)
@@ -124,7 +124,7 @@ struct ResponseViewerTests {
 
     func failed(_ error: SendError, after: Duration) -> (ScriptedTransport, TabModel, ResponseViewer) {
         let transport = ScriptedTransport(.failure(error))
-        let model = TabModel(transport: transport, secrets: InMemorySecretStore(), instants: FixedInstantSource(now))
+        let model = TabModel(transport: transport, secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now))
         model.tab.response = .failed(error, after: after)
         return (transport, model, viewer(model))
     }
@@ -161,7 +161,7 @@ struct ResponseViewerTests {
     }
 
     @Test func `an invalid URL is Not sent and quotes the URL after substitution`() {
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), instants: FixedInstantSource(now))
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now))
         model.tab.definition.url = "https//api.dev.example.com/v1"
         model.send()
         let viewer = viewer(model)
@@ -172,7 +172,7 @@ struct ResponseViewerTests {
     }
 
     @Test func `idle shows no failure glyph`() {
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), instants: FixedInstantSource(now))
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now))
         #expect(viewer(model).failureGlyph.isHidden)
     }
 
@@ -197,6 +197,14 @@ struct ResponseViewerTests {
         #expect(viewer.headerRows.map { [$0.name.stringValue, $0.value.stringValue] } == headers.map { [$0.name, $0.value] })
         #expect(viewer.headerNote.stringValue == "macOS merges repeated headers and doesn't keep their order.")
         #expect(!viewer.headerNote.isHidden)
+
+        // Names share one left edge and values another: nothing is centered.
+        viewer.frame = NSRect(x: 0, y: 0, width: 800, height: 400)
+        viewer.layoutSubtreeIfNeeded()
+        let names = viewer.headerRows.map { viewer.convert(NSPoint.zero, from: $0.name).x }
+        let values = viewer.headerRows.map { viewer.convert(NSPoint.zero, from: $0.value).x }
+        #expect(Set(names).count == 1 && Set(values).count == 1)
+        #expect(values[0] - names[0] == 220)
     }
 
     @Test func `a header value end-truncates with the full value in its tooltip`() async {
