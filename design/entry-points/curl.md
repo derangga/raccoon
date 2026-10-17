@@ -30,7 +30,8 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
       -> params     the URL's `?` part, then --url-query, then -d values when -G
       -> headers    -H / --header, in order; `Name;` is an empty header
       -> cookies    -b / --cookie `a=1; b=2` split into rows, plus any `Cookie:` header
-                    split into rows and removed from headers
+                    split into rows and removed from headers; a -b value with no `=` is
+                    a cookie file curl would read, so --cookie goes to ignoredFlags
       -> auth       Authorization: Bearer x -> .bearer, header removed
                     Authorization: Basic b64 -> .basic if it decodes to `user:pass`,
                     else the header stays a header
