@@ -102,9 +102,9 @@ and every place they disagree is a command split inside a quote.
   table (CONTEXT, Request Cookies), and a cookie a user wants to disable is one row.
 - **Several pasted commands import only the first.** Yaak makes one request per command.
   A paste lands in one Tab, so the rest are listed in the ignored note as "2 more commands".
-- **`--digest` is ignored, not mapped.** Auth has no Digest (CONTEXT, Auth). The `-u` value
-  still becomes `.basic`, and the note says `--digest` was ignored so the user knows the
-  scheme changed.
+- **`--digest` and `--ntlm` are ignored, not mapped.** Auth has no Digest or NTLM (CONTEXT,
+  Auth). The `-u` value still becomes `.basic`, and the note says the flag was ignored so the
+  user knows the scheme changed.
 - **`--compressed` is ignored.** URLSession always asks for gzip and decodes it
   (environment-facts.md), so there is no setting to turn on and the note lists it.
 - **No Content-Type row is added.** Yaak adds one for `-d` and `-F`. Raccoon keeps only the
