@@ -85,7 +85,7 @@ raw palette, are in [themes/catppuccin.md](./themes/catppuccin.md), generated wi
 | `dirtyDot` | peach | the 8 px dot in a Tab's close slot |
 | `warning` | yellow | Changed on Disk / Deleted on disk glyph, the unreadable-row glyph |
 | `error` | red | error message lines, error banner glyph, missing-file chip, invalid URL outline |
-| `success` | green | **no v1 surface uses it yet** (Q6) |
+| `success` | green | **no v1 surface uses it** (Q6, decided) |
 
 `methodPut`, `jsonKey`, `xmlTag`, `variableDefined`, `accent` and `focusRing` share blue, and
 the greens are shared too. They never sit side by side in a way that needs them told apart:
@@ -672,7 +672,8 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
 6. **`success` has no surface.** The prompt requires the token and the JSON carries it, but
    v1 has no success message: a save clears the dot, a Curl Import fills the Tab. Candidates:
    a "Copied" confirmation for Copy as Curl, or a short "Imported from curl" note when nothing
-   was ignored. Both add behavior, so neither is drawn.
+   was ignored. Decided 2026-10-19: neither. v1 shows no success message, and the token stays
+   in the Theme unused.
 7. **Corrupt Session.** §4 renames the file to `session.corrupt-<date>.json` and starts
    empty. Should the empty window say so (a one-time banner with Reveal in Finder), or stay
    silent?
