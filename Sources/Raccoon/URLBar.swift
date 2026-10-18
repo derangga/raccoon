@@ -9,7 +9,6 @@ final class URLBar: NSView, NSTextFieldDelegate {
     private let model: TabModel
     private let theme: ThemeEnvironment
     let methodButton = NSButton()
-    let methodField = NSTextField()
     let urlField = FocusTextField()
     let urlBox = NSView()
     private let focusRing = NSView()
@@ -70,24 +69,6 @@ final class URLBar: NSView, NSTextFieldDelegate {
             methodButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 84),
             methodButton.widthAnchor.constraint(lessThanOrEqualToConstant: 128),
         ])
-
-        // "Other…" turns the label into this field until Return or a click elsewhere.
-        methodField.isHidden = true
-        methodField.isBordered = false
-        methodField.drawsBackground = false
-        methodField.focusRingType = .none
-        methodField.font = .monospacedSystemFont(ofSize: 12, weight: .bold)
-        methodField.textColor = theme.color(.methodOther)
-        methodField.placeholderString = "METHOD"
-        methodField.delegate = self
-        methodField.setAccessibilityLabel("Method")
-        methodField.translatesAutoresizingMaskIntoConstraints = false
-        methodButton.addSubview(methodField)
-        NSLayoutConstraint.activate([
-            methodField.leadingAnchor.constraint(equalTo: methodButton.leadingAnchor, constant: 10),
-            methodField.trailingAnchor.constraint(equalTo: methodButton.trailingAnchor, constant: -8),
-            methodField.centerYAnchor.constraint(equalTo: methodButton.centerYAnchor),
-        ])
     }
 
     var methodMenu: NSMenu {
@@ -101,10 +82,6 @@ final class URLBar: NSView, NSTextFieldDelegate {
             item.state = method == model.tab.definition.method ? .on : .off
             menu.addItem(item)
         }
-        menu.addItem(.separator())
-        let other = NSMenuItem(title: "Other…", action: #selector(editOtherMethod), keyEquivalent: "")
-        other.target = self
-        menu.addItem(other)
         return menu
     }
 
@@ -113,13 +90,6 @@ final class URLBar: NSView, NSTextFieldDelegate {
     }
 
     @objc func pickMethod(_ item: NSMenuItem) { model.setMethod(item.title) }
-
-    @objc func editOtherMethod() {
-        methodField.stringValue = Self.methods.contains(model.tab.definition.method) ? "" : model.tab.definition.method
-        methodButton.attributedTitle = NSAttributedString()
-        methodField.isHidden = false
-        window?.makeFirstResponder(methodField)
-    }
 
     private func methodTitle(_ method: String) -> NSAttributedString {
         let title = NSMutableAttributedString(string: method, attributes: [
@@ -160,6 +130,7 @@ final class URLBar: NSView, NSTextFieldDelegate {
         ])
         urlField.delegate = self
         urlField.onFocus = { [weak self] in self?.showFocus(true) }
+        urlField.onPaste = { [weak self] in self?.pasteCurl($0) ?? false }
         urlField.setAccessibilityLabel("URL")
         urlField.wantsLayer = true
         // Fades the last 32 pt when the text runs past the field.
@@ -174,6 +145,37 @@ final class URLBar: NSView, NSTextFieldDelegate {
             urlField.trailingAnchor.constraint(equalTo: urlBox.trailingAnchor, constant: -10),
             urlField.centerYAnchor.constraint(equalTo: urlBox.centerYAnchor),
         ])
+    }
+
+    /// A pasted curl command fills the Tab; one Undo puts the Tab back. Anything else is not
+    /// taken, so it is pasted into the field as text.
+    func pasteCurl(_ text: String) -> Bool {
+        let before = (definition: model.tab.definition, message: model.message)
+        guard model.pasteInURLBar(text) else { return false }
+        if model.tab.definition != before.definition {
+            undoManager?.registerUndo(withTarget: self) { bar in MainActor.assumeIsolated { bar.restore(before) } }
+            undoManager?.setActionName("Import curl")
+        }
+        showURL()
+        return true
+    }
+
+    /// Puts the Tab and the line under the bar back, and registers the way forward, so Undo
+    /// and Redo swap the same two states.
+    private func restore(_ state: (definition: RequestDefinition, message: MessageLine?)) {
+        let current = (definition: model.tab.definition, message: model.message)
+        undoManager?.registerUndo(withTarget: self) { bar in MainActor.assumeIsolated { bar.restore(current) } }
+        undoManager?.setActionName("Import curl")
+        model.tab.definition = state.definition
+        model.message = state.message
+        showURL()
+    }
+
+    /// The field shows the Tab's URL even while it has focus, with the caret at the end: setting
+    /// the text while editing would select all of it.
+    private func showURL() {
+        urlField.stringValue = model.urlText
+        if let editor = urlField.currentEditor() { editor.selectedRange = NSRange(location: (editor.string as NSString).length, length: 0) }
     }
 
     /// True when the text is wider than the field, so its end is faded.
@@ -296,12 +298,6 @@ final class URLBar: NSView, NSTextFieldDelegate {
     }
 
     func controlTextDidEndEditing(_ notification: Notification) {
-        if notification.object as? NSTextField === methodField {
-            model.setMethod(methodField.stringValue)
-            methodField.isHidden = true
-            render()
-            return
-        }
         showFocus(false)
         // The typed text was the source while editing; now show it as Params render it.
         render()
@@ -311,7 +307,7 @@ final class URLBar: NSView, NSTextFieldDelegate {
     func render() {
         withObservationTracking {
             let method = model.tab.definition.method
-            if methodField.isHidden { methodButton.attributedTitle = methodTitle(method) }
+            methodButton.attributedTitle = methodTitle(method)
             methodButton.setAccessibilityValue(method)
             // Never rewrite the field under the user's typing: the cursor would jump.
             if urlField.currentEditor() == nil { urlField.attributedStringValue = urlTitle(model.urlText) }
@@ -355,10 +351,43 @@ final class URLBar: NSView, NSTextFieldDelegate {
 /// Tells its owner when it takes focus; the end of editing comes through the delegate.
 final class FocusTextField: NSTextField {
     var onFocus: () -> Void = {}
+    /// True when the owner took the pasted text, so the field inserts nothing.
+    var onPaste: (String) -> Bool = { _ in false }
+
+    override class var cellClass: AnyClass? {
+        get { PasteFieldCell.self }
+        set {}
+    }
 
     override func becomeFirstResponder() -> Bool {
         let became = super.becomeFirstResponder()
         if became { onFocus() }
         return became
+    }
+}
+
+/// Hands the field a field editor that offers a paste to the field first. A single-line field
+/// editor turns the newlines of a multi-line paste into spaces, so a curl command has to be
+/// read before it is inserted.
+final class PasteFieldCell: NSTextFieldCell {
+    private let editor: PasteFieldEditor = {
+        let editor = PasteFieldEditor()
+        editor.isFieldEditor = true
+        return editor
+    }()
+
+    override func fieldEditor(for controlView: NSView) -> NSTextView? {
+        editor.onPaste = { [weak controlView] in (controlView as? FocusTextField)?.onPaste($0) ?? false }
+        return editor
+    }
+}
+
+final class PasteFieldEditor: NSTextView {
+    var onPaste: (String) -> Bool = { _ in false }
+    var pasteboard = NSPasteboard.general
+
+    override func paste(_ sender: Any?) {
+        if let text = pasteboard.string(forType: .string), onPaste(text) { return }
+        super.paste(sender)
     }
 }

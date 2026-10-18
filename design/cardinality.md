@@ -22,6 +22,10 @@ Bounded:  VariableScope          valid for one send or one highlight pass. Rebui
           ResponseBody presentation
                                  computed once per Response, kept with it. Pretty-printing a
                                  4 MB body on every Tab switch would be visible
+          line index, Fold Regions
+                                 computed with the presentation, kept with it
+          FoldSet                view state: valid until the next send or Pretty | Raw
+                                 switch. Never saved
           DataFolderIndex        valid until the next filesChanged
           highlight ranges       valid for one keystroke
 ```

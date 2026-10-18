@@ -251,8 +251,9 @@ Accessibility: each Tab is an `NSAccessibility` tab with title "<method> <name>"
 Anatomy: `[method pop-up] [URL field] [Send]`, then the message line.
 
 - **Method pop-up**: `backgroundElevated`, `border`, the method in its `method*` token, SF Mono
-  12 bold. The menu lists GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, then "Other…" which
-  makes the label editable for free text.
+  12 bold. The menu lists GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS and nothing
+  else. A method that arrived from a curl import or a Postman file is shown as it is and
+  stays until another is picked.
 - **URL field**: `backgroundElevated`, `border`, SF Mono 12, one line, scrolls horizontally;
   32 pt fade at the trailing edge when it overflows. Focus: `focusRing` border + 3 pt ring at
   35 %. Invalid after an `invalidURL` send: `error` border until the next edit. The query part
@@ -280,7 +281,8 @@ Params · Headers · Body · Auth · Cookies · Settings over the RequestEditor'
 13 pt `textSecondary`, 10 pt padding, 2 pt apart, over a 1 pt `border` rule. Selected: `text`
 semibold with a 2 pt `accent` underline over the rule. Params, Headers and Cookies carry their
 row count in tabular `textTertiary` ("Params 3", Disabled Rows included); a section with no rows
-shows no count. Body and Auth show the Body Type and the scheme ("Body JSON", "Auth Bearer").
+shows no count. Auth shows its scheme ("Auth Bearer"). Body shows nothing more: the Body Type
+pop-ups in its pane already name it.
 Seen on: 01, 02, 05.
 
 ### Key/value table
@@ -288,18 +290,19 @@ Seen on: 01, 02, 05.
 Shared by Params, Headers, Cookies, form-urlencoded and multipart.
 
 Anatomy: header row (24 pt, `backgroundRecessed`, `textTertiary` 11 semibold "Name" "Value"),
-then 28 pt rows: `[checkbox 30] [name 36 %] [value] [delete 30]`, 1 pt `border` between rows
-and columns, 6 pt radius outer border.
+then 28 pt rows: `[checkbox 30] [name 36 %] [value] [delete 30]`, 1 pt `border` between rows,
+one vertical rule between Name and Value, 6 pt radius outer border.
 
 | State | Treatment |
 |---|---|
 | rest | cells SF Mono 12 `text`, single line, end-truncated with the full value in the field editor and a tooltip |
 | hover | `rowHover`; the delete button (⊖, `textTertiary`) appears |
+| selected | `selection` fill, not the system accent; name and value keep their own colors. An automatic row is never selected |
 | editing | the cell becomes a field editor with a 2 pt `focusRing` outline on `background` |
 | Disabled Row | checkbox **unchecked** and name/value in `textDisabled`. Both cues, never one |
-| trailing empty row | always present; "Name" / "Value" placeholders in `textTertiary` SF Pro 13; typing in it creates a row and a new trailing row |
+| trailing empty row | always present, last; "Name" / "Value" placeholders in `textTertiary` at 60 % opacity, SF Pro 13 (at full strength Latte's `textTertiary` reads as a value); typing in it creates a row and a new trailing row |
 | 60 rows | the table scrolls inside the pane; the header row stays put; an overlay scroller |
-| automatic row | Headers only, after the trailing empty row: the headers sent that no row sets (`AutomaticHeaders`), name and value in `textTertiary`, no checkbox, no delete, not editable. A value computed at send reads "calculated when sent". Typing a row with the same name replaces it; the section count leaves them out. Not drawn on a board yet |
+| automatic row | Headers only, above the user's rows (the trailing empty row is always last): the headers sent that no row sets (`AutomaticHeaders`), name and value in `textTertiary`, a checked checkbox that is disabled (sent whatever the user does, so it cannot be unticked; tooltip "Always sent. Add a row with the same name to replace it."), no delete, not editable, not selectable. A value computed at send reads "calculated when sent". Typing a row with the same name replaces it; the section count leaves them out. Not drawn on a board yet |
 
 The section label carries the count of rows ("Headers 60"), `textTertiary`, tabular. A count
 holding an Undefined Variable is drawn in `variableUndefined` semibold, so the reason a send
@@ -363,6 +366,23 @@ Anatomy: status line (34 pt) over the body area, on `backgroundRecessed`.
 - **received**: Pretty (parsed JSON/XML, syntax tokens) or Raw (no colors). Raw shows first
   while Pretty is computed off the main thread (behavior.md). Above 5 MB Pretty is disabled
   (`textDisabled`) with "Pretty is off above 5 MB" beside it.
+- **Gutter**: left of the body text in Pretty and Raw, drawn on the body's own background
+  with no fill and no divider; 50 pt, wider when the last line number needs it (a 5 MB body
+  passes 200,000 lines). Line numbers SF Mono 12, `textTertiary`, right-aligned; then a
+  16 pt fold column; then the text. In Pretty JSON and XML the fold column holds a 9 pt
+  chevron in `textTertiary` beside every line that opens a Fold Region, pointing down when
+  unfolded, right when folded. Unfolded chevrons show only while the pointer is over the
+  Gutter; folded ones always show. Clicking a line's number or chevron folds or unfolds.
+  The request body has the same Gutter, numbers only. The Gutter is empty until the
+  off-main presentation lands.
+- **Indent guides**: in Pretty, a 1 pt vertical line in `border` for every unfolded Fold
+  Region, at the column where its opening line's text starts, from the line under the
+  opening line down to the closing line.
+- **Folded**: the opening line ends in a " … " marker, the `…` in `textSecondary` on
+  `selection`, then the closing token on the same line: `"rating": { … },`. Clicking the
+  marker unfolds. Numbers skip the hidden lines (1, 8, 12). Context menu: Fold ⌥⌘[, Unfold
+  ⌥⌘] (the Fold Region at the caret), Fold All, Unfold All. Every send starts unfolded. Copy gives the
+  body's text: a selection across a marker copies the folded lines.
 - **failed**: status line "Failed" + "after N ms" in `statusFailed`; body: an error glyph, a
   title in `statusFailed` 13 semibold, one sentence of detail in `textTertiary`, and the
   single fix as a button when one exists. Titles: "Untrusted certificate" (names the host;

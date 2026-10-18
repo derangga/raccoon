@@ -15,6 +15,9 @@ VariableTokens.ranges                                             {{…}} positi
 VariableScope, VariableResolver                                   definition -> ResolvedRequest
 PasteTarget.for                                                   current Tab or a new one
 ResponseBody.presentation, Highlighter.ranges                     bytes -> what to draw
+LineIndex, FoldRegion.find                                        text -> line starts, Fold Regions
+FoldSet.toggle, .innermost(at:), FoldedText                       what is folded -> what is shown,
+                                                                  and offsets mapped both ways
 ResponseState.showsSpinner(at:)                                   .sending + now -> spinner, §7 150 ms
 TreeDecoder, DataFolderIndex                                      files -> sidebar tree
 RequestFile / EnvironmentFile / SessionFile encode·decode         Codable, versioned

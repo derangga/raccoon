@@ -18,6 +18,44 @@ struct KeyValueTableTests {
         return table
     }
 
+    @Test func `the table is as tall as its header and rows, so the last grid line is its border`() {
+        let table = table(rows)
+        let height: CGFloat = table.intrinsicContentSize.height
+        #expect(height == 108)
+    }
+
+    @Test func `the placeholder is fainter than a value, and the field fills the row less 2 pt`() throws {
+        let table = table(rows)
+        let empty = try field(table, column: 1, row: 2)
+        let ink = try #require(empty.placeholderAttributedString?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor)
+        #expect(ink.alphaComponent < 1 && ink.alphaComponent > 0)
+        #expect(try field(table, column: 1, row: 0).textColor == theme.color(.text))
+        table.layoutSubtreeIfNeeded()
+        #expect(empty.frame.height == 24)
+        // One line tall, in the middle of the 24 pt box.
+        let drawn = try #require(empty.cell?.drawingRect(forBounds: empty.bounds))
+        #expect(drawn.height < 24 && abs(drawn.midY - empty.bounds.midY) <= 1)
+    }
+
+    @Test func `every row draws the one vertical rule at the start of the Value column`() throws {
+        let table = table(rows)
+        table.setAutomaticRows([AutomaticHeader(name: "Host", value: "example.com")])
+        table.layoutSubtreeIfNeeded()
+        let rule = theme.color(.border).usingColorSpace(.sRGB)!
+        let valueX = Int(table.table.rect(ofColumn: 2).minX)
+        for row in 0..<table.table.numberOfRows {
+            let view = try #require(table.table.rowView(atRow: row, makeIfNecessary: true))
+            let image = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+            view.cacheDisplay(in: view.bounds, to: image)
+            let scale = CGFloat(image.pixelsWide) / view.bounds.width
+            let middle = Int(view.bounds.height / 2 * scale)
+            func color(_ x: Int) -> NSColor { image.colorAt(x: Int(CGFloat(x) * scale), y: middle)!.usingColorSpace(.sRGB)! }
+            #expect(abs(color(valueX).redComponent - rule.redComponent) < 0.08, "row \(row)")
+            #expect(abs(color(valueX + 10).redComponent - rule.redComponent) > 0.12, "row \(row)")
+            #expect(abs(color(valueX - 10).redComponent - rule.redComponent) > 0.12, "row \(row)")
+        }
+    }
+
     func field(_ table: KeyValueTable, column: Int, row: Int) throws -> NSTextField {
         try #require((table.table.view(atColumn: column, row: row, makeIfNecessary: true) as? NSTableCellView)?.textField)
     }
@@ -120,37 +158,41 @@ struct KeyValueTableTests {
         #expect(try field(table, column: 1, row: 0) === before)
     }
 
-    @Test func `automatic rows follow the trailing row, read-only, with no checkbox or delete`() throws {
+    @Test func `automatic rows come first, read-only, with a locked checked box and no delete`() throws {
         let table = table(rows)
         table.setAutomaticRows([AutomaticHeader(name: "Host", value: "example.com"), AutomaticHeader(name: "Content-Length", value: nil)])
         #expect(table.table.numberOfRows == 5)
-        let (name, value) = (try field(table, column: 1, row: 3), try field(table, column: 2, row: 3))
+        let (name, value) = (try field(table, column: 1, row: 0), try field(table, column: 2, row: 0))
         #expect((name.stringValue, value.stringValue) == ("Host", "example.com"))
         #expect(!name.isEditable && !value.isEditable)
         #expect(name.textColor == theme.color(.textTertiary))
-        #expect(try field(table, column: 2, row: 4).stringValue == "calculated when sent")
-        #expect(table.table.view(atColumn: 0, row: 3, makeIfNecessary: true)?.subviews.isEmpty == true)
-        #expect(table.table.view(atColumn: 3, row: 3, makeIfNecessary: true)?.subviews.isEmpty == true)
+        #expect(try field(table, column: 2, row: 1).stringValue == "calculated when sent")
+        let box = try #require(table.table.view(atColumn: 0, row: 0, makeIfNecessary: true)?.subviews.first as? NSButton)
+        #expect(box.state == .on && !box.isEnabled)
+        #expect(table.table.view(atColumn: 3, row: 0, makeIfNecessary: true)?.subviews.isEmpty == true)
+        // The user's rows follow, then the empty row last.
+        #expect(try field(table, column: 1, row: 2).stringValue == "limit")
+        #expect(try field(table, column: 1, row: 4).stringValue == "")
     }
 
-    @Test func `changing the automatic rows keeps the rows above them, so the field editor survives`() throws {
+    @Test func `changing the automatic rows keeps the rows below them, so the field editor survives`() throws {
         let table = table(rows)
         table.setAutomaticRows([AutomaticHeader(name: "Host", value: "example.com")])
-        let before = try field(table, column: 1, row: 0)
+        let before = try field(table, column: 1, row: 1)
         table.setAutomaticRows([])
         #expect(table.table.numberOfRows == 3)
         #expect(try field(table, column: 1, row: 0) === before)
     }
 
-    @Test func `an automatic row cannot be toggled or deleted from the keyboard`() {
+    @Test func `the keyboard acts on the user's rows below the automatic ones, never on an automatic row`() {
         let table = table(rows)
         table.setAutomaticRows([AutomaticHeader(name: "Host", value: "example.com")])
-        var changed = false
-        table.onChange = { _ in changed = true }
-        table.table.selectRowIndexes([3], byExtendingSelection: false)
+        #expect(!table.tableView(table.table, shouldSelectRow: 0))
+        table.table.selectRowIndexes([1], byExtendingSelection: false)
         table.table.keyDown(with: key(49, " "))
+        #expect(table.rows.map(\.isEnabled) == [false, false])
         table.table.keyDown(with: key(51, "\u{7F}"))
-        #expect(!changed)
-        #expect(table.table.numberOfRows == 4)
+        #expect(table.rows.map(\.name) == ["since"])
+        #expect(table.table.numberOfRows == 3)
     }
 }

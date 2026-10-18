@@ -48,6 +48,7 @@ Every entry point as a call tree, one file per feature.
 | [collections](design/entry-points/collections.md) | Load the Data Folder · Open a Request · Save · Save a Draft · Changed on Disk · Filter the sidebar | M4 |
 | [variables](design/entry-points/variables.md) | Pick the Active Environment · Edit a Variable · Highlight `{{name}}` · Resolve on send · The Variables pane | M5 |
 | [postman](design/entry-points/postman.md) | Import Postman Collections, Environments and Globals | M7 |
+| [folding](design/entry-points/folding.md) | The Gutter · Fold · Unfold · Fold All | — |
 | [theme](design/entry-points/theme.md) | Pick a Theme or Flavor · System appearance changes | M6 |
 
 A new entry point is a new row here and a tree in one of those files, plus its failures in

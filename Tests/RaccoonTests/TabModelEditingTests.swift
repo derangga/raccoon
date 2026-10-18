@@ -5,7 +5,7 @@ import Testing
 
 @MainActor
 struct TabModelEditingTests {
-    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), instants: FixedInstantSource(.now))
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now))
 
     @Test func `typing a query fills the Params table`() {
         model.typeInURLBar("https://api.example.com/v1?a=1&b=2")

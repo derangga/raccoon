@@ -10,7 +10,7 @@ struct TabModelSendTests {
     let response = Response(status: 200, headers: [], body: Data("hello".utf8), elapsed: .milliseconds(5), byteCount: 5)
 
     func makeTab(_ transport: ScriptedTransport, url: String) -> TabModel {
-        let model = TabModel(transport: transport, secrets: InMemorySecretStore(), instants: FixedInstantSource(now))
+        let model = TabModel(transport: transport, secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now))
         model.tab.definition.url = url
         return model
     }
@@ -94,6 +94,21 @@ struct TabModelSendTests {
 
         #expect(model.presented?.body == .pretty("{\n  \"a\": 1\n}", .json))
         #expect(model.presented?.ranges.isEmpty == false)
+        // Pretty is three lines with one Fold Region; the bytes as received are one line.
+        #expect(model.presented?.lines.starts == [0, 2, 11])
+        #expect(model.presented?.regions == [FoldRegion(openLine: 0, closeLine: 2, cut: 1..<11)])
+        #expect(model.presented?.rawLines.starts == [0])
+    }
+
+    @Test func `a Raw body is numbered but never folded`() async {
+        let text = Response(status: 200, headers: [], body: Data("a\n  b\nc".utf8), elapsed: .milliseconds(5), byteCount: 7)
+        let model = makeTab(ScriptedTransport(.success(text)), url: "http://localhost:8080/")
+        model.send()
+        await model.inFlight?.value
+        await model.presenting?.value
+        #expect(model.presented?.lines.starts == [0, 2, 6])
+        #expect(model.presented?.rawLines.starts == [0, 2, 6])
+        #expect(model.presented?.regions == [])
     }
 
     @Test func `a new send drops the old presentation`() async {

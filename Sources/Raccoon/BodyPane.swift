@@ -17,6 +17,11 @@ final class BodyPane: NSView, NSTextViewDelegate {
     /// `background` with a 1 pt `border` and a 6 pt radius around the editor and its line numbers.
     let textBox = NSView()
     private let scroll = NSScrollView()
+    private lazy var gutter: Gutter = {
+        let gutter = Gutter(textView: textView, theme: theme)
+        gutter.lines = LineIndex("")
+        return gutter
+    }()
     private let layoutManager = NSLayoutManager()
     /// The layout manager does not retain its storage, so the view must.
     private var storage = NSTextStorage()
@@ -82,14 +87,15 @@ final class BodyPane: NSView, NSTextViewDelegate {
         formatButton.layer?.borderWidth = 1
         formatButton.layer?.borderColor = theme.color(.border).cgColor
         formatButton.layer?.backgroundColor = theme.color(.background).cgColor
-        formatButton.title = "Format"
-        formatButton.attributedTitle = NSAttributedString(string: "Format", attributes: [
-            .font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text),
-        ])
-        formatButton.image = NSImage(systemSymbolName: "list.bullet.indent", accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(pointSize: 11, weight: .regular))
-        formatButton.imagePosition = .imageLeading
-        formatButton.contentTintColor = theme.color(.text)
+        // The glyph is part of the title, so the pair centers as one and PopButton's 10 pt hold.
+        let glyph = NSTextAttachment()
+        glyph.image = NSImage(systemSymbolName: "list.bullet.indent", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(paletteColors: [theme.color(.text)]).applying(.init(pointSize: 11, weight: .regular)))
+        let title = NSMutableAttributedString(attachment: glyph)
+        title.append(NSAttributedString(string: " Format"))
+        title.addAttributes([.font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text)], range: NSRange(location: 0, length: title.length))
+        formatButton.attributedTitle = title
+        formatButton.setAccessibilityLabel("Format")
         formatButton.target = self
         formatButton.action = #selector(format)
         // Uppercase: with Shift held, the event's charactersIgnoringModifiers is "F".
@@ -149,7 +155,7 @@ final class BodyPane: NSView, NSTextViewDelegate {
         scroll.hasHorizontalScroller = true
         scroll.autohidesScrollers = true
         scroll.drawsBackground = false
-        scroll.verticalRulerView = LineNumberRuler(textView: textView, theme: theme)
+        scroll.verticalRulerView = gutter
         scroll.hasVerticalRuler = true
         scroll.rulersVisible = true
 
@@ -327,7 +333,7 @@ final class BodyPane: NSView, NSTextViewDelegate {
             color(storage, kind: kind)
             layoutManager.replaceTextStorage(storage)
             textView.scrollToBeginningOfDocument(nil)
-            scroll.verticalRulerView?.needsDisplay = true
+            gutter.lines = LineIndex(text)
         } else if coloredKind != kind {
             color(storage, kind: kind)
         }
@@ -351,7 +357,8 @@ final class BodyPane: NSView, NSTextViewDelegate {
         color(storage, kind: kind)
         showFormatError(nil)
         model.tab.definition.body = .raw(kind, textView.string)
-        scroll.verticalRulerView?.needsDisplay = true
+        // ponytail: every line start again per keystroke, O(n); fine for bodies people type.
+        gutter.lines = LineIndex(textView.string)
     }
 }
 
@@ -359,55 +366,5 @@ final class BodyPane: NSView, NSTextViewDelegate {
 final class PopButton: NSButton {
     override var intrinsicContentSize: NSSize {
         NSSize(width: attributedTitle.size().width.rounded(.up) + 20, height: 24)
-    }
-}
-
-/// Line numbers in `textTertiary`, right-aligned beside the raw body.
-final class LineNumberRuler: NSRulerView {
-    private let theme: ThemeEnvironment
-
-    init(textView: NSTextView, theme: ThemeEnvironment) {
-        self.theme = theme
-        super.init(scrollView: nil, orientation: .verticalRuler)
-        clientView = textView
-        ruleThickness = 36
-        NotificationCenter.default.addObserver(self, selector: #selector(redraw), name: NSView.boundsDidChangeNotification, object: nil)
-    }
-
-    @available(*, unavailable)
-    required init(coder: NSCoder) { fatalError("init(coder:) is not used") }
-
-    @objc private func redraw(_ notification: Notification) {
-        if (notification.object as? NSClipView) === scrollView?.contentView { needsDisplay = true }
-    }
-
-    // ponytail: counts the lines above the visible text on every draw, O(n); keep line starts
-    // if scrolling a multi-MB body lags.
-    override func drawHashMarksAndLabels(in rect: NSRect) {
-        guard let textView = clientView as? NSTextView, let layout = textView.layoutManager, let container = textView.textContainer else { return }
-        let text = textView.string as NSString
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular), .foregroundColor: theme.color(.textTertiary),
-        ]
-        func draw(_ number: Int, top: CGFloat) {
-            let label = NSAttributedString(string: "\(number)", attributes: attributes)
-            let y = convert(NSPoint(x: 0, y: top + textView.textContainerInset.height), from: textView).y
-            label.draw(at: NSPoint(x: ruleThickness - 8 - label.size().width, y: y))
-        }
-        guard text.length > 0 else { return draw(1, top: 0) }
-        let glyphs = layout.glyphRange(forBoundingRect: textView.visibleRect, in: container)
-        let visible = layout.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
-        var index = text.lineRange(for: NSRange(location: visible.location, length: 0)).location
-        var line = 1
-        text.enumerateSubstrings(in: NSRange(location: 0, length: index), options: [.byLines, .substringNotRequired]) { _, _, _, _ in
-            line += 1
-        }
-        while index < NSMaxRange(visible) {
-            draw(line, top: layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: index), effectiveRange: nil).minY)
-            index = NSMaxRange(text.lineRange(for: NSRange(location: index, length: 0)))
-            line += 1
-        }
-        // The empty last line after a final newline has no characters, only the extra fragment.
-        if index == text.length, text.hasSuffix("\n") { draw(line, top: layout.extraLineFragmentRect.minY) }
     }
 }

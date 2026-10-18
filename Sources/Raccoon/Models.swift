@@ -9,12 +9,14 @@ final class TabModel {
     var tab: Tab
     private let transport: any HTTPTransport
     private let secrets: any SecretStore
+    private let files: any FileReading
     private let instants: any InstantSource
 
-    init(transport: any HTTPTransport, secrets: any SecretStore, instants: any InstantSource) {
+    init(transport: any HTTPTransport, secrets: any SecretStore, files: any FileReading, instants: any InstantSource) {
         tab = Tab(id: TabID(UUID()), source: .draft, definition: .empty, baseline: nil)
         self.transport = transport
         self.secrets = secrets
+        self.files = files
         self.instants = instants
     }
 
@@ -43,6 +45,54 @@ final class TabModel {
         tab.definition.params = Params.merge(pairs, into: tab.definition.params)
         message = message?.afterURLEdit
         isURLInvalid = false
+    }
+
+    /// Curl Import (curl.md): a pasted curl command becomes this Tab's request. False means an
+    /// ordinary paste. An error is a message and the Tab is unchanged; either way the text is
+    /// not inserted. Every Tab is the paste target until Tabs can be opened.
+    func pasteInURLBar(_ text: String) -> Bool {
+        guard CurlDetector.isCurl(text) else { return false }
+        var imported: CurlImport
+        do throws(CurlImportError) {
+            imported = try CurlImporter.import(text)
+        } catch {
+            let line = switch error {
+            case .noURL: "No URL in this curl command."
+            case .unterminatedQuote(let position): "Unterminated quote in this curl command, at character \(position)."
+            }
+            message = .error(line)
+            return true
+        }
+        var notes: [String] = []
+        if !imported.ignoredFlags.isEmpty { notes.append("Ignored: " + imported.ignoredFlags.joined(separator: ", ")) }
+        if imported.skippedCommands > 0 { notes.append("\(imported.skippedCommands) more command\(imported.skippedCommands == 1 ? "" : "s")") }
+        if !imported.fileReferences.isEmpty {
+            // Every @file in a data flag is read as UTF-8 text; one that is not leaves no body.
+            var texts: [String] = []
+            for path in imported.fileReferences {
+                let shown = (path as NSString).abbreviatingWithTildeInPath
+                guard let data = try? files.read(path) else {
+                    notes.append("\(shown) was not read")
+                    texts = []
+                    break
+                }
+                guard let text = String(data: data, encoding: .utf8) else {
+                    notes.append("\(shown) is not text, and binary bodies are not supported")
+                    texts = []
+                    break
+                }
+                texts.append(text)
+            }
+            if case .raw(let kind, _) = imported.definition.body, !texts.isEmpty {
+                imported.definition.body = .raw(kind, texts.joined(separator: "&"))
+            } else {
+                imported.definition.body = .none
+            }
+        }
+        tab.definition = imported.definition
+        isURLInvalid = false
+        message = notes.isEmpty ? nil : .note(notes.joined(separator: ". "))
+        return true
     }
 
     /// Methods are free text, stored uppercased; a blank one changes nothing.
@@ -78,13 +128,24 @@ final class TabModel {
     struct Presented: Equatable, Sendable {
         var body: ResponseBody
         var ranges: [HighlightRange]
+        /// The lines of the text `body` shows, and of the bytes as text, which Raw shows when
+        /// the body is Pretty.
+        var lines: LineIndex
+        var rawLines: LineIndex
+        /// Pretty only: Raw is never folded.
+        var regions: [FoldRegion]
     }
 
     @concurrent
     nonisolated static func present(_ response: Response) async -> Presented {
         let body = ResponseBody.presentation(response)
-        guard case .pretty(let text, let kind) = body else { return Presented(body: body, ranges: []) }
-        return Presented(body: body, ranges: Highlighter.ranges(text, kind: kind))
+        let rawLines = LineIndex(String(decoding: response.body, as: UTF8.self))
+        guard case .pretty(let text, let kind) = body else {
+            return Presented(body: body, ranges: [], lines: rawLines, rawLines: rawLines, regions: [])
+        }
+        let lines = LineIndex(text)
+        return Presented(body: body, ranges: Highlighter.ranges(text, kind: kind), lines: lines, rawLines: rawLines,
+                         regions: FoldRegion.find(text, lines: lines))
     }
 
     /// Resolution runs first, so a request that cannot be sent never shows `.sending`.

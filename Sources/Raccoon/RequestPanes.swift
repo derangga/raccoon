@@ -53,7 +53,7 @@ final class SettingsPane: NSView {
 /// section). A scheme switched away from keeps its values here, so switching back restores them.
 final class AuthPane: NSView, NSTextFieldDelegate {
     private let theme: ThemeEnvironment
-    let scheme = NSSegmentedControl(labels: ["None", "Basic", "Bearer"], trackingMode: .selectOne, target: nil, action: nil)
+    let scheme: SegmentedControl
     let noneNote = NSTextField(labelWithString: "No Authorization header is added.")
     let username = NSTextField()
     let password = NSSecureTextField()
@@ -69,6 +69,7 @@ final class AuthPane: NSView, NSTextFieldDelegate {
 
     init(theme: ThemeEnvironment) {
         self.theme = theme
+        scheme = SegmentedControl(labels: ["None", "Basic", "Bearer"], theme: theme)
         super.init(frame: .zero)
         let typeLabel = NSTextField(labelWithString: "Type")
         for label in [typeLabel, noneNote] {

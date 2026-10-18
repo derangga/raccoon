@@ -96,6 +96,16 @@ ImportNote               what was dropped or changed, and the Requests it applie
                          · .dynamicVariable(name) · .fileOnlyName(path) · .globalSkipped(name)
                          · .examplesDropped · .renamed(from, to)
 
+LineIndex                starts [Int]: the UTF-16 offset of each line start. Lines break
+                         where NSString.lineRange breaks them: \n, \r, \r\n, U+2028, U+2029,
+                         U+0085. Always at least one line
+FoldRegion               openLine, closeLine, cut Range<Int>: UTF-16, from the open line's
+                         terminator to the close line's first non-space character. Folded,
+                         the cut is shown as " … "
+FoldSet                  folded Set<Int>: the openLine of each folded Fold Region. View state
+FoldedText               the outermost folded regions in text order, and offsets mapped
+                         between the body and the shown text. Derived, never stored
+
 Theme                    name, flavors [Flavor]
 Flavor                   name, appearance: .light | .dark, colors [ColorToken: ThemeColor]
                          ThemeColor is #rrggbb as three bytes; not Color, which SwiftUI owns
