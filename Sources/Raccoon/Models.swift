@@ -89,6 +89,10 @@ final class TabModel {
                 imported.definition.body = .none
             }
         }
+        // URLSession fails a GET with a body and sends nothing (environment-facts.md Q6).
+        if imported.definition.method == "GET" && imported.definition.body != .none {
+            notes.append("A GET with a body won't send: macOS refuses it. Change the method or remove the body.")
+        }
         tab.definition = imported.definition
         isURLInvalid = false
         message = notes.isEmpty ? nil : .note(notes.joined(separator: ". "))

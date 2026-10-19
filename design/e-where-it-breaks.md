@@ -48,6 +48,9 @@ Curl Import
   ⚠ @file not UTF-8      → escape: same as unreadable, "binary bodies are not supported"
   ⚠ two commands pasted  → not an error: the first is imported, the note says how many
                            were skipped
+  ⚠ GET with a body      → not an error: imported as pasted, and the note says it won't
+                           send, because URLSession fails it with dataLengthExceedsMaximum
+                           and sends nothing (environment-facts.md Q6)
 Postman Import
   ⚠ file not JSON, or not a v2 Collection / Environment / Globals export
                          → escape: that file's row on the Import sheet says "Not a Postman

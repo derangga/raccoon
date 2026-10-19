@@ -209,6 +209,21 @@ struct URLBarTests {
         #expect(model.message == .note("/tmp/bin is not text, and binary bodies are not supported"))
     }
 
+    nonisolated static let getWithBody = "A GET with a body won't send: macOS refuses it. Change the method or remove the body."
+
+    @Test(arguments: [
+        ("curl -X GET -d a=1 https://h", MessageLine.note(getWithBody)),
+        ("curl -X get --data-raw x https://h", .note(getWithBody)),
+        ("curl -s -X GET -d a=1 https://h", .note("Ignored: -s. " + getWithBody)),
+        ("curl -G -d a=1 https://h", nil),
+        ("curl -X DELETE -d a=1 https://h", nil),
+        ("curl -d a=1 https://h", nil),
+    ])
+    func `a GET with a body is imported with a note that it won't send`(text: String, note: MessageLine?) {
+        #expect(model.pasteInURLBar(text))
+        #expect(model.message == note)
+    }
+
     @Test func `after a pasted curl the field shows the URL with a caret at the end, not selected`() throws {
         let bar = bar()
         window.makeFirstResponder(bar.urlField)

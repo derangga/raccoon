@@ -50,6 +50,9 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
   -> CurlImport.fileReferences non-empty?
     -> FileReading.read(path) for each           boundary    R: FileReading
                                                  E: unreadable -> escape per file, see §4
+  -> method is GET and the body is not .none?   pure, after the reads
+    -> a note: "A GET with a body won't send: macOS refuses it. Change the method or
+       remove the body." (URLSession fails the send, environment-facts.md Q6)
   -> apply to the target Tab                     one undo step on the current Tab
   -> ignoredFlags non-empty?
     -> a note under the URL bar: "Ignored: --retry, -s"
