@@ -237,7 +237,7 @@ Anatomy: `[state glyph] [method badge] name [slot]`, slot 16 × 16 at the traili
 | hover | `rowHover`; the slot shows the close button (✕ on `selection`) |
 | selected | `background`, name `text`, 2 pt `accent` rule on top, joins the editor (no bottom border) |
 | Dirty | the slot shows an 8 pt `dirtyDot`; hover swaps it for ✕ (the macOS document convention) |
-| Draft | name in **italic**: the empty Draft reads "Draft", otherwise its URL path. Italic was chosen over a badge because it costs no width and reads as provisional. Scripts without a true italic (CJK) lose the cue, see Q4 |
+| Draft | name in **italic**: the empty Draft reads "Draft", otherwise its URL path. Italic was chosen over a badge because it costs no width and reads as provisional. Scripts without a true italic (CJK) keep only the tooltip and the accessibility value, by decision (Q4) |
 | sending | the method badge is replaced by the 12 pt system spinner after 150 ms. The method is still in the URL bar of the selected Tab |
 | Changed on Disk | a 12 pt `warning` triangle before the badge, and the Dirty dot (it is always Dirty) |
 | close | ✕ 16 pt, `textSecondary`; ⌘W |
@@ -653,8 +653,9 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
 
 ## 9. Open UI questions
 
-1. **Closing the last Tab.** tabs.md selects "the neighbour", and there is none. Proposed:
-   open an empty Draft, so the editor always has a Tab (surfaces.md §4/§5 assume this).
+1. **Closing the last Tab.** tabs.md selects "the neighbour", and there is none. Decided
+   2026-10-19: closing the last Tab opens an empty Draft, so the editor always has a Tab
+   (surfaces.md §4/§5 assume this).
 2. **Window minimum size** and narrow layouts. Decided 2026-10-16: 760 × 480 minimum, the
    Sidebar collapsing to an overlay below 960 pt, each Split pane keeping 160 pt. With the
    inspector open the editor needs 480 pt, so below about 1,000 pt of content the inspector
@@ -666,7 +667,8 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
    on an opaque 4 pt-radius chip of `background`.
 4. **Draft in scripts without italics.** CJK fonts have no true italic, so a Draft named in
    Japanese is told apart only by its tooltip. Alternative: a leading "Draft" label in
-   `textTertiary`, at the cost of ~36 pt.
+   `textTertiary`, at the cost of ~36 pt. Decided 2026-10-19: italic only. A Draft in a
+   script without italics is told apart by its tooltip and its accessibility value "Draft".
 5. **Shortcut to open the Environments sheet.** variables.md gives ⌃E to the picker. ⌥⌃E is
    proposed for the sheet; not decided anywhere.
 6. **`success` has no surface.** The prompt requires the token and the JSON carries it, but
@@ -676,9 +678,11 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
    in the Theme unused.
 7. **Corrupt Session.** §4 renames the file to `session.corrupt-<date>.json` and starts
    empty. Should the empty window say so (a one-time banner with Reveal in Finder), or stay
-   silent?
+   silent? Decided 2026-10-19: silent. The file is renamed and logged, and the window opens
+   with one empty Draft, as on first launch.
 8. **Close confirmation** (Save · Don't Save · Cancel) is a native alert and is not drawn;
    confirm that a sheet-style alert attached to the window is wanted over an app-modal one.
+   Decided 2026-10-19: a sheet attached to the window (`NSAlert.beginSheetModal(for:)`).
 9. **Headers merged by the system.** There is no ordered-headers API (measured, see
    environment-facts.md). Decided 2026-10-16: a footer under the last header row, always
    shown, reading "macOS merges repeated headers and doesn't keep their order." (§6 Response

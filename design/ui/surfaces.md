@@ -39,7 +39,7 @@ Overlays
   EnvironmentsSheet             native sheet
   SaveDraftSheet                native sheet
   PostmanImportSheet            native sheet: the plan, the notes, then the result
-  CloseConfirm                  native alert: Save · Don't Save · Cancel
+  CloseConfirm                  native sheet alert: Save · Don't Save · Cancel
   ThemeMenu                     native menu, View ▸ Theme
 ```
 
@@ -140,7 +140,7 @@ Each row is a designed state. "Place" is the surface the user is already looking
 | SidebarFilter | placeholder "Filter Collections"; hidden while there are no Collections | n/a: synchronous | n/a | n/a | no matches: "No Requests, Folders or Collections match “q”. Esc clears the filter." |
 | VariablesPane | No Environment: the group says so and points at the toolbar; Globals still listed; no Globals: "No Globals." | n/a | disabled Variables are not listed; overridden Globals struck out | undefined names the Tab uses, first, in `variableUndefined`, with where each is used | secret: "Secret", never the value |
 | CurlPane | empty Draft: `curl ''` is not shown; the pane says "Type a URL to see the curl command." | n/a | secrets stay `{{name}}` | undefined: "No curl command yet" + the names; Copy disabled | n/a |
-| TabStrip | proposed never empty: closing the last Tab opens an empty Draft (Open UI Q1) | n/a | n/a | n/a | n/a |
+| TabStrip | never empty: closing the last Tab opens an empty Draft (Open UI Q1, decided) | n/a | n/a | n/a | n/a |
 | Tab | empty Draft: italic "Draft" | sending: spinner replaces the method badge after 150 ms | n/a | Changed on Disk glyph; Deleted on disk turns it into a Draft | n/a |
 | TabBanner | absent | n/a | n/a | Changed on Disk (Reload · Keep Mine), Deleted on disk (Dismiss), Not saved (Dismiss) | n/a |
 | URLField | placeholder "Enter a URL, or paste a curl command" | n/a | n/a | invalidURL: red outline + Response pane message quoting the substituted URL | n/a |
@@ -164,7 +164,7 @@ two cases are a binary body and a secret value, and both say why instead of show
 
 | Surface | Needs, satisfied on the edge that reaches it |
 |---|---|
-| RequestEditor, URLBar, ResponseViewer | a selected Tab. There is always one if Q1 is accepted |
+| RequestEditor, URLBar, ResponseViewer | a selected Tab. There is always one (Q1, decided) |
 | TabBanner Changed on Disk | `tab.isChangedOnDisk`, which only `filesChanged` or relaunch sets |
 | Save on a Request | `tab.source == .request`; on a Draft the same ⌘S routes to SaveDraftSheet |
 | SaveDraftSheet | a writable Data Folder; otherwise the WindowBanner shows and the sheet does not open |
