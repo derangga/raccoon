@@ -16,8 +16,8 @@ public protocol FileReading: Sendable {
 /// The Data Folder. The root is given to init; every path is relative to it.
 public protocol DataFolderStore: Sendable {
     func ensureExists() throws(StoreError)
-    /// Every `.json` file under the root, by path.
-    func scan() throws(StoreError) -> [String: Data]
+    /// Every `.json` file and every folder under the root.
+    func scan() throws(StoreError) -> DataFolderScan
     func read(_ path: String) throws(StoreError) -> Data
     /// Atomic: the file is whole or untouched.
     func write(_ data: Data, to path: String) throws(StoreError)

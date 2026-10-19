@@ -18,23 +18,28 @@ public struct DiskDataFolderStore: DataFolderStore {
     }
 
     /// Skips hidden files and folders: `.git`, and writeDirectory's temp folder mid-write.
-    public func scan() throws(StoreError) -> [String: Data] {
+    public func scan() throws(StoreError) -> DataFolderScan {
         // ponytail: one unreadable file fails the whole scan; [path: Data] has no slot for it.
         // Upgrade when a permission-denied file in a cloned repo should show as one bad row.
         try lifting({ .unreadable(path: root.path, reason: $0) }) {
             let rootPath = root.standardizedFileURL.path + "/"
             var files: [String: Data] = [:]
+            var folders: Set<String> = []
             var enumerationError: (any Error)?
-            let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil, options: .skipsHiddenFiles) { _, error in
+            let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.isDirectoryKey], options: .skipsHiddenFiles) { _, error in
                 enumerationError = error
                 return false
             }
-            while let file = enumerator?.nextObject() as? URL {
-                guard file.pathExtension == "json" else { continue }
-                files[String(file.standardizedFileURL.path.dropFirst(rootPath.count))] = try Data(contentsOf: file)
+            while let item = enumerator?.nextObject() as? URL {
+                let path = String(item.standardizedFileURL.path.dropFirst(rootPath.count))
+                if try item.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true {
+                    folders.insert(path)
+                } else if item.pathExtension == "json" {
+                    files[path] = try Data(contentsOf: item)
+                }
             }
             if let enumerationError { throw enumerationError }
-            return files
+            return DataFolderScan(files: files, folders: folders)
         }
     }
 

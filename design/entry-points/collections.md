@@ -27,8 +27,12 @@ not per Collection, and this layout is now a format that has to stay readable (b
 The Session is **not** here. It lives in `~/Library/Application Support/Raccoon/session.json`,
 because it holds Drafts and unsaved edits, and those must never show up in `git status`.
 
-A Request's file name is its name, sanitised (`/` and `:` replaced). The name inside the JSON is
-the one shown. Two Requests may share a name, so the file name gets ` 2` on collision.
+A Request's file name is its name, sanitised (`/` and `:` replaced by `-`). The name inside the
+JSON is the one shown. Two Requests may share a name, so the file name gets ` 2` (then ` 3`) on
+collision, compared without case because APFS is case-insensitive by default.
+
+Within a Collection or Folder, Folders come first, then Requests and unreadable rows together,
+each sorted by the name shown (`localizedStandardCompare`, as Finder sorts).
 
 ## Entry points
 
@@ -36,8 +40,11 @@ the one shown. Two Requests may share a name, so the file name gets ` 2` on coll
 -> loadDataFolder()                              launch, and Settings ▸ Data Folder
   -> DataFolderStore.ensureExists(root)          boundary    R: DataFolderStore
                                                  E: unwritable -> escape: banner
-  -> DataFolderStore.scan(root)                  boundary    -> [path: Data]
-  -> TreeDecoder.collections(files)              pure
+  -> DataFolderStore.scan(root)                  boundary    -> DataFolderScan
+                                                 E: unreadable -> escape: banner, as unwritable
+  -> TreeDecoder.collections(scan)               pure: top-level folders but environments/
+                                                 are Collections, deeper ones Folders, empty
+                                                 ones too; top-level files are not Requests
      -> .request per decodable file              E: undecodable -> .unreadable row,
                                                     the file kept byte-for-byte
   -> DataFolderIndex(tree)                       pure: RequestID -> path, and duplicate IDs

@@ -42,6 +42,15 @@ public enum RequestFile {
 
     /// `version` is read first: an unknown one is an error, never guessed at.
     public static func decode(_ data: Data) throws(RequestFileError) -> Request {
+        let object: Any
+        do {
+            object = try JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)
+        } catch {
+            // Foundation gives the byte offset where parsing stopped; none means the end of the file.
+            let offset = (error as NSError).userInfo["NSJSONSerializationErrorIndex"] as? Int ?? data.count
+            throw .notJSON(line: 1 + data.prefix(offset).count { $0 == UInt8(ascii: "\n") })
+        }
+        guard object is [String: Any] else { throw .malformed("not a JSON object") }
         do {
             let version = try JSONDecoder().decode(Header.self, from: data).version
             guard version == 1 else { throw RequestFileError.unknownVersion(version) }
@@ -50,13 +59,58 @@ public enum RequestFile {
             return Request(id: RequestID(identity.id), name: identity.name, definition: definition)
         } catch let error as RequestFileError {
             throw error
+        } catch let error as Malformed {
+            throw .malformed(error.reason)
+        } catch let error as DecodingError {
+            throw .malformed(phrase(error))
         } catch {
             throw .malformed(String(describing: error))
+        }
+    }
+
+    private static func phrase(_ error: DecodingError) -> String {
+        let key = { (context: DecodingError.Context) in context.codingPath.map(\.stringValue).joined(separator: ".") }
+        return switch error {
+        case .keyNotFound(let missing, let context):
+            "missing “\((context.codingPath + [missing]).map(\.stringValue).joined(separator: "."))”"
+        case .typeMismatch(_, let context), .valueNotFound(_, let context): "“\(key(context))” has the wrong type"
+        case .dataCorrupted(let context): "“\(key(context))” is not valid"
+        @unknown default: String(describing: error)
         }
     }
 }
 
 public enum RequestFileError: Error, Equatable, Sendable {
+    case notJSON(line: Int)
     case unknownVersion(Int)
+    /// JSON, but not a Request: what is wrong with it, e.g. missing “name”.
     case malformed(String)
+
+    /// The unreadable row's text (design-system §6 Sidebar rows).
+    public var reason: String {
+        switch self {
+        case .notJSON(let line): "Not valid JSON at line \(line). Raccoon won't change this file."
+        case .unknownVersion(let version): "Unknown file version \(version)."
+        case .malformed(let what): "Not a Raccoon Request: \(what). Raccoon won't change this file."
+        }
+    }
+}
+
+/// A Request's file name is its name: `/` and `:` become `-`, and so does a leading `.`, which
+/// would hide the file from the scan. A taken name gets " 2", " 3"…, compared without case
+/// because APFS is case-insensitive by default.
+public enum RequestFileName {
+    public static func make(_ name: String, taken: Set<String>) -> String {
+        precondition(!name.isEmpty, "the Save sheet requires a name")
+        var base = name.replacing(/[\/:]/, with: "-")
+        if base.hasPrefix(".") { base = "-" + base.dropFirst() }
+        let taken = Set(taken.map { $0.lowercased() })
+        var file = "\(base).json"
+        var n = 1
+        while taken.contains(file.lowercased()) {
+            n += 1
+            file = "\(base) \(n).json"
+        }
+        return file
+    }
 }

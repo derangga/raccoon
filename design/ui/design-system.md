@@ -412,7 +412,8 @@ NSOutlineView, source-list style, on the sidebar material. 24 pt rows, `sys` lab
   one), in secondary label color, and an icon-only Reveal in Finder button (20 × 18,
   `aria-label`/tooltip "Reveal in Finder"). Beneath, an 11 pt line with the reason: "Not
   valid JSON at line 14. Raccoon won't change this file.", "Unknown file version 3.", "Same id
-  as List refunds.json." Selecting it shows nothing in the editor; double-click reveals.
+  as List refunds.json.", and for JSON that is not a Request "Not a Raccoon Request: missing
+  “name”. Raccoon won't change this file." Selecting it shows nothing in the editor; double-click reveals.
 - **Empty**: "No Collections yet. Create one, or save a Draft into one with ⌘S." plus the Data
   Folder path in SF Mono 11.
 

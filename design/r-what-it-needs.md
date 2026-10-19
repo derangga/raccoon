@@ -37,7 +37,8 @@ HTTPTransport     send(ResolvedRequest) async throws(SendError) -> Response
                   the Request Settings ride inside the ResolvedRequest. The live one
                   reads multipart file parts through the FileReading given to its init
 FileReading       read(path) throws(StoreError) -> Data       @file and multipart parts
-DataFolderStore   ensureExists, scan -> [path: Data], read, write (atomic), move, trash,
+DataFolderStore   ensureExists, scan -> DataFolderScan (files [path: Data] and every
+                  folder, so an empty Collection or Folder shows), read, write (atomic), move, trash,
                   createDirectory, writeDirectory (temp + rename); all throws(StoreError).
                   The root is given to init; every path is relative to it
 FolderWatch       events(root) -> AsyncStream<[String]>        changed paths

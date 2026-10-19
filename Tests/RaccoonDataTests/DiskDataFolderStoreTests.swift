@@ -39,11 +39,12 @@ final class DiskDataFolderStoreTests {
         try put("2", at: "Payments API/Refunds/List refunds.json")
         try put("x", at: "Payments API/notes.txt")
         try put("h", at: ".git/config.json")
+        try store.createDirectory("Empty/Nested")
 
-        #expect(try store.scan() == [
-            "globals.json": Data("1".utf8),
-            "Payments API/Refunds/List refunds.json": Data("2".utf8),
-        ])
+        #expect(try store.scan() == DataFolderScan(
+            files: ["globals.json": Data("1".utf8), "Payments API/Refunds/List refunds.json": Data("2".utf8)],
+            folders: ["Payments API", "Payments API/Refunds", "Empty", "Empty/Nested"]
+        ))
     }
 
     @Test func `read returns what write wrote`() throws {
@@ -88,7 +89,7 @@ final class DiskDataFolderStoreTests {
     @Test func `writeDirectory lands the whole folder`() throws {
         try store.writeDirectory(["r.json": Data("1".utf8), "F/x.json": Data("2".utf8)], to: "Imported")
 
-        #expect(try store.scan() == ["Imported/r.json": Data("1".utf8), "Imported/F/x.json": Data("2".utf8)])
+        #expect(try store.scan().files == ["Imported/r.json": Data("1".utf8), "Imported/F/x.json": Data("2".utf8)])
         #expect(try FileManager.default.contentsOfDirectory(atPath: root.path) == ["Imported"])
     }
 
