@@ -321,6 +321,20 @@ final class WindowModel {
         selected = restored.contains { $0.tab.id == session.selected } ? session.selected : first.tab.id
     }
 
+    /// ⌘Q, logout, restart. Never asks: the Session keeps Dirty Tabs and Drafts. The snapshot
+    /// is written before any Tab is released (§8), and an unwritable Session does not stop quit.
+    func quit() {
+        do throws(StoreError) {
+            try writer.writeNow()
+        } catch {
+            switch error {
+            case .unwritable(let path, let reason), .unreadable(let path, let reason), .undecodable(let path, let reason):
+                Self.log.error("Session not written on quit to \(path, privacy: .public): \(reason, privacy: .public)")
+            }
+        }
+        tabs.forEach { $0.close() }
+    }
+
     private func setAsideSession() {
         do throws(StoreError) {
             let path = try sessionStore.setAside()

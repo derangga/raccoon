@@ -58,10 +58,11 @@ rule is "has content the user would lose", which for a Draft is `definition != .
 
 ```
 -> quit()                                        ⌘Q, logout, restart
-  -> every TabModel.close()                      §8
   -> SessionWriter.writeNow(session)             boundary    R: SessionStore
-                                                 E: unwritable -> escape: quit anyway,
-                                                 see §4
+                                                 E: unwritable -> escape: log, quit
+                                                 anyway, see §4
+  -> every TabModel.close()                      §8: after the snapshot, so a cancelled
+                                                 send cannot change a Tab while it is read
 ```
 
 **Quit does not prompt for Dirty Tabs.** The Session keeps Dirty edits and Drafts (decision

@@ -46,6 +46,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate()
     }
 
+    /// ⌘Q, logout and restart all end here, with no prompt: the Session keeps every Tab.
+    func applicationWillTerminate(_ notification: Notification) { windowModel?.quit() }
+
     /// The one editor follows the selection, however it changed.
     private func showSelectedTab() {
         guard let windowModel, let tabController else { return }
