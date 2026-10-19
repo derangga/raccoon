@@ -60,7 +60,8 @@ the models that need them.
 
 ```
 TabModel          HTTPTransport, SecretStore, InstantSource
-WindowModel       DataFolderStore, FolderWatch, SessionStore, SecretStore
+WindowModel       DataFolderStore, FolderWatch, SessionStore, SecretStore, InstantSource
+                                                    the last for SessionWriter's coalescing
 CurlImport flow   FileReading                       only for @file references
 Copy as Curl      SecretStore, ClipboardWriter
 ThemeController   UserDefaults, the app bundle      no port: both are already injectable

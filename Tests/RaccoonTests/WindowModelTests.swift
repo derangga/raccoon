@@ -13,6 +13,7 @@ struct WindowModelTests {
         WindowModel(
             dataFolder: DiskDataFolderStore(root: temp.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
             sessionStore: DiskSessionStore(directory: temp.appending(path: "Support")), secrets: InMemorySecretStore(),
+            instants: FixedInstantSource(.now),
             makeTab: {
                 TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                          instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())

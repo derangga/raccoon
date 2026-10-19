@@ -17,6 +17,7 @@ enum CompositionRoot {
             folderWatch: FSEventsFolderWatch(),
             sessionStore: DiskSessionStore(directory: DiskSessionStore.applicationSupportDirectory),
             secrets: secrets,
+            instants: instants,
             makeTab: { TabModel(transport: transport, secrets: secrets, files: files, instants: instants, clipboard: clipboard) }
         )
     }

@@ -35,6 +35,10 @@ public struct Tab: Equatable, Sendable {
     public var hasLosableContent: Bool {
         isDirty || (source == .draft && definition != .empty)
     }
+
+    public var snapshot: TabSnapshot {
+        TabSnapshot(id: id, source: source, definition: definition, baseline: baseline)
+    }
 }
 
 /// A Tab minus its Response.

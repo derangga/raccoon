@@ -246,19 +246,39 @@ final class WindowModel {
     private let sessionStore: any SessionStore
     private let secrets: any SecretStore
     private let makeTab: () -> TabModel
+    private let instants: any InstantSource
+    @ObservationIgnored private lazy var writer = SessionWriter(store: sessionStore, instants: instants) { [unowned self] in session }
 
     /// `makeTab` builds a TabModel with its own ports; the window never hands a Tab its stores.
     init(
         dataFolder: any DataFolderStore, folderWatch: any FolderWatch, sessionStore: any SessionStore,
-        secrets: any SecretStore, makeTab: @escaping () -> TabModel
+        secrets: any SecretStore, instants: any InstantSource, makeTab: @escaping () -> TabModel
     ) {
         self.dataFolder = dataFolder
         self.folderWatch = folderWatch
         self.sessionStore = sessionStore
         self.secrets = secrets
+        self.instants = instants
         self.makeTab = makeTab
         tabs = [makeTab()]
         selected = tabs[0].tab.id
+        writeOnChange()
+    }
+
+    /// ponytail: none until Variables picks one.
+    var session: Session {
+        Session(tabs: tabs.map(\.tab.snapshot), selected: selected, activeEnvironment: nil)
+    }
+
+    /// Every change to a Tab, the order or the selection schedules a write. A Response
+    /// changing schedules one too, and writes the same bytes.
+    private func writeOnChange() {
+        withObservationTracking { _ = session } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.writer.schedule()
+                self?.writeOnChange()
+            }
+        }
     }
 
     var selectedTab: TabModel? { tabs.first { $0.tab.id == selected } }

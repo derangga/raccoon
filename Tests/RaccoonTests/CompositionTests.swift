@@ -20,6 +20,7 @@ struct CompositionTests {
             folderWatch: ManualFolderWatch(),
             sessionStore: DiskSessionStore(directory: temp.appending(path: "Support")),
             secrets: InMemorySecretStore(),
+            instants: FixedInstantSource(.now),
             makeTab: makeTab
         )
 
