@@ -209,6 +209,18 @@ struct URLBarTests {
         #expect(model.message == .note("/tmp/bin is not text, and binary bodies are not supported"))
     }
 
+    @Test func `a data file that is missing leaves no body and the note names it`() {
+        #expect(model.pasteInURLBar("curl --data-binary @/tmp/gone.json https://h"))
+        #expect(model.tab.definition.body == .none)
+        #expect(model.message == .note("/tmp/gone.json was not read"))
+    }
+
+    @Test func `a multipart file part keeps its path and is not read`() {
+        #expect(model.pasteInURLBar("curl -F name=x -F 'doc=@/tmp/gone.pdf;type=application/pdf' https://h"))
+        #expect(model.tab.definition.body == .multipart([Part(name: "name", content: .text("x")), Part(name: "doc", content: .file(path: "/tmp/gone.pdf"))]))
+        #expect(model.message == nil)
+    }
+
     nonisolated static let getWithBody = "A GET with a body won't send: macOS refuses it. Change the method or remove the body."
 
     @Test(arguments: [
