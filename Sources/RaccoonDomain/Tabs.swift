@@ -25,6 +25,16 @@ public struct Tab: Equatable, Sendable {
         self.response = response
         self.isChangedOnDisk = isChangedOnDisk
     }
+
+    /// Edits not written back. A Draft has no baseline, so it is never Dirty.
+    public var isDirty: Bool {
+        if case .request = source { definition != baseline } else { false }
+    }
+
+    /// What closing would lose, so what the close prompt asks about.
+    public var hasLosableContent: Bool {
+        isDirty || (source == .draft && definition != .empty)
+    }
 }
 
 /// A Tab minus its Response.
