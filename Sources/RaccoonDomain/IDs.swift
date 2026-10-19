@@ -12,6 +12,12 @@ public struct TabID: Hashable, Sendable {
     public init(_ rawValue: UUID) { self.rawValue = rawValue }
 }
 
+/// Which Workspace a Data Folder is, written in its raccoon.json. Its Secret Variables follow it.
+public struct WorkspaceID: Hashable, Sendable {
+    public let rawValue: UUID
+    public init(_ rawValue: UUID) { self.rawValue = rawValue }
+}
+
 /// The name inside `{{name}}`: ASCII letters and digits, `_`, `-` and `.`, never empty.
 public struct VariableName: Hashable, Sendable {
     public let rawValue: String
