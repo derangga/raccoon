@@ -42,7 +42,7 @@ public enum TreeFilter {
                     if inner.hasMatch { result.expanded.insert(path) }
                     hasMatch = hasMatch || matched || inner.hasMatch
                     return ancestorMatched || matched || inner.hasMatch ? .folder(name: name, children: inner.nodes) : nil
-                case .request(_, _, let path), .unreadable(let path, _):
+                case .request(_, _, _, let path), .unreadable(let path, _):
                     let matched = match(node.name, at: path)
                     hasMatch = hasMatch || matched
                     return ancestorMatched || matched ? node : nil

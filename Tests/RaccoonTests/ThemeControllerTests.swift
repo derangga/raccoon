@@ -233,6 +233,46 @@ struct ThemeControllerTests {
         #expect(left.isEmpty, "\(left)")
     }
 
+    @Test func `switching the Flavor leaves no colour of the old one on the sidebar badges`() async throws {
+        let temp = FileManager.default.temporaryDirectory.appending(path: "raccoon-\(UUID())")
+        let root = temp.appending(path: "Raccoon")
+        for (method, name) in [("GET", "a"), ("POST", "b"), ("PUT", "c"), ("PATCH", "d"), ("DELETE", "e"), ("HEAD", "f"), ("OPTIONS", "g"), ("PURGE", "h")] {
+            var definition = RequestDefinition.empty
+            definition.method = method
+            let url = root.appending(path: "C/\(name).json")
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try RequestFile.encode(Request(id: RequestID(UUID()), name: name, definition: definition)).write(to: url)
+        }
+        try Data("{".utf8).write(to: root.appending(path: "C/broken.json"))
+        let window = WindowModel(
+            dataFolder: .test(root), folderWatch: ManualFolderWatch(),
+            sessionStore: DiskSessionStore(directory: temp), secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
+            makeTab: {
+                TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+                         instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
+            }
+        )
+        window.loadDataFolder()
+        let theme = ThemeEnvironment(catalog: catalog, isDark: false)
+        let sidebar = SidebarViewController(window: window, theme: theme, reveal: { _ in })
+        sidebar.view.frame = NSRect(x: 0, y: 0, width: 232, height: 600)
+        sidebar.outline.expandItem(nil, expandChildren: true)
+        sidebar.view.layoutSubtreeIfNeeded()
+
+        let mocha = flavor("Mocha")
+        func hexes(_ flavor: Flavor) -> Set<String> {
+            Set(ColorToken.allCases.map { String(format: "#%02x%02x%02x", flavor[$0].red, flavor[$0].green, flavor[$0].blue) })
+        }
+        let latteOnly = hexes(flavor("Latte")).subtracting(hexes(mocha))
+        #expect(colours(in: sidebar.view).keys.filter(latteOnly.contains).count >= 8, "the sweep sees every badge before the switch")
+
+        theme.flavor = mocha
+        await settle()
+        sidebar.view.layoutSubtreeIfNeeded()
+        let left = colours(in: sidebar.view).filter { latteOnly.contains($0.key) }
+        #expect(left.isEmpty, "\(left)")
+    }
+
     /// View ▸ Theme as the menu bar builds it, after AppKit's validation pass.
     func themeMenu(_ controller: ThemeController) throws -> NSMenu {
         let view = try #require(MainMenu.make(theme: controller).item(withTitle: "View")?.submenu)

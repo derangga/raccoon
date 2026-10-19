@@ -263,6 +263,9 @@ final class WindowModel {
     private let makeTab: () -> TabModel
     private let instants: any InstantSource
 
+    /// Where the Data Folder is, shown under the sidebar's empty text.
+    var dataFolderRoot: String { location.root }
+
     /// The sidebar tree; empty while the Data Folder is unavailable.
     private(set) var index = DataFolderIndex([])
     /// Why the Data Folder is unavailable, for the window banner. Drafts and sending still work.

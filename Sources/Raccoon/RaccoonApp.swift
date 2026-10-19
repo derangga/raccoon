@@ -50,6 +50,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         strip.onClose = closer.close
         self.closer = closer
+        windowController.split.showSidebar(SidebarViewController(window: windowModel, theme: theme) { path in
+            NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: path)])
+        })
         windowController.split.showTab(ContentViewController(strip: strip, tab: tabController))
         self.tabController = tabController
         showSelectedTab()

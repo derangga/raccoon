@@ -22,7 +22,7 @@ public enum TreeDecoder {
     private static func node(_ data: Data, path: String) -> TreeNode {
         do {
             let request = try RequestFile.decode(data)
-            return .request(request.id, name: request.name, path: path)
+            return .request(request.id, name: request.name, method: request.definition.method, path: path)
         } catch {
             return .unreadable(path: path, reason: error.reason)
         }

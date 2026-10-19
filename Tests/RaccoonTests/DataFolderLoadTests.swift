@@ -40,7 +40,7 @@ struct DataFolderLoadTests {
         window.loadDataFolder()
 
         #expect(window.index.collections == [
-            Collection(name: "Payments API", nodes: [.request(Self.charge.id, name: "Create charge", path: "Payments API/Create charge.json")]),
+            Collection(name: "Payments API", nodes: [.request(Self.charge.id, name: "Create charge", method: "GET", path: "Payments API/Create charge.json")]),
         ])
         #expect(window.index.path(of: Self.charge.id) == "Payments API/Create charge.json")
         #expect(window.dataFolderError == nil)

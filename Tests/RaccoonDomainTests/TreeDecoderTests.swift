@@ -27,10 +27,10 @@ struct TreeDecoderTests {
             Collection(name: "Payments API", nodes: [
                 .folder(name: "Refunds", children: [
                     .folder(name: "Old", children: []),
-                    .request(Self.id(3), name: "List refunds", path: "Payments API/Refunds/List refunds.json"),
+                    .request(Self.id(3), name: "List refunds", method: "GET", path: "Payments API/Refunds/List refunds.json"),
                 ]),
-                .request(Self.id(2), name: "Create charge", path: "Payments API/create.json"),
-                .request(Self.id(1), name: "Refund", path: "Payments API/Refund.json"),
+                .request(Self.id(2), name: "Create charge", method: "GET", path: "Payments API/create.json"),
+                .request(Self.id(1), name: "Refund", method: "GET", path: "Payments API/Refund.json"),
             ]),
         ])
     }

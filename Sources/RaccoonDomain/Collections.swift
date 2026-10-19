@@ -2,7 +2,8 @@ import Foundation
 
 public indirect enum TreeNode: Equatable, Sendable {
     case folder(name: String, children: [TreeNode])
-    case request(RequestID, name: String, path: String)
+    /// `method` is for the sidebar badge.
+    case request(RequestID, name: String, method: String, path: String)
     /// A file that did not decode. It is kept byte for byte and never rewritten.
     case unreadable(path: String, reason: String)
 }
@@ -33,7 +34,7 @@ extension TreeNode {
     /// What the sidebar shows: an unreadable row has no Request name, so its file name.
     public var name: String {
         switch self {
-        case .folder(let name, _), .request(_, let name, _): name
+        case .folder(let name, _), .request(_, let name, _, _): name
         case .unreadable(let path, _): String(path.split(separator: "/").last ?? "")
         }
     }

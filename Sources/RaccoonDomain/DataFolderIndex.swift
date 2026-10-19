@@ -10,7 +10,7 @@ public struct DataFolderIndex: Equatable, Sendable {
             for node in nodes {
                 switch node {
                 case .folder(_, let children): gather(children)
-                case .request(let id, _, let path): requests.append((id, path))
+                case .request(let id, _, _, let path): requests.append((id, path))
                 case .unreadable: break
                 }
             }
@@ -26,7 +26,7 @@ public struct DataFolderIndex: Equatable, Sendable {
             nodes.map { node in
                 switch node {
                 case .folder(let name, let children): .folder(name: name, children: marked(children))
-                case .request(_, _, let path):
+                case .request(_, _, _, let path):
                     duplicates[path].map { .unreadable(path: path, reason: "Same id as \(TreeDecoder.lastComponent($0)).") } ?? node
                 case .unreadable: node
                 }
@@ -41,13 +41,13 @@ public struct DataFolderIndex: Equatable, Sendable {
     }
 
     /// A Request just written into a Collection or Folder the tree already has.
-    public mutating func insert(_ id: RequestID, name: String, path: String) {
+    public mutating func insert(_ id: RequestID, name: String, method: String, path: String) {
         precondition(paths[id] == nil, "one file per RequestID")
         let folders = path.split(separator: "/").dropLast().map(String.init)
         guard let c = collections.firstIndex(where: { $0.name == folders.first }) else {
             preconditionFailure("insert into a Collection the index does not have: \(path)")
         }
-        collections[c].nodes = Self.inserting(.request(id, name: name, path: path), into: collections[c].nodes, at: folders.dropFirst())
+        collections[c].nodes = Self.inserting(.request(id, name: name, method: method, path: path), into: collections[c].nodes, at: folders.dropFirst())
         paths[id] = path
     }
 

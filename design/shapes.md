@@ -47,7 +47,8 @@ RequestSettings          allowsInsecureTLS, followsRedirects
                          are what turn them on
 
 Request                  id: RequestID, name, definition         one file in the Data Folder
-TreeNode                 .folder(name, [TreeNode]) · .request(RequestID, name, path)
+TreeNode                 .folder(name, [TreeNode]) · .request(RequestID, name, method, path)
+                         method is for the sidebar badge
                          .unreadable(path, reason)              §4: a file that did not decode
 Collection               name, [TreeNode]
 DataFolderScan           files: [path: Data], folders: Set<path>    what scan returns

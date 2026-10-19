@@ -190,6 +190,11 @@ final class MainSplitViewController: NSSplitViewController {
         drawnRect.insetBy(dx: -3, dy: 0)
     }
 
+    /// Fills the sidebar pane's content view, which the narrow-window overlay borrows.
+    func showSidebar(_ controller: NSViewController) {
+        sidebarPane.embed(controller)
+    }
+
     /// Binds the content pane to the selected Tab's editor.
     func showTab(_ controller: NSViewController) {
         contentPane.embed(controller)

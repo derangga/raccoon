@@ -7,14 +7,14 @@ struct TreeFilterTests {
     static let tree = [
         Collection(name: "Payments API", nodes: [
             .folder(name: "Refunds", children: [
-                .request(id(1), name: "List refunds", path: "Payments API/Refunds/List refunds.json"),
-                .request(id(2), name: "Café order", path: "Payments API/Refunds/Cafe order.json"),
+                .request(id(1), name: "List refunds", method: "GET", path: "Payments API/Refunds/List refunds.json"),
+                .request(id(2), name: "Café order", method: "GET", path: "Payments API/Refunds/Cafe order.json"),
             ]),
-            .request(id(3), name: "Create charge", path: "Payments API/Create charge.json"),
+            .request(id(3), name: "Create charge", method: "GET", path: "Payments API/Create charge.json"),
             .unreadable(path: "Payments API/Broken refund.json", reason: "Unknown file version 3."),
         ]),
         Collection(name: "Orders", nodes: [
-            .request(id(4), name: "注文の返金", path: "Orders/注文の返金.json"),
+            .request(id(4), name: "注文の返金", method: "GET", path: "Orders/注文の返金.json"),
         ]),
     ]
 
@@ -23,7 +23,7 @@ struct TreeFilterTests {
         #expect(filtered.collections == [
             Collection(name: "Payments API", nodes: [
                 .folder(name: "Refunds", children: [
-                    .request(Self.id(2), name: "Café order", path: "Payments API/Refunds/Cafe order.json"),
+                    .request(Self.id(2), name: "Café order", method: "GET", path: "Payments API/Refunds/Cafe order.json"),
                 ]),
             ]),
         ])
@@ -36,8 +36,8 @@ struct TreeFilterTests {
         #expect(filtered.collections == [
             Collection(name: "Payments API", nodes: [
                 .folder(name: "Refunds", children: [
-                    .request(Self.id(1), name: "List refunds", path: "Payments API/Refunds/List refunds.json"),
-                    .request(Self.id(2), name: "Café order", path: "Payments API/Refunds/Cafe order.json"),
+                    .request(Self.id(1), name: "List refunds", method: "GET", path: "Payments API/Refunds/List refunds.json"),
+                    .request(Self.id(2), name: "Café order", method: "GET", path: "Payments API/Refunds/Cafe order.json"),
                 ]),
             ]),
         ])
