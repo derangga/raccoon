@@ -394,6 +394,7 @@ final class WindowModel {
         let store = location.open(root)
         do throws(StoreError) {
             try store.ensureExists()
+            scanCount += 1
             index = DataFolderIndex(TreeDecoder.collections(try store.scan()))
         } catch {
             index = DataFolderIndex([])
@@ -420,18 +421,75 @@ final class WindowModel {
         if dataFolderError == nil { location.remember(root) }
     }
 
-    /// FolderWatch reported changes: the tree is rebuilt from a fresh scan.
+    /// Scans of the Data Folder so far: a watch batch is one, whatever its size.
+    private(set) var scanCount = 0
+    /// Open Requests whose file is still there but no longer reads; they are never written over.
+    private var unreadableFiles: [RequestID: String] = [:]
+
+    /// A FolderWatch batch (collections.md §filesChanged). Our own writes are dropped by the
+    /// ledger; anything else rescans once, then each open Request Tab follows its file.
     private func filesChanged(_ paths: [String]) {
-        rescan()
+        guard let store else { return }
+        let ours = paths.allSatisfy { path in (try? store.read(path)).map { ledger.isOurs(path, $0) } ?? false }
+        guard !ours else { return }
+        let before = index
+        guard let scan = rescan() else { return }
+        for model in tabs {
+            guard case .request(let id) = model.tab.source else { continue }
+            guard let path = index.path(of: id) else {
+                guard let old = before.path(of: id) ?? unreadableFiles[id] else { continue }
+                if scan.files[old] != nil {
+                    // Still there, but unreadable or a duplicate now: left alone, never written over.
+                    unreadableFiles[id] = old
+                } else {
+                    unreadableFiles[id] = nil
+                    model.tab.source = .draft
+                    model.tab.baseline = nil
+                    model.tab.isChangedOnDisk = false
+                    model.notice = .deletedOnDisk(file: Self.fileName(old))
+                }
+                continue
+            }
+            unreadableFiles[id] = nil
+            // The index decoded this file a moment ago, so it decodes.
+            guard let data = scan.files[path], !ledger.isOurs(path, data), let disk = try? RequestFile.decode(data).definition,
+                  disk != model.tab.baseline
+            else { continue }
+            if model.tab.isDirty {
+                model.tab.baseline = disk
+                model.tab.isChangedOnDisk = true
+            } else {
+                model.tab.definition = disk
+                model.tab.baseline = disk
+            }
+        }
     }
 
-    /// ponytail: the whole folder is rescanned; per-Collection rebuilds when a large folder is slow.
-    private func rescan() {
-        guard let store else { return }
+    /// Reload on the Changed on Disk banner: the file wins.
+    func reload(_ id: TabID) {
+        guard let model = tabs.first(where: { $0.tab.id == id }), let baseline = model.tab.baseline else { return }
+        model.tab.definition = baseline
+        model.tab.isChangedOnDisk = false
+    }
+
+    /// Keep Mine: the edits stay, Dirty against the new file, so the next ⌘S writes over it.
+    func keepMine(_ id: TabID) {
+        tabs.first { $0.tab.id == id }?.tab.isChangedOnDisk = false
+    }
+
+    /// The tree from a fresh scan. ponytail: the whole folder each time; per-Collection rebuilds
+    /// when a large folder makes this slow.
+    @discardableResult
+    private func rescan() -> DataFolderScan? {
+        guard let store else { return nil }
+        scanCount += 1
         do throws(StoreError) {
-            index = DataFolderIndex(TreeDecoder.collections(try store.scan()))
+            let scan = try store.scan()
+            index = DataFolderIndex(TreeDecoder.collections(scan))
+            return scan
         } catch {
             dataFolderError = error
+            return nil
         }
     }
 
@@ -455,13 +513,13 @@ final class WindowModel {
             do throws(RequestFileError) {
                 request = try RequestFile.decode(data)
             } catch {
-                return rescan()
+                rescan(); return
             }
         } catch {
-            return rescan()
+            rescan(); return
         }
         // Someone gave the file another id since the scan.
-        guard request.id == id else { return rescan() }
+        guard request.id == id else { rescan(); return }
         let model = makeTab()
         model.tab = Tab(id: model.tab.id, source: .request(id), definition: request.definition, baseline: request.definition)
         insertAfterSelected(model)
@@ -471,9 +529,12 @@ final class WindowModel {
     /// ⌘S on a Request Tab: through the window, which owns the index and the ledger. A failed
     /// write leaves the Tab Dirty and says so in its banner; nothing claims a save that did not land.
     func save(_ id: TabID) {
-        guard let model = tabs.first(where: { $0.tab.id == id }), case .request(let requestID) = model.tab.source,
-              let store, let path = index.path(of: requestID), let name = index.name(of: requestID)
-        else { return }
+        guard let model = tabs.first(where: { $0.tab.id == id }), case .request(let requestID) = model.tab.source else { return }
+        if let broken = unreadableFiles[requestID] {
+            model.notice = .notSaved(file: Self.fileName(broken), reason: "it can't be read, and Raccoon won't change it")
+            return
+        }
+        guard let store, let path = index.path(of: requestID), let name = index.name(of: requestID) else { return }
         let data = RequestFile.encode(Request(id: requestID, name: name, definition: model.tab.definition))
         do throws(StoreError) {
             try store.write(data, to: path)

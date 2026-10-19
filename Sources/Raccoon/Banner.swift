@@ -323,7 +323,10 @@ final class TabBannerBinding {
         guard let tab = window.selectedTab else { return }
         if tab.notice != nil {
             tab.notice = nil
-            update()
+        } else if tab.tab.isChangedOnDisk {
+            // Keep Mine · Reload
+            if index == 0 { window.keepMine(tab.tab.id) } else { window.reload(tab.tab.id) }
         }
+        update()
     }
 }

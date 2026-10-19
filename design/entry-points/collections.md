@@ -119,11 +119,14 @@ must produce no git diff, and a save that changes one header must produce a one-
 
 ```
 -> filesChanged(paths)                           §3: a stream, from FolderWatch
-  -> WriteLedger.isOurs(path, hash)?             yes -> drop it
-  -> TreeDecoder / DataFolderIndex rebuilt       pure, for the affected Collections only
-  -> for each open Tab whose path changed
+  -> WriteLedger.isOurs(path, hash)?             every path ours -> drop the batch
+  -> TreeDecoder / DataFolderIndex rebuilt       once per batch, from one scan
+  -> for each open Request Tab whose file's definition differs from its baseline
     -> file deleted
       -> Tab becomes a Draft, definition kept    banner: "Deleted on disk"
+    -> file still there but unreadable           the Tab is left alone and keeps its edits;
+                                                 ⌘S says Not saved: "it can't be read, and
+                                                 Raccoon won't change it" (decided 2026-10-19)
     -> not Dirty
       -> definition = baseline = disk            silently (design session Q7)
     -> Dirty
