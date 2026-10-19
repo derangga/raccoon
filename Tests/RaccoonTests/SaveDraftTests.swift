@@ -188,3 +188,40 @@ struct SaveDraftTests {
         #expect(reply == .some(nil))
     }
 }
+
+/// The sheets laid out in their panel: 16 pt margins, labels right-aligned, buttons trailing.
+@MainActor
+struct SheetLayoutTests {
+    func frame(_ view: NSView, in panel: NSWindow) -> NSRect {
+        view.convert(view.bounds, to: panel.contentView)
+    }
+
+    @Test func `the Save Request sheet keeps its margins and puts Cancel · Save on the right`() {
+        for locations in [["Payments API"], []] {
+            let sheet = SaveDraftSheet(locations: locations, default: nil) { _ in }
+            let panel = sheetPanel(sheet, focus: sheet.nameField)
+            panel.layoutIfNeeded()
+            let width = panel.contentView!.bounds.width
+
+            let name = frame(sheet.nameField, in: panel)
+            #expect(name.minX >= 16 + 70)
+            #expect(name.maxX <= width - 16 + 0.5)
+            #expect(abs(frame(sheet.saveButton, in: panel).maxX - (width - 16)) < 1)
+            #expect(frame(sheet.cancelButton, in: panel).maxX < frame(sheet.saveButton, in: panel).minX)
+            let label = sheet.nameLabel!
+            #expect(abs(frame(label, in: panel).maxX - (name.minX - 10)) <= 2)  // a label frame includes its 2 pt inset
+        }
+    }
+
+    @Test func `the Name sheet keeps its margins and puts its buttons on the right`() {
+        let sheet = NameSheet(title: "Rename", name: "Refunds", button: "Rename") { _ in }
+        let panel = sheetPanel(sheet, focus: sheet.nameField)
+        panel.layoutIfNeeded()
+        let width = panel.contentView!.bounds.width
+
+        let name = frame(sheet.nameField, in: panel)
+        #expect(name.minX >= 16 + 70)
+        #expect(name.maxX <= width - 16 + 0.5)
+        #expect(abs(frame(sheet.confirmButton, in: panel).maxX - (width - 16)) < 1)
+    }
+}

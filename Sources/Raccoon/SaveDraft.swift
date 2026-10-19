@@ -42,6 +42,7 @@ final class DraftSaver {
 final class SaveDraftSheet: NSViewController, NSTextFieldDelegate {
     let heading = NSTextField(labelWithString: "Save Request")
     let nameField = NSTextField()
+    private(set) var nameLabel: NSTextField!
     let locationPopUp = NSPopUpButton()
     let collectionField = NSTextField()
     private(set) var collectionRow: NSGridRow!
@@ -67,9 +68,7 @@ final class SaveDraftSheet: NSViewController, NSTextFieldDelegate {
     static func present(on window: NSWindow, locations: [String], default defaultLocation: String?,
                         reply: @escaping (SaveDraftAnswer?) -> Void) {
         let sheet = SaveDraftSheet(locations: locations, default: defaultLocation, reply: reply)
-        let panel = NSWindow(contentViewController: sheet)
-        panel.initialFirstResponder = sheet.nameField
-        window.beginSheet(panel)
+        window.beginSheet(sheetPanel(sheet, focus: sheet.nameField))
     }
 
     override func loadView() {
@@ -96,8 +95,9 @@ final class SaveDraftSheet: NSViewController, NSTextFieldDelegate {
             field.alignment = .right
             return field
         }
+        nameLabel = label("Name")
         let grid = NSGridView(views: [
-            [label("Name"), nameField],
+            [nameLabel, nameField],
             [label("Location"), locationPopUp],
             [label("Collection"), collectionField],
         ])
@@ -114,17 +114,7 @@ final class SaveDraftSheet: NSViewController, NSTextFieldDelegate {
         saveButton.keyEquivalent = "\r"
         saveButton.target = self
         saveButton.action = #selector(save)
-        let buttons = NSStackView(views: [cancelButton, saveButton])
-        buttons.spacing = 8
-
-        let column = NSStackView(views: [heading, grid, buttons])
-        column.orientation = .vertical
-        column.alignment = .leading
-        column.spacing = 12
-        column.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 12, right: 16)
-        column.setCustomSpacing(16, after: grid)
-        buttons.trailingAnchor.constraint(equalTo: column.trailingAnchor, constant: -16).isActive = true
-        view = column
+        view = sheetContent(heading: heading, grid: grid, buttons: [cancelButton, saveButton])
         validate()
     }
 
@@ -163,6 +153,39 @@ final class SaveDraftSheet: NSViewController, NSTextFieldDelegate {
     }
 }
 
+/// The panel a sheet is shown in; `focus` has focus when it opens.
+func sheetPanel(_ sheet: NSViewController, focus: NSView) -> NSWindow {
+    let panel = NSWindow(contentViewController: sheet)
+    panel.initialFirstResponder = focus
+    return panel
+}
+
+/// A native sheet's body: heading, a label-and-field grid, and buttons on the trailing edge.
+/// The 16 pt margins are constraints on a plain view: as a window's content view, an
+/// NSStackView let its edge insets break and its grid run to the panel's edges.
+func sheetContent(heading: NSView, grid: NSGridView, buttons: [NSButton]) -> NSView {
+    grid.column(at: 0).xPlacement = .trailing
+    let row = NSStackView()
+    row.spacing = 8
+    for button in buttons { row.addView(button, in: .trailing) }
+    let column = NSStackView(views: [heading, grid, row])
+    column.orientation = .vertical
+    column.alignment = .leading
+    column.spacing = 12
+    column.setCustomSpacing(16, after: grid)
+    column.translatesAutoresizingMaskIntoConstraints = false
+    let view = NSView()
+    view.addSubview(column)
+    NSLayoutConstraint.activate([
+        column.topAnchor.constraint(equalTo: view.topAnchor, constant: 16),
+        column.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+        column.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+        column.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -12),
+        row.widthAnchor.constraint(equalTo: column.widthAnchor),
+    ])
+    return view
+}
+
 /// One name: New Collection, New Folder and Rename (design-system §6 Name sheet).
 final class NameSheet: NSViewController, NSTextFieldDelegate {
     let heading = NSTextField(labelWithString: "")
@@ -185,9 +208,7 @@ final class NameSheet: NSViewController, NSTextFieldDelegate {
 
     static func present(on window: NSWindow, title: String, name: String, button: String, reply: @escaping (String?) -> Void) {
         let sheet = NameSheet(title: title, name: name, button: button, reply: reply)
-        let panel = NSWindow(contentViewController: sheet)
-        panel.initialFirstResponder = sheet.nameField
-        window.beginSheet(panel)
+        window.beginSheet(sheetPanel(sheet, focus: sheet.nameField))
     }
 
     override func loadView() {
@@ -207,16 +228,7 @@ final class NameSheet: NSViewController, NSTextFieldDelegate {
         confirmButton.keyEquivalent = "\r"
         confirmButton.target = self
         confirmButton.action = #selector(confirm)
-        let buttons = NSStackView(views: [cancelButton, confirmButton])
-        buttons.spacing = 8
-        let column = NSStackView(views: [heading, grid, buttons])
-        column.orientation = .vertical
-        column.alignment = .leading
-        column.spacing = 12
-        column.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 12, right: 16)
-        column.setCustomSpacing(16, after: grid)
-        buttons.trailingAnchor.constraint(equalTo: column.trailingAnchor, constant: -16).isActive = true
-        view = column
+        view = sheetContent(heading: heading, grid: grid, buttons: [cancelButton, confirmButton])
         validate()
     }
 
