@@ -38,6 +38,12 @@ characters of a large coloured storage in place takes minutes (environment-facts
   -> editor.bind(tabModels[tabID])               no I/O, no copy
 ```
 
+**A Request Tab's name is its Request's name, read from `DataFolderIndex` by RequestID**
+(decided 2026-10-19). The name has one home, the file, so a rename in the sidebar or on disk
+shows in the strip and the close prompt at once, and neither `Tab` nor the Session stores it.
+A Draft's name is `Tab.title`: "Draft", else its URL's path. A Request Tab whose id the index
+no longer has falls back to `Tab.title` until filesChanged turns it into a Draft.
+
 **⌘9 is the last Tab**, as in Safari and Finder, and ⌃⇥ wraps at either end. Undo is one
 stack for the window and its actions read whichever Tab is bound, so a switch clears it.
 

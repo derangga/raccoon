@@ -106,7 +106,7 @@ final class TabStripView: NSView {
     }
 
     private func item(for model: TabModel) -> TabItemView {
-        TabItemView(model: model, theme: theme, onSelect: { [weak self] in self?.windowModel.select(model.tab.id) },
+        TabItemView(model: model, theme: theme, title: { [weak self] in self?.windowModel.name(of: model.tab) ?? model.tab.title }, onSelect: { [weak self] in self?.windowModel.select(model.tab.id) },
                     onClose: { [weak self] in self?.onClose?(model) })
     }
 
@@ -169,8 +169,12 @@ final class TabItemView: NSView {
     var isSelected = false { didSet { if isSelected != oldValue { draw() } } }
     var isHovered = false { didSet { if isHovered != oldValue { draw() } } }
 
-    init(model: TabModel, theme: ThemeEnvironment, onSelect: @escaping () -> Void, onClose: @escaping () -> Void) {
+    /// The window's name for the Tab: a Request's comes from the index.
+    private let title: () -> String
+
+    init(model: TabModel, theme: ThemeEnvironment, title: @escaping () -> String, onSelect: @escaping () -> Void, onClose: @escaping () -> Void) {
         self.model = model
+        self.title = title
         self.theme = theme
         self.onSelect = onSelect
         self.onClose = onClose
@@ -252,9 +256,10 @@ final class TabItemView: NSView {
         draftDot.isHidden = tab.source != .draft
         badge.isHidden = spins
         badge.stringValue = tab.definition.method
-        name.stringValue = tab.title
+        let title = self.title()
+        name.stringValue = title
         name.font = tab.source == .draft ? Self.draftFont : Self.nameFont
-        toolTip = tab.title
+        toolTip = title
         // The macOS document convention: hovering a Dirty Tab swaps its dot for ✕.
         dot.isHidden = !(tab.isDirty || tab.isChangedOnDisk) || isHovered
         closeButton.isHidden = !isHovered
@@ -271,7 +276,7 @@ final class TabItemView: NSView {
         closeButton.contentTintColor = theme.color(.textSecondary)
         closeButton.layer?.backgroundColor = theme.color(.selection).cgColor
 
-        setAccessibilityTitle("\(tab.definition.method) \(tab.title)")
+        setAccessibilityTitle("\(tab.definition.method) \(title)")
         setAccessibilityValue(Self.accessibilityValue(tab))
         setAccessibilitySelected(isSelected)
         needsLayout = true

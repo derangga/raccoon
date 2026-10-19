@@ -78,11 +78,17 @@ that broke it, which is often the one they want back.
 The index keeps the first by path order and marks the second, so "one Tab per Request" holds.
 
 ```
--> openRequest(requestID)                        click in the sidebar
+-> openRequest(requestID)                        click (or Return) on a sidebar Request row
   -> window.tab(showing: requestID)?             one Tab per Request (CONTEXT, Tab)
      found -> select it, end
-  -> DataFolderStore.read(path)                  boundary    E: undecodable -> escape
+  -> DataFolderIndex.path(of: requestID)         pure; the row came from the index
+  -> DataFolderStore.read(path)                  boundary    E: unreadable -> escape: rescan
+  -> RequestFile.decode                          E: undecodable since the scan -> escape:
+                                                 rescan, so the row turns unreadable with
+                                                 its reason; no Tab opens
   -> Tab(source: .request(id), definition: r.definition, baseline: r.definition)
+                                                 inserted after the selected Tab, selected
+  -> one Tab per RequestID                       DIE (assertion) otherwise, §4 Invariants
 ```
 
 ```

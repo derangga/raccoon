@@ -17,6 +17,8 @@ struct DataFolderIndexTests {
         #expect(index.path(of: Self.id(1)) == "A/F/List refunds.json")
         #expect(index.path(of: Self.id(2)) == "A/Other.json")
         #expect(index.path(of: Self.id(3)) == nil)
+        #expect(index.name(of: Self.id(1)) == "List refunds")
+        #expect(index.name(of: Self.id(3)) == nil)
     }
 
     @Test func `insert puts a Request in its Folder, sorted, and indexes it`() {
@@ -37,5 +39,6 @@ struct DataFolderIndexTests {
             ]),
         ])
         #expect(index.path(of: Self.id(2)) == "A/F/Alpha.json")
+        #expect(index.name(of: Self.id(2)) == "Alpha")
     }
 }

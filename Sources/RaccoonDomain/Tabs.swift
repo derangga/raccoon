@@ -37,7 +37,7 @@ public struct Tab: Equatable, Sendable {
     }
 
     /// The tab strip's name for a Draft: "Draft" without a URL, else its path, else the URL as
-    /// typed. ponytail: a Request Tab shows the same until Collections gives it the Request's name.
+    /// typed. A Request Tab shows its Request's name from the index instead (tabs.md).
     public var title: String {
         let url = definition.url.trimmingCharacters(in: .whitespaces)
         guard !url.isEmpty else { return "Draft" }

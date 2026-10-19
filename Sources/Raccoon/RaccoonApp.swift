@@ -46,7 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let strip = TabStripView(window: windowModel, theme: theme)
         let closer = TabCloser(window: windowModel) { [weak windowController] model, reply in
             guard let window = windowController?.window else { return }
-            CloseConfirm.ask(model, in: window, reply: reply)
+            CloseConfirm.ask(model, name: windowModel.name(of: model.tab), in: window, reply: reply)
         }
         strip.onClose = closer.close
         self.closer = closer

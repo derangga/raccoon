@@ -135,7 +135,7 @@ struct CloseConfirmTests {
     }
 
     @Test func `a Draft's alert names it, offers a red Don't Save and Cancel, and Return does nothing`() {
-        let alert = CloseConfirm.alert(for: draft())
+        let alert = CloseConfirm.alert(for: draft(), name: "/v1/webhooks")
         #expect(alert.messageText == "Close “/v1/webhooks” without saving?")
         #expect(alert.informativeText == "This Draft hasn't been saved. Its request will be lost.")
         #expect(alert.buttons.map(\.title) == ["Don't Save", "Cancel"])
@@ -149,7 +149,7 @@ struct CloseConfirmTests {
         let model = draft()
         model.tab.source = .request(RequestID(UUID()))
         model.tab.baseline = .empty
-        #expect(CloseConfirm.alert(for: model).informativeText == "Your edits to this Request haven't been saved and will be lost.")
+        #expect(CloseConfirm.alert(for: model, name: "Create charge").informativeText == "Your edits to this Request haven't been saved and will be lost.")
     }
 
     @Test func `it is a sheet on the window, and Cancel gives focus back to where it was`() async throws {
@@ -162,7 +162,7 @@ struct CloseConfirmTests {
         let focused = window.firstResponder
 
         var choice: CloseChoice?
-        CloseConfirm.ask(draft(), in: window) { choice = $0 }
+        CloseConfirm.ask(draft(), name: "/v1/webhooks", in: window) { choice = $0 }
         let sheet = try #require(window.attachedSheet)
         window.endSheet(sheet, returnCode: .alertSecondButtonReturn)
         for _ in 0..<5 { await Task.yield() }

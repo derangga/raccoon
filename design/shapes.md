@@ -52,7 +52,7 @@ TreeNode                 .folder(name, [TreeNode]) · .request(RequestID, name, 
                          .unreadable(path, reason)              §4: a file that did not decode
 Collection               name, [TreeNode]
 DataFolderScan           files: [path: Data], folders: Set<path>    what scan returns
-DataFolderIndex          collections: [Collection], RequestID -> path, insert
+DataFolderIndex          collections: [Collection], RequestID -> path and name, insert
 RequestFileError         .notJSON(line) · .unknownVersion(Int) · .malformed(String)
                          .reason is the unreadable row's text (design-system §6)
 

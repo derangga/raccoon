@@ -338,6 +338,7 @@ final class WindowModel {
         }
         guard let first = restored.first else { return }
         tabs = restored
+        assertOneTabPerRequest()
         selected = restored.contains { $0.tab.id == session.selected } ? session.selected : first.tab.id
     }
 
@@ -401,8 +402,12 @@ final class WindowModel {
     }
 
     /// FolderWatch reported changes: the tree is rebuilt from a fresh scan.
-    /// ponytail: the whole folder is rescanned; per-Collection rebuilds when a large folder is slow.
     private func filesChanged(_ paths: [String]) {
+        rescan()
+    }
+
+    /// ponytail: the whole folder is rescanned; per-Collection rebuilds when a large folder is slow.
+    private func rescan() {
         guard let store else { return }
         do throws(StoreError) {
             index = DataFolderIndex(TreeDecoder.collections(try store.scan()))
@@ -411,9 +416,51 @@ final class WindowModel {
         }
     }
 
+    /// A Request Tab is named after its Request, from the index; a Draft by `Tab.title` (tabs.md).
+    func name(of tab: Tab) -> String {
+        if case .request(let id) = tab.source, let name = index.name(of: id) { return name }
+        return tab.title
+    }
+
+    /// A click on a sidebar Request row. One Tab per Request: an open one is selected. A file
+    /// that broke since the scan opens nothing; the rescan turns its row unreadable.
+    func openRequest(_ id: RequestID) {
+        if let open = tabs.first(where: { $0.tab.source == .request(id) }) {
+            selected = open.tab.id
+            return
+        }
+        guard let store, let path = index.path(of: id) else { return }
+        let request: Request
+        do throws(StoreError) {
+            let data = try store.read(path)
+            do throws(RequestFileError) {
+                request = try RequestFile.decode(data)
+            } catch {
+                return rescan()
+            }
+        } catch {
+            return rescan()
+        }
+        // Someone gave the file another id since the scan.
+        guard request.id == id else { return rescan() }
+        let model = makeTab()
+        model.tab = Tab(id: model.tab.id, source: .request(id), definition: request.definition, baseline: request.definition)
+        insertAfterSelected(model)
+        assertOneTabPerRequest()
+    }
+
+    /// §4 Invariants: two Tabs editing one file would each overwrite the other's save.
+    private func assertOneTabPerRequest() {
+        let ids = tabs.compactMap { if case .request(let id) = $0.tab.source { id } else { nil } }
+        precondition(Set(ids).count == ids.count, "two Tabs for one Request")
+    }
+
     /// ⌘T: an empty Draft after the selected Tab.
     func newTab() {
-        let tab = makeTab()
+        insertAfterSelected(makeTab())
+    }
+
+    private func insertAfterSelected(_ tab: TabModel) {
         let index = tabs.firstIndex { $0.tab.id == selected }.map { $0 + 1 } ?? tabs.endIndex
         tabs.insert(tab, at: index)
         selected = tab.tab.id

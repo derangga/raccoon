@@ -88,6 +88,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         outline.dataSource = self
         outline.delegate = self
         outline.target = self
+        outline.action = #selector(clicked)
         outline.doubleAction = #selector(doubleClicked)
         outline.setAccessibilityLabel("Collections")
         let scroll = NSScrollView()
@@ -164,14 +165,28 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         if !rows.isEmpty { outline.noteHeightOfRows(withIndexesChanged: IndexSet(rows)) }
     }
 
+    @objc private func clicked() {
+        open(row: outline.clickedRow)
+    }
+
     @objc private func doubleClicked() {
         activate(row: outline.clickedRow)
     }
 
-    /// Double-click or Return on a row. An unreadable file is revealed in Finder.
+    /// A click: a Request opens in its Tab. Anything else only selects.
+    func open(row: Int) {
+        guard let item = outline.item(atRow: row) as? SidebarItem, case .request(let id, _) = item.kind else { return }
+        window.openRequest(id)
+    }
+
+    /// Double-click or Return: a Request opens, an unreadable file is revealed in Finder.
     func activate(row: Int) {
         guard let item = outline.item(atRow: row) as? SidebarItem else { return }
-        if case .unreadable = item.kind { reveal(window.dataFolderRoot + "/" + item.path) }
+        switch item.kind {
+        case .request: open(row: row)
+        case .unreadable: reveal(window.dataFolderRoot + "/" + item.path)
+        case .collection, .folder: break
+        }
     }
 
     // MARK: Data source

@@ -30,9 +30,10 @@ final class TabCloser {
 
 /// The close confirmation (design-system.md §6): an NSAlert sheet on the window.
 enum CloseConfirm {
-    static func alert(for model: TabModel) -> NSAlert {
+    /// `name` is the window's name for the Tab: a Request's own name, a Draft's URL path.
+    static func alert(for model: TabModel, name: String) -> NSAlert {
         let alert = NSAlert()
-        alert.messageText = "Close “\(model.tab.title)” without saving?"
+        alert.messageText = "Close “\(name)” without saving?"
         alert.informativeText = model.tab.source == .draft
             ? "This Draft hasn't been saved. Its request will be lost."
             : "Your edits to this Request haven't been saved and will be lost."
@@ -46,11 +47,11 @@ enum CloseConfirm {
     }
 
     /// Cancel and Esc give focus back to where it was before the sheet.
-    static func ask(_ model: TabModel, in window: NSWindow, reply: @escaping (CloseChoice) -> Void) {
+    static func ask(_ model: TabModel, name: String, in window: NSWindow, reply: @escaping (CloseChoice) -> Void) {
         // A second ⌘W while the sheet is up asks nothing more.
         guard window.attachedSheet == nil else { return }
         let focused = window.firstResponder
-        alert(for: model).beginSheetModal(for: window) { response in
+        alert(for: model, name: name).beginSheetModal(for: window) { response in
             let choice: CloseChoice = response == .alertFirstButtonReturn ? .dontSave : .cancel
             if choice == .cancel, let focused { window.makeFirstResponder(focused) }
             reply(choice)
