@@ -234,6 +234,12 @@ final class TabModel {
         self.inFlight = nil
         tab.response = .idle
     }
+
+    /// The Tab is going away: its send and its presentation stop now (§8).
+    func close() {
+        cancel()
+        presenting?.cancel()
+    }
 }
 
 /// The window's Tabs and the ports that touch the Data Folder, the Session and the Keychain.
@@ -338,6 +344,16 @@ final class WindowModel {
     func select(_ id: TabID) {
         guard tabs.contains(where: { $0.tab.id == id }) else { return }
         selected = id
+    }
+
+    /// Removes the Tab after stopping its send. The selection moves to the Tab after it, else
+    /// the one before; the last Tab is replaced by an empty Draft (Open UI Q1).
+    func close(_ id: TabID) {
+        guard let index = tabs.firstIndex(where: { $0.tab.id == id }) else { return }
+        tabs[index].close()
+        tabs.remove(at: index)
+        guard !tabs.isEmpty else { return newTab() }
+        if selected == id { selected = tabs[min(index, tabs.count - 1)].tab.id }
     }
 
     /// ⌘1…⌘8 by position, ⌘9 the last Tab, as in Safari and Finder.

@@ -468,6 +468,15 @@ Seen on: 07, 09.
 Collections and Folders as a path ("Payments API ▸ Webhooks", default: the last one used), and
 Cancel · **Save**. With no Collections the pop-up offers "New Collection…". Seen on: 09.
 
+### Close confirmation (native)
+
+An `NSAlert` sheet on the window (Open UI Q8), shown when closing a Tab with losable content
+(a Dirty Tab or a non-empty Draft). Message: "Do you want to save the changes to “<name>”?",
+where the name is the one the Tab shows. Informative text: "Your changes will be lost if you
+don't save them." Buttons **Save** (Return), Don't Save (⌘D), Cancel (Esc). Save is disabled
+until the Collections epic writes Requests; it then saves and closes. Cancel and Esc keep the
+Tab and give focus back to where it was. Not drawn.
+
 ### Postman Import sheet (native)
 
 Opened by File ▸ Import from Postman… (⇧⌘I) or Import from Postman… in the sidebar's +

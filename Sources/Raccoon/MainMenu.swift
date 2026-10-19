@@ -13,6 +13,8 @@ enum MainMenu {
         // No target: the AppDelegate, which owns the WindowModel, takes the Tab items.
         menu.addItem(submenu("File", [
             NSMenuItem(title: "New Tab", action: #selector(AppDelegate.newTab(_:)), keyEquivalent: "t"),
+            .separator(),
+            NSMenuItem(title: "Close Tab", action: #selector(AppDelegate.closeTab(_:)), keyEquivalent: "w"),
         ]))
         let copyAsCurl = copyAsCurl()
         copyAsCurl.keyEquivalent = "c"
