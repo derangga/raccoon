@@ -50,10 +50,12 @@ stack for the window and its actions read whichever Tab is bound, so a switch cl
 ```
 -> close(tabID)                                  ⌘W, the ✕
   -> tab.isDirty or tab is a non-empty Draft?
-    -> ask: Don't Save · Cancel                  a sheet on the window (Open UI Q8);
-                                                 Save joins them with Collections
+    -> ask: Save · Don't Save · Cancel           a sheet on the window (Open UI Q8)
                                                  escape: Cancel or Esc keeps the Tab
-    -> Save -> collections.md save(tab)          E: StoreError -> escape, Tab stays open
+    -> Save -> collections.md save(tab)          a Draft: the Save Request sheet first;
+                                                 closes only once the write landed
+                                                 E: StoreError -> escape, Tab stays open
+                                                 with Not saved
   -> TabModel.close()                            §8: cancels the in-flight send
   -> remove, select the neighbour               the last Tab -> newTab() (Open UI Q1)
   -> SessionWriter.schedule()

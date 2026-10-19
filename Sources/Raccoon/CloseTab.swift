@@ -1,26 +1,29 @@
 import AppKit
 import RaccoonDomain
 
-/// Save joins these when Collections can write a Request; it saves, then closes.
+/// Save saves, then closes once the write landed.
 enum CloseChoice {
-    case dontSave, cancel
+    case save, dontSave, cancel
 }
 
 /// ⌘W and the ✕: asks first when closing would lose something (tabs.md §close).
 final class TabCloser {
     private let window: WindowModel
+    private let saver: DraftSaver
     private let ask: (TabModel, @escaping (CloseChoice) -> Void) -> Void
 
-    /// `ask` is CloseConfirm's sheet in the app.
-    init(window: WindowModel, ask: @escaping (TabModel, @escaping (CloseChoice) -> Void) -> Void) {
+    /// `ask` is CloseConfirm's sheet in the app; `saver` is ⌘S's, sheet and all.
+    init(window: WindowModel, saver: DraftSaver, ask: @escaping (TabModel, @escaping (CloseChoice) -> Void) -> Void) {
         self.window = window
+        self.saver = saver
         self.ask = ask
     }
 
     func close(_ model: TabModel) {
         guard model.tab.hasLosableContent else { return window.close(model.tab.id) }
-        ask(model) { [window] choice in
+        ask(model) { [window, saver] choice in
             switch choice {
+            case .save: saver.save(model) { saved in if saved { window.close(model.tab.id) } }
             case .dontSave: window.close(model.tab.id)
             case .cancel: break
             }
@@ -33,11 +36,12 @@ enum CloseConfirm {
     /// `name` is the window's name for the Tab: a Request's own name, a Draft's URL path.
     static func alert(for model: TabModel, name: String) -> NSAlert {
         let alert = NSAlert()
-        alert.messageText = "Close “\(name)” without saving?"
+        alert.messageText = "Save “\(name)” before closing?"
         alert.informativeText = model.tab.source == .draft
             ? "This Draft hasn't been saved. Its request will be lost."
             : "Your edits to this Request haven't been saved and will be lost."
-        // The first button would answer Return; discarding work never takes a key a hand rests on.
+        // Return saves: discarding work never takes a key a hand rests on.
+        alert.addButton(withTitle: "Save").keyEquivalent = "\r"
         let dontSave = alert.addButton(withTitle: "Don't Save")
         dontSave.hasDestructiveAction = true
         dontSave.keyEquivalent = "d"
@@ -52,7 +56,11 @@ enum CloseConfirm {
         guard window.attachedSheet == nil else { return }
         let focused = window.firstResponder
         alert(for: model, name: name).beginSheetModal(for: window) { response in
-            let choice: CloseChoice = response == .alertFirstButtonReturn ? .dontSave : .cancel
+            let choice: CloseChoice = switch response {
+            case .alertFirstButtonReturn: .save
+            case .alertSecondButtonReturn: .dontSave
+            default: .cancel
+            }
             if choice == .cancel, let focused { window.makeFirstResponder(focused) }
             reply(choice)
         }

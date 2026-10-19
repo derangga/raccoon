@@ -89,7 +89,7 @@ struct CloseTabTests {
     @Test func `an empty Draft closes without asking, a non-empty Draft and a Dirty Tab ask`() {
         let window = makeWindow()
         let ask = ScriptedAsk(.cancel)
-        let closer = TabCloser(window: window, ask: ask.ask)
+        let closer = TabCloser(window: window, saver: DraftSaver(window: window, ask: { _, _, reply in reply(nil) }, focusURL: {}), ask: ask.ask)
         for _ in 0..<2 { window.newTab() }
         let (empty, draft, dirty) = (window.tabs[0], window.tabs[1], window.tabs[2])
         draft.typeInURLBar("https://api.example.com/v1/webhooks")
@@ -111,7 +111,7 @@ struct CloseTabTests {
         window.newTab()
         window.tabs[1].typeInURLBar("https://api.example.com/2")
         let ask = ScriptedAsk(.cancel)
-        let closer = TabCloser(window: window, ask: ask.ask)
+        let closer = TabCloser(window: window, saver: DraftSaver(window: window, ask: { _, _, reply in reply(nil) }, focusURL: {}), ask: ask.ask)
         let kept = window.tabs[1]
 
         closer.close(kept)
@@ -134,15 +134,16 @@ struct CloseConfirmTests {
         return model
     }
 
-    @Test func `a Draft's alert names it, offers a red Don't Save and Cancel, and Return does nothing`() {
+    @Test func `a Draft's alert names it, offers Save on Return, a red Don't Save and Cancel`() {
         let alert = CloseConfirm.alert(for: draft(), name: "/v1/webhooks")
-        #expect(alert.messageText == "Close “/v1/webhooks” without saving?")
+        #expect(alert.messageText == "Save “/v1/webhooks” before closing?")
         #expect(alert.informativeText == "This Draft hasn't been saved. Its request will be lost.")
-        #expect(alert.buttons.map(\.title) == ["Don't Save", "Cancel"])
-        #expect(alert.buttons.map(\.hasDestructiveAction) == [true, false])
-        #expect(alert.buttons[0].keyEquivalent == "d" && alert.buttons[0].keyEquivalentModifierMask == .command)
-        #expect(alert.buttons[1].keyEquivalent == "\u{1b}")
-        #expect(!alert.buttons.contains { $0.keyEquivalent == "\r" })
+        #expect(alert.buttons.map(\.title) == ["Save", "Don't Save", "Cancel"])
+        #expect(alert.buttons.map(\.hasDestructiveAction) == [false, true, false])
+        // Return saves: no key a hand rests on discards work.
+        #expect(alert.buttons[0].keyEquivalent == "\r")
+        #expect(alert.buttons[1].keyEquivalent == "d" && alert.buttons[1].keyEquivalentModifierMask == .command)
+        #expect(alert.buttons[2].keyEquivalent == "\u{1b}")
     }
 
     @Test func `a Dirty Tab's alert speaks of the Request's edits`() {
@@ -164,7 +165,7 @@ struct CloseConfirmTests {
         var choice: CloseChoice?
         CloseConfirm.ask(draft(), name: "/v1/webhooks", in: window) { choice = $0 }
         let sheet = try #require(window.attachedSheet)
-        window.endSheet(sheet, returnCode: .alertSecondButtonReturn)
+        window.endSheet(sheet, returnCode: .alertThirdButtonReturn)
         for _ in 0..<5 { await Task.yield() }
 
         #expect(choice == .cancel)

@@ -22,13 +22,18 @@ final class DraftSaver {
         self.focusURL = focusURL
     }
 
-    func save(_ model: TabModel) {
-        guard model.tab.source == .draft else { return window.save(model.tab.id) }
+    /// `done` learns whether the write landed: the close prompt closes only then.
+    func save(_ model: TabModel, then done: @escaping (Bool) -> Void = { _ in }) {
+        guard model.tab.source == .draft else {
+            window.save(model.tab.id)
+            return done(!model.tab.isDirty && model.notice == nil)
+        }
         // The window banner already says why there is nowhere to save.
-        guard window.dataFolderError == nil else { return }
+        guard window.dataFolderError == nil else { return done(false) }
         ask(window.index.folders, window.lastSaveLocation) { [window, focusURL] answer in
             if let answer { window.saveDraft(model.tab.id, name: answer.name, in: answer.location) }
             focusURL()
+            done(model.tab.source != .draft)
         }
     }
 }

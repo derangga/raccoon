@@ -46,7 +46,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let tabController = TabViewController(model: windowModel.tabs[0], theme: theme)
         let strip = TabStripView(window: windowModel, theme: theme)
-        let closer = TabCloser(window: windowModel) { [weak windowController] model, reply in
+        let saver = DraftSaver(window: windowModel, ask: { [weak windowController] locations, location, reply in
+            guard let window = windowController?.window else { return reply(nil) }
+            // A turn later: from the close prompt, its own sheet is still ending.
+            Task { @MainActor in SaveDraftSheet.present(on: window, locations: locations, default: location, reply: reply) }
+        }, focusURL: { [weak tabController] in
+            tabController.flatMap { $0.view.window?.makeFirstResponder($0.urlBar.urlField) }
+        })
+        self.saver = saver
+        let closer = TabCloser(window: windowModel, saver: saver) { [weak windowController] model, reply in
             guard let window = windowController?.window else { return }
             CloseConfirm.ask(model, name: windowModel.name(of: model.tab), in: window, reply: reply)
         }
@@ -73,12 +81,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let tabBanner = TabBannerBinding(window: windowModel, theme: theme, reduceMotion: { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion })
         windowController.split.showTab(ContentViewController(strip: strip, tab: tabController, banner: tabBanner))
         self.tabController = tabController
-        saver = DraftSaver(window: windowModel, ask: { [weak windowController] locations, location, reply in
-            guard let window = windowController?.window else { return reply(nil) }
-            SaveDraftSheet.present(on: window, locations: locations, default: location, reply: reply)
-        }, focusURL: { [weak tabController] in
-            tabController?.view.window?.makeFirstResponder(tabController?.urlBar.urlField)
-        })
         showSelectedTab()
         windowController.showWindow(nil)
         self.windowController = windowController

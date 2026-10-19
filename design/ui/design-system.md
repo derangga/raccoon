@@ -486,13 +486,15 @@ sheets. The button is disabled while the name is blank. A failed operation is an
 ### Close confirmation (native)
 
 An `NSAlert` sheet on the window (Open UI Q8), shown when closing a Tab with losable content
-(a Dirty Tab or a non-empty Draft). Message: "Close “<name>” without saving?", where the name
+(a Dirty Tab or a non-empty Draft). Message: "Save “<name>” before closing?", where the name
 is the one the Tab shows. Informative text: for a Draft "This Draft hasn't been saved. Its
 request will be lost."; for a Dirty Tab "Your edits to this Request haven't been saved and
-will be lost." Buttons: Don't Save (destructive, red, ⌘D), then Cancel (Esc). Return does
-nothing, so no key a hand rests on discards work. There is no Save button until the
-Collections epic writes Requests; it then adds Save, which saves and closes. Cancel and Esc
-keep the Tab and give focus back to where it was. The alert shows the app icon once Raccoon
+will be lost." Buttons: **Save** (Return), Don't Save (destructive, red, ⌘D), Cancel (Esc).
+Save saves and then closes: a Request Tab through the window, a Draft through the Save
+Request sheet; a failed write or Cancel in the sheet keeps the Tab open. Return saves, so no
+key a hand rests on discards work (decided 2026-10-19, when Save arrived: the message was
+"Close “<name>” without saving?", which read wrong over a Save default). Cancel and Esc keep
+the Tab and give focus back to where it was. The alert shows the app icon once Raccoon
 has one. Not drawn.
 
 ### Postman Import sheet (native)
