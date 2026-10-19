@@ -27,6 +27,9 @@ final class TabModel {
     /// The line under the URL bar; not part of the Tab, so it is never saved.
     var message: MessageLine?
 
+    /// A Tab banner the user dismisses; never written to the Session.
+    var notice: TabNotice?
+
     /// Where the one editor was when this Tab was last shown, so switching back restores it.
     var viewState = ViewState()
 
@@ -242,6 +245,13 @@ final class TabModel {
     }
 }
 
+/// A Tab banner that stays until dismissed (design-system §6 Banners). Changed on Disk is not
+/// one: it comes from `Tab.isChangedOnDisk` and ends by Reload or Keep Mine.
+enum TabNotice: Equatable {
+    case notSaved(file: String, reason: String)
+    case deletedOnDisk(file: String)
+}
+
 /// Where the Data Folder is, how to open a store at a root, and how to remember a new root.
 /// The composition root backs it with UserDefaults; tests with a temp dir.
 struct DataFolderLocation {
@@ -270,6 +280,8 @@ final class WindowModel {
     private(set) var index = DataFolderIndex([])
     /// Why the Data Folder is unavailable, for the window banner. Drafts and sending still work.
     private(set) var dataFolderError: StoreError?
+    /// Raccoon's own writes, so FolderWatch can drop them (behavior.md §7).
+    private(set) var ledger = WriteLedger()
     /// The store at the current root; nil while unavailable.
     private var store: (any DataFolderStore)?
     /// The withDataFolder scope (§8): iterating the FolderWatch stream. Cancelling it ends the stream.
@@ -447,6 +459,38 @@ final class WindowModel {
         model.tab = Tab(id: model.tab.id, source: .request(id), definition: request.definition, baseline: request.definition)
         insertAfterSelected(model)
         assertOneTabPerRequest()
+    }
+
+    /// ⌘S on a Request Tab: through the window, which owns the index and the ledger. A failed
+    /// write leaves the Tab Dirty and says so in its banner; nothing claims a save that did not land.
+    func save(_ id: TabID) {
+        guard let model = tabs.first(where: { $0.tab.id == id }), case .request(let requestID) = model.tab.source,
+              let store, let path = index.path(of: requestID), let name = index.name(of: requestID)
+        else { return }
+        let data = RequestFile.encode(Request(id: requestID, name: name, definition: model.tab.definition))
+        do throws(StoreError) {
+            try store.write(data, to: path)
+        } catch {
+            switch error {
+            case .unwritable(_, let reason), .unreadable(_, let reason), .undecodable(_, let reason):
+                model.notice = .notSaved(file: Self.fileName(path), reason: reason)
+            }
+            return
+        }
+        ledger.record(path, data)
+        model.tab.baseline = model.tab.definition
+        model.tab.isChangedOnDisk = false
+        model.notice = nil
+    }
+
+    /// The file a Request Tab is saved in, as banners name it; nil for a Draft.
+    func fileName(of tab: Tab) -> String? {
+        guard case .request(let id) = tab.source, let path = index.path(of: id) else { return nil }
+        return Self.fileName(path)
+    }
+
+    private static func fileName(_ path: String) -> String {
+        String(path.split(separator: "/").last ?? "")
     }
 
     /// §4 Invariants: two Tabs editing one file would each overwrite the other's save.

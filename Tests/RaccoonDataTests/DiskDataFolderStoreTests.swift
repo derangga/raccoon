@@ -47,6 +47,13 @@ final class DiskDataFolderStoreTests {
         ))
     }
 
+    @Test func `a write into a read-only folder says permission denied`() throws {
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: root.path)
+        #expect(throws: StoreError.unwritable(path: "a.json", reason: "permission denied")) {
+            try store.write(Data("{}".utf8), to: "a.json")
+        }
+    }
+
     @Test func `read returns what write wrote`() throws {
         try store.createDirectory("Payments API")
         try store.write(Data("{}".utf8), to: "Payments API/Create charge.json")

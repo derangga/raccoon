@@ -53,7 +53,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowController.split.showSidebar(SidebarViewController(window: windowModel, theme: theme) { path in
             NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: path)])
         })
-        windowController.split.showTab(ContentViewController(strip: strip, tab: tabController))
+        let tabBanner = TabBannerBinding(window: windowModel, theme: theme, reduceMotion: { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion })
+        windowController.split.showTab(ContentViewController(strip: strip, tab: tabController, banner: tabBanner))
         self.tabController = tabController
         showSelectedTab()
         windowController.showWindow(nil)
@@ -74,6 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func newTab(_ sender: Any?) { windowModel?.newTab() }
+    @objc func save(_ sender: Any?) { if let id = windowModel?.selected { windowModel?.save(id) } }
     @objc func closeTab(_ sender: Any?) { if let tab = windowModel?.selectedTab { closer?.close(tab) } }
     @objc func showTab(_ sender: NSMenuItem) { windowModel?.select(number: sender.tag) }
     @objc func showNextTab(_ sender: Any?) { windowModel?.selectNext() }

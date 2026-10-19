@@ -323,13 +323,16 @@ final class TabItemView: NSView {
 }
 
 /// The content pane: the tab strip over the one TabViewController.
+/// The tab strip, the selected Tab's banner (board 05), then the selected Tab's editor.
 final class ContentViewController: NSViewController {
     let strip: TabStripView
     let tab: TabViewController
+    let banner: TabBannerBinding
 
-    init(strip: TabStripView, tab: TabViewController) {
+    init(strip: TabStripView, tab: TabViewController, banner: TabBannerBinding) {
         self.strip = strip
         self.tab = tab
+        self.banner = banner
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -339,7 +342,7 @@ final class ContentViewController: NSViewController {
     override func loadView() {
         let root = NSView()
         addChild(tab)
-        for part in [strip, tab.view] {
+        for part in [strip, banner.view, tab.view] {
             part.translatesAutoresizingMaskIntoConstraints = false
             root.addSubview(part)
         }
@@ -348,7 +351,11 @@ final class ContentViewController: NSViewController {
             strip.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             strip.trailingAnchor.constraint(equalTo: root.trailingAnchor),
             strip.heightAnchor.constraint(equalToConstant: TabStripView.height),
-            tab.view.topAnchor.constraint(equalTo: strip.bottomAnchor),
+            banner.view.topAnchor.constraint(equalTo: strip.bottomAnchor),
+            banner.view.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            banner.view.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            banner.view.height,
+            tab.view.topAnchor.constraint(equalTo: banner.view.bottomAnchor),
             tab.view.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             tab.view.trailingAnchor.constraint(equalTo: root.trailingAnchor),
             tab.view.bottomAnchor.constraint(equalTo: root.bottomAnchor),

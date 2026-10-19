@@ -14,6 +14,8 @@ enum MainMenu {
         menu.addItem(submenu("File", [
             NSMenuItem(title: "New Tab", action: #selector(AppDelegate.newTab(_:)), keyEquivalent: "t"),
             .separator(),
+            NSMenuItem(title: "Save", action: #selector(AppDelegate.save(_:)), keyEquivalent: "s"),
+            .separator(),
             NSMenuItem(title: "Close Tab", action: #selector(AppDelegate.closeTab(_:)), keyEquivalent: "w"),
         ]))
         let copyAsCurl = copyAsCurl()

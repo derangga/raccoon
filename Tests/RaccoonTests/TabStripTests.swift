@@ -211,7 +211,8 @@ struct ContentLayoutTests {
         let window = TabStripViewTests().makeWindow()
         let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
         let tab = TabViewController(model: window.tabs[0], theme: theme)
-        let content = ContentViewController(strip: TabStripView(window: window, theme: theme), tab: tab)
+        let content = ContentViewController(strip: TabStripView(window: window, theme: theme), tab: tab,
+                                            banner: TabBannerBinding(window: window, theme: theme, reduceMotion: { true }))
         content.view.frame = NSRect(x: 0, y: 0, width: 900, height: 600)
         content.view.layoutSubtreeIfNeeded()
 

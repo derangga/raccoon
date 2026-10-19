@@ -271,3 +271,59 @@ final class DataFolderBannerBinding {
         }
     }
 }
+
+/// The Tab banners (design-system §6 Banners): a notice first, else Changed on Disk.
+enum TabBanner {
+    static let dismiss = Banner.Button(title: "Dismiss", isPrimary: false)
+
+    /// `changedOnDisk` is the file's name while the Tab is Changed on Disk.
+    static func content(notice: TabNotice?, changedOnDisk: String?) -> Banner? {
+        switch (notice, changedOnDisk) {
+        case (.notSaved(let file, let reason)?, _):
+            Banner(glyph: .error, lead: "Not saved.",
+                   detail: [.text(" Couldn't write \(file): \(reason). The Tab keeps your edits.")], buttons: [dismiss])
+        case (.deletedOnDisk(let file)?, _):
+            Banner(glyph: .warning, lead: "Deleted on disk.",
+                   detail: [.text(" \(file) is gone. This Tab is now a Draft with your content, and ⌘S saves it again.")], buttons: [dismiss])
+        case (nil, let file?):
+            Banner(glyph: .warning, lead: "Changed on Disk.",
+                   detail: [.text(" \(file) was changed outside Raccoon. Your edits are kept until you choose.")],
+                   buttons: [Banner.Button(title: "Keep Mine", isPrimary: false), Banner.Button(title: "Reload", isPrimary: true)])
+        case (nil, nil):
+            nil
+        }
+    }
+}
+
+/// The one Tab banner under the tab strip, showing the selected Tab's.
+final class TabBannerBinding {
+    let view: BannerView
+    private let window: WindowModel
+
+    init(window: WindowModel, theme: ThemeEnvironment, reduceMotion: @escaping () -> Bool) {
+        self.window = window
+        view = BannerView(theme: theme, reduceMotion: reduceMotion)
+        view.onButton = { [weak self] index in self?.press(index) }
+        update()
+    }
+
+    private func update() {
+        let content = withObservationTracking { () -> Banner? in
+            guard let tab = window.selectedTab else { return nil }
+            return TabBanner.content(notice: tab.notice, changedOnDisk: tab.tab.isChangedOnDisk ? window.fileName(of: tab.tab) : nil)
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.update() }
+        }
+        // Switching Tabs swaps the banner at once; only a change on the shown Tab animates.
+        let animated = view.window != nil
+        if let content { view.show(content, animated: animated) } else { view.hide(animated: animated) }
+    }
+
+    private func press(_ index: Int) {
+        guard let tab = window.selectedTab else { return }
+        if tab.notice != nil {
+            tab.notice = nil
+            update()
+        }
+    }
+}
