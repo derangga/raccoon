@@ -431,8 +431,11 @@ a bold lead sentence and detail in `textSecondary`, buttons trailing.
 | Deleted on disk | `warning` | "**Deleted on disk.** <file> is gone. This Tab is now a Draft with your content, and ⌘S saves it again." | Dismiss |
 | Not saved (write failed) | `error` | "**Not saved.** Couldn't write <file>: <reason>. The Tab keeps your edits." | Dismiss |
 | Data Folder not writable | `error` | "**Raccoon can't write to the Data Folder.** <path> is read-only. Collections are unavailable; Drafts and sending still work." | **Choose Folder…** |
+| Data Folder not readable | `error` | "**Raccoon can't read the Data Folder.** <path> can't be read: <reason>. Collections are unavailable; Drafts and sending still work." | **Choose Folder…** |
 
-The Data Folder banner is the one global surface: it spans the whole window under the
+<path> is abbreviated with `~` and set in SF Mono 12. Choose Folder… opens an open panel as a
+sheet (folders only, New Folder allowed); Cancel changes nothing. The Data Folder banner is
+the one global surface: it spans the whole window under the
 toolbar, above sidebar and content, because it is the only failure with no smaller place
 (e-where-it-breaks.md). Seen on: 05, 09.
 

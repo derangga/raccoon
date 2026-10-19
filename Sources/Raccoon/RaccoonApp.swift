@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var tabController: TabViewController?
     private var themeController: ThemeController?
     private var closer: TabCloser?
+    private var dataFolderBanner: DataFolderBannerBinding?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Raccoon's Tabs are its own; system window tabs would add a second kind on ⌘T's menu.
@@ -31,7 +32,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.themeController = themeController
         NSApp.mainMenu = MainMenu.make(theme: themeController)
         let theme = themeController.theme
-        let windowController = MainWindowController(theme: theme)
+        let windowController = MainWindowController(theme: theme, reduceMotion: { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion })
+        dataFolderBanner = DataFolderBannerBinding(window: windowModel, banner: windowController.banner) { [weak windowController] in
+            guard let window = windowController?.window else { return nil }
+            let panel = NSOpenPanel()
+            panel.canChooseDirectories = true
+            panel.canChooseFiles = false
+            panel.canCreateDirectories = true
+            panel.prompt = "Choose"
+            return await panel.beginSheetModal(for: window) == .OK ? panel.url?.path : nil
+        }
         let tabController = TabViewController(model: windowModel.tabs[0], theme: theme)
         let strip = TabStripView(window: windowModel, theme: theme)
         let closer = TabCloser(window: windowModel) { [weak windowController] model, reply in

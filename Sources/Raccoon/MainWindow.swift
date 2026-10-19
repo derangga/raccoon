@@ -5,16 +5,19 @@ import RaccoonDomain
 /// The one main window: native sidebar, themed content, themed inspector, unified toolbar.
 final class MainWindowController: NSWindowController, NSToolbarDelegate {
     let split: MainSplitViewController
+    /// The window banner: the Data Folder's, above sidebar and content (design-system §6 Banners).
+    let banner: BannerView
     let sidebarToggle = MainWindowController.toggle(symbol: "sidebar.left", label: "Show Sidebar", action: #selector(NSSplitViewController.toggleSidebar(_:)))
     let inspectorToggle = MainWindowController.toggle(symbol: "sidebar.right", label: "Show Inspector", action: #selector(NSSplitViewController.toggleInspector(_:)))
 
-    init(theme: ThemeEnvironment) {
+    init(theme: ThemeEnvironment, reduceMotion: @escaping () -> Bool) {
         split = MainSplitViewController(theme: theme)
+        banner = BannerView(theme: theme, reduceMotion: reduceMotion)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 760),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: false)
         window.title = "Raccoon"
-        window.contentViewController = split
+        window.contentViewController = WindowContentViewController(banner: banner, split: split)
         window.setContentSize(NSSize(width: 1200, height: 760))
         window.center()
         super.init(window: window)
@@ -81,6 +84,40 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         item.view = button
         item.label = button.toolTip ?? ""
         return item
+    }
+}
+
+/// The window banner over the split, both full width. Hidden, the banner takes no height.
+private final class WindowContentViewController: NSViewController {
+    private let banner: BannerView
+    private let split: MainSplitViewController
+
+    init(banner: BannerView, split: MainSplitViewController) {
+        self.banner = banner
+        self.split = split
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    override func loadView() {
+        view = NSView(frame: NSRect(x: 0, y: 0, width: 1200, height: 760))
+        addChild(split)
+        for child in [banner, split.view] {
+            child.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(child)
+        }
+        NSLayoutConstraint.activate([
+            banner.topAnchor.constraint(equalTo: view.topAnchor),
+            banner.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            banner.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            banner.height,
+            split.view.topAnchor.constraint(equalTo: banner.bottomAnchor),
+            split.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            split.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            split.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
     }
 }
 

@@ -4,7 +4,7 @@ import Testing
 
 @MainActor
 struct NarrowLayoutTests {
-    let controller = MainWindowController(theme: ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false))
+    let controller = MainWindowController(theme: ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false), reduceMotion: { true })
     var split: MainSplitViewController { controller.split }
     var window: NSWindow { controller.window! }
 

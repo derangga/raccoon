@@ -203,6 +203,36 @@ struct ThemeControllerTests {
         #expect(left.isEmpty, "\(left)")
     }
 
+    @Test func `switching the Flavor leaves no colour of the old one on a banner`() async throws {
+        let theme = ThemeEnvironment(catalog: catalog, isDark: false)
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 900, height: 72))
+        let error = BannerView(theme: theme, reduceMotion: { true })
+        error.show(try #require(DataFolderBanner.content(for: .unwritable(path: "/x", reason: ""))), animated: false)
+        let warning = BannerView(theme: theme, reduceMotion: { true })
+        warning.show(Banner(glyph: .warning, lead: "Changed on Disk.", detail: [.text(" a.json was changed.")],
+                            buttons: [Banner.Button(title: "Keep Mine", isPrimary: false), Banner.Button(title: "Reload", isPrimary: true)]),
+                     animated: false)
+        for (view, y) in [(error, 0.0), (warning, 36.0)] {
+            view.frame = NSRect(x: 0, y: y, width: 900, height: 36)
+            container.addSubview(view)
+        }
+        container.layoutSubtreeIfNeeded()
+
+        let mocha = flavor("Mocha")
+        func hexes(_ flavor: Flavor) -> Set<String> {
+            Set(ColorToken.allCases.map { String(format: "#%02x%02x%02x", flavor[$0].red, flavor[$0].green, flavor[$0].blue) })
+        }
+        let latteOnly = hexes(flavor("Latte")).subtracting(hexes(mocha))
+        #expect(!colours(in: container).keys.filter(latteOnly.contains).isEmpty, "the sweep sees Latte before the switch")
+
+        theme.flavor = mocha
+        await settle()
+        // NSButton refreshes its internal title label on the next layout pass, as before drawing.
+        container.layoutSubtreeIfNeeded()
+        let left = colours(in: container).filter { latteOnly.contains($0.key) }
+        #expect(left.isEmpty, "\(left)")
+    }
+
     /// View ▸ Theme as the menu bar builds it, after AppKit's validation pass.
     func themeMenu(_ controller: ThemeController) throws -> NSMenu {
         let view = try #require(MainMenu.make(theme: controller).item(withTitle: "View")?.submenu)

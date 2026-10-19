@@ -4,7 +4,7 @@ import Testing
 
 @MainActor
 struct MainWindowTests {
-    let controller = MainWindowController(theme: ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false))
+    let controller = MainWindowController(theme: ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false), reduceMotion: { true })
     var split: MainSplitViewController { controller.split }
 
     @Test func `the window opens with a 232 pt sidebar, the content and a closed inspector`() throws {
