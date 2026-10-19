@@ -286,8 +286,9 @@ final class TabItemView: NSView {
         if !glyph.isHidden { place(glyph, width: 12, height: 12) }
         if !spinner.isHidden { place(spinner, width: 12, height: 12) }
         if !badge.isHidden {
-            let size = badge.intrinsicContentSize
-            place(badge, width: min(size.width, 64), height: size.height)
+            // The cell's size: a truncating label's intrinsic width leaves out its padding.
+            let size = badge.cell?.cellSize ?? badge.intrinsicContentSize
+            place(badge, width: min(size.width.rounded(.up), 64), height: size.height)
         }
         let slot = bounds.width - 1 - 6 - 16
         let nameHeight = name.intrinsicContentSize.height

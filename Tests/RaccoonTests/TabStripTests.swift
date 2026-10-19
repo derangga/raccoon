@@ -98,6 +98,21 @@ struct TabStripViewTests {
         #expect(!draft.closeButton.isHidden)
     }
 
+    @Test(arguments: ["GET", "DELETE", "OPTIONS", "PROPFIND"])
+    func `the method badge shows the whole method`(method: String) throws {
+        let window = makeWindow()
+        window.tabs[0].tab.definition.method = method
+        let badge = strip(window).items[0].badge
+        let needed = try #require(badge.cell).cellSize.width
+        #expect(badge.frame.width >= needed)
+    }
+
+    @Test func `a method longer than 64 pt end-truncates`() throws {
+        let window = makeWindow()
+        window.tabs[0].tab.definition.method = "MKCALENDAR-EXTENDED"
+        #expect(strip(window).items[0].badge.frame.width == 64)
+    }
+
     @Test func `sending replaces the method badge with the spinner only after 150 ms`() async {
         let window = makeWindow()
         let strip = strip(window)
