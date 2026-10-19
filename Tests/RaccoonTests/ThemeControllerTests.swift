@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 @testable import Raccoon
+import RaccoonData
 import RaccoonDomain
 import RaccoonTesting
 import Testing
@@ -162,6 +163,43 @@ struct ThemeControllerTests {
         controller.view.layoutSubtreeIfNeeded()
 
         let left = colours(in: controller.view).filter { latteOnly.contains($0.key) }
+        #expect(left.isEmpty, "\(left)")
+    }
+
+    @Test func `switching the Flavor leaves no colour of the old one on the tab strip`() async throws {
+        let temp = FileManager.default.temporaryDirectory.appending(path: "raccoon-\(UUID())")
+        let window = WindowModel(
+            dataFolder: DiskDataFolderStore(root: temp.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
+            sessionStore: DiskSessionStore(directory: temp), secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
+            makeTab: {
+                TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+                         instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
+            }
+        )
+        // Every state at once: a Draft, a Dirty PATCH that is Changed on Disk, a hovered DELETE.
+        for _ in 0..<2 { window.newTab() }
+        for (model, method) in zip(window.tabs.dropFirst(), ["PATCH", "DELETE"]) {
+            model.tab.source = .request(RequestID(UUID()))
+            model.tab.baseline = model.tab.definition
+            model.tab.definition.method = method
+        }
+        window.tabs[1].tab.isChangedOnDisk = true
+        let theme = ThemeEnvironment(catalog: catalog, isDark: false)
+        let strip = TabStripView(window: window, theme: theme)
+        strip.frame = NSRect(x: 0, y: 0, width: 900, height: TabStripView.height)
+        strip.layoutSubtreeIfNeeded()
+        strip.items[2].isHovered = true
+
+        let mocha = flavor("Mocha")
+        func hexes(_ flavor: Flavor) -> Set<String> {
+            Set(ColorToken.allCases.map { String(format: "#%02x%02x%02x", flavor[$0].red, flavor[$0].green, flavor[$0].blue) })
+        }
+        let latteOnly = hexes(flavor("Latte")).subtracting(hexes(mocha))
+        #expect(!colours(in: strip).keys.filter(latteOnly.contains).isEmpty, "the sweep sees Latte before the switch")
+
+        theme.flavor = mocha
+        await settle()
+        let left = colours(in: strip).filter { latteOnly.contains($0.key) }
         #expect(left.isEmpty, "\(left)")
     }
 

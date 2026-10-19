@@ -601,7 +601,7 @@ final class ResponseViewer: NSView {
 }
 
 /// Lays the header rows out from the top of their scroll view.
-private final class FlippedView: NSView {
+final class FlippedView: NSView {
     override var isFlipped: Bool { true }
 }
 

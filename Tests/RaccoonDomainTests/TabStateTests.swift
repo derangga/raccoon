@@ -38,3 +38,23 @@ struct TabStateTests {
         #expect(!tab.isDirty)
     }
 }
+
+struct TabTitleTests {
+    @Test(arguments: [
+        // the URL as typed, the Draft's title
+        ("", "Draft"),
+        ("   ", "Draft"),
+        ("https://api.example.com/v1/webhooks", "/v1/webhooks"),
+        ("https://api.example.com/v1/charges?limit=10#top", "/v1/charges"),
+        ("{{base_url}}/v1/charges/{{charge_id}}", "/v1/charges/{{charge_id}}"),
+        ("localhost:8080/health", "/health"),
+        ("https://api.example.com", "https://api.example.com"),
+        ("/relative", "/relative"),
+    ])
+    func `a Draft is titled by its URL path, and "Draft" while it has no URL`(url: String, title: String) {
+        var definition = RequestDefinition.empty
+        definition.url = url
+        let tab = Tab(id: TabID(UUID()), source: .draft, definition: definition, baseline: nil)
+        #expect(tab.title == title)
+    }
+}

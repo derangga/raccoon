@@ -36,6 +36,17 @@ public struct Tab: Equatable, Sendable {
         isDirty || (source == .draft && definition != .empty)
     }
 
+    /// The tab strip's name for a Draft: "Draft" without a URL, else its path, else the URL as
+    /// typed. ponytail: a Request Tab shows the same until Collections gives it the Request's name.
+    public var title: String {
+        let url = definition.url.trimmingCharacters(in: .whitespaces)
+        guard !url.isEmpty else { return "Draft" }
+        let afterScheme = url.range(of: "://").map { url[$0.upperBound...] } ?? url[...]
+        guard let slash = afterScheme.firstIndex(of: "/") else { return url }
+        let path = afterScheme[slash...]
+        return String(path.prefix { $0 != "?" && $0 != "#" })
+    }
+
     public var snapshot: TabSnapshot {
         TabSnapshot(id: id, source: source, definition: definition, baseline: baseline)
     }

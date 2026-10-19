@@ -29,7 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let theme = themeController.theme
         let windowController = MainWindowController(theme: theme)
         let tabController = TabViewController(model: windowModel.tabs[0], theme: theme)
-        windowController.split.showTab(tabController)
+        windowController.split.showTab(ContentViewController(strip: TabStripView(window: windowModel, theme: theme), tab: tabController))
         self.tabController = tabController
         showSelectedTab()
         windowController.showWindow(nil)
