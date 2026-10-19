@@ -46,8 +46,19 @@ final class SidebarItem {
 /// a source-list outline of the Data Folder, and the method badges in Theme colours. Lives
 /// inside the sidebar pane's content view, so the narrow-window overlay borrows it whole.
 final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate,
-    NSMenuItemValidation {
+    NSMenuItemValidation, NSSearchFieldDelegate {
+    /// design-system §6 Sidebar filter: names only, every keystroke, no debounce.
+    let searchField = NSSearchField()
     let sectionLabel = NSTextField(labelWithString: "Collections")
+    /// Takes the section label's place while filtering: "4 matches in 1 Collection".
+    let countLabel = NSTextField(labelWithString: "")
+    let noMatches = NSTextField(wrappingLabelWithString: "")
+    /// Gives focus to the selected Tab's URL field.
+    var focusEditor: () -> Void = {}
+    private var query = ""
+    private var expansionBeforeFilter: Set<String>?
+    private var matches: [String: FilteredTree.Match] = [:]
+    private var searchHeight: NSLayoutConstraint!
     /// The footer's + menu (board 12).
     let addMenu = NSMenu()
     let addButton = NSButton()
@@ -84,6 +95,16 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
         sectionLabel.font = .systemFont(ofSize: 11, weight: .semibold)
         sectionLabel.textColor = .secondaryLabelColor
+        countLabel.font = .systemFont(ofSize: 11)
+        countLabel.textColor = .secondaryLabelColor
+        noMatches.font = .systemFont(ofSize: 12)
+        noMatches.textColor = .secondaryLabelColor
+        searchField.placeholderString = "Filter Collections"
+        searchField.setAccessibilityLabel("Filter Collections")
+        searchField.sendsSearchStringImmediately = true
+        searchField.delegate = self
+        searchField.target = self
+        searchField.action = #selector(searchChanged)
 
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("name"))
         outline.addTableColumn(column)
@@ -129,13 +150,23 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         empty.addArrangedSubview(emptyText)
         empty.addArrangedSubview(emptyPath)
 
-        for child in [sectionLabel, scroll, empty, addButton] as [NSView] {
+        searchHeight = searchField.heightAnchor.constraint(equalToConstant: 24)
+        for child in [searchField, sectionLabel, countLabel, scroll, empty, noMatches, addButton] as [NSView] {
             child.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview(child)
         }
         NSLayoutConstraint.activate([
-            sectionLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 16),
+            searchField.topAnchor.constraint(equalTo: view.topAnchor, constant: 8),
+            searchField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
+            searchField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
+            searchHeight,
+            sectionLabel.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 8),
             sectionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            countLabel.firstBaselineAnchor.constraint(equalTo: sectionLabel.firstBaselineAnchor),
+            countLabel.leadingAnchor.constraint(equalTo: sectionLabel.leadingAnchor),
+            noMatches.topAnchor.constraint(equalTo: sectionLabel.topAnchor),
+            noMatches.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
+            noMatches.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -18),
             scroll.topAnchor.constraint(equalTo: sectionLabel.bottomAnchor, constant: 4),
             scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -160,8 +191,11 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         let (collections, root) = withObservationTracking { (window.index.collections, window.dataFolderRoot) } onChange: { [weak self] in
             Task { @MainActor in self?.render() }
         }
-        let expanded = Set(byPath.values.filter { outline.isItemExpanded($0) }.map(\.path))
-        items = SidebarItem.tree(collections)
+        var expanded = expansionBeforeFilter.map { _ in Set<String>() } ?? Set(byPath.values.filter { outline.isItemExpanded($0) }.map(\.path))
+        let filtered = query.isEmpty ? nil : TreeFilter.matches(collections, query)
+        if let filtered { expanded = filtered.expanded } else if let before = expansionBeforeFilter { expanded = before }
+        matches = filtered?.matches ?? [:]
+        items = SidebarItem.tree(filtered?.collections ?? collections)
         byPath = [:]
         func index(_ items: [SidebarItem]) { for item in items { byPath[item.path] = item; index(item.children) } }
         index(items)
@@ -169,8 +203,82 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         for path in expanded.sorted() { if let item = byPath[path] { outline.expandItem(item) } }
 
         emptyPath.stringValue = (root as NSString).abbreviatingWithTildeInPath
-        empty.isHidden = !items.isEmpty
-        outline.enclosingScrollView?.isHidden = items.isEmpty
+        let hasCollections = !collections.isEmpty
+        searchField.isHidden = !hasCollections
+        searchHeight.constant = hasCollections ? 24 : 0
+        empty.isHidden = hasCollections
+        sectionLabel.isHidden = filtered != nil
+        countLabel.isHidden = filtered == nil || filtered?.matchCount == 0
+        noMatches.isHidden = filtered?.matchCount != 0
+        outline.enclosingScrollView?.isHidden = !hasCollections || filtered?.matchCount == 0
+        if let filtered {
+            countLabel.stringValue = Self.count(filtered)
+            noMatches.stringValue = "No Requests, Folders or Collections match “\(query)”.\nEsc clears the filter."
+        }
+    }
+
+    private static func count(_ filtered: FilteredTree) -> String {
+        let number = { (n: Int) in n.formatted(.number.locale(Locale(identifier: "en"))) }
+        let (n, c) = (filtered.matchCount, filtered.collections.count)
+        return "\(number(n)) \(n == 1 ? "match" : "matches") in \(number(c)) \(c == 1 ? "Collection" : "Collections")"
+    }
+
+    // MARK: Filter
+
+    func controlTextDidChange(_ notification: Notification) {
+        setQuery(searchField.stringValue)
+    }
+
+    @objc private func searchChanged() {
+        setQuery(searchField.stringValue)
+    }
+
+    private func setQuery(_ text: String) {
+        guard text != query else { return }
+        if query.isEmpty {
+            // The tree's own expansion comes back when the filter clears, and is not autosaved meanwhile.
+            expansionBeforeFilter = Set(byPath.values.filter { outline.isItemExpanded($0) }.map(\.path))
+            outline.autosaveExpandedItems = false
+        }
+        query = text
+        if text.isEmpty {
+            outline.collapseItem(nil, collapseChildren: true)
+            render()
+            expansionBeforeFilter = nil
+            outline.autosaveExpandedItems = true
+        } else {
+            render()
+        }
+    }
+
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+        switch selector {
+        case #selector(NSResponder.cancelOperation(_:)): cancel()
+        case #selector(NSResponder.insertNewline(_:)): returnPressed()
+        default: false
+        }
+    }
+
+    /// Esc: clears a query; with none, gives focus back to the editor.
+    @discardableResult
+    func cancel() -> Bool {
+        if query.isEmpty {
+            focusEditor()
+        } else {
+            searchField.stringValue = ""
+            setQuery("")
+        }
+        return true
+    }
+
+    /// Return: opens the selected match, else the first, and gives focus to the editor.
+    @discardableResult
+    func returnPressed() -> Bool {
+        let isRequest = { (row: Int) in if case .request = (self.outline.item(atRow: row) as? SidebarItem)?.kind { true } else { false } }
+        let row = isRequest(outline.selectedRow) ? outline.selectedRow : (0..<outline.numberOfRows).first(where: isRequest)
+        if let row { open(row: row) }
+        focusEditor()
+        return true
     }
 
     private func repaintVisibleRows() {
@@ -367,6 +475,11 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
     // MARK: Delegate
 
+    /// Typing a name selects its row; the cells keep no textField for the outline to read.
+    func outlineView(_ outlineView: NSOutlineView, typeSelectStringFor tableColumn: NSTableColumn?, item: Any) -> String? {
+        (item as? SidebarItem)?.name
+    }
+
     func outlineView(_ outlineView: NSOutlineView, heightOfRowByItem item: Any) -> CGFloat {
         guard let item = item as? SidebarItem, case .unreadable(let reason) = item.kind else { return 24 }
         // A width no wider than the cell will be, so the row is never too short for its reason.
@@ -379,15 +492,15 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         switch item.kind {
         case .collection, .folder:
             let cell = reuse(NodeCell.identifier) { NodeCell() }
-            cell.show(item)
+            cell.show(item, match: matches[item.path]?.range)
             return cell
         case .request(_, let method):
             let cell = reuse(RequestCell.identifier) { RequestCell() }
-            cell.show(name: item.name, method: method, theme: theme)
+            cell.show(name: item.name, method: method, match: matches[item.path]?.range, theme: theme)
             return cell
         case .unreadable(let reason):
             let cell = reuse(UnreadableCell.identifier) { UnreadableCell(target: self, action: #selector(revealClicked)) }
-            cell.show(name: item.name, reason: reason, theme: theme)
+            cell.show(name: item.name, reason: reason, match: matches[item.path]?.range, theme: theme)
             return cell
         }
     }
@@ -402,6 +515,20 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     @objc private func revealClicked(_ sender: NSButton) {
         activate(row: outline.row(for: sender))
     }
+}
+
+/// A row's name, with the filter's match in the system find colour and semibold, so it is not
+/// told by colour alone (design-system §6 Sidebar filter).
+/// On a selected row in a focused outline the name takes the selected-text colour, as AppKit
+/// would do for a registered textField.
+private func highlighted(_ name: String, _ match: Range<String.Index>?, color: NSColor, style: NSView.BackgroundStyle) -> NSAttributedString {
+    let color = style == .emphasized ? NSColor.alternateSelectedControlTextColor : color
+    let text = NSMutableAttributedString(string: name, attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: color])
+    if let match {
+        text.addAttributes([.font: NSFont.systemFont(ofSize: 13, weight: .semibold), .backgroundColor: NSColor.findHighlightColor],
+                           range: NSRange(match, in: name))
+    }
+    return text
 }
 
 /// A row that takes Theme colours; repainted on every Flavor change.
@@ -420,20 +547,24 @@ final class NodeCell: NSTableCellView {
         glyph.contentTintColor = .secondaryLabelColor
         name.font = .systemFont(ofSize: 13)
         name.lineBreakMode = .byTruncatingTail
+        // Not registered as textField: a source-list outline restyles that and drops the highlight.
         addSubview(glyph)
         addSubview(name)
-        imageView = glyph
-        textField = name
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    func show(_ item: SidebarItem) {
+    func show(_ item: SidebarItem, match: Range<String.Index>?) {
         let symbol = item.kind == .collection ? "square.3.layers.3d" : "folder"
         glyph.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 12, weight: .regular))
-        name.stringValue = item.name
+        shown = (item.name, match)
+        renderName()
     }
+
+    private var shown: (String, Range<String.Index>?) = ("", nil)
+    override var backgroundStyle: NSView.BackgroundStyle { didSet { renderName() } }
+    private func renderName() { name.attributedStringValue = highlighted(shown.0, shown.1, color: .labelColor, style: backgroundStyle) }
 
     override func layout() {
         super.layout()
@@ -459,15 +590,15 @@ final class RequestCell: NSTableCellView, ThemedRow {
         name.lineBreakMode = .byTruncatingTail
         addSubview(badge)
         addSubview(name)
-        textField = name
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    func show(name: String, method: String, theme: ThemeEnvironment) {
+    func show(name: String, method: String, match: Range<String.Index>?, theme: ThemeEnvironment) {
         self.method = method
-        self.name.stringValue = name
+        shown = (name, match)
+        renderName()
         badge.setAccessibilityLabel(method)
         paint(theme)
     }
@@ -478,6 +609,10 @@ final class RequestCell: NSTableCellView, ThemedRow {
         style.lineBreakMode = .byTruncatingTail
         return style
     }()
+
+    private var shown: (String, Range<String.Index>?) = ("", nil)
+    override var backgroundStyle: NSView.BackgroundStyle { didSet { renderName() } }
+    private func renderName() { name.attributedStringValue = highlighted(shown.0, shown.1, color: .labelColor, style: backgroundStyle) }
 
     func paint(_ theme: ThemeEnvironment) {
         badge.attributedStringValue = NSAttributedString(string: method, attributes: [
@@ -527,14 +662,14 @@ final class UnreadableCell: NSTableCellView, ThemedRow {
         reason.font = Self.reasonFont
         reason.textColor = .secondaryLabelColor
         for view in [glyph, name, reveal, reason] as [NSView] { addSubview(view) }
-        textField = name
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    func show(name: String, reason: String, theme: ThemeEnvironment) {
-        self.name.stringValue = name
+    func show(name: String, reason: String, match: Range<String.Index>?, theme: ThemeEnvironment) {
+        shown = (name, match)
+        renderName()
         self.name.toolTip = name
         self.reason.stringValue = reason
         paint(theme)
@@ -543,6 +678,10 @@ final class UnreadableCell: NSTableCellView, ThemedRow {
     func paint(_ theme: ThemeEnvironment) {
         glyph.contentTintColor = theme.color(.warning)
     }
+
+    private var shown: (String, Range<String.Index>?) = ("", nil)
+    override var backgroundStyle: NSView.BackgroundStyle { didSet { renderName() } }
+    private func renderName() { name.attributedStringValue = highlighted(shown.0, shown.1, color: .secondaryLabelColor, style: backgroundStyle) }
 
     /// The first 24 pt line, the reason wrapped under the name, and 4 pt below.
     static func height(reason: String, cellWidth: CGFloat) -> CGFloat {

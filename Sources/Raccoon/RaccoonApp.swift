@@ -65,6 +65,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.messageText = message
             alert.beginSheetModal(for: window)
         }
+        sidebar.focusEditor = { [weak tabController] in
+            tabController?.view.window?.makeFirstResponder(tabController?.urlBar.urlField)
+        }
         windowController.split.showSidebar(sidebar)
         self.sidebar = sidebar
         let tabBanner = TabBannerBinding(window: windowModel, theme: theme, reduceMotion: { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion })
