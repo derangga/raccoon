@@ -45,6 +45,8 @@ public protocol SecretStore: Sendable {
 public protocol SessionStore: Sendable {
     func read() throws(StoreError) -> Data?
     func write(_ data: Data) throws(StoreError)
+    /// Renames an undecodable file to session.corrupt-<date>.json and returns its new path.
+    func setAside() throws(StoreError) -> String
 }
 
 public protocol ClipboardWriter: Sendable {

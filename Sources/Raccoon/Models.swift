@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OSLog
 import RaccoonDomain
 
 /// One Tab's editing state and the ports its send needs. Saving goes through the window, which
@@ -282,6 +283,49 @@ final class WindowModel {
     }
 
     var selectedTab: TabModel? { tabs.first { $0.tab.id == selected } }
+
+    private static let log = Logger(subsystem: "Raccoon", category: "Session")
+
+    /// Launch: the Tabs as the Session left them, in place of the fresh Draft `init` made.
+    /// Every failure keeps that Draft and is logged only (Open UI Q7).
+    func relaunch() {
+        let session: Session
+        do throws(StoreError) {
+            guard let data = try sessionStore.read() else { return }
+            session = try SessionFile.decode(data)
+        } catch {
+            switch error {
+            case .undecodable(let path, let reason):
+                Self.log.error("Session at \(path, privacy: .public) is undecodable: \(reason, privacy: .public)")
+                setAsideSession()
+            case .unreadable(let path, let reason), .unwritable(let path, let reason):
+                Self.log.error("Session at \(path, privacy: .public) not read: \(reason, privacy: .public)")
+            }
+            return
+        }
+        // ponytail: a .request Tab comes back as stored; checking it against the Data Folder
+        // (found, changed on disk, gone) is the Collections epic's, and goes here.
+        let restored = session.tabs.map { snapshot in
+            let model = makeTab()
+            model.tab = Tab(id: snapshot.id, source: snapshot.source, definition: snapshot.definition, baseline: snapshot.baseline)
+            return model
+        }
+        guard let first = restored.first else { return }
+        tabs = restored
+        selected = restored.contains { $0.tab.id == session.selected } ? session.selected : first.tab.id
+    }
+
+    private func setAsideSession() {
+        do throws(StoreError) {
+            let path = try sessionStore.setAside()
+            Self.log.notice("Session set aside as \(path, privacy: .public)")
+        } catch {
+            switch error {
+            case .unwritable(let path, let reason), .unreadable(let path, let reason), .undecodable(let path, let reason):
+                Self.log.error("Session not set aside to \(path, privacy: .public): \(reason, privacy: .public)")
+            }
+        }
+    }
 
     /// ⌘T: an empty Draft after the selected Tab.
     func newTab() {

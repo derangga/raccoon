@@ -76,7 +76,11 @@ Data Folder
   ⚠ file deleted under a Tab → escape: the Tab becomes a Draft with its content
 Session
   ⚠ undecodable          → escape: start with one empty Tab; the bad file is renamed
-                           session.corrupt-<date>.json, not deleted
+                           session.corrupt-<date>.json, not deleted, and logged only
+                           (Open UI Q7)
+  ⚠ unreadable           → escape: start with one empty Tab and log it
+  ⚠ rename fails         → escape: log it. The next Session write replaces the bad file,
+                           which loses only what was already lost
   ⚠ unwritable on quit   → escape: quit anyway and log it. Blocking quit on a cache file
                            is worse than losing Drafts once
   ⚠ snapshot names a Request that is gone → escape: restored as a Draft

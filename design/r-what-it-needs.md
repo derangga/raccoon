@@ -46,7 +46,10 @@ SecretStore       get / set / delete (environment?, name) throws(SecretError)
                   secret: service `Raccoon` for Globals or `Raccoon/<Environment>`,
                   account the Variable name
 SessionStore      read -> Data? / write(Data) throws(StoreError)   Application Support;
-                  bytes only, SessionFile owns the format
+                  bytes only, SessionFile owns the format.
+                  setAside() throws(StoreError) -> String: renames session.json to
+                  session.corrupt-<date>.json and returns the new path; the date comes
+                  from a clock given to init
 ClipboardWriter   setString                                    Copy as Curl
 InstantSource     now                                          .sending(since:)
 ```

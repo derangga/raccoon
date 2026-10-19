@@ -71,7 +71,13 @@ punish the feature that makes it unnecessary.
 ```
 -> relaunch()                                    applicationDidFinishLaunching
   -> SessionStore.read()                         boundary    R: SessionStore
-                                                 E: undecodable -> escape: start empty
+                                                 nil -> the one empty Draft (board 01)
+                                                 E: unreadable -> escape: log, start empty
+  -> SessionFile.decode(data)                    E: undecodable -> escape: start empty
+    -> SessionStore.setAside()                   rename to session.corrupt-<date>.json, log;
+                                                 nothing on screen (Open UI Q7)
+                                                 E: rename fails -> escape: log; the next
+                                                 write replaces the file
   -> for each TabSnapshot
     -> source .request(id)
       -> DataFolderIndex.path(for: id)           from collections.md load
