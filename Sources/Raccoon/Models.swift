@@ -11,13 +11,16 @@ final class TabModel {
     private let secrets: any SecretStore
     private let files: any FileReading
     private let instants: any InstantSource
+    private let clipboard: any ClipboardWriter
 
-    init(transport: any HTTPTransport, secrets: any SecretStore, files: any FileReading, instants: any InstantSource) {
+    init(transport: any HTTPTransport, secrets: any SecretStore, files: any FileReading, instants: any InstantSource,
+         clipboard: any ClipboardWriter) {
         tab = Tab(id: TabID(UUID()), source: .draft, definition: .empty, baseline: nil)
         self.transport = transport
         self.secrets = secrets
         self.files = files
         self.instants = instants
+        self.clipboard = clipboard
     }
 
     /// The line under the URL bar; not part of the Tab, so it is never saved.
@@ -97,6 +100,14 @@ final class TabModel {
         isURLInvalid = false
         message = notes.isEmpty ? nil : .note(notes.joined(separator: ". "))
         return true
+    }
+
+    /// Copy as Curl (curl.md): nil while the definition does not resolve, which disables the menu
+    /// item. ponytail: the reason is dropped; naming undefined Variables comes with Variables.
+    var curlCommand: String? { (try? VariableResolver.resolve(tab.definition)).map(CurlRenderer.render) }
+
+    func copyAsCurl() {
+        if let curlCommand { clipboard.setString(curlCommand) }
     }
 
     /// Methods are free text, stored uppercased; a blank one changes nothing.

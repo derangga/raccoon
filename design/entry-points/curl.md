@@ -121,7 +121,10 @@ and every place they disagree is a command split inside a quote.
 ## Copy as Curl
 
 ```
--> copyAsCurl(tab or request, includeSecrets)   the context menu
+-> copyAsCurl(tab or request, includeSecrets)   the context menu; until the Tab strip exists,
+                                                 Edit ▸ Copy as Curl (⇧⌘C) and the URL bar's
+                                                 menu, both on the selected Tab
+                                                 E: invalidURL -> the item is disabled
   -> VariableResolver.resolve(definition, scope, secrets: includeSecrets)
                                                  pure        E: undefined -> escape, the
                                                  menu item says which Variable is missing

@@ -7,7 +7,7 @@ import Testing
 @MainActor
 struct URLBarTests {
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
-    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now))
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 120), styleMask: [], backing: .buffered, defer: false)
 
     func bar() -> URLBar {
@@ -201,7 +201,7 @@ struct URLBarTests {
 
     @Test func `a data file is read as the body, and one that cannot be read leaves no body and names it`() {
         let files = DictionaryFileReading(["/tmp/a.json": Data(#"{"a":1}"#.utf8), "/tmp/bin": Data([0xFF, 0xFE])])
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: files, instants: FixedInstantSource(.now))
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: files, instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
         #expect(model.pasteInURLBar("curl -H 'Content-Type: application/json' --data-binary @/tmp/a.json https://h"))
         #expect(model.tab.definition.body == .raw(.json, #"{"a":1}"#))
         #expect(model.pasteInURLBar("curl --data-binary @/tmp/bin https://h"))

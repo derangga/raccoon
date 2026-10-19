@@ -25,6 +25,8 @@ final class URLBar: NSView, NSTextFieldDelegate {
         super.init(frame: .zero)
         buildMethod()
         buildURLField()
+        menu = NSMenu()
+        menu?.addItem(MainMenu.copyAsCurl())
         buildSend()
         buildMessageLine()
 
@@ -389,5 +391,12 @@ final class PasteFieldEditor: NSTextView {
     override func paste(_ sender: Any?) {
         if let text = pasteboard.string(forType: .string), onPaste(text) { return }
         super.paste(sender)
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let menu = super.menu(for: event) ?? NSMenu()
+        menu.addItem(.separator())
+        menu.addItem(MainMenu.copyAsCurl())
+        return menu
     }
 }

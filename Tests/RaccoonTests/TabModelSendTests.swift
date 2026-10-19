@@ -10,7 +10,7 @@ struct TabModelSendTests {
     let response = Response(status: 200, headers: [], body: Data("hello".utf8), elapsed: .milliseconds(5), byteCount: 5)
 
     func makeTab(_ transport: ScriptedTransport, url: String) -> TabModel {
-        let model = TabModel(transport: transport, secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now))
+        let model = TabModel(transport: transport, secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
         model.tab.definition.url = url
         return model
     }

@@ -11,12 +11,13 @@ enum CompositionRoot {
         let transport = URLSessionTransport(files: files)
         let secrets = KeychainSecretStore(service: "Raccoon")
         let instants = ContinuousInstantSource()
+        let clipboard = SystemClipboardWriter(name: .general)
         return WindowModel(
             dataFolder: DiskDataFolderStore(root: URL.homeDirectory.appending(path: "Raccoon")),
             folderWatch: FSEventsFolderWatch(),
             sessionStore: DiskSessionStore(directory: DiskSessionStore.applicationSupportDirectory),
             secrets: secrets,
-            newTab: { TabModel(transport: transport, secrets: secrets, files: files, instants: instants) }
+            newTab: { TabModel(transport: transport, secrets: secrets, files: files, instants: instants, clipboard: clipboard) }
         )
     }
 }

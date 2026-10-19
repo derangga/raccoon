@@ -7,7 +7,7 @@ import Testing
 @MainActor
 struct RequestEditorTests {
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
-    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now))
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400), styleMask: [], backing: .buffered, defer: false)
 
     func editor() -> RequestEditor {
@@ -171,7 +171,7 @@ struct RequestEditorTests {
 @MainActor
 struct BodyPaneTests {
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
-    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now))
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400), styleMask: [], backing: .buffered, defer: false)
 
     func pane() -> (RequestEditor, BodyPane) {
@@ -411,7 +411,7 @@ struct BodyPaneTests {
     @Test func `a file missing at send marks its chip and the message line until the next send`() async {
         let path = NSHomeDirectory() + "/Desktop/box.jpg"
         let transport = ScriptedTransport(.failure(.fileMissing(path: path)))
-        let model = TabModel(transport: transport, secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now))
+        let model = TabModel(transport: transport, secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
         model.tab.definition.url = "http://localhost/"
         model.tab.definition.body = .multipart([Part(name: "photo", content: .file(path: path))])
         let editor = RequestEditor(model: model, theme: theme)
@@ -448,7 +448,7 @@ struct EditorSplitTests {
 @MainActor
 struct ImportedRowsTests {
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
-    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now))
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400), styleMask: [], backing: .buffered, defer: false)
 
     @Test func `rows from a pasted curl are checked, and a click on the box disables the row and dims its text`() async throws {
@@ -491,7 +491,7 @@ struct ImportedRowsTests {
 @MainActor
 struct TypingTests {
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
-    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now))
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400), styleMask: [.titled], backing: .buffered, defer: false)
 
     @Test(arguments: [EditorSection.params, .headers])

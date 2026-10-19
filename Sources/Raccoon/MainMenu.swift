@@ -9,6 +9,9 @@ enum MainMenu {
             .separator(),
             NSMenuItem(title: "Quit Raccoon", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"),
         ]))
+        let copyAsCurl = copyAsCurl()
+        copyAsCurl.keyEquivalent = "c"
+        copyAsCurl.keyEquivalentModifierMask = [.command, .shift]
         let redo = NSMenuItem(title: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
         redo.keyEquivalentModifierMask = [.command, .shift]
         // No target: each goes to the first responder, which is the field or text view being edited.
@@ -20,6 +23,8 @@ enum MainMenu {
             NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c"),
             NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"),
             NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"),
+            .separator(),
+            copyAsCurl,
         ]))
         let showSidebar = NSMenuItem(title: "Show Sidebar", action: #selector(NSSplitViewController.toggleSidebar(_:)), keyEquivalent: "s")
         showSidebar.keyEquivalentModifierMask = [.control, .command]
@@ -35,6 +40,11 @@ enum MainMenu {
         NSApp?.windowsMenu = window.submenu
         menu.addItem(window)
         return menu
+    }
+
+    /// No target: the selected Tab's TabViewController takes it.
+    static func copyAsCurl() -> NSMenuItem {
+        NSMenuItem(title: "Copy as Curl", action: #selector(TabViewController.copyAsCurl(_:)), keyEquivalent: "")
     }
 
     private static func submenu(_ title: String, _ items: [NSMenuItem]) -> NSMenuItem {

@@ -11,7 +11,7 @@ struct CompositionTests {
     let temp = FileManager.default.temporaryDirectory.appending(path: "raccoon-\(UUID())")
 
     func makeTab() -> TabModel {
-        TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now))
+        TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
     }
 
     @Test func `a window builds entirely from test implementations and starts with one empty Draft`() {

@@ -2,7 +2,7 @@ import AppKit
 import RaccoonDomain
 
 /// The selected Tab: the URL bar, then the RequestEditor over the ResponseViewer in a Split.
-final class TabViewController: NSViewController {
+final class TabViewController: NSViewController, NSMenuItemValidation {
     private let model: TabModel
     private let theme: ThemeEnvironment
     private let split = EditorSplitView()
@@ -40,5 +40,13 @@ final class TabViewController: NSViewController {
             split.bottomAnchor.constraint(equalTo: root.bottomAnchor),
         ])
         view = root
+    }
+
+    /// Copy as Curl from the Edit menu and the URL bar's menu, through the responder chain, so it
+    /// is the selected Tab's.
+    @objc func copyAsCurl(_ sender: Any?) { model.copyAsCurl() }
+
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        item.action == #selector(copyAsCurl) ? model.curlCommand != nil : true
     }
 }

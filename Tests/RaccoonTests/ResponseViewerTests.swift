@@ -17,7 +17,7 @@ struct ResponseViewerTests {
 
     /// A Tab that has received `response` and finished presenting it.
     func received(_ response: Response) async -> (TabModel, ResponseViewer) {
-        let model = TabModel(transport: ScriptedTransport(.success(response)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now))
+        let model = TabModel(transport: ScriptedTransport(.success(response)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
         model.tab.definition.url = "http://localhost/"
         model.send()
         await model.inFlight?.value
@@ -34,7 +34,7 @@ struct ResponseViewerTests {
     }
 
     @Test func `idle says how to send, with the key cap`() {
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now))
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
         let viewer = viewer(model)
         #expect(viewer.voidText.stringValue == "Send a request to see the Response here.")
         #expect(!viewer.keycap.isHidden && viewer.keycap.stringValue == "⌘↩")
@@ -42,7 +42,7 @@ struct ResponseViewerTests {
     }
 
     @Test func `sending shows nothing for 150 ms, then the spinner and the live time`() {
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now))
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
         model.tab.response = .sending(since: now - .milliseconds(100))
         let early = viewer(model)
         #expect(early.codeLabel.stringValue == "" && early.voidText.stringValue == "")
@@ -192,7 +192,7 @@ struct ResponseViewerTests {
 
     @Test func `Raw shows first, and Pretty takes over once the presentation lands`() async {
         let model = TabModel(transport: ScriptedTransport(.success(response(Data(#"{"a":1}"#.utf8)))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
-                             instants: FixedInstantSource(now))
+                             instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
         model.tab.definition.url = "http://localhost/"
         let viewer = viewer(model)
         model.send()
@@ -245,7 +245,7 @@ struct ResponseViewerTests {
 
     func failed(_ error: SendError, after: Duration) -> (ScriptedTransport, TabModel, ResponseViewer) {
         let transport = ScriptedTransport(.failure(error))
-        let model = TabModel(transport: transport, secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now))
+        let model = TabModel(transport: transport, secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
         model.tab.response = .failed(error, after: after)
         return (transport, model, viewer(model))
     }
@@ -282,7 +282,7 @@ struct ResponseViewerTests {
     }
 
     @Test func `an invalid URL is Not sent and quotes the URL after substitution`() {
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now))
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
         model.tab.definition.url = "https//api.dev.example.com/v1"
         model.send()
         let viewer = viewer(model)
@@ -293,7 +293,7 @@ struct ResponseViewerTests {
     }
 
     @Test func `idle shows no failure glyph`() {
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now))
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
         #expect(viewer(model).failureGlyph.isHidden)
     }
 
