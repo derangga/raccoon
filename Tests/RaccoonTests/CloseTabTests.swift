@@ -134,14 +134,22 @@ struct CloseConfirmTests {
         return model
     }
 
-    @Test func `the alert names the Tab and offers Save, Don't Save and Cancel, with Save disabled`() {
+    @Test func `a Draft's alert names it, offers a red Don't Save and Cancel, and Return does nothing`() {
         let alert = CloseConfirm.alert(for: draft())
-        #expect(alert.messageText == "Do you want to save the changes to “/v1/webhooks”?")
-        #expect(alert.informativeText == "Your changes will be lost if you don't save them.")
-        #expect(alert.buttons.map(\.title) == ["Save", "Don't Save", "Cancel"])
-        #expect(alert.buttons.map(\.isEnabled) == [false, true, true])
-        #expect(alert.buttons[1].keyEquivalent == "d" && alert.buttons[1].keyEquivalentModifierMask == .command)
-        #expect(alert.buttons[2].keyEquivalent == "\u{1b}")
+        #expect(alert.messageText == "Close “/v1/webhooks” without saving?")
+        #expect(alert.informativeText == "This Draft hasn't been saved. Its request will be lost.")
+        #expect(alert.buttons.map(\.title) == ["Don't Save", "Cancel"])
+        #expect(alert.buttons.map(\.hasDestructiveAction) == [true, false])
+        #expect(alert.buttons[0].keyEquivalent == "d" && alert.buttons[0].keyEquivalentModifierMask == .command)
+        #expect(alert.buttons[1].keyEquivalent == "\u{1b}")
+        #expect(!alert.buttons.contains { $0.keyEquivalent == "\r" })
+    }
+
+    @Test func `a Dirty Tab's alert speaks of the Request's edits`() {
+        let model = draft()
+        model.tab.source = .request(RequestID(UUID()))
+        model.tab.baseline = .empty
+        #expect(CloseConfirm.alert(for: model).informativeText == "Your edits to this Request haven't been saved and will be lost.")
     }
 
     @Test func `it is a sheet on the window, and Cancel gives focus back to where it was`() async throws {
@@ -156,7 +164,7 @@ struct CloseConfirmTests {
         var choice: CloseChoice?
         CloseConfirm.ask(draft(), in: window) { choice = $0 }
         let sheet = try #require(window.attachedSheet)
-        window.endSheet(sheet, returnCode: .alertThirdButtonReturn)
+        window.endSheet(sheet, returnCode: .alertSecondButtonReturn)
         for _ in 0..<5 { await Task.yield() }
 
         #expect(choice == .cancel)

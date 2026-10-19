@@ -113,6 +113,19 @@ struct TabStripViewTests {
         #expect(strip(window).items[0].badge.frame.width == 64)
     }
 
+    @Test func `a Draft has an accent dot before its badge, a Request Tab has none`() {
+        let window = makeWindow()
+        window.newTab()
+        requestTab(window.tabs[1], url: "https://api.example.com/charges")
+        let strip = strip(window)
+        let (draft, request) = (strip.items[0], strip.items[1])
+
+        #expect(!draft.draftDot.isHidden && request.draftDot.isHidden)
+        #expect(draft.draftDot.frame.size == NSSize(width: 6, height: 6))
+        #expect(draft.draftDot.frame.maxX <= draft.badge.frame.minX)
+        #expect(draft.draftDot.layer?.backgroundColor == theme.color(.accent).cgColor)
+    }
+
     @Test func `sending replaces the method badge with the spinner only after 150 ms`() async {
         let window = makeWindow()
         let strip = strip(window)

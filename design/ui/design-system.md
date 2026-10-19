@@ -229,7 +229,7 @@ Tokens in `code`. "Seen on" names the mockup.
 
 ### Tab
 
-Anatomy: `[state glyph] [method badge] name [slot]`, slot 16 × 16 at the trailing edge.
+Anatomy: `[state glyph or Draft dot] [method badge] name [slot]`, slot 16 × 16 at the trailing edge.
 
 | State | Treatment |
 |---|---|
@@ -237,7 +237,7 @@ Anatomy: `[state glyph] [method badge] name [slot]`, slot 16 × 16 at the traili
 | hover | `rowHover`; the slot shows the close button (✕ on `selection`) |
 | selected | `background`, name `text`, 2 pt `accent` rule on top, joins the editor (no bottom border) |
 | Dirty | the slot shows an 8 pt `dirtyDot`; hover swaps it for ✕ (the macOS document convention) |
-| Draft | name in **italic**: the empty Draft reads "Draft", otherwise its URL path. Italic was chosen over a badge because it costs no width and reads as provisional. Scripts without a true italic (CJK) keep only the tooltip and the accessibility value, by decision (Q4) |
+| Draft | a 6 pt `accent` dot before the method badge, and the name in **italic**: the empty Draft reads "Draft", otherwise its URL path. The dot is the cue in scripts without a true italic (CJK), see Q4 |
 | sending | the method badge is replaced by the 12 pt system spinner after 150 ms. The method is still in the URL bar of the selected Tab |
 | Changed on Disk | a 12 pt `warning` triangle before the badge, and the Dirty dot (it is always Dirty) |
 | close | ✕ 16 pt, `textSecondary`; ⌘W |
@@ -471,11 +471,14 @@ Cancel · **Save**. With no Collections the pop-up offers "New Collection…". S
 ### Close confirmation (native)
 
 An `NSAlert` sheet on the window (Open UI Q8), shown when closing a Tab with losable content
-(a Dirty Tab or a non-empty Draft). Message: "Do you want to save the changes to “<name>”?",
-where the name is the one the Tab shows. Informative text: "Your changes will be lost if you
-don't save them." Buttons **Save** (Return), Don't Save (⌘D), Cancel (Esc). Save is disabled
-until the Collections epic writes Requests; it then saves and closes. Cancel and Esc keep the
-Tab and give focus back to where it was. Not drawn.
+(a Dirty Tab or a non-empty Draft). Message: "Close “<name>” without saving?", where the name
+is the one the Tab shows. Informative text: for a Draft "This Draft hasn't been saved. Its
+request will be lost."; for a Dirty Tab "Your edits to this Request haven't been saved and
+will be lost." Buttons: Don't Save (destructive, red, ⌘D), then Cancel (Esc). Return does
+nothing, so no key a hand rests on discards work. There is no Save button until the
+Collections epic writes Requests; it then adds Save, which saves and closes. Cancel and Esc
+keep the Tab and give focus back to where it was. The alert shows the app icon once Raccoon
+has one. Not drawn.
 
 ### Postman Import sheet (native)
 
@@ -676,8 +679,10 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
    on an opaque 4 pt-radius chip of `background`.
 4. **Draft in scripts without italics.** CJK fonts have no true italic, so a Draft named in
    Japanese is told apart only by its tooltip. Alternative: a leading "Draft" label in
-   `textTertiary`, at the cost of ~36 pt. Decided 2026-10-19: italic only. A Draft in a
-   script without italics is told apart by its tooltip and its accessibility value "Draft".
+   `textTertiary`, at the cost of ~36 pt. Decided 2026-10-19: italic only. Revised the same
+   day after the first run: italic plus a 6 pt `accent` dot before the method badge, which
+   reads in every script and costs 12 pt. A Draft has no file, so the dot never meets the
+   Changed on Disk glyph that takes the same place.
 5. **Shortcut to open the Environments sheet.** variables.md gives ⌃E to the picker. ⌥⌃E is
    proposed for the sheet; not decided anywhere.
 6. **`success` has no surface.** The prompt requires the token and the JSON carries it, but

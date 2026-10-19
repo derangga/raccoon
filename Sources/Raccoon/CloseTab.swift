@@ -1,8 +1,9 @@
 import AppKit
 import RaccoonDomain
 
+/// Save joins these when Collections can write a Request; it saves, then closes.
 enum CloseChoice {
-    case save, dontSave, cancel
+    case dontSave, cancel
 }
 
 /// ⌘W and the ✕: asks first when closing would lose something (tabs.md §close).
@@ -22,8 +23,6 @@ final class TabCloser {
             switch choice {
             case .dontSave: window.close(model.tab.id)
             case .cancel: break
-            // ponytail: Save is disabled in the alert; the Collections epic saves here, then closes.
-            case .save: break
             }
         }
     }
@@ -33,10 +32,13 @@ final class TabCloser {
 enum CloseConfirm {
     static func alert(for model: TabModel) -> NSAlert {
         let alert = NSAlert()
-        alert.messageText = "Do you want to save the changes to “\(model.tab.title)”?"
-        alert.informativeText = "Your changes will be lost if you don't save them."
-        alert.addButton(withTitle: "Save").isEnabled = false
+        alert.messageText = "Close “\(model.tab.title)” without saving?"
+        alert.informativeText = model.tab.source == .draft
+            ? "This Draft hasn't been saved. Its request will be lost."
+            : "Your edits to this Request haven't been saved and will be lost."
+        // The first button would answer Return; discarding work never takes a key a hand rests on.
         let dontSave = alert.addButton(withTitle: "Don't Save")
+        dontSave.hasDestructiveAction = true
         dontSave.keyEquivalent = "d"
         dontSave.keyEquivalentModifierMask = .command
         alert.addButton(withTitle: "Cancel").keyEquivalent = "\u{1b}"
@@ -49,11 +51,7 @@ enum CloseConfirm {
         guard window.attachedSheet == nil else { return }
         let focused = window.firstResponder
         alert(for: model).beginSheetModal(for: window) { response in
-            let choice: CloseChoice = switch response {
-            case .alertFirstButtonReturn: .save
-            case .alertSecondButtonReturn: .dontSave
-            default: .cancel
-            }
+            let choice: CloseChoice = response == .alertFirstButtonReturn ? .dontSave : .cancel
             if choice == .cancel, let focused { window.makeFirstResponder(focused) }
             reply(choice)
         }

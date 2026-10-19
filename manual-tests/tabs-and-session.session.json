@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "selected": "3C1D2E4F-0000-4000-8000-000000000003",
+  "tabs": [
+    {
+      "id": "3C1D2E4F-0000-4000-8000-000000000001",
+      "requestID": "9A000000-0000-4000-8000-000000000001",
+      "definition": { "method": "GET", "url": "https://httpbin.org/anything/charges" },
+      "baseline": { "method": "GET", "url": "https://httpbin.org/anything/charges" }
+    },
+    {
+      "id": "3C1D2E4F-0000-4000-8000-000000000002",
+      "requestID": "9A000000-0000-4000-8000-000000000002",
+      "definition": { "method": "POST", "url": "https://httpbin.org/anything/charges/create" },
+      "baseline": { "method": "GET", "url": "https://httpbin.org/anything/charges/create" }
+    },
+    {
+      "id": "3C1D2E4F-0000-4000-8000-000000000003",
+      "definition": { "method": "POST", "url": "https://httpbin.org/anything/v1/webhooks" }
+    },
+    {
+      "id": "3C1D2E4F-0000-4000-8000-000000000004",
+      "definition": { "method": "HEAD", "url": "https://httpbin.org/delay/8" }
+    }
+  ]
+}

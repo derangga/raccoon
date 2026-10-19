@@ -144,7 +144,7 @@ final class TabStripView: NSView {
     }
 }
 
-/// One Tab: `[state glyph] [method badge] name [slot]` (design-system.md §6 Tab).
+/// One Tab: `[state glyph or Draft dot] [method badge] name [slot]` (design-system.md §6 Tab).
 final class TabItemView: NSView {
     let model: TabModel
     private let theme: ThemeEnvironment
@@ -152,6 +152,8 @@ final class TabItemView: NSView {
     private let onClose: () -> Void
 
     let glyph = NSImageView()
+    /// The Draft cue that reads in every script, italic or not (Open UI Q4).
+    let draftDot = NSView()
     let badge = NSTextField(labelWithString: "")
     let spinner = NSProgressIndicator()
     let name = NSTextField(labelWithString: "")
@@ -189,13 +191,15 @@ final class TabItemView: NSView {
         name.usesSingleLineMode = true
         dot.wantsLayer = true
         dot.layer?.cornerRadius = 4
+        draftDot.wantsLayer = true
+        draftDot.layer?.cornerRadius = 3
         closeButton.isBordered = false
         closeButton.wantsLayer = true
         closeButton.layer?.cornerRadius = 4
         closeButton.toolTip = "Close Tab"
         closeButton.target = self
         closeButton.action = #selector(close)
-        for part in [glyph, spinner, badge, name, dot, closeButton] as [NSView] {
+        for part in [glyph, draftDot, spinner, badge, name, dot, closeButton] as [NSView] {
             part.setAccessibilityElement(false)
             addSubview(part)
         }
@@ -245,6 +249,7 @@ final class TabItemView: NSView {
         spinner.isHidden = !spins
         if spins { spinner.startAnimation(nil) } else { spinner.stopAnimation(nil) }
         glyph.isHidden = !tab.isChangedOnDisk
+        draftDot.isHidden = tab.source != .draft
         badge.isHidden = spins
         badge.stringValue = tab.definition.method
         name.stringValue = tab.title
@@ -262,6 +267,7 @@ final class TabItemView: NSView {
         badge.textColor = theme.color(.method(tab.definition.method))
         name.textColor = theme.color(isSelected ? .text : .textSecondary)
         dot.layer?.backgroundColor = theme.color(.dirtyDot).cgColor
+        draftDot.layer?.backgroundColor = theme.color(.accent).cgColor
         closeButton.contentTintColor = theme.color(.textSecondary)
         closeButton.layer?.backgroundColor = theme.color(.selection).cgColor
 
@@ -284,6 +290,7 @@ final class TabItemView: NSView {
             x += width + 6
         }
         if !glyph.isHidden { place(glyph, width: 12, height: 12) }
+        if !draftDot.isHidden { place(draftDot, width: 6, height: 6) }
         if !spinner.isHidden { place(spinner, width: 12, height: 12) }
         if !badge.isHidden {
             // The cell's size: a truncating label's intrinsic width leaves out its padding.

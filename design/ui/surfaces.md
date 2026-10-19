@@ -39,7 +39,7 @@ Overlays
   EnvironmentsSheet             native sheet
   SaveDraftSheet                native sheet
   PostmanImportSheet            native sheet: the plan, the notes, then the result
-  CloseConfirm                  native sheet alert: Save · Don't Save · Cancel
+  CloseConfirm                  native sheet alert: Don't Save · Cancel (Save with Collections)
   ThemeMenu                     native menu, View ▸ Theme
 ```
 
@@ -196,7 +196,7 @@ two cases are a binary body and a secret value, and both say why instead of show
 | EnvironmentsSheet | window focus | Done, Esc | the field focused before ⌃E or the menu |
 | PostmanImportSheet | window focus | Import (then Done on the result), Cancel, Esc | the sidebar, on the first imported Collection; on Cancel, where it was |
 | SaveDraftSheet | window focus | Save, Cancel, Esc | the URL field of the same Tab |
-| CloseConfirm | window focus | Save, Don't Save, Cancel, Esc (= Cancel) | the Tab, or its neighbour if closed |
+| CloseConfirm | window focus | Don't Save, Cancel, Esc (= Cancel); Save once Collections writes Requests | the Tab, or its neighbour if closed |
 | SidebarFilter | keyboard focus | Esc clears the query; a second Esc, or Return on a match, gives focus back to the editor (Return also opens the match) | the editor of the selected Tab |
 | Inspector | nothing: it is a pane, not an overlay, except when it overlays a narrow window (Q2), where clicking the content or Esc closes it | | |
 | ThemeMenu | menu tracking | pick, Esc, click outside | where it was |
