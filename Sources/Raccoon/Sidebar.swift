@@ -45,8 +45,17 @@ final class SidebarItem {
 /// The sidebar (design-system §6 Sidebar rows): native chrome on the opaque window background,
 /// a source-list outline of the Data Folder, and the method badges in Theme colours. Lives
 /// inside the sidebar pane's content view, so the narrow-window overlay borrows it whole.
-final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate {
+final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate,
+    NSMenuItemValidation {
     let sectionLabel = NSTextField(labelWithString: "Collections")
+    /// The footer's + menu (board 12).
+    let addMenu = NSMenu()
+    let addButton = NSButton()
+
+    /// The name sheet in the app: title, current name, confirm button, and nil on Cancel.
+    var askName: (_ title: String, _ name: String, _ button: String, _ reply: @escaping (String?) -> Void) -> Void = { _, _, _, reply in reply(nil) }
+    /// An alert sheet in the app, for an operation that failed.
+    var showError: (String) -> Void = { _ in }
     let outline = NSOutlineView()
     let empty = NSStackView()
     let emptyText = NSTextField(wrappingLabelWithString: "No Collections yet. Create one, or save a Draft into one with ⌘S.")
@@ -91,6 +100,18 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         outline.action = #selector(clicked)
         outline.doubleAction = #selector(doubleClicked)
         outline.setAccessibilityLabel("Collections")
+        outline.menu = NSMenu()
+        outline.menu?.delegate = self
+
+        addMenu.addItem(NSMenuItem(title: "New Collection", action: #selector(newCollection(_:)), keyEquivalent: ""))
+        addMenu.addItem(NSMenuItem(title: "New Folder", action: #selector(newFolder(_:)), keyEquivalent: ""))
+        addMenu.items.forEach { $0.target = self }
+        addButton.image = NSImage(systemSymbolName: "plus", accessibilityDescription: "Add")
+        addButton.bezelStyle = .accessoryBarAction
+        addButton.isBordered = false
+        addButton.toolTip = "New Collection or Folder"
+        addButton.target = self
+        addButton.action = #selector(showAddMenu)
         let scroll = NSScrollView()
         scroll.documentView = outline
         scroll.drawsBackground = false
@@ -108,7 +129,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         empty.addArrangedSubview(emptyText)
         empty.addArrangedSubview(emptyPath)
 
-        for child in [sectionLabel, scroll, empty] as [NSView] {
+        for child in [sectionLabel, scroll, empty, addButton] as [NSView] {
             child.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview(child)
         }
@@ -118,7 +139,11 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
             scroll.topAnchor.constraint(equalTo: sectionLabel.bottomAnchor, constant: 4),
             scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            scroll.bottomAnchor.constraint(equalTo: addButton.topAnchor, constant: -6),
+            addButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
+            addButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -6),
+            addButton.widthAnchor.constraint(equalToConstant: 28),
+            addButton.heightAnchor.constraint(equalToConstant: 28),
             empty.topAnchor.constraint(equalTo: sectionLabel.bottomAnchor, constant: 12),
             empty.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
             empty.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -18),
@@ -186,6 +211,132 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         case .request: open(row: row)
         case .unreadable: reveal(window.dataFolderRoot + "/" + item.path)
         case .collection, .folder: break
+        }
+    }
+
+    // MARK: New Collection, New Folder, rename, move, Move to Trash
+
+    @objc private func showAddMenu() {
+        addMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: addButton.bounds.height + 4), in: addButton)
+    }
+
+    /// The Collection or Folder a row is, or is in.
+    private func folder(of item: SidebarItem) -> String {
+        switch item.kind {
+        case .collection, .folder: item.path
+        case .request, .unreadable: String(item.path[..<(item.path.range(of: "/", options: .backwards)?.lowerBound ?? item.path.endIndex)])
+        }
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        menuItem.action != #selector(newFolder(_:)) || outline.selectedRow >= 0
+    }
+
+    @objc func newCollection(_ sender: Any?) {
+        askName("New Collection", "", "Create") { [weak self] name in
+            guard let self, let name else { return }
+            perform({ "Couldn't create “\(name)”: \($0)." }) { () throws(StoreError) in try self.window.newCollection(name) }
+        }
+    }
+
+    /// In the selected row's Collection or Folder.
+    @objc func newFolder(_ sender: Any?) {
+        guard let item = outline.item(atRow: outline.selectedRow) as? SidebarItem else { return }
+        newFolder(in: folder(of: item))
+    }
+
+    private func newFolder(in parent: String) {
+        askName("New Folder", "", "Create") { [weak self] name in
+            guard let self, let name else { return }
+            perform({ "Couldn't create “\(name)”: \($0)." }) { () throws(StoreError) in try self.window.newFolder(name, in: parent) }
+        }
+    }
+
+    /// The row's context menu (collections.md, Where they are).
+    func contextMenu(row: Int) -> NSMenu {
+        let menu = NSMenu()
+        fill(menu, row: row)
+        return menu
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard menu === outline.menu else { return }
+        menu.removeAllItems()
+        fill(menu, row: outline.clickedRow)
+    }
+
+    private func fill(_ menu: NSMenu, row: Int) {
+        guard let item = outline.item(atRow: row) as? SidebarItem else { return }
+        func add(_ title: String, _ action: Selector, _ object: Any) {
+            let entry = NSMenuItem(title: title, action: action, keyEquivalent: "")
+            entry.target = self
+            entry.representedObject = object
+            menu.addItem(entry)
+        }
+        add("New Folder…", #selector(newFolderHere), folder(of: item))
+        if case .unreadable = item.kind {} else { add("Rename…", #selector(renameItem), item) }
+        if item.kind != .collection {
+            let parent = String(item.path[..<(item.path.range(of: "/", options: .backwards)?.lowerBound ?? item.path.startIndex)])
+            let targets = window.index.folders.filter { $0 != parent && $0 != item.path && !$0.hasPrefix(item.path + "/") }
+            let moveTo = NSMenuItem(title: "Move To", action: nil, keyEquivalent: "")
+            moveTo.submenu = NSMenu()
+            for target in targets {
+                let entry = NSMenuItem(title: target.replacingOccurrences(of: "/", with: " ▸ "), action: #selector(moveItem), keyEquivalent: "")
+                entry.target = self
+                entry.representedObject = MoveTarget(item: item, folder: target)
+                moveTo.submenu?.addItem(entry)
+            }
+            moveTo.isEnabled = !targets.isEmpty
+            menu.addItem(moveTo)
+        }
+        menu.addItem(.separator())
+        add("Move to Trash", #selector(trashItem), item)
+        add("Reveal in Finder", #selector(revealItem), item)
+    }
+
+    private final class MoveTarget {
+        let item: SidebarItem
+        let folder: String
+        init(item: SidebarItem, folder: String) { (self.item, self.folder) = (item, folder) }
+    }
+
+    @objc private func newFolderHere(_ sender: NSMenuItem) {
+        if let parent = sender.representedObject as? String { newFolder(in: parent) }
+    }
+
+    @objc private func renameItem(_ sender: NSMenuItem) {
+        guard let item = sender.representedObject as? SidebarItem else { return }
+        askName("Rename", item.name, "Rename") { [weak self] name in
+            guard let self, let name else { return }
+            perform({ "Couldn't rename “\(item.name)”: \($0)." }) { () throws(StoreError) in try self.window.rename(item.path, to: name) }
+        }
+    }
+
+    @objc private func moveItem(_ sender: NSMenuItem) {
+        guard let target = sender.representedObject as? MoveTarget else { return }
+        perform({ "Couldn't move “\(target.item.name)”: \($0)." }) { () throws(StoreError) in
+            try self.window.move(target.item.path, to: target.folder)
+        }
+    }
+
+    @objc private func trashItem(_ sender: NSMenuItem) {
+        guard let item = sender.representedObject as? SidebarItem else { return }
+        perform({ "Couldn't move “\(item.name)” to the Trash: \($0)." }) { () throws(StoreError) in try self.window.trash(item.path) }
+    }
+
+    @objc private func revealItem(_ sender: NSMenuItem) {
+        guard let item = sender.representedObject as? SidebarItem else { return }
+        reveal(window.dataFolderRoot + "/" + item.path)
+    }
+
+    /// Runs an operation; a failure is an alert, and nothing changes.
+    private func perform(_ failure: (String) -> String, _ operation: () throws(StoreError) -> Void) {
+        do throws(StoreError) {
+            try operation()
+        } catch {
+            switch error {
+            case .unwritable(_, let reason), .unreadable(_, let reason), .undecodable(_, let reason): showError(failure(reason))
+            }
         }
     }
 

@@ -39,3 +39,26 @@ extension TreeNode {
         }
     }
 }
+
+/// Raccoon's own changes, applied to the last scan in memory so the tree follows at once with
+/// no disk scan (collections.md §renameOrMove).
+extension DataFolderScan {
+    /// `path` and everything under it.
+    public func paths(under path: String) -> Set<String> {
+        let inside = { (candidate: String) in candidate == path || candidate.hasPrefix(path + "/") }
+        return Set(files.keys.filter(inside)).union(folders.filter(inside))
+    }
+
+    public func moving(_ path: String, to newPath: String) -> DataFolderScan {
+        let moved = { (candidate: String) in
+            candidate == path ? newPath : candidate.hasPrefix(path + "/") ? newPath + candidate.dropFirst(path.count) : candidate
+        }
+        return DataFolderScan(files: Dictionary(uniqueKeysWithValues: files.map { (moved($0.key), $0.value) }),
+                              folders: Set(folders.map(moved)))
+    }
+
+    public func removing(_ path: String) -> DataFolderScan {
+        let gone = paths(under: path)
+        return DataFolderScan(files: files.filter { !gone.contains($0.key) }, folders: folders.subtracting(gone))
+    }
+}

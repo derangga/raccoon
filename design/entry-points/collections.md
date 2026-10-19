@@ -141,9 +141,26 @@ next save silently overwrite the pulled change, which is the bug Changed on Disk
 
 ```
 -> renameOrMove(node) · delete(node) · newCollection · newFolder
-  -> DataFolderStore.move / trash / createDirectory   boundary
+  -> DataFolderStore.move / write / trash / createDirectory   boundary
                                                  delete goes to the Trash, never unlink
-  -> handled as filesChanged, with the ledger marking them as ours
+                                                 E: StoreError -> escape: an alert sheet,
+                                                 "Couldn't <verb> “<name>”: <reason>.";
+                                                 nothing changes
+  -> the window's last DataFolderScan, edited    pure; the tree is rebuilt from it with no
+     in memory                                   disk scan, so the row moves at once
+  -> WriteLedger.record(path, bytes or nil)      every path touched: the watch batch that
+                                                 follows is ours and dropped
+  -> open Tabs follow their Request by RequestID; a trashed one's Tab becomes a Draft with
+     Deleted on disk, as in filesChanged
+```
+
+**Where they are** (decided 2026-10-19; board 12 draws only the + menu). The sidebar footer's
++ menu and File ▸ New Collection make a Collection; the + menu's New Folder makes one in the
+selected row's Collection or Folder. A row's context menu has New Folder…, Rename…, Move To ▸
+(every Collection and Folder as a path), Move to Trash and Reveal in Finder; a Collection has
+no Move To, an unreadable row no Rename. New Collection, New Folder and Rename share one name
+sheet. A taken name gets " 2", as a file does. Renaming a Request changes the name inside its
+file and renames the file to match. Move to Trash does not ask: the Trash is the undo.
 ```
 
 ## Filtering the sidebar

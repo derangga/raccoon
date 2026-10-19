@@ -476,6 +476,13 @@ a "Collection" name field under it; Save creates that Collection, then the Reque
 shown has text. "The last one used" lasts while the app runs; it is not kept across relaunch.
 Cancel, Esc and Save all give focus back to the Tab's URL field. Seen on: 09.
 
+### Name sheet (native)
+
+"New Collection", "New Folder" or "Rename", one Name field (focused, prefilled with the
+current name for Rename), Cancel · **Rename**, or Cancel · **Create** for the two New
+sheets. The button is disabled while the name is blank. A failed operation is an alert sheet:
+"Couldn't rename “Refunds”: permission denied." Not drawn on a board.
+
 ### Close confirmation (native)
 
 An `NSAlert` sheet on the window (Open UI Q8), shown when closing a Tab with losable content

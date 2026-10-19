@@ -13,6 +13,7 @@ enum MainMenu {
         // No target: the AppDelegate, which owns the WindowModel, takes the Tab items.
         menu.addItem(submenu("File", [
             NSMenuItem(title: "New Tab", action: #selector(AppDelegate.newTab(_:)), keyEquivalent: "t"),
+            NSMenuItem(title: "New Collection", action: #selector(AppDelegate.newCollection(_:)), keyEquivalent: ""),
             .separator(),
             NSMenuItem(title: "Save", action: #selector(AppDelegate.save(_:)), keyEquivalent: "s"),
             .separator(),

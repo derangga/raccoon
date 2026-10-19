@@ -109,13 +109,18 @@ public enum RequestFileName {
     public static func make(_ name: String, taken: Set<String>) -> String {
         precondition(!name.isEmpty, "the Save sheet requires a name")
         let base = sanitised(name)
+        return unique(base, extension: ".json", taken: taken)
+    }
+
+    /// `base` + `ext`, or with " 2", " 3"… until no taken name matches, ignoring case.
+    public static func unique(_ base: String, extension ext: String = "", taken: Set<String>) -> String {
         let taken = Set(taken.map { $0.lowercased() })
-        var file = "\(base).json"
+        var name = base + ext
         var n = 1
-        while taken.contains(file.lowercased()) {
+        while taken.contains(name.lowercased()) {
             n += 1
-            file = "\(base) \(n).json"
+            name = "\(base) \(n)\(ext)"
         }
-        return file
+        return name
     }
 }

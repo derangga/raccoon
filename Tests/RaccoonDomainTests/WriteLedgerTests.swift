@@ -24,4 +24,11 @@ struct WriteLedgerTests {
         let checkedOut = Data(String(decoding: Self.written, as: UTF8.self).utf8)
         #expect(ledger.isOurs("a.json", checkedOut))
     }
+
+    @Test func `a path Raccoon removed is ours while it stays gone`() {
+        var ledger = WriteLedger()
+        ledger.record("a.json", nil)
+        #expect(ledger.isOurs("a.json", nil))
+        #expect(!ledger.isOurs("a.json", Self.written))
+    }
 }

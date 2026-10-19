@@ -157,3 +157,83 @@ final class SaveDraftSheet: NSViewController, NSTextFieldDelegate {
         reply = nil
     }
 }
+
+/// One name: New Collection, New Folder and Rename (design-system §6 Name sheet).
+final class NameSheet: NSViewController, NSTextFieldDelegate {
+    let heading = NSTextField(labelWithString: "")
+    let nameField = NSTextField()
+    let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
+    let confirmButton = NSButton(title: "", target: nil, action: nil)
+    private var reply: ((String?) -> Void)?
+
+    init(title: String, name: String, button: String, reply: @escaping (String?) -> Void) {
+        self.reply = reply
+        super.init(nibName: nil, bundle: nil)
+        self.title = title
+        heading.stringValue = title
+        nameField.stringValue = name
+        confirmButton.title = button
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    static func present(on window: NSWindow, title: String, name: String, button: String, reply: @escaping (String?) -> Void) {
+        let sheet = NameSheet(title: title, name: name, button: button, reply: reply)
+        let panel = NSWindow(contentViewController: sheet)
+        panel.initialFirstResponder = sheet.nameField
+        window.beginSheet(panel)
+    }
+
+    override func loadView() {
+        heading.font = .systemFont(ofSize: 13, weight: .semibold)
+        nameField.delegate = self
+        nameField.setAccessibilityLabel("Name")
+        nameField.widthAnchor.constraint(equalToConstant: 260).isActive = true
+        let label = NSTextField(labelWithString: "Name")
+        label.alignment = .right
+        let grid = NSGridView(views: [[label, nameField]])
+        grid.column(at: 0).width = 70
+        grid.columnSpacing = 10
+        grid.rowAlignment = .firstBaseline
+        cancelButton.keyEquivalent = "\u{1b}"
+        cancelButton.target = self
+        cancelButton.action = #selector(cancel)
+        confirmButton.keyEquivalent = "\r"
+        confirmButton.target = self
+        confirmButton.action = #selector(confirm)
+        let buttons = NSStackView(views: [cancelButton, confirmButton])
+        buttons.spacing = 8
+        let column = NSStackView(views: [heading, grid, buttons])
+        column.orientation = .vertical
+        column.alignment = .leading
+        column.spacing = 12
+        column.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 12, right: 16)
+        column.setCustomSpacing(16, after: grid)
+        buttons.trailingAnchor.constraint(equalTo: column.trailingAnchor, constant: -16).isActive = true
+        view = column
+        validate()
+    }
+
+    func controlTextDidChange(_ notification: Notification) { validate() }
+
+    private var name: String? {
+        let name = nameField.stringValue.trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? nil : name
+    }
+
+    private func validate() { confirmButton.isEnabled = name != nil }
+
+    @objc private func confirm() {
+        guard let name else { return }
+        finish(name)
+    }
+
+    @objc private func cancel() { finish(nil) }
+
+    private func finish(_ name: String?) {
+        if let panel = view.window, let parent = panel.sheetParent { parent.endSheet(panel) }
+        reply?(name)
+        reply = nil
+    }
+}

@@ -395,7 +395,8 @@ final class WindowModel {
         do throws(StoreError) {
             try store.ensureExists()
             scanCount += 1
-            index = DataFolderIndex(TreeDecoder.collections(try store.scan()))
+            lastScan = try store.scan()
+            index = DataFolderIndex(TreeDecoder.collections(lastScan))
         } catch {
             index = DataFolderIndex([])
             dataFolderError = error
@@ -430,10 +431,16 @@ final class WindowModel {
     /// ledger; anything else rescans once, then each open Request Tab follows its file.
     private func filesChanged(_ paths: [String]) {
         guard let store else { return }
-        let ours = paths.allSatisfy { path in (try? store.read(path)).map { ledger.isOurs(path, $0) } ?? false }
-        guard !ours else { return }
+        // A path that reads as nothing (gone, or a folder) is ours if Raccoon removed or made it.
+        guard !paths.allSatisfy({ ledger.isOurs($0, try? store.read($0)) }) else { return }
         let before = index
         guard let scan = rescan() else { return }
+        followTabs(before: before, scan: scan)
+    }
+
+    /// Each open Request Tab after the tree changed: it follows its RequestID to a new path,
+    /// reloads or turns Changed on Disk, or becomes a Draft when its file is gone.
+    private func followTabs(before: DataFolderIndex, scan: DataFolderScan) {
         for model in tabs {
             guard case .request(let id) = model.tab.source else { continue }
             guard let path = index.path(of: id) else {
@@ -452,8 +459,7 @@ final class WindowModel {
             }
             unreadableFiles[id] = nil
             // The index decoded this file a moment ago, so it decodes.
-            guard let data = scan.files[path], !ledger.isOurs(path, data), let disk = try? RequestFile.decode(data).definition,
-                  disk != model.tab.baseline
+            guard let data = scan.files[path], let disk = try? RequestFile.decode(data).definition, disk != model.tab.baseline
             else { continue }
             if model.tab.isDirty {
                 model.tab.baseline = disk
@@ -463,6 +469,97 @@ final class WindowModel {
                 model.tab.baseline = disk
             }
         }
+    }
+
+    // MARK: New Collection, New Folder, rename, move, Move to Trash
+
+    /// The last scan, kept up to date with Raccoon's own changes so they rebuild the tree with
+    /// no disk scan.
+    private var lastScan = DataFolderScan(files: [:], folders: [])
+
+    /// Raccoon changed the disk itself: every touched path goes in the ledger, so the watch
+    /// echo is dropped, and the tree is rebuilt from the edited scan.
+    private func apply(_ scan: DataFolderScan, touched: Set<String>) {
+        for path in touched { ledger.record(path, scan.files[path]) }
+        lastScan = scan
+        let before = index
+        index = DataFolderIndex(TreeDecoder.collections(scan))
+        followTabs(before: before, scan: scan)
+    }
+
+    private func requireStore() throws(StoreError) -> any DataFolderStore {
+        guard let store else { throw .unwritable(path: location.root, reason: "the Data Folder is unavailable") }
+        return store
+    }
+
+    private func folderNames(in parent: String) -> Set<String> {
+        Set(lastScan.folders.filter { Self.parent(of: $0) == parent }.map(Self.fileName))
+    }
+
+    private static func parent(of path: String) -> String {
+        path.range(of: "/", options: .backwards).map { String(path[..<$0.lowerBound]) } ?? ""
+    }
+
+    private static func joined(_ parent: String, _ name: String) -> String {
+        parent.isEmpty ? name : parent + "/" + name
+    }
+
+    func newCollection(_ name: String) throws(StoreError) {
+        try newFolder(name, in: "")
+    }
+
+    /// `parent` "" makes a Collection.
+    func newFolder(_ name: String, in parent: String) throws(StoreError) {
+        let path = Self.joined(parent, RequestFileName.unique(RequestFileName.sanitised(name), taken: folderNames(in: parent)))
+        try requireStore().createDirectory(path)
+        var scan = lastScan
+        scan.folders.insert(path)
+        apply(scan, touched: [path])
+    }
+
+    /// A Collection or Folder gets a new folder name; a Request a new name inside its file,
+    /// and the file name to match.
+    func rename(_ path: String, to name: String) throws(StoreError) {
+        let store = try requireStore()
+        let parent = Self.parent(of: path)
+        guard let data = lastScan.files[path] else {
+            let newPath = Self.joined(parent, RequestFileName.unique(RequestFileName.sanitised(name), taken: folderNames(in: parent).subtracting([Self.fileName(path)])))
+            guard newPath != path else { return }
+            try store.move(path, to: newPath)
+            apply(lastScan.moving(path, to: newPath), touched: lastScan.paths(under: path).union(lastScan.moving(path, to: newPath).paths(under: newPath)))
+            return
+        }
+        // Unreadable rows offer no Rename: only a Request has a name inside.
+        guard var request = try? RequestFile.decode(data) else { return }
+        request.name = name
+        let bytes = RequestFile.encode(request)
+        let newPath = Self.joined(parent, RequestFileName.make(name, taken: index.fileNames(in: parent).subtracting([Self.fileName(path)])))
+        if newPath != path { try store.move(path, to: newPath) }
+        try store.write(bytes, to: newPath)
+        var scan = lastScan.moving(path, to: newPath)
+        scan.files[newPath] = bytes
+        apply(scan, touched: [path, newPath])
+    }
+
+    /// Into a Collection or Folder, keeping its name (" 2" if taken there).
+    func move(_ path: String, to folder: String) throws(StoreError) {
+        let name = Self.fileName(path)
+        let isFile = lastScan.files[path] != nil
+        let taken = isFile ? index.fileNames(in: folder) : folderNames(in: folder)
+        let newName = isFile
+            ? RequestFileName.unique(String(name.dropLast(".json".count)), extension: ".json", taken: taken)
+            : RequestFileName.unique(name, taken: taken)
+        let newPath = Self.joined(folder, newName)
+        guard newPath != path, !(folder + "/").hasPrefix(path + "/") else { return }
+        try requireStore().move(path, to: newPath)
+        let moved = lastScan.moving(path, to: newPath)
+        apply(moved, touched: lastScan.paths(under: path).union(moved.paths(under: newPath)))
+    }
+
+    /// To the Trash, never unlinked. Open Tabs on what went become Drafts.
+    func trash(_ path: String) throws(StoreError) {
+        try requireStore().trash(path)
+        apply(lastScan.removing(path), touched: lastScan.paths(under: path))
     }
 
     /// Reload on the Changed on Disk banner: the file wins.
@@ -485,6 +582,7 @@ final class WindowModel {
         scanCount += 1
         do throws(StoreError) {
             let scan = try store.scan()
+            lastScan = scan
             index = DataFolderIndex(TreeDecoder.collections(scan))
             return scan
         } catch {
@@ -546,6 +644,7 @@ final class WindowModel {
             return
         }
         ledger.record(path, data)
+        lastScan.files[path] = data
         model.tab.baseline = model.tab.definition
         model.tab.isChangedOnDisk = false
         model.notice = nil
@@ -577,6 +676,8 @@ final class WindowModel {
             return
         }
         ledger.record(path, data)
+        lastScan.files[path] = data
+        if case .newCollection = location { lastScan.folders.insert(folder); ledger.record(folder, nil) }
         // insert needs the Collection in the tree already; a new one comes from the rescan.
         if case .newCollection = location { rescan() } else { index.insert(requestID, name: name, method: model.tab.definition.method, path: path) }
         model.tab.source = .request(requestID)

@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var themeController: ThemeController?
     private var closer: TabCloser?
     private var saver: DraftSaver?
+    private var sidebar: SidebarViewController?
     private var dataFolderBanner: DataFolderBannerBinding?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -51,9 +52,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         strip.onClose = closer.close
         self.closer = closer
-        windowController.split.showSidebar(SidebarViewController(window: windowModel, theme: theme) { path in
+        let sidebar = SidebarViewController(window: windowModel, theme: theme) { path in
             NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: path)])
-        })
+        }
+        sidebar.askName = { [weak windowController] title, name, button, reply in
+            guard let window = windowController?.window else { return reply(nil) }
+            NameSheet.present(on: window, title: title, name: name, button: button, reply: reply)
+        }
+        sidebar.showError = { [weak windowController] message in
+            guard let window = windowController?.window else { return }
+            let alert = NSAlert()
+            alert.messageText = message
+            alert.beginSheetModal(for: window)
+        }
+        windowController.split.showSidebar(sidebar)
+        self.sidebar = sidebar
         let tabBanner = TabBannerBinding(window: windowModel, theme: theme, reduceMotion: { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion })
         windowController.split.showTab(ContentViewController(strip: strip, tab: tabController, banner: tabBanner))
         self.tabController = tabController
@@ -82,6 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func newTab(_ sender: Any?) { windowModel?.newTab() }
+    @objc func newCollection(_ sender: Any?) { sidebar?.newCollection(sender) }
     @objc func save(_ sender: Any?) { if let tab = windowModel?.selectedTab { saver?.save(tab) } }
     @objc func closeTab(_ sender: Any?) { if let tab = windowModel?.selectedTab { closer?.close(tab) } }
     @objc func showTab(_ sender: NSMenuItem) { windowModel?.select(number: sender.tag) }
