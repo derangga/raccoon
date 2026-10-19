@@ -348,17 +348,35 @@ final class WindowModel {
             }
             return
         }
-        // ponytail: a .request Tab comes back as stored; checking it against the Data Folder
-        // (found, changed on disk, gone) is the Collections epic's, and goes here.
         let restored = session.tabs.map { snapshot in
             let model = makeTab()
-            model.tab = Tab(id: snapshot.id, source: snapshot.source, definition: snapshot.definition, baseline: snapshot.baseline)
+            model.tab = restoredTab(snapshot)
             return model
         }
         guard let first = restored.first else { return }
         tabs = restored
         assertOneTabPerRequest()
         selected = restored.contains { $0.tab.id == session.selected } ? session.selected : first.tab.id
+    }
+
+    /// A Request Tab checked against its file (tabs.md §relaunch). loadDataFolder ran first, so
+    /// the file is in the launch scan. A Request that is gone, or no longer reads, is a Draft.
+    private func restoredTab(_ snapshot: TabSnapshot) -> Tab {
+        var tab = Tab(id: snapshot.id, source: snapshot.source, definition: snapshot.definition, baseline: snapshot.baseline)
+        guard case .request(let id) = snapshot.source else { return tab }
+        guard let path = index.path(of: id), let data = lastScan.files[path], let disk = try? RequestFile.decode(data).definition else {
+            tab.source = .draft
+            tab.baseline = nil
+            return tab
+        }
+        guard disk != snapshot.baseline else { return tab }
+        if tab.isDirty {
+            tab.isChangedOnDisk = true
+        } else {
+            tab.definition = disk
+        }
+        tab.baseline = disk
+        return tab
     }
 
     /// ⌘Q, logout, restart. Never asks: the Session keeps Dirty Tabs and Drafts. The snapshot

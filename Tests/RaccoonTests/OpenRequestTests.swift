@@ -126,6 +126,9 @@ struct OpenRequestTests {
                 let temp = FileManager.default.temporaryDirectory.appending(path: "raccoon-\(UUID())")
                 let store = DiskSessionStore(directory: temp)
                 let id = RequestID(UUID())
+                let file = temp.appending(path: "Raccoon/C/R.json")
+                try! FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try! RequestFile.encode(Request(id: id, name: "R", definition: .empty)).write(to: file)
                 let tabs = (0..<2).map { _ in TabSnapshot(id: TabID(UUID()), source: .request(id), definition: .empty, baseline: .empty) }
                 try! store.write(SessionFile.encode(Session(tabs: tabs, selected: nil, activeEnvironment: nil)))
                 let window = WindowModel(
@@ -136,6 +139,7 @@ struct OpenRequestTests {
                                  instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
                     }
                 )
+                window.loadDataFolder()
                 window.relaunch()
             }
         }
