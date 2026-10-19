@@ -165,6 +165,63 @@ struct ThemeControllerTests {
         #expect(left.isEmpty, "\(left)")
     }
 
+    /// View ▸ Theme as the menu bar builds it, after AppKit's validation pass.
+    func themeMenu(_ controller: ThemeController) throws -> NSMenu {
+        let view = try #require(MainMenu.make(theme: controller).item(withTitle: "View")?.submenu)
+        let menu = try #require(view.item(withTitle: "Theme")?.submenu)
+        menu.update()
+        return menu
+    }
+
+    func checked(_ menu: NSMenu) -> [String] { menu.items.filter { $0.state == .on }.map(\.title) }
+
+    @Test func `the Theme menu lists the Theme, then light and dark Flavors under headers`() throws {
+        let menu = try themeMenu(ThemeController(defaults: defaults(), catalog: catalog, appearanceSource: source(.aqua)))
+
+        #expect(menu.items.map { $0.isSeparatorItem ? "—" : $0.isSectionHeader ? "[\($0.title)]" : $0.title }
+            == ["[Theme]", "Catppuccin", "—", "[Light Appearance]", "Latte", "—", "[Dark Appearance]", "Frappé", "Macchiato", "Mocha"])
+    }
+
+    @Test func `nothing stored checks Catppuccin, Latte and Mocha`() throws {
+        let menu = try themeMenu(ThemeController(defaults: defaults(), catalog: catalog, appearanceSource: source(.aqua)))
+
+        #expect(checked(menu) == ["Catppuccin", "Latte", "Mocha"])
+    }
+
+    @Test func `a stored unknown Theme shows Latte and Mocha checked`() throws {
+        let defaults = defaults()
+        defaults.set(["theme": "Dracula", "light": "Dawn", "dark": "Dusk"], forKey: ThemeController.key)
+
+        let menu = try themeMenu(ThemeController(defaults: defaults, catalog: catalog, appearanceSource: source(.darkAqua)))
+
+        #expect(checked(menu) == ["Catppuccin", "Latte", "Mocha"])
+    }
+
+    @Test func `picking Frappé while dark applies at once and survives relaunch`() throws {
+        let defaults = defaults()
+        let controller = ThemeController(defaults: defaults, catalog: catalog, appearanceSource: source(.darkAqua))
+        let menu = try themeMenu(controller)
+        let frappe = try #require(menu.item(withTitle: "Frappé"))
+
+        menu.performActionForItem(at: menu.index(of: frappe))
+        menu.update()
+
+        #expect(controller.theme.flavor.name == "Frappé")
+        #expect(checked(menu) == ["Catppuccin", "Latte", "Frappé"])
+        let relaunched = ThemeController(defaults: defaults, catalog: catalog, appearanceSource: source(.darkAqua))
+        #expect(relaunched.theme.flavor.name == "Frappé")
+    }
+
+    @Test func `picking a light Flavor while dark keeps the dark one on screen`() throws {
+        let controller = ThemeController(defaults: defaults(), catalog: catalog, appearanceSource: source(.darkAqua))
+        let menu = try themeMenu(controller)
+
+        menu.performActionForItem(at: menu.index(of: try #require(menu.item(withTitle: "Latte"))))
+
+        #expect(controller.choice == .default)
+        #expect(controller.theme.flavor.name == "Mocha")
+    }
+
     @Test func `flipping the appearance switches to the other Flavor`() async {
         let view = source(.aqua)
         let controller = ThemeController(defaults: defaults(), catalog: catalog, appearanceSource: view)
@@ -174,5 +231,12 @@ struct ThemeControllerTests {
         await settle()
 
         #expect(controller.theme.flavor.name == "Mocha")
+    }
+}
+
+extension ThemeController {
+    /// The default choice from a suite nothing writes, for tests that need a menu bar, not a Theme.
+    static func standalone() -> ThemeController {
+        ThemeController(defaults: UserDefaults(suiteName: "ThemeController.standalone")!, catalog: ThemeCatalog.load(), appearanceSource: NSView())
     }
 }

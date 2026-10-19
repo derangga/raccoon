@@ -1,8 +1,9 @@
 import AppKit
+import RaccoonDomain
 
 /// The menu bar. The other menus arrive with the features that need them.
 enum MainMenu {
-    static func make() -> NSMenu {
+    static func make(theme: ThemeController) -> NSMenu {
         let menu = NSMenu()
         menu.addItem(submenu("Raccoon", [
             NSMenuItem(title: "Hide Raccoon", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"),
@@ -33,9 +34,13 @@ enum MainMenu {
         let showSidebar = NSMenuItem(title: "Show Sidebar", action: #selector(NSSplitViewController.toggleSidebar(_:)), keyEquivalent: "s")
         showSidebar.keyEquivalentModifierMask = [.control, .command]
         // The inspector's shortcut is still an open UI question.
+        // AppKit adds Enter Full Screen to a menu titled View, as on board 08.
         menu.addItem(submenu("View", [
             showSidebar,
             NSMenuItem(title: "Show Inspector", action: #selector(NSSplitViewController.toggleInspector(_:)), keyEquivalent: ""),
+            .separator(),
+            themeMenu(theme),
+            .separator(),
         ]))
         let next = NSMenuItem(title: "Show Next Tab", action: #selector(AppDelegate.showNextTab(_:)), keyEquivalent: "\t")
         next.keyEquivalentModifierMask = .control
@@ -64,6 +69,23 @@ enum MainMenu {
     /// No target: the selected Tab's TabViewController takes it.
     static func copyAsCurl() -> NSMenuItem {
         NSMenuItem(title: "Copy as Curl", action: #selector(TabViewController.copyAsCurl(_:)), keyEquivalent: "")
+    }
+
+    /// One section per choice, each item checked by ThemeController's validation.
+    private static func themeMenu(_ controller: ThemeController) -> NSMenuItem {
+        func section(_ header: String, _ names: [String], _ action: Selector) -> [NSMenuItem] {
+            [.sectionHeader(title: header)] + names.map { name in
+                let item = NSMenuItem(title: name, action: action, keyEquivalent: "")
+                item.target = controller
+                return item
+            }
+        }
+        let flavors = { (appearance: Flavor.Appearance) in
+            controller.catalog.themes.first { $0.name == controller.choice.theme }?.flavors.filter { $0.appearance == appearance }.map(\.name) ?? []
+        }
+        return submenu("Theme", section("Theme", controller.catalog.themes.map(\.name), #selector(ThemeController.pickTheme)) + [.separator()]
+            + section("Light Appearance", flavors(.light), #selector(ThemeController.pickLightFlavor)) + [.separator()]
+            + section("Dark Appearance", flavors(.dark), #selector(ThemeController.pickDarkFlavor)))
     }
 
     private static func submenu(_ title: String, _ items: [NSMenuItem]) -> NSMenuItem {

@@ -54,11 +54,11 @@ final class ThemeEnvironment {
 
 /// Keeps ThemeEnvironment on the chosen Flavor for the appearance: reads the ThemeChoice at
 /// launch, writes it when it changes, and follows the source's appearance for its lifetime.
-final class ThemeController {
+final class ThemeController: NSObject, NSMenuItemValidation {
     static let key = "ThemeChoice"
 
     let theme: ThemeEnvironment
-    private let catalog: ThemeCatalog
+    let catalog: ThemeCatalog
     private let defaults: UserDefaults
     private let appearance: () -> Flavor.Appearance
     private var observation: NSKeyValueObservation?
@@ -79,9 +79,35 @@ final class ThemeController {
         }
         choice = ThemeChoice.decode(defaults.dictionary(forKey: Self.key) as? [String: String], themes: catalog.themes)
         theme = ThemeEnvironment(flavor: choice.flavor(for: appearance(), in: catalog.themes))
+        super.init()
         observation = appearanceSource.observe(\.effectiveAppearance) { [weak self] _, _ in
             MainActor.assumeIsolated { self?.apply() }
         }
+    }
+
+    // MARK: View ▸ Theme
+
+    /// The menu lists only the catalog's names, so every pick resolves. The Theme already
+    /// chosen changes nothing; another takes its first light and first dark Flavor.
+    @objc func pickTheme(_ item: NSMenuItem) {
+        guard item.title != choice.theme, let theme = catalog.themes.first(where: { $0.name == item.title }),
+              let light = theme.flavors.first(where: { $0.appearance == .light }),
+              let dark = theme.flavors.first(where: { $0.appearance == .dark }) else { return }
+        choice = ThemeChoice(theme: theme.name, light: light.name, dark: dark.name)
+    }
+
+    @objc func pickLightFlavor(_ item: NSMenuItem) { choice.light = item.title }
+    @objc func pickDarkFlavor(_ item: NSMenuItem) { choice.dark = item.title }
+
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        let chosen = switch item.action {
+        case #selector(pickTheme): choice.theme
+        case #selector(pickLightFlavor): choice.light
+        case #selector(pickDarkFlavor): choice.dark
+        default: nil as String?
+        }
+        item.state = item.title == chosen ? .on : .off
+        return true
     }
 
     private func apply() {

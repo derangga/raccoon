@@ -94,7 +94,7 @@ struct MainWindowTests {
         #expect(controller.sidebarToggle.image?.accessibilityDescription == "Show Sidebar")
         #expect(controller.inspectorToggle.image?.accessibilityDescription == "Show Inspector")
 
-        let view = try #require(MainMenu.make().item(withTitle: "View")?.submenu)
+        let view = try #require(MainMenu.make(theme: .standalone()).item(withTitle: "View")?.submenu)
         #expect(view.item(withTitle: "Show Sidebar")?.action == #selector(NSSplitViewController.toggleSidebar(_:)))
         #expect(view.item(withTitle: "Show Inspector")?.action == #selector(NSSplitViewController.toggleInspector(_:)))
     }
@@ -103,7 +103,7 @@ struct MainWindowTests {
 @MainActor
 struct EditMenuTests {
     @Test func `the Edit menu sends Select All, Cut, Copy and Paste to the first responder`() throws {
-        let edit = try #require(MainMenu.make().item(withTitle: "Edit")?.submenu)
+        let edit = try #require(MainMenu.make(theme: .standalone()).item(withTitle: "Edit")?.submenu)
         let all = try #require(edit.item(withTitle: "Select All"))
         #expect(all.keyEquivalent == "a" && all.keyEquivalentModifierMask == .command && all.target == nil)
         #expect(all.action == #selector(NSText.selectAll(_:)))

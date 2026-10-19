@@ -16,7 +16,7 @@ struct CopyAsCurlTests {
     }
 
     func copyItem() throws -> NSMenuItem {
-        try #require(MainMenu.make().item(withTitle: "Edit")?.submenu?.item(withTitle: "Copy as Curl"))
+        try #require(MainMenu.make(theme: .standalone()).item(withTitle: "Edit")?.submenu?.item(withTitle: "Copy as Curl"))
     }
 
     @Test func `Copy as Curl puts the Tab's request on the clipboard as curl`() {
