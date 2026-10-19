@@ -26,6 +26,20 @@ final class TabModel {
     /// The line under the URL bar; not part of the Tab, so it is never saved.
     var message: MessageLine?
 
+    /// Where the one editor was when this Tab was last shown, so switching back restores it.
+    var viewState = ViewState()
+
+    struct ViewState {
+        var section = EditorSection.params
+        var body = TextPlace()
+        var response = TextPlace()
+    }
+
+    struct TextPlace {
+        var origin = NSPoint.zero
+        var selection = NSRange(location: 0, length: 0)
+    }
+
     /// The multipart file a send could not read; its chip is marked until the next send.
     private(set) var missingFile: String?
 
@@ -224,23 +238,57 @@ final class TabModel {
 /// The window's Tabs and the ports that touch the Data Folder, the Session and the Keychain.
 @Observable
 final class WindowModel {
+    /// The tab strip's order.
     private(set) var tabs: [TabModel]
+    private(set) var selected: TabID?
     private let dataFolder: any DataFolderStore
     private let folderWatch: any FolderWatch
     private let sessionStore: any SessionStore
     private let secrets: any SecretStore
-    private let newTab: () -> TabModel
+    private let makeTab: () -> TabModel
 
-    /// `newTab` builds a TabModel with its own ports; the window never hands a Tab its stores.
+    /// `makeTab` builds a TabModel with its own ports; the window never hands a Tab its stores.
     init(
         dataFolder: any DataFolderStore, folderWatch: any FolderWatch, sessionStore: any SessionStore,
-        secrets: any SecretStore, newTab: @escaping () -> TabModel
+        secrets: any SecretStore, makeTab: @escaping () -> TabModel
     ) {
         self.dataFolder = dataFolder
         self.folderWatch = folderWatch
         self.sessionStore = sessionStore
         self.secrets = secrets
-        self.newTab = newTab
-        tabs = [newTab()]
+        self.makeTab = makeTab
+        tabs = [makeTab()]
+        selected = tabs[0].tab.id
+    }
+
+    var selectedTab: TabModel? { tabs.first { $0.tab.id == selected } }
+
+    /// ⌘T: an empty Draft after the selected Tab.
+    func newTab() {
+        let tab = makeTab()
+        let index = tabs.firstIndex { $0.tab.id == selected }.map { $0 + 1 } ?? tabs.endIndex
+        tabs.insert(tab, at: index)
+        selected = tab.tab.id
+    }
+
+    func select(_ id: TabID) {
+        guard tabs.contains(where: { $0.tab.id == id }) else { return }
+        selected = id
+    }
+
+    /// ⌘1…⌘8 by position, ⌘9 the last Tab, as in Safari and Finder.
+    func select(number: Int) {
+        let index = number == 9 ? tabs.count - 1 : number - 1
+        guard tabs.indices.contains(index) else { return }
+        selected = tabs[index].tab.id
+    }
+
+    /// ⌃⇥ and ⌃⇧⇥, wrapping at either end.
+    func selectNext() { step(1) }
+    func selectPrevious() { step(-1) }
+
+    private func step(_ by: Int) {
+        guard let index = tabs.firstIndex(where: { $0.tab.id == selected }) else { return }
+        selected = tabs[(index + by + tabs.count) % tabs.count].tab.id
     }
 }

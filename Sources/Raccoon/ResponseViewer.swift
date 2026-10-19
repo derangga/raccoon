@@ -4,7 +4,7 @@ import RaccoonDomain
 
 /// The status line over the body (design-system.md §6 Response viewer).
 final class ResponseViewer: NSView {
-    private let model: TabModel
+    private var model: TabModel
     private let theme: ThemeEnvironment
 
     let spinner = NSProgressIndicator()
@@ -259,12 +259,21 @@ final class ResponseViewer: NSView {
 
     // MARK: Render
 
-    /// Redraws from the Tab's Response state and presentation, and again whenever they change.
+    /// The other Tab's Response gets its own storage; folds start open again.
+    func bind(_ model: TabModel) {
+        self.model = model
+        shown = nil
+        render()
+    }
+
+    /// Redraws from the Tab's Response state and presentation, and again whenever they change,
+    /// while it is still the bound one.
     func render() {
+        let bound = model
         withObservationTracking {
             draw(model.tab.response)
         } onChange: { [weak self] in
-            Task { @MainActor in self?.render() }
+            Task { @MainActor in if self?.model === bound { self?.render() } }
         }
     }
 

@@ -9,6 +9,10 @@ enum MainMenu {
             .separator(),
             NSMenuItem(title: "Quit Raccoon", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"),
         ]))
+        // No target: the AppDelegate, which owns the WindowModel, takes the Tab items.
+        menu.addItem(submenu("File", [
+            NSMenuItem(title: "New Tab", action: #selector(AppDelegate.newTab(_:)), keyEquivalent: "t"),
+        ]))
         let copyAsCurl = copyAsCurl()
         copyAsCurl.keyEquivalent = "c"
         copyAsCurl.keyEquivalentModifierMask = [.command, .shift]
@@ -33,10 +37,25 @@ enum MainMenu {
             showSidebar,
             NSMenuItem(title: "Show Inspector", action: #selector(NSSplitViewController.toggleInspector(_:)), keyEquivalent: ""),
         ]))
+        let next = NSMenuItem(title: "Show Next Tab", action: #selector(AppDelegate.showNextTab(_:)), keyEquivalent: "\t")
+        next.keyEquivalentModifierMask = .control
+        let previous = NSMenuItem(title: "Show Previous Tab", action: #selector(AppDelegate.showPreviousTab(_:)), keyEquivalent: "\t")
+        previous.keyEquivalentModifierMask = [.control, .shift]
+        // ⌘1…⌘9 work without nine items in the menu.
+        let numbered = (1...9).map { number in
+            let item = NSMenuItem(title: "Show Tab \(number)", action: #selector(AppDelegate.showTab(_:)), keyEquivalent: "\(number)")
+            item.tag = number
+            item.isHidden = true
+            item.allowsKeyEquivalentWhenHidden = true
+            return item
+        }
         let window = submenu("Window", [
             NSMenuItem(title: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m"),
             NSMenuItem(title: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: ""),
-        ])
+            .separator(),
+            next,
+            previous,
+        ] + numbered)
         NSApp?.windowsMenu = window.submenu
         menu.addItem(window)
         return menu

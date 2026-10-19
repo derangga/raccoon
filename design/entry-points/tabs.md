@@ -34,9 +34,12 @@ characters of a large coloured storage in place takes minutes (environment-facts
 ```
 
 ```
--> select(tabID)                                 click, ⌘1…9, ⌃⇥
+-> select(tabID)                                 click, ⌘1…8, ⌘9 the last Tab, ⌃⇥ ⌃⇧⇥
   -> editor.bind(tabModels[tabID])               no I/O, no copy
 ```
+
+**⌘9 is the last Tab**, as in Safari and Finder, and ⌃⇥ wraps at either end. Undo is one
+stack for the window and its actions read whichever Tab is bound, so a switch clears it.
 
 ```
 -> close(tabID)                                  ⌘W, the ✕

@@ -43,7 +43,7 @@ enum EditorSection: CaseIterable {
 /// The section bar over one pane per section (surfaces.md §1 RequestEditor). Params, Headers
 /// and Cookies are key/value tables writing the Tab's definition.
 final class RequestEditor: NSView {
-    private let model: TabModel
+    private var model: TabModel
     private let theme: ThemeEnvironment
     private(set) var selected = EditorSection.params
     private var buttons: [EditorSection: SectionButton] = [:]
@@ -161,8 +161,16 @@ final class RequestEditor: NSView {
         select(section)
     }
 
-    /// Redraws from the Tab's definition, and again whenever it changes.
+    func bind(_ model: TabModel) {
+        self.model = model
+        bodyPane.bind(model)
+        render()
+    }
+
+    /// Redraws from the Tab's definition, and again whenever it changes, while it is still the
+    /// bound one.
     func render() {
+        let bound = model
         withObservationTracking {
             let definition = model.tab.definition
             for (section, button) in buttons {
@@ -178,7 +186,7 @@ final class RequestEditor: NSView {
             bodyPane.setBody(definition.body)
             table(.headers).setAutomaticRows(resolved.map(AutomaticHeaders.rows) ?? [])
         } onChange: { [weak self] in
-            Task { @MainActor in self?.render() }
+            Task { @MainActor in if self?.model === bound { self?.render() } }
         }
     }
 }

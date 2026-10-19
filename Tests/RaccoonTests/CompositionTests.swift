@@ -20,7 +20,7 @@ struct CompositionTests {
             folderWatch: ManualFolderWatch(),
             sessionStore: DiskSessionStore(directory: temp.appending(path: "Support")),
             secrets: InMemorySecretStore(),
-            newTab: makeTab
+            makeTab: makeTab
         )
 
         #expect(window.tabs.count == 1)

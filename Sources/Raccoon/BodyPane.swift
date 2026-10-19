@@ -4,7 +4,7 @@ import RaccoonDomain
 /// The Body section: the Body Type pop-up, the raw kind pop-up, then "no body", the raw text
 /// editor, the form table or the multipart table (design-system.md §6 Body editor).
 final class BodyPane: NSView, NSTextViewDelegate {
-    private let model: TabModel
+    private var model: TabModel
     private let theme: ThemeEnvironment
     let typeButton = PopButton()
     let kindButton = PopButton()
@@ -290,6 +290,12 @@ final class BodyPane: NSView, NSTextViewDelegate {
     }
 
     // MARK: Render
+
+    /// The RequestEditor's render draws the new Tab's body.
+    func bind(_ model: TabModel) {
+        self.model = model
+        showFormatError(nil)
+    }
 
     func setBody(_ body: Body) {
         typeButton.attributedTitle = popTitle(Self.title(body.type))

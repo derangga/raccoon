@@ -6,7 +6,7 @@ import RaccoonDomain
 final class URLBar: NSView, NSTextFieldDelegate {
     static let methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
 
-    private let model: TabModel
+    private var model: TabModel
     private let theme: ThemeEnvironment
     let methodButton = NSButton()
     let urlField = FocusTextField()
@@ -309,8 +309,14 @@ final class URLBar: NSView, NSTextFieldDelegate {
         render()
     }
 
-    /// Redraws from the Tab, and again whenever it changes.
+    func bind(_ model: TabModel) {
+        self.model = model
+        render()
+    }
+
+    /// Redraws from the Tab, and again whenever it changes, while it is still the bound one.
     func render() {
+        let bound = model
         withObservationTracking {
             let method = model.tab.definition.method
             methodButton.attributedTitle = methodTitle(method)
@@ -322,7 +328,7 @@ final class URLBar: NSView, NSTextFieldDelegate {
             showFocus(urlField.currentEditor() != nil)
             renderMessage(model.message)
         } onChange: { [weak self] in
-            Task { @MainActor in self?.render() }
+            Task { @MainActor in if self?.model === bound { self?.render() } }
         }
     }
 
