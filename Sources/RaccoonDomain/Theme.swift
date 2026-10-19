@@ -138,3 +138,39 @@ public enum ThemeFile {
         return Theme(name: file.name, flavors: flavors)
     }
 }
+
+/// The Theme and its two Flavors the user picked, by name: what UserDefaults holds.
+public struct ThemeChoice: Equatable, Sendable {
+    public var theme: String
+    public var light: String
+    public var dark: String
+
+    public init(theme: String, light: String, dark: String) {
+        self.theme = theme
+        self.light = light
+        self.dark = dark
+    }
+
+    public static let `default` = ThemeChoice(theme: "Catppuccin", light: "Latte", dark: "Mocha")
+
+    /// A stored choice is the user's to break: a name that does not resolve to a Flavor of the
+    /// right appearance in that Theme drops the whole choice back to the default (§4).
+    public static func decode(_ stored: [String: String]?, themes: [Theme]) -> ThemeChoice {
+        guard let stored, let theme = stored["theme"], let light = stored["light"], let dark = stored["dark"] else { return .default }
+        let choice = ThemeChoice(theme: theme, light: light, dark: dark)
+        return choice.resolve(.light, in: themes) != nil && choice.resolve(.dark, in: themes) != nil ? choice : .default
+    }
+
+    public var stored: [String: String] { ["theme": theme, "light": light, "dark": dark] }
+
+    /// `decode` proved the names resolve, so a miss here is our bug.
+    public func flavor(for appearance: Flavor.Appearance, in themes: [Theme]) -> Flavor {
+        guard let flavor = resolve(appearance, in: themes) else { preconditionFailure("\(self) has no \(appearance) Flavor") }
+        return flavor
+    }
+
+    private func resolve(_ appearance: Flavor.Appearance, in themes: [Theme]) -> Flavor? {
+        let name = appearance == .light ? light : dark
+        return themes.first { $0.name == theme }?.flavors.first { $0.name == name && $0.appearance == appearance }
+    }
+}
