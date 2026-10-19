@@ -89,6 +89,11 @@
 .sb-empty .path { font-family:"SF Mono", ui-monospace, monospace; font-size:11px; display:block; margin-top:4px; overflow-wrap:anywhere; }
 .sb-footer { margin-top:auto; display:flex; gap:2px; padding-top:6px; }
 .indent1 { padding-left:22px; } .indent2 { padding-left:38px; }
+.sb-ws { height:24px; flex:none; display:flex; align-items:center; gap:6px; margin:0 0 6px; padding:0 6px; border:0; border-radius:6px; background:transparent;
+  color:var(--sys-label); font:inherit; font-weight:600; text-align:left; min-width:0; }
+.sb-ws.open { background:var(--sys-sidebarSelection); }
+.sb-ws .t { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sb-ws .chev { width:10px; height:10px; color:var(--sys-secondaryLabel); }
 
 /* content: themed */
 .content { flex:1; min-width:0; display:flex; flex-direction:column; background:var(--background); color:var(--text); }
@@ -259,6 +264,7 @@
 .menu .mi.hl { background:var(--sys-accent); color:#fff; }
 .menu .mi.hl .sc { color:rgba(255,255,255,.85); }
 .menu .mh { font-size:11px; font-weight:600; color:var(--sys-secondaryLabel); padding:6px 8px 2px 22px; }
+.menu .mi.dis { color:var(--sys-secondaryLabel); opacity:.6; }
 .menu .sep { height:1px; background:var(--sys-separator); margin:5px 8px; }
 .menubar { height:24px; display:flex; align-items:center; gap:18px; padding:0 14px; font-size:13px; background:var(--sys-titlebar); border-bottom:1px solid var(--sys-separator); }
 .menubar .on { background:var(--sys-sidebarSelection); border-radius:4px; padding:1px 8px; margin:0 -8px; }
@@ -348,7 +354,7 @@ body{margin:0}
     <div class="ct">Banners</div>
     <div class="banner" role="alert"><svg class="i bico warn" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2M8 11.6v.1"/></svg><span class="btxt"><b>Deleted on disk.</b> <span>Update charge.json is gone. This Tab is now a Draft with your content, and ⌘S saves it again.</span></span><button class="btn">Dismiss</button></div>
     <div class="banner" role="alert"><svg class="i bico err" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 10.9v.1"/></svg><span class="btxt"><b>Not saved.</b> <span>Couldn't write Update charge.json: permission denied. The Tab keeps your edits.</span></span><button class="btn">Dismiss</button></div>
-    <div class="banner" role="alert" style="border-bottom: 0"><svg class="i bico err" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 10.9v.1"/></svg><span class="btxt"><b>Raccoon can't write to the Data Folder.</b> <span><code>~/Raccoon</code> is read-only. Collections are unavailable; Drafts and sending still work.</span></span><button class="btn primary">Choose Folder…</button></div>
+    <div class="banner" role="alert" style="border-bottom: 0"><svg class="i bico err" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 10.9v.1"/></svg><span class="btxt"><b>Raccoon can't write to the Data Folder.</b> <span><code>~/Raccoon</code> is read-only. Collections are unavailable; Drafts and sending still work.</span></span><button class="btn">Remove from List</button><button class="btn primary">Open Workspace…</button></div>
   </div>
 
   <div class="card">
@@ -475,7 +481,7 @@ body{margin:0}
     <div class="ct">Banners</div>
     <div class="banner" role="alert"><svg class="i bico warn" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2M8 11.6v.1"/></svg><span class="btxt"><b>Deleted on disk.</b> <span>Update charge.json is gone. This Tab is now a Draft with your content, and ⌘S saves it again.</span></span><button class="btn">Dismiss</button></div>
     <div class="banner" role="alert"><svg class="i bico err" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 10.9v.1"/></svg><span class="btxt"><b>Not saved.</b> <span>Couldn't write Update charge.json: permission denied. The Tab keeps your edits.</span></span><button class="btn">Dismiss</button></div>
-    <div class="banner" role="alert" style="border-bottom: 0"><svg class="i bico err" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 10.9v.1"/></svg><span class="btxt"><b>Raccoon can't write to the Data Folder.</b> <span><code>~/Raccoon</code> is read-only. Collections are unavailable; Drafts and sending still work.</span></span><button class="btn primary">Choose Folder…</button></div>
+    <div class="banner" role="alert" style="border-bottom: 0"><svg class="i bico err" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 10.9v.1"/></svg><span class="btxt"><b>Raccoon can't write to the Data Folder.</b> <span><code>~/Raccoon</code> is read-only. Collections are unavailable; Drafts and sending still work.</span></span><button class="btn">Remove from List</button><button class="btn primary">Open Workspace…</button></div>
   </div>
 
   <div class="card">
