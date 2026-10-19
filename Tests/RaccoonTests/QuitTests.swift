@@ -22,7 +22,7 @@ struct QuitTests {
     }
 
     @Test func `quit with a Dirty Tab and a Draft keeps both in session.json`() throws {
-        let store = DiskSessionStore(directory: directory)
+        let store = DiskSessionStore(directory: directory, root: directory.appending(path: "Raccoon").path)
         let window = makeWindow(store: store)
         window.newTab()
         let (dirty, draft) = (window.tabs[0], window.tabs[1])
@@ -50,6 +50,7 @@ struct QuitTests {
             }
         }
         func setAside() throws(StoreError) -> String { "" }
+        func delete() throws(StoreError) {}
     }
 
     @Test func `the Session is written before any Tab is released`() async throws {
@@ -74,7 +75,7 @@ struct QuitTests {
         try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: directory.path)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path) }
         let since = Date.now
-        let window = makeWindow(store: DiskSessionStore(directory: directory))
+        let window = makeWindow(store: DiskSessionStore(directory: directory, root: directory.appending(path: "Raccoon").path))
         window.tabs[0].typeInURLBar("http://localhost/slow")
         window.tabs[0].send()
 

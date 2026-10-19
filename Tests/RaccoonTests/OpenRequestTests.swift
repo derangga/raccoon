@@ -14,7 +14,7 @@ struct OpenRequestTests {
     func makeWindow() -> WindowModel {
         WindowModel(
             dataFolder: .test(root), folderWatch: ManualFolderWatch(),
-            sessionStore: DiskSessionStore(directory: temp.appending(path: "Support")), secrets: InMemorySecretStore(),
+            sessionStore: DiskSessionStore(directory: temp.appending(path: "Support"), root: root.path), secrets: InMemorySecretStore(),
             instants: FixedInstantSource(.now),
             makeTab: {
                 TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
@@ -124,7 +124,7 @@ struct OpenRequestTests {
         await #expect(processExitsWith: .failure) {
             await MainActor.run {
                 let temp = FileManager.default.temporaryDirectory.appending(path: "raccoon-\(UUID())")
-                let store = DiskSessionStore(directory: temp)
+                let store = DiskSessionStore(directory: temp, root: temp.appending(path: "Raccoon").path)
                 let id = RequestID(UUID())
                 let file = temp.appending(path: "Raccoon/C/R.json")
                 try! FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)

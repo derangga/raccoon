@@ -13,7 +13,7 @@ struct DataFolderBannerTests {
     func makeWindow(root: URL) -> WindowModel {
         WindowModel(
             dataFolder: .test(root), folderWatch: ManualFolderWatch(),
-            sessionStore: DiskSessionStore(directory: temp.appending(path: "Support")), secrets: InMemorySecretStore(),
+            sessionStore: DiskSessionStore(directory: temp.appending(path: "Support"), root: root.path), secrets: InMemorySecretStore(),
             instants: FixedInstantSource(.now),
             makeTab: {
                 TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),

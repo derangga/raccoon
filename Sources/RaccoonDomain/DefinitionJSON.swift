@@ -1,6 +1,6 @@
 import Foundation
 
-/// A RequestDefinition as JSON, shared by session.json and the Request files so the two never
+/// A RequestDefinition as JSON, shared by the Session file and the Request files so the two never
 /// disagree. Optional wherever absence has a default (boundary.md): a hand-trimmed file still opens.
 struct DefinitionJSON: Codable {
     var method: String

@@ -12,7 +12,7 @@ struct WindowModelTests {
     func makeWindow() -> WindowModel {
         WindowModel(
             dataFolder: .test(temp.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
-            sessionStore: DiskSessionStore(directory: temp.appending(path: "Support")), secrets: InMemorySecretStore(),
+            sessionStore: DiskSessionStore(directory: temp.appending(path: "Support"), root: temp.appending(path: "Raccoon").path), secrets: InMemorySecretStore(),
             instants: FixedInstantSource(.now),
             makeTab: {
                 TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),

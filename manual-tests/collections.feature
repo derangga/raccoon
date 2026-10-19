@@ -8,10 +8,9 @@
 #   D=/tmp/raccoon-collections
 #   rm -rf "$D" && cp -R manual-tests/collections.datafolder "$D"
 #   swift run Raccoon -DataFolder "$D"
-# Raccoon still reads and writes your real Session:
-#   S=~/Library/Application\ Support/Raccoon
-# Back it up first (cp "$S/session.json" ~/session.backup.json) and restore it when done.
-# "A fresh Session" below means: quit Raccoon (⌘Q), then rm "$S/session.json".
+# Each Data Folder has its own Session file, so your real Tabs are never touched:
+#   S=~/Library/Application\ Support/Raccoon/sessions/$(printf %s "$D" | shasum -a 256 | cut -c1-16).json
+# "A fresh Session" below means: quit Raccoon (⌘Q), then rm "$S".
 #
 # The fixture holds three Collections and an environments/ folder that is not one:
 #   Auth Service         POST Login · Login_copy.json (same id as Login.json)
@@ -449,7 +448,7 @@ Feature: Relaunch with Request Tabs
 
   Background:
     Given a fresh copy of the fixture Data Folder
-    And Raccoon is quit and the fixture Session is copied: cp manual-tests/collections.session.json "$S/session.json"
+    And Raccoon is quit and the fixture Session is copied: mkdir -p "$(dirname "$S")" && cp manual-tests/collections.session.json "$S"
     And Raccoon is launched with the Data Folder
 
   Scenario: Each Tab is checked against its file

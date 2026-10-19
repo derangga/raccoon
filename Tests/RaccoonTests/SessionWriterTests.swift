@@ -8,7 +8,7 @@ import Testing
 @MainActor
 final class SessionWriterTests {
     let directory = FileManager.default.temporaryDirectory.appending(path: "raccoon-\(UUID())")
-    var store: DiskSessionStore { DiskSessionStore(directory: directory) }
+    var store: DiskSessionStore { DiskSessionStore(directory: directory, root: directory.appending(path: "Raccoon").path) }
     var session = Session(tabs: [], selected: nil, activeEnvironment: nil)
     var writes = 0
 

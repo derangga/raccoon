@@ -1,6 +1,6 @@
 import Foundation
 
-/// session.json's format. The bytes go through SessionStore; this is the only code that reads them.
+/// The Session file's format. The bytes go through SessionStore; this is the only code that reads them.
 public enum SessionFile {
     private struct Header: Decodable {
         var version: Int

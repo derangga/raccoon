@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 import RaccoonDomain
 
-/// Writes session.json at most once a second (behavior.md §7). A change after a quiet second is
+/// Writes the Session file at most once a second (behavior.md §7). A change after a quiet second is
 /// written at once; the ones inside the second become one write when it is over, of the Session
 /// as it is then.
 final class SessionWriter {

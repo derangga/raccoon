@@ -12,14 +12,17 @@ enum CompositionRoot {
         let secrets = KeychainSecretStore(service: "Raccoon")
         let instants = ContinuousInstantSource()
         let clipboard = SystemClipboardWriter(name: .general)
+        let root = defaults.string(forKey: "DataFolder") ?? URL.homeDirectory.appending(path: "Raccoon").path
         return WindowModel(
             dataFolder: DataFolderLocation(
-                root: defaults.string(forKey: "DataFolder") ?? URL.homeDirectory.appending(path: "Raccoon").path,
+                root: root,
                 open: { DiskDataFolderStore(root: URL(filePath: $0)) },
                 remember: { defaults.set($0, forKey: "DataFolder") }
             ),
             folderWatch: FSEventsFolderWatch(),
-            sessionStore: DiskSessionStore(directory: DiskSessionStore.applicationSupportDirectory),
+            // ponytail: keyed by the launch root; Choose Folder… keeps writing here until loading
+            // a Workspace builds its own SessionStore.
+            sessionStore: DiskSessionStore(directory: DiskSessionStore.applicationSupportDirectory, root: root),
             secrets: secrets,
             instants: instants,
             makeTab: { TabModel(transport: transport, secrets: secrets, files: files, instants: instants, clipboard: clipboard) }

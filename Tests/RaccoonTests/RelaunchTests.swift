@@ -5,11 +5,11 @@ import RaccoonDomain
 import RaccoonTesting
 import Testing
 
-/// Relaunch from session.json, over a real DiskSessionStore in a temp dir.
+/// Relaunch from the Session file, over a real DiskSessionStore in a temp dir.
 @MainActor
 struct RelaunchTests {
     let directory = FileManager.default.temporaryDirectory.appending(path: "raccoon-\(UUID())")
-    var store: DiskSessionStore { DiskSessionStore(directory: directory) }
+    var store: DiskSessionStore { DiskSessionStore(directory: directory, root: directory.appending(path: "Raccoon").path) }
 
     func makeWindow() -> WindowModel {
         WindowModel(
@@ -29,7 +29,7 @@ struct RelaunchTests {
     }
 
     func asides() throws -> [String] {
-        try FileManager.default.contentsOfDirectory(atPath: directory.path).filter { $0.hasPrefix("session.corrupt-") }
+        try FileManager.default.contentsOfDirectory(atPath: store.file.deletingLastPathComponent().path).filter { $0.contains(".corrupt-") }
     }
 
     @Test func `three Drafts come back in order with the same selection`() throws {
@@ -78,7 +78,7 @@ struct RelaunchTests {
         #expect(window.tabs[0].tab.definition == .empty)
         let aside = try #require(try asides().first)
         #expect(aside.hasSuffix(".json"))
-        #expect(FileManager.default.contents(atPath: directory.appending(path: aside).path) == Data("{ not json".utf8))
+        #expect(FileManager.default.contents(atPath: store.file.deletingLastPathComponent().appending(path: aside).path) == Data("{ not json".utf8))
         #expect(try store.read() == nil)
     }
 }

@@ -170,7 +170,7 @@ struct ThemeControllerTests {
         let temp = FileManager.default.temporaryDirectory.appending(path: "raccoon-\(UUID())")
         let window = WindowModel(
             dataFolder: .test(temp.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
-            sessionStore: DiskSessionStore(directory: temp), secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
+            sessionStore: DiskSessionStore(directory: temp, root: temp.appending(path: "Raccoon").path), secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
             makeTab: {
                 TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                          instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
@@ -246,7 +246,7 @@ struct ThemeControllerTests {
         try Data("{".utf8).write(to: root.appending(path: "C/broken.json"))
         let window = WindowModel(
             dataFolder: .test(root), folderWatch: ManualFolderWatch(),
-            sessionStore: DiskSessionStore(directory: temp), secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
+            sessionStore: DiskSessionStore(directory: temp, root: root.path), secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
             makeTab: {
                 TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                          instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())

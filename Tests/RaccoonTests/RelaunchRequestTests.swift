@@ -10,7 +10,7 @@ import Testing
 struct RelaunchRequestTests {
     let temp = FileManager.default.temporaryDirectory.appending(path: "raccoon-\(UUID())")
     var root: URL { temp.appending(path: "Raccoon") }
-    var store: DiskSessionStore { DiskSessionStore(directory: temp.appending(path: "Support")) }
+    var store: DiskSessionStore { DiskSessionStore(directory: temp.appending(path: "Support"), root: root.path) }
     static let charge = OpenRequestTests.charge
     var file: URL { root.appending(path: "Payments API/Create charge.json") }
 

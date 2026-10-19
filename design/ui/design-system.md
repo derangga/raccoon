@@ -739,7 +739,7 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
    a "Copied" confirmation for Copy as Curl, or a short "Imported from curl" note when nothing
    was ignored. Decided 2026-10-19: neither. v1 shows no success message, and the token stays
    in the Theme unused.
-7. **Corrupt Session.** §4 renames the file to `session.corrupt-<date>.json` and starts
+7. **Corrupt Session.** §4 renames the file to `sessions/<key>.corrupt-<date>.json` and starts
    empty. Should the empty window say so (a one-time banner with Reveal in Finder), or stay
    silent? Decided 2026-10-19: silent. The file is renamed and logged, and the window opens
    with one empty Draft, as on first launch.

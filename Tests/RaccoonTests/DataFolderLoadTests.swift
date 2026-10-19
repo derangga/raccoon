@@ -15,7 +15,7 @@ struct DataFolderLoadTests {
     func makeWindow(root: URL, remembered: @escaping (String) -> Void = { _ in }) -> WindowModel {
         WindowModel(
             dataFolder: DataFolderLocation(root: root.path, open: { DiskDataFolderStore(root: URL(filePath: $0)) }, remember: remembered),
-            folderWatch: watch, sessionStore: DiskSessionStore(directory: temp.appending(path: "Support")),
+            folderWatch: watch, sessionStore: DiskSessionStore(directory: temp.appending(path: "Support"), root: root.path),
             secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
             makeTab: { [transport] in
                 TabModel(transport: transport, secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),

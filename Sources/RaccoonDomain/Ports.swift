@@ -41,12 +41,15 @@ public protocol SecretStore: Sendable {
     func delete(environment: String?, name: VariableName) throws(SecretError)
 }
 
-/// The Session file's bytes; SessionFile owns the format. nil when there is no file yet.
+/// One Workspace's Session file, bytes only; SessionFile owns the format. nil when there is no
+/// file yet.
 public protocol SessionStore: Sendable {
     func read() throws(StoreError) -> Data?
     func write(_ data: Data) throws(StoreError)
-    /// Renames an undecodable file to session.corrupt-<date>.json and returns its new path.
+    /// Renames an undecodable file to <key>.corrupt-<date>.json and returns its new path.
     func setAside() throws(StoreError) -> String
+    /// Remove from List. No file is not an error.
+    func delete() throws(StoreError)
 }
 
 public protocol ClipboardWriter: Sendable {
