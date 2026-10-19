@@ -27,7 +27,7 @@ design/ui/mockups/build.py` regenerates the mockups after a source edit.
 | Tab strip, banners in the content area, URL bar, message line, request editor, response viewer, the Variable tooltip | the Theme's tokens | the content areas named in theme.md |
 | Inspector (Variables, Curl) | the Theme's tokens, on `backgroundRecessed` like the Response pane | it shows request data: Variable names and values, a curl command with `{{name}}` highlighting |
 | Sidebar filter field, the toolbar toggles | the system: `NSSearchField`, toolbar buttons | native controls |
-| Method badges in the sidebar | Theme tokens (`method*`) on the native material | the badge is content; contrast is checked against an estimate of the `.sidebar` material, see Q3 |
+| Method badges in the sidebar | Theme tokens (`method*`) on the opaque sidebar | the badge is content, drawn straight on the sidebar with no chip; contrast measured against the sidebar, see Q3 (decided) |
 
 Both Flavors switch with the system appearance, so chrome and content always agree on light
 or dark (theme.md).
@@ -121,7 +121,7 @@ implementation must set that attribute or this result does not hold.
 Minimum ratio per token across every background it is drawn on, per Flavor, with the worst
 background named. 4.5 for text (including 11 pt bold method badges, which are not "large"),
 3.0 for UI glyphs (`accent` fill, `focusRing`, `dirtyDot`). `sidebar` is the estimated native
-material (Q3). Every pair passes in all four Flavors.
+material (Q3); the measured sidebar passes too (Q3, decided). Every pair passes in all four Flavors.
 
 | Token | Palette | Min | Latte | Frappé | Macchiato | Mocha |
 |---|---|---|---|---|---|---|
@@ -675,8 +675,14 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
 3. **Sidebar contrast.** Method badges are Theme colors on the sidebar; contrast was checked
    against estimates (#e8e8ea light, #2a2a2e dark). The sidebar is the opaque
    `windowBackgroundColor` (decided 2026-10-16), so neither focus nor the desktop picture shifts
-   it. Measured on macOS 27, dark, focused: #2c2c2c. Measure on device; if a badge fails, draw badges
-   on an opaque 4 pt-radius chip of `background`.
+   it. Measured on macOS 27 from a window capture: dark #2c2c2c, light #f0f0f0. Decided
+   2026-10-19: badges sit straight on the sidebar, with no chip. Every method token passes in
+   its own appearance. Latte on #f0f0f0, worst first: OPTIONS 4.87, PUT 4.91, OTHER 4.96,
+   PATCH 5.11, HEAD 5.11, DELETE 5.16, POST 5.28, GET 5.34. Mocha on #2c2c2c: DELETE 6.03,
+   OTHER 6.27, PUT 6.63, PATCH 6.87, POST 7.89, OPTIONS 9.15, HEAD 9.38, GET 9.39. `build.py`
+   keeps the estimates, which are darker than the measured light value and so stricter. A dark
+   Flavor on the light sidebar fails (Mocha GET on #f0f0f0 is 1.30), so the Theme menu must
+   not put a dark Flavor in the light slot or a light one in the dark slot.
 4. **Draft in scripts without italics.** CJK fonts have no true italic, so a Draft named in
    Japanese is told apart only by its tooltip. Alternative: a leading "Draft" label in
    `textTertiary`, at the cost of ~36 pt. Decided 2026-10-19: italic only. Revised the same
@@ -711,8 +717,10 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
 12. **Shortcuts for the new panes.** Proposed ⌥⌘F to focus the sidebar filter (⌘F stays
     find-in-body) and ⌥⌘I for the inspector, ⌃⌘S for the sidebar (the system default).
     None is decided in design/.
-13. **What the filter matches.** Names only, as drawn. Matching the method and URL too
-    ("POST /refunds") would find Requests named badly, at the cost of noisier results.
+13. **What the filter matches.** Decided 2026-10-19: names only, as drawn. Collection,
+    Folder and Request names, and an unreadable row's file name. Matching the method and URL
+    too ("POST /refunds") was declined: it would find Requests named badly, at the cost of
+    noisier results.
 14. **Inspector state across relaunch.** Whether it is open, its width and Variables vs Curl
     could be part of the Session or of UserDefaults; the Session is for Tabs, so
     UserDefaults is proposed.
