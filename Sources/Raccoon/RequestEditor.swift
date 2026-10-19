@@ -72,7 +72,7 @@ final class RequestEditor: NSView {
         let rule = NSBox()
         rule.boxType = .custom
         rule.borderWidth = 0
-        rule.fillColor = theme.color(.border)
+        theme.paint(rule) { $0.fillColor = $1.color(.border) }
 
         let paneArea = NSView()
         for section in EditorSection.allCases {
@@ -214,6 +214,7 @@ final class SectionButton: NSButton {
         setAccessibilityRole(.radioButton)
         translatesAutoresizingMaskIntoConstraints = false
         heightAnchor.constraint(equalToConstant: 28).isActive = true
+        theme.paint(self) { button, _ in button.redraw() }
     }
 
     @available(*, unavailable)

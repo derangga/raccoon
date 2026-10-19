@@ -35,7 +35,6 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         wantsLayer = true
         layer?.cornerRadius = 6
         layer?.borderWidth = 1
-        layer?.borderColor = theme.color(.border).cgColor
         layer?.masksToBounds = true
 
         for (column, title, width) in [(columns.check, "", 30.0), (columns.name, "Name", 120), (columns.value, "Value", 200), (columns.delete, "", 30)] {
@@ -51,8 +50,6 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         table.rowHeight = 28
         table.intercellSpacing = .zero
         table.gridStyleMask = [.solidHorizontalGridLineMask]
-        table.gridColor = theme.color(.border)
-        table.backgroundColor = theme.color(.background)
         table.columnAutoresizingStyle = .noColumnAutoresizing
         table.allowsColumnReordering = false
         table.focusRingType = .none
@@ -66,6 +63,15 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
             choose.target = self
             menu.addItem(choose)
             table.menu = menu
+        }
+
+        // The cells and row views are made in each reload, so a reload recolours them.
+        theme.paint(self) { view, theme in
+            view.layer?.borderColor = theme.color(.border).cgColor
+            view.table.gridColor = theme.color(.border)
+            view.table.backgroundColor = theme.color(.background)
+            view.table.headerView?.needsDisplay = true
+            view.table.reloadData()
         }
 
         scroll.documentView = table

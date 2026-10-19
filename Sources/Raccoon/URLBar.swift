@@ -106,7 +106,8 @@ final class URLBar: NSView, NSTextFieldDelegate {
     // MARK: URL field
 
     private func buildURLField() {
-        style(urlBox)
+        // showFocus colours the border, from render().
+        style(urlBox, border: false)
         urlBox.translatesAutoresizingMaskIntoConstraints = false
         urlBox.heightAnchor.constraint(equalToConstant: 30).isActive = true
         urlBox.setContentHuggingPriority(.defaultLow, for: .horizontal)
@@ -115,7 +116,7 @@ final class URLBar: NSView, NSTextFieldDelegate {
         // A 3 pt ring at 35 % around the box while the field has focus.
         focusRing.wantsLayer = true
         focusRing.layer?.cornerRadius = 9
-        focusRing.layer?.backgroundColor = theme.color(.focusRing).withAlphaComponent(0.35).cgColor
+        theme.paint(focusRing) { $0.layer?.backgroundColor = $1.color(.focusRing).withAlphaComponent(0.35).cgColor }
         focusRing.isHidden = true
         focusRing.translatesAutoresizingMaskIntoConstraints = false
 
@@ -123,13 +124,15 @@ final class URLBar: NSView, NSTextFieldDelegate {
         urlField.drawsBackground = false
         urlField.focusRingType = .none
         urlField.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-        urlField.textColor = theme.color(.text)
+        theme.paint(urlField) { $0.textColor = $1.color(.text) }
         urlField.cell?.isScrollable = true
         urlField.cell?.wraps = false
         urlField.usesSingleLineMode = true
-        urlField.placeholderAttributedString = NSAttributedString(string: "Enter a URL, or paste a curl command", attributes: [
-            .font: NSFont.systemFont(ofSize: 13), .foregroundColor: theme.color(.textTertiary),
-        ])
+        theme.paint(urlField) { field, theme in
+            field.placeholderAttributedString = NSAttributedString(string: "Enter a URL, or paste a curl command", attributes: [
+                .font: NSFont.systemFont(ofSize: 13), .foregroundColor: theme.color(.textTertiary),
+            ])
+        }
         urlField.delegate = self
         urlField.onFocus = { [weak self] in self?.showFocus(true) }
         urlField.onPaste = { [weak self] in self?.pasteCurl($0) ?? false }
@@ -351,12 +354,14 @@ final class URLBar: NSView, NSTextFieldDelegate {
     }
 
     /// `backgroundElevated` with a 1 pt `border` and a 6 pt radius.
-    private func style(_ view: NSView) {
+    private func style(_ view: NSView, border: Bool = true) {
         view.wantsLayer = true
         view.layer?.cornerRadius = 6
         view.layer?.borderWidth = 1
-        view.layer?.borderColor = theme.color(.border).cgColor
-        view.layer?.backgroundColor = theme.color(.backgroundElevated).cgColor
+        theme.paint(view) { view, theme in
+            if border { view.layer?.borderColor = theme.color(.border).cgColor }
+            view.layer?.backgroundColor = theme.color(.backgroundElevated).cgColor
+        }
     }
 }
 

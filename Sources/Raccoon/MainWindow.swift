@@ -390,33 +390,20 @@ private final class Pane: NSViewController {
 
 /// A view filled with a Theme token, repainted whenever the current Flavor changes.
 final class ThemedView: NSView {
-    private let theme: ThemeEnvironment
-    private let fill: ColorToken
-    private let leadingBorder: ColorToken?
     private let border = CALayer()
 
     init(theme: ThemeEnvironment, fill: ColorToken, leadingBorder: ColorToken? = nil) {
-        self.theme = theme
-        self.fill = fill
-        self.leadingBorder = leadingBorder
         super.init(frame: .zero)
         wantsLayer = true
         if leadingBorder != nil { layer?.addSublayer(border) }
+        theme.paint(self) { view, theme in
+            view.layer?.backgroundColor = theme.color(fill).cgColor
+            if let leadingBorder { view.border.backgroundColor = theme.color(leadingBorder).cgColor }
+        }
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
-
-    override var wantsUpdateLayer: Bool { true }
-
-    override func updateLayer() {
-        withObservationTracking {
-            layer?.backgroundColor = theme.color(fill).cgColor
-            if let leadingBorder { border.backgroundColor = theme.color(leadingBorder).cgColor }
-        } onChange: { [weak self] in
-            Task { @MainActor in self?.needsDisplay = true }
-        }
-    }
 
     override func layout() {
         super.layout()

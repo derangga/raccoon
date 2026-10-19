@@ -47,6 +47,8 @@ final class ResponseViewer: NSView {
 
     /// The whole coloured body for the current mode; the storage shows it with folds cut.
     private var body = NSAttributedString()
+    /// What `body` was built from, so a new Flavor rebuilds it without reading the Tab.
+    private var bodySource: (response: Response, presented: TabModel.Presented?, pretty: Bool)?
     private var regions: [FoldRegion] = []
     /// View state: every send and every Pretty | Raw switch starts unfolded.
     private var folds = FoldSet()
@@ -68,10 +70,13 @@ final class ResponseViewer: NSView {
         section = SegmentedControl(labels: ["Body", "Headers"], theme: theme)
         super.init(frame: .zero)
         wantsLayer = true
-        layer?.backgroundColor = theme.color(.backgroundRecessed).cgColor
         buildStatusLine()
         buildBody()
         buildHeaders()
+        theme.paint(self) { viewer, theme in
+            viewer.layer?.backgroundColor = theme.color(.backgroundRecessed).cgColor
+            viewer.recolorBody()
+        }
         render()
     }
 
@@ -94,11 +99,11 @@ final class ResponseViewer: NSView {
         }
         for label in [elapsedLabel, sizeLabel] {
             label.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
-            label.textColor = theme.color(.textSecondary)
+            theme.paint(label) { $0.textColor = $1.color(.textSecondary) }
         }
-        dot.textColor = theme.color(.textTertiary)
+        theme.paint(dot) { $0.textColor = $1.color(.textTertiary) }
         prettyNote.font = .systemFont(ofSize: 11)
-        prettyNote.textColor = theme.color(.textDisabled)
+        theme.paint(prettyNote) { $0.textColor = $1.color(.textDisabled) }
         mode.selectedSegment = 0
         mode.target = self
         mode.action = #selector(modeChanged)
@@ -117,7 +122,7 @@ final class ResponseViewer: NSView {
         let rule = NSBox()
         rule.boxType = .custom
         rule.borderWidth = 0
-        rule.fillColor = theme.color(.border)
+        theme.paint(rule) { $0.fillColor = $1.color(.border) }
         for view in [row, rule] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
@@ -161,13 +166,15 @@ final class ResponseViewer: NSView {
         voidText.alignment = .center
         voidText.preferredMaxLayoutWidth = 440
         keycap.font = .systemFont(ofSize: 11)
-        keycap.textColor = theme.color(.textSecondary)
         keycap.wantsLayer = true
         keycap.layer?.borderWidth = 1
         keycap.layer?.cornerRadius = 4
-        keycap.layer?.borderColor = theme.color(.border).cgColor
-        keycap.layer?.backgroundColor = theme.color(.background).cgColor
-        failureGlyph.contentTintColor = theme.color(.statusFailed)
+        theme.paint(keycap) { keycap, theme in
+            keycap.textColor = theme.color(.textSecondary)
+            keycap.layer?.borderColor = theme.color(.border).cgColor
+            keycap.layer?.backgroundColor = theme.color(.background).cgColor
+        }
+        theme.paint(failureGlyph) { $0.contentTintColor = $1.color(.statusFailed) }
         failureGlyph.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             failureGlyph.widthAnchor.constraint(equalToConstant: 22),
@@ -178,12 +185,14 @@ final class ResponseViewer: NSView {
         fixButton.wantsLayer = true
         fixButton.layer?.cornerRadius = 6
         fixButton.layer?.borderWidth = 1
-        fixButton.layer?.borderColor = theme.color(.border).cgColor
-        fixButton.layer?.backgroundColor = theme.color(.background).cgColor
         fixButton.title = "Allow insecure TLS for this request"
-        fixButton.attributedTitle = NSAttributedString(string: fixButton.title, attributes: [
-            .font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text),
-        ])
+        theme.paint(fixButton) { button, theme in
+            button.layer?.borderColor = theme.color(.border).cgColor
+            button.layer?.backgroundColor = theme.color(.background).cgColor
+            button.attributedTitle = NSAttributedString(string: button.title, attributes: [
+                .font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text),
+            ])
+        }
         fixButton.target = self
         fixButton.action = #selector(allowInsecureTLS)
         fixButton.translatesAutoresizingMaskIntoConstraints = false
@@ -214,9 +223,9 @@ final class ResponseViewer: NSView {
     private func buildHeaders() {
         let mono = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         noHeaders.font = mono
-        noHeaders.textColor = theme.color(.textTertiary)
+        theme.paint(noHeaders) { $0.textColor = $1.color(.textTertiary) }
         headerNote.font = .systemFont(ofSize: 11)
-        headerNote.textColor = theme.color(.textTertiary)
+        theme.paint(headerNote) { $0.textColor = $1.color(.textTertiary) }
         headerStack.orientation = .vertical
         headerStack.alignment = .leading
         headerStack.spacing = 0
@@ -350,6 +359,7 @@ final class ResponseViewer: NSView {
         shown = key
         // A new storage, never an in-place edit: replacing a large coloured storage's characters
         // ran past ten minutes at 1 MB (environment-facts.md).
+        bodySource = (response, presented, pretty)
         body = bodyText(response, presented, pretty: pretty)
         regions = pretty ? presented?.regions ?? [] : []
         // Raw before the presentation lands has no numbers yet.
@@ -357,6 +367,17 @@ final class ResponseViewer: NSView {
         folds = FoldSet()
         refold(keeping: nil)
         textView.scrollToBeginningOfDocument(nil)
+    }
+
+    /// The body in the current Flavor, keeping its folds, scroll and selection. The indent
+    /// guides are drawn, so the text view redraws.
+    private func recolorBody() {
+        textView.needsDisplay = true
+        guard shown != nil, let bodySource else { return }
+        let place = textView.place
+        body = bodyText(bodySource.response, bodySource.presented, pretty: bodySource.pretty)
+        refold(keeping: nil)
+        textView.restore(place)
     }
 
     // MARK: Folding

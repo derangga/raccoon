@@ -17,6 +17,7 @@ final class SegmentedControl: NSControl {
         segmentEnabled = Array(repeating: true, count: labels.count)
         super.init(frame: .zero)
         setAccessibilityRole(.radioGroup)
+        theme.paint(self) { control, _ in control.needsDisplay = true }
     }
 
     @available(*, unavailable)

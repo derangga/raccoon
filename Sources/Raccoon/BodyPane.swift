@@ -62,14 +62,16 @@ final class BodyPane: NSView, NSTextViewDelegate {
     private func buildControls() {
         let label = NSTextField(labelWithString: "Body Type")
         label.font = .systemFont(ofSize: 11)
-        label.textColor = theme.color(.textTertiary)
+        theme.paint(label) { $0.textColor = $1.color(.textTertiary) }
         for (button, action) in [(typeButton, #selector(showTypes)), (kindButton, #selector(showKinds))] {
             button.isBordered = false
             button.wantsLayer = true
             button.layer?.cornerRadius = 6
             button.layer?.borderWidth = 1
-            button.layer?.borderColor = theme.color(.border).cgColor
-            button.layer?.backgroundColor = theme.color(.backgroundElevated).cgColor
+            theme.paint(button) { button, theme in
+                button.layer?.borderColor = theme.color(.border).cgColor
+                button.layer?.backgroundColor = theme.color(.backgroundElevated).cgColor
+            }
             button.target = self
             button.action = action
             button.setAccessibilityRole(.popUpButton)
@@ -79,22 +81,24 @@ final class BodyPane: NSView, NSTextViewDelegate {
         typeButton.setAccessibilityLabel("Body Type")
         kindButton.setAccessibilityLabel("Raw kind")
         noneNote.font = .systemFont(ofSize: 12)
-        noneNote.textColor = theme.color(.textTertiary)
+        theme.paint(noneNote) { $0.textColor = $1.color(.textTertiary) }
 
         formatButton.isBordered = false
         formatButton.wantsLayer = true
         formatButton.layer?.cornerRadius = 6
         formatButton.layer?.borderWidth = 1
-        formatButton.layer?.borderColor = theme.color(.border).cgColor
-        formatButton.layer?.backgroundColor = theme.color(.background).cgColor
-        // The glyph is part of the title, so the pair centers as one and PopButton's 10 pt hold.
-        let glyph = NSTextAttachment()
-        glyph.image = NSImage(systemSymbolName: "list.bullet.indent", accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(paletteColors: [theme.color(.text)]).applying(.init(pointSize: 11, weight: .regular)))
-        let title = NSMutableAttributedString(attachment: glyph)
-        title.append(NSAttributedString(string: " Format"))
-        title.addAttributes([.font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text)], range: NSRange(location: 0, length: title.length))
-        formatButton.attributedTitle = title
+        theme.paint(formatButton) { button, theme in
+            button.layer?.borderColor = theme.color(.border).cgColor
+            button.layer?.backgroundColor = theme.color(.background).cgColor
+            // The glyph is part of the title, so the pair centers as one and PopButton's 10 pt hold.
+            let glyph = NSTextAttachment()
+            glyph.image = NSImage(systemSymbolName: "list.bullet.indent", accessibilityDescription: nil)?
+                .withSymbolConfiguration(.init(paletteColors: [theme.color(.text)]).applying(.init(pointSize: 11, weight: .regular)))
+            let title = NSMutableAttributedString(attachment: glyph)
+            title.append(NSAttributedString(string: " Format"))
+            title.addAttributes([.font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text)], range: NSRange(location: 0, length: title.length))
+            button.attributedTitle = title
+        }
         formatButton.setAccessibilityLabel("Format")
         formatButton.target = self
         formatButton.action = #selector(format)
@@ -102,7 +106,7 @@ final class BodyPane: NSView, NSTextViewDelegate {
         formatButton.keyEquivalent = "F"
         formatButton.keyEquivalentModifierMask = [.shift, .option]
         formatError.font = .systemFont(ofSize: 11)
-        formatError.textColor = theme.color(.error)
+        theme.paint(formatError) { $0.textColor = $1.color(.error) }
         formatError.isHidden = true
 
         let spacer = NSView()
@@ -137,9 +141,13 @@ final class BodyPane: NSView, NSTextViewDelegate {
         textView.allowsUndo = true
         textView.drawsBackground = false
         textView.font = font
-        textView.textColor = theme.color(.text)
-        textView.insertionPointColor = theme.color(.text)
-        textView.typingAttributes = [.font: font, .foregroundColor: theme.color(.text)]
+        // The storage keeps the colours of the last pass, so a new Flavor recolours it.
+        theme.paint(self) { pane, theme in
+            pane.textView.textColor = theme.color(.text)
+            pane.textView.insertionPointColor = theme.color(.text)
+            pane.textView.typingAttributes = [.font: pane.font, .foregroundColor: theme.color(.text)]
+            if let kind = pane.coloredKind { pane.color(pane.storage, kind: kind) }
+        }
         for substitution in [\NSTextView.isAutomaticQuoteSubstitutionEnabled, \.isAutomaticDashSubstitutionEnabled,
                              \.isAutomaticTextReplacementEnabled, \.isAutomaticSpellingCorrectionEnabled] {
             textView[keyPath: substitution] = false
@@ -162,8 +170,10 @@ final class BodyPane: NSView, NSTextViewDelegate {
         textBox.wantsLayer = true
         textBox.layer?.cornerRadius = 6
         textBox.layer?.borderWidth = 1
-        textBox.layer?.borderColor = theme.color(.border).cgColor
-        textBox.layer?.backgroundColor = theme.color(.background).cgColor
+        theme.paint(textBox) { box, theme in
+            box.layer?.borderColor = theme.color(.border).cgColor
+            box.layer?.backgroundColor = theme.color(.background).cgColor
+        }
         textBox.layer?.masksToBounds = true
         for (view, parent) in [(textBox, self as NSView), (scroll, textBox), (formatError, self)] {
             view.translatesAutoresizingMaskIntoConstraints = false

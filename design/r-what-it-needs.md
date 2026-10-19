@@ -64,7 +64,8 @@ WindowModel       DataFolderStore, FolderWatch, SessionStore, SecretStore, Insta
                                                     the last for SessionWriter's coalescing
 CurlImport flow   FileReading                       only for @file references
 Copy as Curl      SecretStore, ClipboardWriter
-ThemeController   UserDefaults, the app bundle      no port: both are already injectable
+ThemeController   UserDefaults, the app bundle,     no port: all three are already injectable.
+                  an appearance source              NSApp in the app, an NSView in tests
 Postman Import    FileReading, DataFolderStore, SecretStore      through the window, which owns
                                                     the index and the WriteLedger
 ```

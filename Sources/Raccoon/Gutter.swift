@@ -38,6 +38,7 @@ final class Gutter: NSRulerView {
         super.init(scrollView: nil, orientation: .verticalRuler)
         clientView = textView
         ruleThickness = 50
+        theme.paint(self) { gutter, _ in gutter.needsDisplay = true }
         NotificationCenter.default.addObserver(self, selector: #selector(redraw), name: NSView.boundsDidChangeNotification, object: nil)
     }
 

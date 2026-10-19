@@ -16,7 +16,7 @@ final class SettingsPane: NSView {
             box.action = #selector(toggled)
         }
         insecureTLSHint.font = .systemFont(ofSize: 11)
-        insecureTLSHint.textColor = theme.color(.textTertiary)
+        theme.paint(insecureTLSHint) { $0.textColor = $1.color(.textTertiary) }
         let insecure = NSStackView(views: [checkboxes[0], insecureTLSHint])
         insecure.orientation = .vertical
         insecure.alignment = .leading
@@ -74,7 +74,7 @@ final class AuthPane: NSView, NSTextFieldDelegate {
         let typeLabel = NSTextField(labelWithString: "Type")
         for label in [typeLabel, noneNote] {
             label.font = .systemFont(ofSize: 11)
-            label.textColor = theme.color(.textTertiary)
+            theme.paint(label) { $0.textColor = $1.color(.textTertiary) }
         }
         scheme.target = self
         scheme.action = #selector(schemePicked)
@@ -87,7 +87,7 @@ final class AuthPane: NSView, NSTextFieldDelegate {
             field.drawsBackground = false
             field.focusRingType = .none
             field.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-            field.textColor = theme.color(.text)
+            theme.paint(field) { $0.textColor = $1.color(.text) }
             field.cell?.isScrollable = true
             field.cell?.wraps = false
             field.delegate = self
@@ -121,7 +121,7 @@ final class AuthPane: NSView, NSTextFieldDelegate {
     private func grid(_ rows: [(String, NSView)]) -> NSGridView {
         let grid = NSGridView(views: rows.map { title, field in
             let label = NSTextField(labelWithString: title)
-            label.textColor = theme.color(.textSecondary)
+            theme.paint(label) { $0.textColor = $1.color(.textSecondary) }
             label.alignment = .right
             field.widthAnchor.constraint(lessThanOrEqualToConstant: 360).isActive = true
             return [label, field]
@@ -140,8 +140,10 @@ final class AuthPane: NSView, NSTextFieldDelegate {
         box.wantsLayer = true
         box.layer?.cornerRadius = 6
         box.layer?.borderWidth = 1
-        box.layer?.borderColor = theme.color(.border).cgColor
-        box.layer?.backgroundColor = theme.color(.backgroundElevated).cgColor
+        theme.paint(box) { box, theme in
+            box.layer?.borderColor = theme.color(.border).cgColor
+            box.layer?.backgroundColor = theme.color(.backgroundElevated).cgColor
+        }
         box.translatesAutoresizingMaskIntoConstraints = false
         box.heightAnchor.constraint(equalToConstant: 26).isActive = true
         content.translatesAutoresizingMaskIntoConstraints = false

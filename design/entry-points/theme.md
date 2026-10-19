@@ -27,9 +27,17 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
 ```
 -> apply()
   -> flavor = choice.flavor(for: effectiveAppearance)    pure
-  -> ThemeEnvironment.current = flavor                   one observable value
+  -> ThemeEnvironment.flavor = flavor                    one observable value, set only
+                                                         when it differs
      -> editors, response viewer, tab strip re-read their colours
 ```
+
+**Every colour read re-runs when the Flavor changes, one way.** A colour is read either
+inside a view's `render()`, which already re-runs on any observed change, or inside
+`theme.paint(owner) { owner, theme in … }`, which runs now and again on every Flavor
+change while `owner` lives. A view that draws itself paints `needsDisplay = true`; a
+coloured text storage or table recolours inside its paint. No view reads a colour once at
+build time and keeps it.
 
 **Content areas follow the Theme, chrome follows the system.** The sidebar, toolbar and
 window use native materials (design session, Theme Q1). Because the light and dark Flavors

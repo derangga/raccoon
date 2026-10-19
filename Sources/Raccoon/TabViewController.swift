@@ -24,14 +24,17 @@ final class TabViewController: NSViewController, NSMenuItemValidation {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
     override func loadView() {
-        split.background = theme.color(.background)
-        split.border = theme.color(.border)
+        theme.paint(split) { split, theme in
+            split.background = theme.color(.background)
+            split.border = theme.color(.border)
+            split.needsDisplay = true
+        }
         split.addSubview(editor)
         split.addSubview(viewer)
 
         let root = NSView()
         root.wantsLayer = true
-        root.layer?.backgroundColor = theme.color(.background).cgColor
+        theme.paint(root) { $0.layer?.backgroundColor = $1.color(.background).cgColor }
         for part in [urlBar, split] as [NSView] {
             part.translatesAutoresizingMaskIntoConstraints = false
             root.addSubview(part)

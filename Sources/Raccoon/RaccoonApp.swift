@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowModel: WindowModel?
     private var windowController: MainWindowController?
     private var tabController: TabViewController?
+    private var themeController: ThemeController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Raccoon's Tabs are its own; system window tabs would add a second kind on ⌘T's menu.
@@ -23,8 +24,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = MainMenu.make()
         let windowModel = CompositionRoot.live()
         self.windowModel = windowModel
-        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: isDark)
+        let themeController = ThemeController(defaults: .standard, catalog: ThemeCatalog.load(), appearanceSource: NSApp)
+        self.themeController = themeController
+        let theme = themeController.theme
         let windowController = MainWindowController(theme: theme)
         let tabController = TabViewController(model: windowModel.tabs[0], theme: theme)
         windowController.split.showTab(tabController)
