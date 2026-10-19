@@ -10,7 +10,7 @@ timeout 60s      ⟳ send                      // URLSessionConfiguration.timeou
                                              //   Fixed in v1, not a Request Setting
 slow-only 150ms  ⟳ send                      // the spinner appears only after 150 ms, so a
                                              //   fast local API does not flash
-coalesce 1s      ⟳ SessionWriter.schedule    // at most one session.json write a second,
+coalesce 1s      ⟳ SessionWriter.schedule    // at most one Session file write a second,
                                              //   plus writeNow on quit
 coalesce 300ms   ⟳ FolderWatch               // FSEvents latency; a git checkout of 200
                                              //   files is one filesChanged, not 200.

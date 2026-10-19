@@ -65,7 +65,7 @@ Postman Import
                            secret with no value (undefined until set) and noted. Never
                            written in clear
 Data Folder
-  ⚠ root not writable    → escape: banner with Choose Folder…, sidebar empty, Drafts and
+  ⚠ root not writable    → escape: banner with Open Workspace…, sidebar empty, Drafts and
                            sending still work. A missing Data Folder must not stop the
                            app from being an HTTP client
   ⚠ file undecodable     → escape: an .unreadable row, the file kept byte-for-byte, never
@@ -76,7 +76,7 @@ Data Folder
   ⚠ file deleted under a Tab → escape: the Tab becomes a Draft with its content
 Session
   ⚠ undecodable          → escape: start with one empty Tab; the bad file is renamed
-                           session.corrupt-<date>.json, not deleted, and logged only
+                           <key>.corrupt-<date>.json, not deleted, and logged only
                            (Open UI Q7)
   ⚠ unreadable           → escape: start with one empty Tab and log it
   ⚠ rename fails         → escape: log it. The next Session write replaces the bad file,
@@ -84,12 +84,26 @@ Session
   ⚠ unwritable on quit   → escape: quit anyway and log it. Blocking quit on a cache file
                            is worse than losing Drafts once
   ⚠ snapshot names a Request that is gone → escape: restored as a Draft
+  ⚠ its Data Folder can't be read → escape: the Session is not read and not written,
+                           so it survives until the folder is back (workspaces.md)
   ⚠ Active Environment file gone → escape: none active
 Secrets
   ⚠ SecretStore.set fails → escape: the Variable stays unsaved in the sheet with the
                            OSStatus message; the file is not touched (variables.md order)
   ⚠ Environment renamed  → not an error: its secrets move with it, Keychain first, file
                            second
+Workspaces
+  ⚠ remembered folder missing or unreadable → escape: the not-readable banner with Open
+                           Workspace… and Remove from List; never created, never dropped
+                           from the list on its own
+  ⚠ raccoon.json undecodable → escape: never rewritten; that Workspace's secrets are
+                           undefined and setting one fails with "raccoon.json can't be
+                           read", in the Environments sheet row
+  ⚠ raccoon.json can't be written → escape: the not-writable banner, as for any write
+  ⚠ New Workspace… names a folder that exists → escape: alert, nothing written
+  ⚠ New Workspace… can't create the folder → escape: alert sheet with the reason
+  ⚠ a send in flight on switch → not an error: cancelled, as Close cancels it
+  ⚠ Session file of a removed Workspace can't be deleted → escape: log only
 Theme
   ⚠ bundled theme JSON undecodable or missing a token → DIE. The file ships inside the
                            app; a bad one is our bug, and a test over every bundled Flavor

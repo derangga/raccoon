@@ -15,6 +15,7 @@ Window                          one, native chrome
   Toolbar                       native: sidebar toggle (leading), title, Environment picker,
                                 inspector toggle (trailing)
   Sidebar                       native material: the Collection tree
+    WorkspacePopUp              native pop-up button at the top: the open Workspace's title
     SidebarFilter               native search field, "Filter Collections"
     unit: SidebarRow            Collection · Folder · Request · Unreadable
   Content                       themed
@@ -33,11 +34,13 @@ Window                          one, native chrome
   Inspector                     themed, right of the content, closed by default
     VariablesPane               what the selected Tab resolves against, read-only
     CurlPane                    Copy as Curl of the selected Tab, live, with Copy
-  WindowBanner                  Data Folder not writable, the one global failure
+  WindowBanner                  Data Folder not writable or not readable, the one global failure
 Overlays
   VariableTooltip               hover on {{name}}
   EnvironmentsSheet             native sheet
   SaveDraftSheet                native sheet
+  NewWorkspacePanel             native NSSavePanel: name + location
+  OpenWorkspacePanel            native NSOpenPanel: one folder
   PostmanImportSheet            native sheet: the plan, the notes, then the result
   CloseConfirm                  native sheet alert: Don't Save · Cancel (Save with Collections)
   ThemeMenu                     native menu, View ▸ Theme
@@ -60,8 +63,8 @@ Overlays
 close Tab (⌘W, ✕) · type in the URL bar · paste curl · edit a row · toggle a row ·
 pick Body Type · send (⌘↩) · cancel (⌘., Cancel) · switch Pretty/Raw · switch Body/Headers ·
 save (⌘S) · save Draft (⌘S on a Draft, sheet) · Reload · Keep Mine · pick Environment (⌃E,
-pop-up) · open Environments sheet · edit / mark secret · pick Theme or Flavor · Choose
-Folder… · Reveal in Finder · Allow insecure TLS for this request · filter the sidebar (type,
+pop-up) · open Environments sheet · edit / mark secret · pick Theme or Flavor · switch
+Workspace (pop-up) · New Workspace… · Open Workspace… · Remove from List · Reveal in Finder · Allow insecure TLS for this request · filter the sidebar (type,
 Esc clears) · toggle the inspector · switch Variables / Curl · Copy · Include secrets ·
 Edit Environments… (from the Variables pane) · Import from Postman… (File menu, ⇧⌘I, the
 sidebar's + menu) · untick a file · Import.
@@ -88,6 +91,16 @@ sidebar's + menu) · untick a file · Import.
 -> the world changes
   -> file changed under a Dirty Tab -> TabBanner Changed on Disk -> Reload | Keep Mine
   -> file deleted under a Tab -> TabBanner Deleted on disk, Tab is a Draft
+-> switch Workspace
+  -> WorkspacePopUp -> a Workspace               the open one's Session written, its Tabs
+                                                 closed; the other's tree, Environments and
+                                                 Tabs restored
+                                                 V: can't be read -> WindowBanner, one empty
+                                                 Draft, its Session untouched
+  -> New Workspace… -> NewWorkspacePanel -> created, switched to
+                                                 V: exists -> alert; can't create -> alert
+  -> Open Workspace… -> OpenWorkspacePanel -> listed, switched to
+  -> Remove from List -> forgotten; folder and secrets kept
 -> find
   -> SidebarFilter: type -> the tree narrows to matches, parents open
                                                  V: no matches -> one sentence + Esc hint
@@ -118,6 +131,7 @@ Every node above appears on a screen in `mockups/` or in a component spec in
 
 | Surface | Shape | Must survive |
 |---|---|---|
+| WorkspacePopUp | many, sorted by title | 1 Workspace, 30; two folders with the same name; a name of 120 characters (end-truncated to the sidebar width, full in the menu) |
 | Sidebar | many, a tree | 0 Collections, 1, 40 Collections × 500 Requests; names in any script |
 | SidebarFilter results | many, a pruned tree | 0 matches, 1, 2,000 matches (scrolls; the count line says how many) |
 | VariablesPane | many, grouped | No Environment, 0 Globals, 200 Variables (scrolls), values of any length (end-truncated, full value in a tooltip) |
@@ -137,6 +151,7 @@ Each row is a designed state. "Place" is the surface the user is already looking
 | Surface | Empty | Loading | Partial | Error | Denied |
 |---|---|---|---|---|---|
 | Sidebar | "No Collections yet." + Data Folder path + New Collection | none: the scan is synchronous at launch (§7 of design/) | unreadable rows inline among good ones, with the reason and Reveal in Finder | Data Folder not writable: WindowBanner, sidebar shows the empty text | n/a |
+| WorkspacePopUp | one Workspace: its row, checked, and Remove from List ▸ disabled | n/a: the switch is as synchronous as launch | n/a | the open one can't be read: the pop-up still shows it; the WindowBanner says why | n/a |
 | SidebarFilter | placeholder "Filter Collections"; hidden while there are no Collections | n/a: synchronous | n/a | n/a | no matches: "No Requests, Folders or Collections match “q”. Esc clears the filter." |
 | VariablesPane | No Environment: the group says so and points at the toolbar; Globals still listed; no Globals: "No Globals." | n/a | disabled Variables are not listed; overridden Globals struck out | undefined names the Tab uses, first, in `variableUndefined`, with where each is used | secret: "Secret", never the value |
 | CurlPane | empty Draft: `curl ''` is not shown; the pane says "Type a URL to see the curl command." | n/a | secrets stay `{{name}}` | undefined: "No curl command yet" + the names; Copy disabled | n/a |
@@ -172,6 +187,7 @@ two cases are a binary body and a secret value, and both say why instead of show
 | Cancel | `.sending`; the Send button becomes Cancel only then |
 | Pretty | a parsed body ≤ 5 MB; above it the control is shown disabled with its reason, because hiding it would hide why the body looks raw |
 | VariableTooltip | pointer over a `{{name}}` range in a field that takes Variables |
+| WorkspacePopUp | always shown; Remove from List needs a row that is not the open Workspace |
 | SidebarFilter | at least one Collection; with none it is hidden, not disabled |
 | Inspector | a selected Tab; width for 280 pt beside an editor of at least 480 pt, otherwise it overlays the content edge (decided, Q2) |
 | Include secrets | the Curl pane; it changes only the copied text |

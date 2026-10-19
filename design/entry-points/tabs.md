@@ -79,12 +79,15 @@ Q4 in the design session), so nothing is lost by quitting, and a prompt per Tab 
 punish the feature that makes it unnecessary.
 
 ```
--> relaunch()                                    applicationDidFinishLaunching
+-> relaunch()                                    applicationDidFinishLaunching, and after
+                                                 switchWorkspace (workspaces.md), against
+                                                 that Workspace's Session. Skipped when its
+                                                 Data Folder can't be read
   -> SessionStore.read()                         boundary    R: SessionStore
                                                  nil -> the one empty Draft (board 01)
                                                  E: unreadable -> escape: log, start empty
   -> SessionFile.decode(data)                    E: undecodable -> escape: start empty
-    -> SessionStore.setAside()                   rename to session.corrupt-<date>.json, log;
+    -> SessionStore.setAside()                   rename to <key>.corrupt-<date>.json, log;
                                                  nothing on screen (Open UI Q7)
                                                  E: rename fails -> escape: log; the next
                                                  write replaces the file

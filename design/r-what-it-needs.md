@@ -20,6 +20,9 @@ FoldSet.toggle, .innermost(at:), FoldedText                       what is folded
                                                                   and offsets mapped both ways
 ResponseState.showsSpinner(at:)                                   .sending + now -> spinner, §7 150 ms
 TreeDecoder, DataFolderIndex                                      files -> sidebar tree
+WorkspaceFile encode·decode                                       raccoon.json <-> WorkspaceID
+WorkspaceList.titles                                              paths -> pop-up titles, a
+                                                                  parent folder only on a clash
 RequestFile / EnvironmentFile / SessionFile encode·decode         Codable, versioned
 Tab.isDirty, Tab.hasLosableContent                                computed, never stored
 ThemeChoice.flavor(for:)                                          appearance -> Flavor
@@ -43,13 +46,16 @@ DataFolderStore   ensureExists, scan -> DataFolderScan (files [path: Data] and e
                   The root is given to init; every path is relative to it
 FolderWatch       events(root) -> AsyncStream<[String]>        changed paths
 SecretStore       get / set / delete (environment?, name) throws(SecretError)
-                  the Keychain. environment nil is Globals. One generic password per
-                  secret: service `Raccoon` for Globals or `Raccoon/<Environment>`,
-                  account the Variable name
-SessionStore      read -> Data? / write(Data) throws(StoreError)   Application Support;
-                  bytes only, SessionFile owns the format.
-                  setAside() throws(StoreError) -> String: renames session.json to
-                  session.corrupt-<date>.json and returns the new path; the date comes
+                  the Keychain, one per Workspace. environment nil is Globals. One
+                  generic password per secret: service `Raccoon/<WorkspaceID>` for
+                  Globals or `Raccoon/<WorkspaceID>/<Environment>`, account the
+                  Variable name
+SessionStore      read -> Data? / write(Data) / delete() throws(StoreError)
+                  Application Support, one file per Workspace: sessions/<key>.json, the
+                  key derived from the root given to init (workspaces.md); bytes only,
+                  SessionFile owns the format.
+                  setAside() throws(StoreError) -> String: renames <key>.json to
+                  <key>.corrupt-<date>.json and returns the new path; the date comes
                   from a clock given to init
 ClipboardWriter   setString                                    Copy as Curl
 InstantSource     now                                          .sending(since:)
@@ -64,11 +70,14 @@ the models that need them.
 
 ```
 TabModel          HTTPTransport, SecretStore, InstantSource
-WindowModel       DataFolderLocation, FolderWatch, SessionStore, SecretStore, InstantSource
-                                                    DataFolderLocation is the root, open(root)
-                                                    -> DataFolderStore and remember(root); the
-                                                    composition root backs it with UserDefaults
-                                                    the last for SessionWriter's coalescing
+WindowModel       DataFolderLocation, FolderWatch, InstantSource
+                                                    DataFolderLocation is the open root and the
+                                                    list: open(root) -> DataFolderStore,
+                                                    SecretStore(id) and SessionStore(root),
+                                                    remember(root), add / remove; the
+                                                    composition root backs it with UserDefaults.
+                                                    InstantSource for SessionWriter's coalescing.
+                                                    The stores live for one withDataFolder (§8)
 CurlImport flow   FileReading                       only for @file references
 Copy as Curl      SecretStore, ClipboardWriter
 ThemeController   UserDefaults, the app bundle,     no port: all three are already injectable.

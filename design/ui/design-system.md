@@ -419,6 +419,26 @@ NSOutlineView, source-list style, on the sidebar material. 24 pt rows, `sys` lab
 
 Seen on: 01, 02, 09, 10.
 
+### Workspace pop-up (native)
+
+An `NSPopUpButton` (pull-down off, borderless, `.small`) at the top of the sidebar, above the
+filter field, full sidebar width minus 20 pt, 24 pt high. Its title is the open Workspace's
+title in `sys` label color, end-truncated. The menu:
+
+- every Workspace by title (`localizedStandardCompare`), the open one checked. A title is
+  the folder name; two Workspaces with the same folder name read "api — work" and
+  "api — side", the parent folder added for those two only. The menu item's tooltip is the
+  full path, abbreviated with `~`.
+- a separator, then **New Workspace…**, **Open Workspace…**, **Remove from List ▸**, a submenu
+  of every Workspace but the open one, which cannot be removed here. With one Workspace the
+  submenu is empty and the item disabled.
+
+New Workspace… is an `NSSavePanel` as a sheet: "Name" field, prompt "Create", default
+directory `~`. A name that exists gets an alert: "A folder named “<name>” already exists. Use
+Open Workspace… to add it." Open Workspace… is the open panel the banner uses.
+
+Seen on: 13.
+
 ### Banners
 
 In the content area, under the tab strip and above the URL bar, so they belong to the Tab
@@ -430,14 +450,16 @@ a bold lead sentence and detail in `textSecondary`, buttons trailing.
 | Changed on Disk | `warning` | "**Changed on Disk.** <file> was changed outside Raccoon. Your edits are kept until you choose." | Keep Mine · **Reload** (primary) |
 | Deleted on disk | `warning` | "**Deleted on disk.** <file> is gone. This Tab is now a Draft with your content, and ⌘S saves it again." | Dismiss |
 | Not saved (write failed) | `error` | "**Not saved.** Couldn't write <file>: <reason>. The Tab keeps your edits." | Dismiss |
-| Data Folder not writable | `error` | "**Raccoon can't write to the Data Folder.** <path> is read-only. Collections are unavailable; Drafts and sending still work." | **Choose Folder…** |
-| Data Folder not readable | `error` | "**Raccoon can't read the Data Folder.** <path> can't be read: <reason>. Collections are unavailable; Drafts and sending still work." | **Choose Folder…** |
+| Data Folder not writable | `error` | "**Raccoon can't write to the Data Folder.** <path> is read-only. Collections are unavailable; Drafts and sending still work." | Remove from List · **Open Workspace…** |
+| Data Folder not readable | `error` | "**Raccoon can't read the Data Folder.** <path> can't be read: <reason>. Collections are unavailable; Drafts and sending still work." | Remove from List · **Open Workspace…** |
 
-<path> is abbreviated with `~` and set in SF Mono 12. Choose Folder… opens an open panel as a
-sheet (folders only, New Folder allowed); Cancel changes nothing. The Data Folder banner is
+<path> is abbreviated with `~` and set in SF Mono 12. Open Workspace… opens an open panel as a
+sheet (folders only, New Folder allowed); Cancel changes nothing. Remove from List forgets
+this Workspace and switches to the first other one by name; it is not shown when no other
+Workspace is listed. The Data Folder banner is
 the one global surface: it spans the whole window under the
 toolbar, above sidebar and content, because it is the only failure with no smaller place
-(e-where-it-breaks.md). Seen on: 05, 09.
+(e-where-it-breaks.md). Seen on: 05, 09, 13.
 
 ### Environment picker
 
@@ -623,7 +645,11 @@ Every entry of [e-where-it-breaks.md](../e-where-it-breaks.md) with a visible pl
 | unknown flag | the Ignored note | URL bar |
 | @file unreadable / not UTF-8 | the Ignored note names the file; a multipart part keeps its path | URL bar, Body editor |
 | two commands pasted | the Ignored note: "2 more commands" | URL bar |
-| Data Folder root not writable | window banner with Choose Folder…; sidebar empty | Banners, Sidebar |
+| Data Folder root not writable | window banner with Open Workspace…; sidebar empty | Banners, Sidebar |
+| remembered Workspace missing or unreadable | window banner, not readable, with Open Workspace… and Remove from List; one empty Draft | Banners, Workspace pop-up |
+| raccoon.json undecodable | its secrets read as undefined; setting one: the sheet row says "raccoon.json can't be read" | Environments sheet |
+| New Workspace… on an existing name, or can't create | alert sheet with the reason; nothing written | Workspace pop-up |
+| Session of a removed Workspace not deleted | logged only | — |
 | file undecodable | unreadable sidebar row with reason and Reveal in Finder | Sidebar rows |
 | duplicate RequestID | the second is an unreadable row: "Same id as …" | Sidebar rows |
 | write failed | Tab banner "Not saved", Tab stays Dirty | Banners |

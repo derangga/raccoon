@@ -15,12 +15,16 @@ An unsaved request definition that exists only in a Tab until the user saves it 
 _Avoid_: Scratch, untitled request
 
 **Data Folder**:
-The single root folder on disk that holds every Collection, the Environments and Globals.
-_Avoid_: Workspace, vault, library
+The root folder on disk of one Workspace, holding its Collections, Environments and Globals.
+_Avoid_: Vault, library
+
+**Workspace**:
+A Data Folder that Raccoon remembers, named by its folder; the window shows one at a time, and switching Workspaces swaps the sidebar, the Environments and the open Tabs together.
+_Avoid_: Project, profile, account
 
 **Collection**:
 A named group of Requests and Folders, shown as a tree in the sidebar.
-_Avoid_: Workspace, project
+_Avoid_: Project
 
 **Folder**:
 A named group of Requests and Folders inside a Collection, nestable to any depth.
@@ -77,8 +81,8 @@ The state of a Dirty Tab whose Request file was modified outside Raccoon, which 
 _Avoid_: Conflict, out of sync, stale
 
 **Session**:
-The set of open Tabs, including Drafts and Dirty edits, that is restored when Raccoon relaunches.
-_Avoid_: Workspace, state, snapshot
+The set of open Tabs of one Workspace, including Drafts and Dirty edits, that is restored when Raccoon relaunches or the user switches back to that Workspace.
+_Avoid_: State, snapshot
 
 ### Variables
 
@@ -99,7 +103,7 @@ The single Environment currently used for substitution; there may be none.
 _Avoid_: Selected environment, current env
 
 **Secret Variable**:
-A Variable whose value is kept in the macOS Keychain; only its name is written to the Data Folder.
+A Variable whose value is kept in the macOS Keychain under its Workspace's id; only its name is written to the Data Folder.
 _Avoid_: Hidden variable, sensitive value
 
 **Undefined Variable**:

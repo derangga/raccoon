@@ -13,8 +13,12 @@ globals.json, environments/*.json → Globals, Environment // a .secret entry wi
                                                         //   key is decoded with the value
                                                         //   dropped and a warning: someone
                                                         //   hand-edited a secret into git
-session.json                → Session                   // Application Support, ours, but
+raccoon.json                → WorkspaceID               // `version` read first; undecodable
+                                                        //   means no secrets, never a rewrite
+sessions/<key>.json         → Session                   // Application Support, ours, but
                                                         //   written by an older build too
+UserDefaults Workspaces     → [path]                    // a path that no longer loads stays;
+                                                        //   loading it is the check
 Keychain item               → String                    // UTF-8 or treated as absent
 a file named by @path       → Data                      // read at import (--data-binary)
                                                         //   or at send (multipart)

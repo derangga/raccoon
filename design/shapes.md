@@ -7,6 +7,7 @@ Part of the [Raccoon design graph](../DESIGN.md).
 Branded where two of them could be swapped:
 
 `RequestID` (UUID, written inside the Request file) · `TabID` (UUID, lives in the Session) ·
+`WorkspaceID` (UUID, written in the Data Folder's `raccoon.json`) ·
 `VariableName` (validated: ASCII letters and digits, `_`, `-`, `.`; not empty)
 
 A Request's identity is its `RequestID`, not its path. A path changes when a Folder is renamed
@@ -136,8 +137,8 @@ places that disagree after a Disabled Row is toggled.
 **`method` is a String.** An enum would make Curl Import refuse `-X PURGE` or `-X PROPFIND`,
 and refusing a pasted request is worse than an unusual method.
 
-**`.secret` holds no value.** The value lives in the Keychain under the Variable's name and the
-Environment's name. A `VariableEntry` that carried it would be one `Codable` encode away from
+**`.secret` holds no value.** The value lives in the Keychain under the Variable's name, the
+Environment's name and the WorkspaceID (workspaces.md). A `VariableEntry` that carried it would be one `Codable` encode away from
 writing it into a file that is in git.
 
 **`ResolvedRequest` has no public init.** The transport takes only a `ResolvedRequest`, so a

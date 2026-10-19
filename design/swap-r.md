@@ -11,7 +11,7 @@ FileReading.disk                       FileReading.dictionary   → [path: Data]
 DataFolderStore(root: ~/Raccoon)       DataFolderStore(root: a fresh temp dir per test)
 FolderWatch.fsevents                   FolderWatch.manual       → the test calls emit(paths)
 SecretStore.keychain                   SecretStore.inMemory     → a dictionary
-SessionStore(appSupport)               SessionStore(temp dir)
+SessionStore(appSupport, root)         SessionStore(temp dir, root)
 ClipboardWriter.general                ClipboardWriter.recording → keeps the last string
 InstantSource.continuous               InstantSource.fixed
 ```

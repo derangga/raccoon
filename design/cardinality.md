@@ -3,7 +3,7 @@
 Part of the [Raccoon design graph](../DESIGN.md).
 
 ```
-Stream:   FolderWatch events     for the app's lifetime, or until the Data Folder changes.
+Stream:   FolderWatch events     for one Workspace: until the next switch or quit.
                                  Coalesced (§7), filtered by the WriteLedger, ended by §8
           appearance changes     for the app's lifetime. KVO, no state of its own
 
@@ -27,6 +27,8 @@ Bounded:  VariableScope          valid for one send or one highlight pass. Rebui
           FoldSet                view state: valid until the next send or Pretty | Raw
                                  switch. Never saved
           DataFolderIndex        valid until the next filesChanged
+          WorkspaceID, SecretStore, SessionStore
+                                 valid for one withDataFolder: until the next switch
           highlight ranges       valid for one keystroke
 ```
 

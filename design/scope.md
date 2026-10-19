@@ -4,12 +4,14 @@ Part of the [Raccoon design graph](../DESIGN.md).
 
 ```
 withApp {                        // release: SessionWriter.writeNow, then everything below
-  withDataFolder(root) {         // release: FolderWatch stream ends, the FSEventStream is
-                                 //   stopped and invalidated. Choose Folder… in the Data
-                                 //   Folder banner releases this scope and opens a new one
-  }
-  withTab(id) {                  // release: cancel the in-flight send
-    withSend { … }               // release: URLSessionTask.cancel(). One per Tab at most
+  withDataFolder(root) {         // one Workspace. Holds its SecretStore and SessionStore.
+                                 //   release: SessionWriter.writeNow, then the Tabs below,
+                                 //   then the FolderWatch stream ends and the FSEventStream
+                                 //   is stopped and invalidated. switchWorkspace releases
+                                 //   this scope and opens a new one (workspaces.md)
+    withTab(id) {                // release: cancel the in-flight send
+      withSend { … }             // release: URLSessionTask.cancel(). One per Tab at most
+    }
   }
 }
 ```
@@ -31,8 +33,12 @@ Request Cookies).
 
 **The FSEventStream is scoped to the Data Folder, not the app.** It is the one resource in
 Raccoon that leaks if forgotten: a stream left running after the folder changes delivers
-events for the old folder into the new index. Tying it to `withDataFolder` makes Choose
-Folder… a release followed by an acquire.
+events for the old folder into the new index. Tying it to `withDataFolder` makes a Workspace
+switch a release followed by an acquire.
+
+**Tabs live inside the Data Folder scope.** A Tab resolves against its Workspace's
+Environments and Keychain items, and its Session belongs to that Workspace. Nesting it there
+means a switch cannot leave a Tab, or its send, holding the old Workspace's SecretStore.
 
 **Quit writes the Session before releasing Tabs.** The snapshot is taken from the Tabs, so
 the order matters in one direction: releasing first would still work (the Session holds no
