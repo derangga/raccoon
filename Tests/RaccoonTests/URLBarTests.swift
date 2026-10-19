@@ -124,6 +124,16 @@ struct URLBarTests {
         #expect(bar.isURLFaded)
     }
 
+    @Test func `the close button sits on the note's first line, centered with the glyph`() {
+        let bar = bar()
+        model.message = .note("Ignored: --retry, -s")
+        bar.render()
+        bar.layoutSubtreeIfNeeded()
+        let glyph = bar.messageGlyph.convert(bar.messageGlyph.bounds, to: bar)
+        let close = bar.messageClose.convert(bar.messageClose.bounds, to: bar)
+        #expect(close.midY == glyph.midY)
+    }
+
     @Test func `a note shows its glyph and a close button that dismisses it`() {
         let bar = bar()
         model.message = .note("Ignored: --retry, -s")

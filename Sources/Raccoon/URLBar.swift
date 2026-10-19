@@ -268,14 +268,18 @@ final class URLBar: NSView, NSTextFieldDelegate {
     private func buildMessageLine() {
         messageLine.spacing = 6
         messageLine.alignment = .top
+        // Glyph and ✕ are one 16 pt line tall, so on a top-aligned line both center on the first line.
         messageGlyph.translatesAutoresizingMaskIntoConstraints = false
+        messageClose.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             messageGlyph.widthAnchor.constraint(equalToConstant: 12),
             messageGlyph.heightAnchor.constraint(equalToConstant: 16),
+            messageClose.heightAnchor.constraint(equalToConstant: 16),
         ])
         messageText.font = .systemFont(ofSize: 11)
         messageText.isSelectable = true
-        messageClose.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Dismiss")
+        messageClose.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Dismiss")?
+            .withSymbolConfiguration(.init(pointSize: 11, weight: .regular))
         messageClose.isBordered = false
         messageClose.target = self
         messageClose.action = #selector(dismissMessage)
