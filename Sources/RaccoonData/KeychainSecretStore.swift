@@ -2,21 +2,22 @@ import Foundation
 import RaccoonDomain
 import Security
 
-/// Secret Variables in the login keychain, one generic password each: service `<service>` for
-/// Globals or `<service>/<Environment>`, account the Variable name. A VariableName holds no `/`
-/// and an Environment name is a file name, so two keys never collide.
+/// One Workspace's Secret Variables in the login keychain, one generic password each: service
+/// `Raccoon/<WorkspaceID>` for Globals or `Raccoon/<WorkspaceID>/<Environment>`, account the
+/// Variable name. A VariableName holds no `/` and an Environment name is a file name, so two keys
+/// never collide.
 public struct KeychainSecretStore: SecretStore {
     private let service: String
     private let usesDataProtectionKeychain: Bool
 
-    public init(service: String) {
-        self.init(service: service, usesDataProtectionKeychain: false)
+    public init(id: WorkspaceID) {
+        self.init(id: id, usesDataProtectionKeychain: false)
     }
 
     /// The data protection keychain needs an entitlement an unsigned build lacks, which is how
     /// tests get a real failure.
-    init(service: String, usesDataProtectionKeychain: Bool) {
-        self.service = service
+    init(id: WorkspaceID, usesDataProtectionKeychain: Bool) {
+        service = "Raccoon/\(id.rawValue.uuidString)"
         self.usesDataProtectionKeychain = usesDataProtectionKeychain
     }
 
@@ -55,5 +56,21 @@ public struct KeychainSecretStore: SecretStore {
     public func delete(environment: String?, name: VariableName) throws(SecretError) {
         let status = SecItemDelete(query(environment, name) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else { throw .unavailable(status) }
+    }
+}
+
+/// A Workspace whose raccoon.json is undecodable or could not be written has no id, so its
+/// secrets have no Keychain service. Never touches the Keychain: every secret is undefined.
+public struct NoWorkspaceIDSecretStore: SecretStore {
+    public init() {}
+
+    public func get(environment: String?, name: VariableName) throws(SecretError) -> String? { nil }
+
+    public func set(_ value: String, environment: String?, name: VariableName) throws(SecretError) {
+        throw .raccoonJSONUnreadable
+    }
+
+    public func delete(environment: String?, name: VariableName) throws(SecretError) {
+        throw .raccoonJSONUnreadable
     }
 }

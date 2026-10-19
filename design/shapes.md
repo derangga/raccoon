@@ -161,6 +161,9 @@ SendError                .fileMissing(path)               a multipart file part,
 StoreError               .unreadable(path, reason) · .undecodable(path, reason)
                          .unwritable(path, reason)
 SecretError              .unavailable(OSStatus)
+                         .raccoonJSONUnreadable           the Workspace has no id (§4): set and
+                                                          delete fail, the row reads
+                                                          "raccoon.json can't be read"
 ImportError              .unwritable(collection, reason)    per Collection; the others still land
 FormatError              .notValid(line, column)          the body text is left unchanged
 ```

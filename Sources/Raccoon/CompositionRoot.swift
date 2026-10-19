@@ -9,7 +9,9 @@ enum CompositionRoot {
     static func live(defaults: UserDefaults) -> WindowModel {
         let files = DiskFileReading()
         let transport = URLSessionTransport(files: files)
-        let secrets = KeychainSecretStore(service: "Raccoon")
+        // ponytail: no raccoon.json is read yet, so no id. Loading a Workspace builds its
+        // KeychainSecretStore; nothing reads a secret before then.
+        let secrets = NoWorkspaceIDSecretStore()
         let instants = ContinuousInstantSource()
         let clipboard = SystemClipboardWriter(name: .general)
         let root = defaults.string(forKey: "DataFolder") ?? URL.homeDirectory.appending(path: "Raccoon").path

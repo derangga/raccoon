@@ -29,6 +29,8 @@ public enum StoreError: Error, Equatable, Sendable {
 
 public enum SecretError: Error, Equatable, Sendable {
     case unavailable(OSStatus)
+    /// The Workspace has no id, so there is no Keychain service to use: "raccoon.json can't be read".
+    case raccoonJSONUnreadable
 }
 
 /// Where a raw JSON or XML body stopped parsing; the text is left unchanged. 1-based.
