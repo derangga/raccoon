@@ -470,7 +470,11 @@ Seen on: 07, 09.
 
 "Save Request", Name field (focused, prefilled with nothing), Location pop-up listing
 Collections and Folders as a path ("Payments API ▸ Webhooks", default: the last one used), and
-Cancel · **Save**. With no Collections the pop-up offers "New Collection…". Seen on: 09.
+Cancel · **Save**. With no Collections the pop-up offers "New Collection…", and the sheet adds
+a "Collection" name field under it; Save creates that Collection, then the Request in it
+(decided 2026-10-19, the smallest reading of the board). Save is disabled until every field
+shown has text. "The last one used" lasts while the app runs; it is not kept across relaunch.
+Cancel, Esc and Save all give focus back to the Tab's URL field. Seen on: 09.
 
 ### Close confirmation (native)
 

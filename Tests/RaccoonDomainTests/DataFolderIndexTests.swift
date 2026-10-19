@@ -41,4 +41,22 @@ struct DataFolderIndexTests {
         #expect(index.path(of: Self.id(2)) == "A/F/Alpha.json")
         #expect(index.name(of: Self.id(2)) == "Alpha")
     }
+
+    @Test func `folders are listed as paths in tree order, with the file names each holds`() {
+        let index = DataFolderIndex([
+            Collection(name: "Auth", nodes: []),
+            Collection(name: "Payments API", nodes: [
+                .folder(name: "Webhooks", children: [
+                    .folder(name: "Old", children: []),
+                    .request(Self.id(1), name: "Create webhook", method: "GET", path: "Payments API/Webhooks/Create webhook.json"),
+                ]),
+                .request(Self.id(2), name: "Refund", method: "GET", path: "Payments API/Refund.json"),
+                .unreadable(path: "Payments API/Broken.json", reason: "x"),
+            ]),
+        ])
+        #expect(index.folders == ["Auth", "Payments API", "Payments API/Webhooks", "Payments API/Webhooks/Old"])
+        #expect(index.fileNames(in: "Payments API") == ["Refund.json", "Broken.json"])
+        #expect(index.fileNames(in: "Payments API/Webhooks") == ["Create webhook.json"])
+        #expect(index.fileNames(in: "Nowhere").isEmpty)
+    }
 }

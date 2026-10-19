@@ -252,6 +252,13 @@ enum TabNotice: Equatable {
     case deletedOnDisk(file: String)
 }
 
+/// Where the Save Request sheet puts a Draft: an existing Collection or Folder, by path, or a
+/// Collection it creates (only offered while there are none).
+enum SaveLocation: Equatable {
+    case folder(String)
+    case newCollection(String)
+}
+
 /// Where the Data Folder is, how to open a store at a root, and how to remember a new root.
 /// The composition root backs it with UserDefaults; tests with a temp dir.
 struct DataFolderLocation {
@@ -481,6 +488,40 @@ final class WindowModel {
         model.tab.baseline = model.tab.definition
         model.tab.isChangedOnDisk = false
         model.notice = nil
+    }
+
+    /// The sheet's default Location: where the last Draft was saved. Not kept across relaunch.
+    private(set) var lastSaveLocation: String?
+
+    /// Save on a Draft, once the sheet answered: a new RequestID and file, and the Tab becomes
+    /// that Request. A failed write leaves it a Draft, with Not saved in its banner.
+    func saveDraft(_ id: TabID, name: String, in location: SaveLocation) {
+        guard let model = tabs.first(where: { $0.tab.id == id }), model.tab.source == .draft, let store else { return }
+        let folder = switch location {
+        case .folder(let path): path
+        case .newCollection(let name): RequestFileName.sanitised(name)
+        }
+        let file = RequestFileName.make(name, taken: index.fileNames(in: folder))
+        let path = folder + "/" + file
+        let requestID = RequestID(UUID())
+        let data = RequestFile.encode(Request(id: requestID, name: name, definition: model.tab.definition))
+        do throws(StoreError) {
+            if case .newCollection = location { try store.createDirectory(folder) }
+            try store.write(data, to: path)
+        } catch {
+            switch error {
+            case .unwritable(_, let reason), .unreadable(_, let reason), .undecodable(_, let reason):
+                model.notice = .notSaved(file: file, reason: reason)
+            }
+            return
+        }
+        ledger.record(path, data)
+        // insert needs the Collection in the tree already; a new one comes from the rescan.
+        if case .newCollection = location { rescan() } else { index.insert(requestID, name: name, method: model.tab.definition.method, path: path) }
+        model.tab.source = .request(requestID)
+        model.tab.baseline = model.tab.definition
+        model.notice = nil
+        lastSaveLocation = folder
     }
 
     /// The file a Request Tab is saved in, as banners name it; nil for a Draft.

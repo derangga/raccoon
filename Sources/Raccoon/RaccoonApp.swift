@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var tabController: TabViewController?
     private var themeController: ThemeController?
     private var closer: TabCloser?
+    private var saver: DraftSaver?
     private var dataFolderBanner: DataFolderBannerBinding?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -56,6 +57,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let tabBanner = TabBannerBinding(window: windowModel, theme: theme, reduceMotion: { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion })
         windowController.split.showTab(ContentViewController(strip: strip, tab: tabController, banner: tabBanner))
         self.tabController = tabController
+        saver = DraftSaver(window: windowModel, ask: { [weak windowController] locations, location, reply in
+            guard let window = windowController?.window else { return reply(nil) }
+            SaveDraftSheet.present(on: window, locations: locations, default: location, reply: reply)
+        }, focusURL: { [weak tabController] in
+            tabController?.view.window?.makeFirstResponder(tabController?.urlBar.urlField)
+        })
         showSelectedTab()
         windowController.showWindow(nil)
         self.windowController = windowController
@@ -75,7 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func newTab(_ sender: Any?) { windowModel?.newTab() }
-    @objc func save(_ sender: Any?) { if let id = windowModel?.selected { windowModel?.save(id) } }
+    @objc func save(_ sender: Any?) { if let tab = windowModel?.selectedTab { saver?.save(tab) } }
     @objc func closeTab(_ sender: Any?) { if let tab = windowModel?.selectedTab { closer?.close(tab) } }
     @objc func showTab(_ sender: NSMenuItem) { windowModel?.select(number: sender.tag) }
     @objc func showNextTab(_ sender: Any?) { windowModel?.selectNext() }

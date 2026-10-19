@@ -50,6 +50,33 @@ public struct DataFolderIndex: Equatable, Sendable {
         entries[id]?.name
     }
 
+    /// Every Collection and Folder as a path, in tree order: the Save sheet's Location pop-up.
+    public var folders: [String] {
+        func walk(_ nodes: [TreeNode], in parent: String) -> [String] {
+            nodes.flatMap { node -> [String] in
+                guard case .folder(let name, let children) = node else { return [] }
+                return [parent + "/" + name] + walk(children, in: parent + "/" + name)
+            }
+        }
+        return collections.flatMap { [$0.name] + walk($0.nodes, in: $0.name) }
+    }
+
+    /// The files directly in a Collection or Folder, readable or not: names a new file must avoid.
+    public func fileNames(in folder: String) -> Set<String> {
+        var nodes = collections.first { $0.name == folder.split(separator: "/").first.map(String.init) }?.nodes ?? []
+        for name in folder.split(separator: "/").dropFirst() {
+            guard case .folder(_, let children)? = nodes.first(where: { if case .folder(String(name), _) = $0 { true } else { false } })
+            else { return [] }
+            nodes = children
+        }
+        return Set(nodes.compactMap { node in
+            switch node {
+            case .folder: nil
+            case .request(_, _, _, let path), .unreadable(let path, _): TreeDecoder.lastComponent(path)
+            }
+        })
+    }
+
     /// A Request just written into a Collection or Folder the tree already has.
     public mutating func insert(_ id: RequestID, name: String, method: String, path: String) {
         precondition(entries[id] == nil, "one file per RequestID")

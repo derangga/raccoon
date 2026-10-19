@@ -107,7 +107,9 @@ must produce no git diff, and a save that changes one header must produce a one-
 
 ```
 -> saveDraft(tab)                                ⌘S on a Draft
-  -> sheet: name + Collection/Folder             default: the last one used
+  -> Data Folder unusable?                       -> no sheet: the window banner says why
+  -> sheet: name + Collection/Folder             default: the last one used this run;
+                                                 no Collections: New Collection… + its name
                                                  Cancel -> not an error, nothing written
   -> RequestID()
   -> save(tab) with the new path

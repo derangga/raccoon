@@ -100,10 +100,15 @@ public enum RequestFileError: Error, Equatable, Sendable {
 /// would hide the file from the scan. A taken name gets " 2", " 3"…, compared without case
 /// because APFS is case-insensitive by default.
 public enum RequestFileName {
+    /// A name as a file or folder name: `/`, `:` and a leading `.` become `-`.
+    public static func sanitised(_ name: String) -> String {
+        let base = name.replacing(/[\/:]/, with: "-")
+        return base.hasPrefix(".") ? "-" + base.dropFirst() : base
+    }
+
     public static func make(_ name: String, taken: Set<String>) -> String {
         precondition(!name.isEmpty, "the Save sheet requires a name")
-        var base = name.replacing(/[\/:]/, with: "-")
-        if base.hasPrefix(".") { base = "-" + base.dropFirst() }
+        let base = sanitised(name)
         let taken = Set(taken.map { $0.lowercased() })
         var file = "\(base).json"
         var n = 1
