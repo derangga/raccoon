@@ -37,7 +37,11 @@ public enum AutomaticHeaders {
         case .multipart:
             rows += [AutomaticHeader(name: "Content-Type", value: "multipart/form-data"), AutomaticHeader(name: "Content-Length", value: nil)]
         case .raw, .formURLEncoded:
-            rows += [AutomaticHeader(name: "Content-Type", value: "application/x-www-form-urlencoded"), AutomaticHeader(name: "Content-Length", value: nil)]
+            // Only POST gets the form Content-Type; DELETE, PUT and PATCH send the body without one.
+            if definition.method.uppercased() == "POST" {
+                rows.append(AutomaticHeader(name: "Content-Type", value: "application/x-www-form-urlencoded"))
+            }
+            rows.append(AutomaticHeader(name: "Content-Length", value: nil))
         }
         // The resolver dropped Disabled Rows, so every row left is sent.
         return rows.filter { row in !definition.headers.contains { $0.name.caseInsensitiveCompare(row.name) == .orderedSame } }

@@ -40,6 +40,19 @@ struct AutomaticHeadersTests {
         #expect(Array(rows.dropFirst(6)) == added)
     }
 
+    @Test(arguments: ["DELETE", "PUT", "PATCH"])
+    func `only a POST body gets the form Content-Type, the other methods send Content-Length alone`(method: String) throws {
+        for body in [Body.raw(.json, "{}"), .formURLEncoded([Row(name: "a", value: "1")])] {
+            let rows = AutomaticHeaders.rows(for: try resolved("http://h/", method: method, body: body))
+            #expect(Array(rows.dropFirst(6)) == [header("Content-Length", nil)])
+        }
+    }
+
+    @Test func `a multipart body names its Content-Type on every method, the transport sets it`() throws {
+        let rows = AutomaticHeaders.rows(for: try resolved("http://h/", method: "PUT", body: .multipart([])))
+        #expect(Array(rows.dropFirst(6)) == [header("Content-Type", "multipart/form-data"), header("Content-Length", nil)])
+    }
+
     @Test func `an enabled row replaces the automatic one, a Disabled Row does not`() throws {
         let headers = [Row(name: "user-agent", value: "curl/8"), Row(name: "Accept", value: "x", isEnabled: false), Row(name: "Host", value: "other")]
         let names = AutomaticHeaders.rows(for: try resolved("http://h/", headers: headers)).map(\.name)

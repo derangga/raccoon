@@ -102,6 +102,19 @@ struct URLSessionFactsTests {
         }
     }
 
+    @Test(arguments: ["PUT", "PATCH"])
+    func `a PUT or PATCH with a body is sent, with no Content-Type added`(method: String) async throws {
+        try await withEchoServer { server in
+            var definition = RequestDefinition.empty
+            definition.method = method
+            definition.body = .raw(.text, "a=1")
+            let request = try await send(server, definition)
+            #expect(String(decoding: request, as: UTF8.self).hasSuffix("\r\n\r\na=1"))
+            #expect(value("Content-Length", in: request) == "3")
+            #expect(value("Content-Type", in: request) == nil)
+        }
+    }
+
     @Test func `a Cookie header set by hand is sent with no cookie storage`() async throws {
         try await withEchoServer { server in
             var definition = RequestDefinition.empty
