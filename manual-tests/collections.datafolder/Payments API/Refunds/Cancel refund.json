@@ -1,0 +1,11 @@
+{
+  "id" : "0C0FFEE0-0000-4000-8000-000000000007",
+  "method" : "DELETE",
+  "name" : "Cancel refund",
+  "settings" : {
+    "allowsInsecureTLS" : false,
+    "followsRedirects" : false
+  },
+  "url" : "https://httpbin.org/anything/refunds/1",
+  "version" : 1
+}

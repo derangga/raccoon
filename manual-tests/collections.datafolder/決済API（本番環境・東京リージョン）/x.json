@@ -1,0 +1,11 @@
+{
+  "id" : "0C0FFEE0-0000-4000-8000-000000000012",
+  "method" : "DELETE",
+  "name" : "x",
+  "settings" : {
+    "allowsInsecureTLS" : false,
+    "followsRedirects" : false
+  },
+  "url" : "https://httpbin.org/anything/x",
+  "version" : 1
+}

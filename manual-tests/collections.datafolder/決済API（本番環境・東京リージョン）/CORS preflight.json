@@ -1,0 +1,11 @@
+{
+  "id" : "0C0FFEE0-0000-4000-8000-000000000011",
+  "method" : "OPTIONS",
+  "name" : "CORS preflight for the merchant onboarding dashboard",
+  "settings" : {
+    "allowsInsecureTLS" : false,
+    "followsRedirects" : false
+  },
+  "url" : "https://httpbin.org/anything/onboarding",
+  "version" : 1
+}

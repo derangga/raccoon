@@ -1,0 +1,18 @@
+{
+  "headers" : [
+    {
+      "isEnabled" : true,
+      "name" : "Idempotency-Key",
+      "value" : "abc-123"
+    }
+  ],
+  "id" : "0C0FFEE0-0000-4000-8000-000000000003",
+  "method" : "POST",
+  "name" : "Create charge",
+  "settings" : {
+    "allowsInsecureTLS" : false,
+    "followsRedirects" : false
+  },
+  "url" : "https://httpbin.org/anything/charges",
+  "version" : 1
+}

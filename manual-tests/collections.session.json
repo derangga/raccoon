@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "selected": "5E550000-0000-4000-8000-000000000002",
+  "tabs": [
+    {
+      "id": "5E550000-0000-4000-8000-000000000001",
+      "requestID": "0C0FFEE0-0000-4000-8000-000000000002",
+      "definition": { "method": "GET", "url": "https://httpbin.org/anything/charges", "headers": [{ "name": "X-Mine", "value": "1" }] },
+      "baseline": { "method": "GET", "url": "https://httpbin.org/anything/charges" }
+    },
+    {
+      "id": "5E550000-0000-4000-8000-000000000002",
+      "requestID": "0C0FFEE0-0000-4000-8000-000000000003",
+      "definition": { "method": "POST", "url": "https://httpbin.org/anything/charges/old" },
+      "baseline": { "method": "POST", "url": "https://httpbin.org/anything/charges/old" }
+    },
+    {
+      "id": "5E550000-0000-4000-8000-000000000003",
+      "requestID": "0C0FFEE0-0000-4000-8000-000000000004",
+      "definition": { "method": "PATCH", "url": "https://httpbin.org/anything/charges/1", "headers": [{ "name": "X-Mine", "value": "1" }] },
+      "baseline": { "method": "PATCH", "url": "https://httpbin.org/anything/charges/2" }
+    },
+    {
+      "id": "5E550000-0000-4000-8000-000000000004",
+      "requestID": "0C0FFEE0-0000-4000-8000-000000000099",
+      "definition": { "method": "GET", "url": "https://httpbin.org/anything/gone" },
+      "baseline": { "method": "GET", "url": "https://httpbin.org/anything/gone" }
+    }
+  ]
+}

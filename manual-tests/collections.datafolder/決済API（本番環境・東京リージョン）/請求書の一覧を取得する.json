@@ -1,0 +1,11 @@
+{
+  "id" : "0C0FFEE0-0000-4000-8000-000000000009",
+  "method" : "GET",
+  "name" : "請求書の一覧を取得する",
+  "settings" : {
+    "allowsInsecureTLS" : false,
+    "followsRedirects" : false
+  },
+  "url" : "https://httpbin.org/anything/invoices",
+  "version" : 1
+}

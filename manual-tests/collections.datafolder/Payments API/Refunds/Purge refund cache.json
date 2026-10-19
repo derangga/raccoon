@@ -1,0 +1,11 @@
+{
+  "id" : "0C0FFEE0-0000-4000-8000-000000000008",
+  "method" : "PURGE",
+  "name" : "Purge refund cache",
+  "settings" : {
+    "allowsInsecureTLS" : false,
+    "followsRedirects" : false
+  },
+  "url" : "https://httpbin.org/anything/refunds/cache",
+  "version" : 1
+}
