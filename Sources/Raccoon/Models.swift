@@ -242,26 +242,43 @@ final class TabModel {
     }
 }
 
+/// Where the Data Folder is, how to open a store at a root, and how to remember a new root.
+/// The composition root backs it with UserDefaults; tests with a temp dir.
+struct DataFolderLocation {
+    var root: String
+    let open: (String) -> any DataFolderStore
+    let remember: (String) -> Void
+}
+
 /// The window's Tabs and the ports that touch the Data Folder, the Session and the Keychain.
 @Observable
 final class WindowModel {
     /// The tab strip's order.
     private(set) var tabs: [TabModel]
     private(set) var selected: TabID?
-    private let dataFolder: any DataFolderStore
+    private var location: DataFolderLocation
     private let folderWatch: any FolderWatch
     private let sessionStore: any SessionStore
     private let secrets: any SecretStore
     private let makeTab: () -> TabModel
     private let instants: any InstantSource
+
+    /// The sidebar tree; empty while the Data Folder is unavailable.
+    private(set) var index = DataFolderIndex([])
+    /// Why the Data Folder is unavailable, for the window banner. Drafts and sending still work.
+    private(set) var dataFolderError: StoreError?
+    /// The store at the current root; nil while unavailable.
+    private var store: (any DataFolderStore)?
+    /// The withDataFolder scope (§8): iterating the FolderWatch stream. Cancelling it ends the stream.
+    @ObservationIgnored private var watching: Task<Void, Never>?
     @ObservationIgnored private lazy var writer = SessionWriter(store: sessionStore, instants: instants) { [unowned self] in session }
 
     /// `makeTab` builds a TabModel with its own ports; the window never hands a Tab its stores.
     init(
-        dataFolder: any DataFolderStore, folderWatch: any FolderWatch, sessionStore: any SessionStore,
+        dataFolder: DataFolderLocation, folderWatch: any FolderWatch, sessionStore: any SessionStore,
         secrets: any SecretStore, instants: any InstantSource, makeTab: @escaping () -> TabModel
     ) {
-        self.dataFolder = dataFolder
+        self.location = dataFolder
         self.folderWatch = folderWatch
         self.sessionStore = sessionStore
         self.secrets = secrets
@@ -344,6 +361,50 @@ final class WindowModel {
             case .unwritable(let path, let reason), .unreadable(let path, let reason), .undecodable(let path, let reason):
                 Self.log.error("Session not set aside to \(path, privacy: .public): \(reason, privacy: .public)")
             }
+        }
+    }
+
+    /// Launch, before relaunch(): Request Tabs are looked up in the index. Synchronous, as the
+    /// scan is small; a failure is the banner and an empty sidebar, never a stop.
+    func loadDataFolder() {
+        let root = location.root
+        let store = location.open(root)
+        do throws(StoreError) {
+            try store.ensureExists()
+            index = DataFolderIndex(TreeDecoder.collections(try store.scan()))
+        } catch {
+            index = DataFolderIndex([])
+            dataFolderError = error
+            return
+        }
+        self.store = store
+        dataFolderError = nil
+        let events = folderWatch.events(root: root)
+        watching = Task { [weak self] in
+            for await paths in events { self?.filesChanged(paths) }
+        }
+    }
+
+    /// Choose Folder…: the old scope ends before the new one opens (§8), and a root is
+    /// remembered only once it loaded.
+    func chooseDataFolder(_ root: String) async {
+        watching?.cancel()
+        await watching?.value
+        watching = nil
+        store = nil
+        location.root = root
+        loadDataFolder()
+        if dataFolderError == nil { location.remember(root) }
+    }
+
+    /// FolderWatch reported changes: the tree is rebuilt from a fresh scan.
+    /// ponytail: the whole folder is rescanned; per-Collection rebuilds when a large folder is slow.
+    private func filesChanged(_ paths: [String]) {
+        guard let store else { return }
+        do throws(StoreError) {
+            index = DataFolderIndex(TreeDecoder.collections(try store.scan()))
+        } catch {
+            dataFolderError = error
         }
     }
 

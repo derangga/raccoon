@@ -169,7 +169,7 @@ struct ThemeControllerTests {
     @Test func `switching the Flavor leaves no colour of the old one on the tab strip`() async throws {
         let temp = FileManager.default.temporaryDirectory.appending(path: "raccoon-\(UUID())")
         let window = WindowModel(
-            dataFolder: DiskDataFolderStore(root: temp.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
+            dataFolder: .test(temp.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
             sessionStore: DiskSessionStore(directory: temp), secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
             makeTab: {
                 TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),

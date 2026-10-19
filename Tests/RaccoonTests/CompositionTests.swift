@@ -16,7 +16,7 @@ struct CompositionTests {
 
     @Test func `a window builds entirely from test implementations and starts with one empty Draft`() {
         let window = WindowModel(
-            dataFolder: DiskDataFolderStore(root: temp.appending(path: "Raccoon")),
+            dataFolder: .test(temp.appending(path: "Raccoon")),
             folderWatch: ManualFolderWatch(),
             sessionStore: DiskSessionStore(directory: temp.appending(path: "Support")),
             secrets: InMemorySecretStore(),

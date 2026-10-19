@@ -5,8 +5,8 @@ Part of the [Raccoon design graph](../DESIGN.md).
 ```
 withApp {                        // release: SessionWriter.writeNow, then everything below
   withDataFolder(root) {         // release: FolderWatch stream ends, the FSEventStream is
-                                 //   stopped and invalidated. Changing the Data Folder in
-                                 //   Settings releases this scope and opens a new one
+                                 //   stopped and invalidated. Choose Folder… in the Data
+                                 //   Folder banner releases this scope and opens a new one
   }
   withTab(id) {                  // release: cancel the in-flight send
     withSend { … }               // release: URLSessionTask.cancel(). One per Tab at most
@@ -31,8 +31,8 @@ Request Cookies).
 
 **The FSEventStream is scoped to the Data Folder, not the app.** It is the one resource in
 Raccoon that leaks if forgotten: a stream left running after the folder changes delivers
-events for the old folder into the new index. Tying it to `withDataFolder` makes the change
-in Settings a release followed by an acquire.
+events for the old folder into the new index. Tying it to `withDataFolder` makes Choose
+Folder… a release followed by an acquire.
 
 **Quit writes the Session before releasing Tabs.** The snapshot is taken from the Tabs, so
 the order matters in one direction: releasing first would still work (the Session holds no

@@ -8,7 +8,7 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
 ## Layout on disk
 
 ```
-~/Raccoon/                             the Data Folder, changeable in Settings
+~/Raccoon/                             the Data Folder; Choose Folder… changes it
   globals.json                         Globals
   environments/
     Dev.json                           one Environment per file, name = file name
@@ -37,7 +37,11 @@ each sorted by the name shown (`localizedStandardCompare`, as Finder sorts).
 ## Entry points
 
 ```
--> loadDataFolder()                              launch, and Settings ▸ Data Folder
+-> loadDataFolder()                              launch, before relaunch(): .16 looks
+                                                 Request Tabs up in the index
+  -> root = UserDefaults "DataFolder"            read by the composition root; absent ->
+                                                 ~/Raccoon. R: DataFolderLocation (root,
+                                                 open(root) -> DataFolderStore, remember)
   -> DataFolderStore.ensureExists(root)          boundary    R: DataFolderStore
                                                  E: unwritable -> escape: banner
   -> DataFolderStore.scan(root)                  boundary    -> DataFolderScan
@@ -52,6 +56,19 @@ each sorted by the name shown (`localizedStandardCompare`, as Finder sorts).
                                                  .unreadable("duplicate id of …")
   -> FolderWatch.start(root)                     §8          R: FolderWatch
 ```
+
+```
+-> chooseDataFolder(root)                        Choose Folder… in the Data Folder banner
+  -> the old withDataFolder scope ends           §8: its FolderWatch stream has ended
+                                                 before the new one starts
+  -> loadDataFolder(root)
+  -> DataFolderLocation.remember(root)           only once it loaded: a folder that fails
+                                                 keeps the banner and is not remembered
+```
+
+**There is no Settings window in v1** (decided 2026-10-19). Choose Folder… in the Data Folder
+banner is the one way to change the root, so a working Data Folder cannot be moved until a
+Settings window exists. The root is kept in UserDefaults under `DataFolder`, a path.
 
 **A file Raccoon failed to read is never rewritten.** It shows as a warning row with Reveal in
 Finder. Saving over a file the user hand-edited into a broken state would destroy the edit

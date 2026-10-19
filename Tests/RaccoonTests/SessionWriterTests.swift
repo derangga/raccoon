@@ -57,7 +57,7 @@ final class SessionWriterTests {
 
     @Test func `a Tab change in the window writes the Session`() async throws {
         let window = WindowModel(
-            dataFolder: DiskDataFolderStore(root: directory.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
+            dataFolder: .test(directory.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
             sessionStore: store, secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
             makeTab: {
                 TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),

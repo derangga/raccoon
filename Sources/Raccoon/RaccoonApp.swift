@@ -22,7 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Raccoon's Tabs are its own; system window tabs would add a second kind on ⌘T's menu.
         NSWindow.allowsAutomaticWindowTabbing = false
-        let windowModel = CompositionRoot.live()
+        let windowModel = CompositionRoot.live(defaults: .standard)
+        // Before relaunch: restoring a Request Tab looks its Request up in the index.
+        windowModel.loadDataFolder()
         windowModel.relaunch()
         self.windowModel = windowModel
         let themeController = ThemeController(defaults: .standard, catalog: ThemeCatalog.load(), appearanceSource: NSApp)

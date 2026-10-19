@@ -64,7 +64,10 @@ the models that need them.
 
 ```
 TabModel          HTTPTransport, SecretStore, InstantSource
-WindowModel       DataFolderStore, FolderWatch, SessionStore, SecretStore, InstantSource
+WindowModel       DataFolderLocation, FolderWatch, SessionStore, SecretStore, InstantSource
+                                                    DataFolderLocation is the root, open(root)
+                                                    -> DataFolderStore and remember(root); the
+                                                    composition root backs it with UserDefaults
                                                     the last for SessionWriter's coalescing
 CurlImport flow   FileReading                       only for @file references
 Copy as Curl      SecretStore, ClipboardWriter

@@ -11,7 +11,7 @@ struct CloseTabTests {
 
     func makeWindow(transport: ScriptedTransport = ScriptedTransport(.failure(.timedOut))) -> WindowModel {
         WindowModel(
-            dataFolder: DiskDataFolderStore(root: temp.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
+            dataFolder: .test(temp.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
             sessionStore: DiskSessionStore(directory: temp.appending(path: "Support")), secrets: InMemorySecretStore(),
             instants: FixedInstantSource(.now),
             makeTab: {

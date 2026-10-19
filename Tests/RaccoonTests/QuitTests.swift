@@ -12,7 +12,7 @@ struct QuitTests {
 
     func makeWindow(store: any SessionStore, transport: ScriptedTransport = ScriptedTransport(.failure(.timedOut))) -> WindowModel {
         WindowModel(
-            dataFolder: DiskDataFolderStore(root: directory.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
+            dataFolder: .test(directory.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
             sessionStore: store, secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
             makeTab: {
                 TabModel(transport: transport, secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),

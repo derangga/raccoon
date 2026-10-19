@@ -13,7 +13,7 @@ struct RelaunchTests {
 
     func makeWindow() -> WindowModel {
         WindowModel(
-            dataFolder: DiskDataFolderStore(root: directory.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
+            dataFolder: .test(directory.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
             sessionStore: store, secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
             makeTab: {
                 TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),

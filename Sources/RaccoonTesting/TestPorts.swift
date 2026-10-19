@@ -33,17 +33,23 @@ public struct DictionaryFileReading: FileReading {
 }
 
 /// Delivers exactly what the test passes to `emit`, to every stream still being iterated.
+/// Logs "start <root>" and "end <root>" as streams begin and terminate.
 public final class ManualFolderWatch: FolderWatch {
     private let continuations = Mutex<[UUID: AsyncStream<[String]>.Continuation]>([:])
+    private let entries = Mutex<[String]>([])
 
     public init() {}
+
+    public var log: [String] { entries.withLock { $0 } }
 
     public func events(root: String) -> AsyncStream<[String]> {
         let (stream, continuation) = AsyncStream<[String]>.makeStream()
         let id = UUID()
         continuations.withLock { $0[id] = continuation }
+        entries.withLock { $0.append("start \(root)") }
         continuation.onTermination = { [weak self] _ in
             _ = self?.continuations.withLock { $0.removeValue(forKey: id) }
+            self?.entries.withLock { $0.append("end \(root)") }
         }
         return stream
     }
