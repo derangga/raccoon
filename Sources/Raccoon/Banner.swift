@@ -37,7 +37,11 @@ nonisolated struct BannerMotion: Equatable {
 
 /// The window banner for a Data Folder that cannot be used. nil when there is nothing wrong.
 enum DataFolderBanner {
-    static func content(for error: StoreError?) -> Banner? {
+    static let removeFromList = "Remove from List"
+    static let openWorkspace = "Open Workspace…"
+
+    /// Remove from List is offered only while another Workspace is listed to switch to.
+    static func content(for error: StoreError?, canRemove: Bool = false) -> Banner? {
         let (lead, problem, path): (String, String, String)
         switch error {
         case nil:
@@ -51,7 +55,8 @@ enum DataFolderBanner {
             glyph: .error, lead: lead,
             detail: [.text(" "), .code((path as NSString).abbreviatingWithTildeInPath),
                      .text(problem + " Collections are unavailable; Drafts and sending still work.")],
-            buttons: [Banner.Button(title: "Choose Folder…", isPrimary: true)]
+            buttons: (canRemove ? [Banner.Button(title: removeFromList, isPrimary: false)] : [])
+                + [Banner.Button(title: openWorkspace, isPrimary: true)]
         )
     }
 }
@@ -239,8 +244,8 @@ final class BannerView: NSView {
     }
 }
 
-/// Keeps the window banner on the Data Folder's state, and runs Choose Folder…. A folder
-/// that fails to load keeps the banner up; Cancel in the panel changes nothing.
+/// Keeps the window banner on the Data Folder's state, and runs Remove from List and Open
+/// Workspace…. A folder that fails to load keeps the banner up; Cancel in the panel changes nothing.
 final class DataFolderBannerBinding {
     private let window: WindowModel
     private let banner: BannerView
@@ -251,12 +256,14 @@ final class DataFolderBannerBinding {
         self.window = window
         self.banner = banner
         self.chooseFolder = chooseFolder
-        banner.onButton = { [weak self] _ in self?.choose() }
+        banner.onButton = { [weak self] index in self?.press(index) }
         update()
     }
 
     private func update() {
-        let content = withObservationTracking { DataFolderBanner.content(for: window.dataFolderError) } onChange: { [weak self] in
+        let content = withObservationTracking {
+            DataFolderBanner.content(for: window.dataFolderError, canRemove: window.workspaces.count > 1)
+        } onChange: { [weak self] in
             Task { @MainActor in self?.update() }
         }
         // Not yet in a window: nothing to animate from.
@@ -264,10 +271,12 @@ final class DataFolderBannerBinding {
         if let content { banner.show(content, animated: animated) } else { banner.hide(animated: animated) }
     }
 
-    private func choose() {
+    private func press(_ index: Int) {
+        guard let title = banner.content?.buttons[index].title else { return }
         Task {
+            if title == DataFolderBanner.removeFromList { return await window.removeWorkspace(window.dataFolderRoot) }
             guard let root = await chooseFolder() else { return }
-            await window.chooseDataFolder(root)
+            await window.openWorkspace(root)
         }
     }
 }

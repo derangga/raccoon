@@ -259,12 +259,15 @@ enum SaveLocation: Equatable {
     case newCollection(String)
 }
 
-/// Where the Data Folder is, how to open a store at a root, and how to remember a new root.
-/// The composition root backs it with UserDefaults; tests with a temp dir.
+/// Where the open Workspace's Data Folder is, every remembered Workspace, how to open a store at
+/// a root, and how to remember the open root and the list. The composition root backs it with
+/// UserDefaults; tests with a temp dir.
 struct DataFolderLocation {
     var root: String
+    var workspaces: [String] = []
     let open: (String) -> any DataFolderStore
     let remember: (String) -> Void
+    var rememberWorkspaces: ([String]) -> Void = { _ in }
 }
 
 /// The window's Tabs and the ports that touch the Data Folder, the Session and the Keychain.
@@ -275,10 +278,13 @@ final class WindowModel {
     private(set) var selected: TabID?
     private var location: DataFolderLocation
     private let folderWatch: any FolderWatch
-    private let sessionStore: any SessionStore
-    private let secrets: any SecretStore
-    private let makeTab: () -> TabModel
+    private let sessionStores: (String) -> any SessionStore
+    private let makeSecrets: (WorkspaceID?) -> any SecretStore
+    private let makeTab: (any SecretStore) -> TabModel
     private let instants: any InstantSource
+    /// The open Workspace's: a new Tab gets these secrets.
+    private var sessionStore: any SessionStore
+    private var secrets: any SecretStore
 
     /// Where the Data Folder is, shown under the sidebar's empty text.
     var dataFolderRoot: String { location.root }
@@ -293,23 +299,41 @@ final class WindowModel {
     private var store: (any DataFolderStore)?
     /// The withDataFolder scope (§8): iterating the FolderWatch stream. Cancelling it ends the stream.
     @ObservationIgnored private var watching: Task<Void, Never>?
-    @ObservationIgnored private lazy var writer = SessionWriter(store: sessionStore, instants: instants) { [unowned self] in session }
+    /// nil while the open Workspace's Data Folder cannot be read: its Session is neither read
+    /// nor written until it can (workspaces.md).
+    @ObservationIgnored private var writer: SessionWriter?
 
-    /// `makeTab` builds a TabModel with its own ports; the window never hands a Tab its stores.
+    /// Every remembered Workspace, as paths.
+    var workspaces: [String] { location.workspaces }
+
+    /// `sessionStore` and `secrets` build the open Workspace's ports from its root and its id (nil
+    /// when raccoon.json gave none). `makeTab` builds a TabModel with its own ports and the
+    /// Workspace's secrets; the window never hands a Tab its other stores.
     init(
-        dataFolder: DataFolderLocation, folderWatch: any FolderWatch, sessionStore: any SessionStore,
-        secrets: any SecretStore, instants: any InstantSource, makeTab: @escaping () -> TabModel
+        dataFolder: DataFolderLocation, folderWatch: any FolderWatch, sessionStore: @escaping (String) -> any SessionStore,
+        secrets: @escaping (WorkspaceID?) -> any SecretStore, instants: any InstantSource,
+        makeTab: @escaping (any SecretStore) -> TabModel
     ) {
         self.location = dataFolder
         self.folderWatch = folderWatch
-        self.sessionStore = sessionStore
-        self.secrets = secrets
+        self.sessionStores = sessionStore
+        self.makeSecrets = secrets
         self.instants = instants
         self.makeTab = makeTab
-        tabs = [makeTab()]
+        let noID = secrets(nil)
+        self.sessionStore = sessionStore(dataFolder.root)
+        self.secrets = noID
+        tabs = [makeTab(noID)]
         selected = tabs[0].tab.id
+        writer = makeWriter()
         writeOnChange()
     }
+
+    private func makeWriter() -> SessionWriter {
+        SessionWriter(store: sessionStore, instants: instants) { [unowned self] in session }
+    }
+
+    private func newTabModel() -> TabModel { makeTab(secrets) }
 
     /// ponytail: none until Variables picks one.
     var session: Session {
@@ -321,7 +345,7 @@ final class WindowModel {
     private func writeOnChange() {
         withObservationTracking { _ = session } onChange: { [weak self] in
             Task { @MainActor in
-                self?.writer.schedule()
+                self?.writer?.schedule()
                 self?.writeOnChange()
             }
         }
@@ -349,7 +373,7 @@ final class WindowModel {
             return
         }
         let restored = session.tabs.map { snapshot in
-            let model = makeTab()
+            let model = newTabModel()
             model.tab = restoredTab(snapshot)
             return model
         }
@@ -382,15 +406,21 @@ final class WindowModel {
     /// ⌘Q, logout, restart. Never asks: the Session keeps Dirty Tabs and Drafts. The snapshot
     /// is written before any Tab is released (§8), and an unwritable Session does not stop quit.
     func quit() {
+        writeSession(when: "on quit")
+        tabs.forEach { $0.close() }
+    }
+
+    /// Writes the open Workspace's Session at once. An unwritable one is logged: it never stops
+    /// quit or a switch.
+    private func writeSession(when: String) {
         do throws(StoreError) {
-            try writer.writeNow()
+            try writer?.writeNow()
         } catch {
             switch error {
             case .unwritable(let path, let reason), .unreadable(let path, let reason), .undecodable(let path, let reason):
-                Self.log.error("Session not written on quit to \(path, privacy: .public): \(reason, privacy: .public)")
+                Self.log.error("Session not written \(when, privacy: .public) to \(path, privacy: .public): \(reason, privacy: .public)")
             }
         }
-        tabs.forEach { $0.close() }
     }
 
     private func setAsideSession() {
@@ -405,39 +435,148 @@ final class WindowModel {
         }
     }
 
-    /// Launch, before relaunch(): Request Tabs are looked up in the index. Synchronous, as the
-    /// scan is small; a failure is the banner and an empty sidebar, never a stop.
+    /// Loads the open root as a Workspace (workspaces.md): raccoon.json gives its id, which builds
+    /// its SecretStore, its Session is restored, and FolderWatch starts. A failed scan is the
+    /// banner, an empty sidebar and one empty Draft whose Session is neither read nor written. Only
+    /// the first launch, with no Workspace listed yet, creates the root. Synchronous, as the scan is
+    /// small.
     func loadDataFolder() {
         let root = location.root
         let store = location.open(root)
+        let firstLaunch = location.workspaces.isEmpty
+        list(root)
+        ledger = WriteLedger()
+        unreadableFiles = [:]
+        var id: WorkspaceID?
         do throws(StoreError) {
-            try store.ensureExists()
+            if firstLaunch { try store.ensureExists() }
             scanCount += 1
             lastScan = try store.scan()
             index = DataFolderIndex(TreeDecoder.collections(lastScan))
         } catch {
             index = DataFolderIndex([])
+            lastScan = DataFolderScan(files: [:], folders: [])
             dataFolderError = error
+            self.store = nil
+            writer = nil
+            sessionStore = sessionStores(root)
+            secrets = makeSecrets(nil)
+            resetTabs()
             return
         }
         self.store = store
         dataFolderError = nil
+        if let bytes = lastScan.files["raccoon.json"] {
+            do throws(StoreError) {
+                id = try WorkspaceFile.decode(bytes)
+            } catch {
+                Self.log.error("raccoon.json in \(root, privacy: .public) is undecodable: \(String(describing: error), privacy: .public)")
+            }
+        } else {
+            let new = WorkspaceID(UUID())
+            let bytes = WorkspaceFile.encode(new)
+            do throws(StoreError) {
+                try store.write(bytes, to: "raccoon.json")
+                ledger.record("raccoon.json", bytes)
+                lastScan.files["raccoon.json"] = bytes
+                id = new
+            } catch {
+                dataFolderError = error
+            }
+        }
+        secrets = makeSecrets(id)
+        sessionStore = sessionStores(root)
+        writer = makeWriter()
+        resetTabs()
+        relaunch()
         let events = folderWatch.events(root: root)
         watching = Task { [weak self] in
             for await paths in events { self?.filesChanged(paths) }
         }
     }
 
-    /// Choose Folder…: the old scope ends before the new one opens (§8), and a root is
-    /// remembered only once it loaded.
-    func chooseDataFolder(_ root: String) async {
+    /// One empty Draft holding the open Workspace's secrets.
+    private func resetTabs() {
+        tabs = [newTabModel()]
+        selected = tabs[0].tab.id
+    }
+
+    /// Remembers `root` among the Workspaces; one already listed is unchanged.
+    private func list(_ root: String) {
+        guard !location.workspaces.contains(where: { Self.standard($0) == Self.standard(root) }) else { return }
+        location.workspaces.append(root)
+        location.rememberWorkspaces(location.workspaces)
+    }
+
+    /// Open Workspace…: a folder already listed is not added twice.
+    func openWorkspace(_ root: String) async {
+        list(root)
+        await switchWorkspace(root)
+    }
+
+    /// New Workspace…: creates the folder at `root`, lists it and opens it. Returns the alert's
+    /// text when it cannot, and writes nothing: the name is taken, or the folder cannot be made.
+    func newWorkspace(_ root: String) async -> String? {
+        let url = URL(filePath: root)
+        let name = url.lastPathComponent
+        guard !FileManager.default.fileExists(atPath: root) else {
+            return "A folder named “\(name)” already exists. Use Open Workspace… to add it."
+        }
+        do throws(StoreError) {
+            try location.open(url.deletingLastPathComponent().path).createDirectory(name)
+        } catch {
+            switch error {
+            case .unwritable(_, let reason), .unreadable(_, let reason), .undecodable(_, let reason):
+                return "Couldn't create “\(name)”: \(reason)."
+            }
+        }
+        await openWorkspace(root)
+        return nil
+    }
+
+    /// Remove from List forgets a Workspace; its folder and Keychain items stay, its Session file
+    /// goes. The open one switches to the first other by title first. The last one stays.
+    func removeWorkspace(_ root: String) async {
+        let path = Self.standard(root)
+        if path == Self.standard(location.root) {
+            guard let other = WorkspaceList.titles(location.workspaces).first(where: { Self.standard($0.path) != path }) else { return }
+            await switchWorkspace(other.path)
+        }
+        location.workspaces.removeAll { Self.standard($0) == path }
+        location.rememberWorkspaces(location.workspaces)
+        do throws(StoreError) {
+            try sessionStores(root).delete()
+        } catch {
+            switch error {
+            case .unwritable(let path, let reason), .unreadable(let path, let reason), .undecodable(let path, let reason):
+                Self.log.error("Session not deleted at \(path, privacy: .public): \(reason, privacy: .public)")
+            }
+        }
+    }
+
+    private static func standard(_ path: String) -> String { URL(filePath: path).standardized.path }
+
+    /// The old scope ends before the new one opens (§8): Tabs first, which cancels their sends,
+    /// then the FolderWatch stream.
+    private func endDataFolderScope() async {
+        tabs.forEach { $0.close() }
         watching?.cancel()
         await watching?.value
         watching = nil
         store = nil
+    }
+
+    /// A row of the Workspace pop-up, or Open Workspace… on a folder already listed. The open
+    /// Workspace's Session is written first, as on quit, and nothing asks about Dirty Tabs or
+    /// Drafts: the Session keeps them. The root is remembered even when it failed to load, so a
+    /// relaunch shows the same banner.
+    func switchWorkspace(_ root: String) async {
+        guard Self.standard(root) != Self.standard(location.root) else { return }
+        writeSession(when: "on switch")
+        await endDataFolderScope()
         location.root = root
         loadDataFolder()
-        if dataFolderError == nil { location.remember(root) }
+        location.remember(root)
     }
 
     /// Scans of the Data Folder so far: a watch batch is one, whatever its size.
@@ -636,7 +775,7 @@ final class WindowModel {
         }
         // Someone gave the file another id since the scan.
         guard request.id == id else { rescan(); return }
-        let model = makeTab()
+        let model = newTabModel()
         model.tab = Tab(id: model.tab.id, source: .request(id), definition: request.definition, baseline: request.definition)
         insertAfterSelected(model)
         assertOneTabPerRequest()
@@ -722,7 +861,7 @@ final class WindowModel {
 
     /// ⌘T: an empty Draft after the selected Tab.
     func newTab() {
-        insertAfterSelected(makeTab())
+        insertAfterSelected(newTabModel())
     }
 
     private func insertAfterSelected(_ tab: TabModel) {

@@ -47,14 +47,14 @@ struct DataFolderLoadTests {
         #expect(watch.log == ["start \(root.path)"])
     }
 
-    @Test func `choosing a folder ends the old watch before the new one starts, and remembers it`() async throws {
+    @Test func `opening a Workspace ends the old watch before the new one starts, and remembers it`() async throws {
         let (a, b) = (temp.appending(path: "A"), temp.appending(path: "B"))
         try put(Self.charge, at: "In B/Create charge.json", in: b)
         var remembered: [String] = []
         let window = makeWindow(root: a) { remembered.append($0) }
         window.loadDataFolder()
 
-        await window.chooseDataFolder(b.path)
+        await window.openWorkspace(b.path)
 
         #expect(watch.log == ["start \(a.path)", "end \(a.path)", "start \(b.path)"])
         #expect(window.index.collections.map(\.name) == ["In B"])

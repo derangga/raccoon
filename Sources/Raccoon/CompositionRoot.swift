@@ -9,25 +9,23 @@ enum CompositionRoot {
     static func live(defaults: UserDefaults) -> WindowModel {
         let files = DiskFileReading()
         let transport = URLSessionTransport(files: files)
-        // ponytail: no raccoon.json is read yet, so no id. Loading a Workspace builds its
-        // KeychainSecretStore; nothing reads a secret before then.
-        let secrets = NoWorkspaceIDSecretStore()
         let instants = ContinuousInstantSource()
         let clipboard = SystemClipboardWriter(name: .general)
         let root = defaults.string(forKey: "DataFolder") ?? URL.homeDirectory.appending(path: "Raccoon").path
         return WindowModel(
             dataFolder: DataFolderLocation(
                 root: root,
+                workspaces: defaults.stringArray(forKey: "Workspaces") ?? [],
                 open: { DiskDataFolderStore(root: URL(filePath: $0)) },
-                remember: { defaults.set($0, forKey: "DataFolder") }
+                remember: { defaults.set($0, forKey: "DataFolder") },
+                rememberWorkspaces: { defaults.set($0, forKey: "Workspaces") }
             ),
             folderWatch: FSEventsFolderWatch(),
-            // ponytail: keyed by the launch root; Choose Folder… keeps writing here until loading
-            // a Workspace builds its own SessionStore.
-            sessionStore: DiskSessionStore(directory: DiskSessionStore.applicationSupportDirectory, root: root),
-            secrets: secrets,
+            sessionStore: { DiskSessionStore(directory: DiskSessionStore.applicationSupportDirectory, root: $0) },
+            // No id: raccoon.json was undecodable or could not be written.
+            secrets: { (id: WorkspaceID?) -> any SecretStore in id.map { KeychainSecretStore(id: $0) } ?? NoWorkspaceIDSecretStore() },
             instants: instants,
-            makeTab: { TabModel(transport: transport, secrets: secrets, files: files, instants: instants, clipboard: clipboard) }
+            makeTab: { TabModel(transport: transport, secrets: $0, files: files, instants: instants, clipboard: clipboard) }
         )
     }
 }

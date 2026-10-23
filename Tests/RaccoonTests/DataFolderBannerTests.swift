@@ -47,13 +47,48 @@ struct DataFolderBannerTests {
         #expect(banner.maxY == window.contentLayoutRect.maxY)
     }
 
-    @Test func `a read-only Data Folder shows the banner; Choose Folder… loads another and hides it`() async throws {
+    @Test func `Remove from List is offered only when another Workspace is listed`() throws {
+        let error = StoreError.unreadable(path: "/x", reason: "gone")
+        #expect(DataFolderBanner.content(for: error, canRemove: false)?.buttons.map(\.title) == ["Open Workspace…"])
+        let both = DataFolderBanner.content(for: error, canRemove: true)?.buttons
+        #expect(both?.map(\.title) == ["Remove from List", "Open Workspace…"])
+        #expect(both?.map(\.isPrimary) == [false, true])
+    }
+
+    @Test func `Remove from List forgets the unreadable Workspace and opens the other`() async throws {
+        let (gone, other) = (temp.appending(path: "gone"), temp.appending(path: "other"))
+        try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+        let model = WindowModel(
+            dataFolder: DataFolderLocation(root: gone.path, workspaces: [gone.path, other.path], open: { DiskDataFolderStore(root: URL(filePath: $0)) }, remember: { _ in }),
+            folderWatch: ManualFolderWatch(), sessionStore: DiskSessionStore(directory: temp.appending(path: "Support"), root: gone.path),
+            secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
+            makeTab: {
+                TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+                         instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
+            }
+        )
+        model.loadDataFolder()
+        let banner = BannerView(theme: theme, reduceMotion: { true })
+        let binding = DataFolderBannerBinding(window: model, banner: banner, chooseFolder: { nil })
+        #expect(banner.content?.buttons.map(\.title) == ["Remove from List", "Open Workspace…"])
+
+        banner.onButton?(0)
+        await settle()
+
+        #expect(model.workspaces == [other.path])
+        #expect(model.dataFolderRoot == other.path)
+        #expect(banner.content == nil)
+        withExtendedLifetime(binding) {}
+    }
+
+    @Test func `a read-only Data Folder shows the banner; Open Workspace… loads another and hides it`() async throws {
         let root = try readOnlyRoot()
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: root.path) }
         let model = makeWindow(root: root)
         model.loadDataFolder()
         let banner = BannerView(theme: theme, reduceMotion: { true })
         let chosen = temp.appending(path: "Writable")
+        try FileManager.default.createDirectory(at: chosen, withIntermediateDirectories: true)
         let binding = DataFolderBannerBinding(window: model, banner: banner, chooseFolder: { chosen.path })
 
         #expect(!banner.isHidden)

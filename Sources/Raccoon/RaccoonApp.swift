@@ -26,24 +26,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Raccoon's Tabs are its own; system window tabs would add a second kind on ⌘T's menu.
         NSWindow.allowsAutomaticWindowTabbing = false
         let windowModel = CompositionRoot.live(defaults: .standard)
-        // Before relaunch: restoring a Request Tab looks its Request up in the index.
+        // Loading restores the Session too: a Request Tab is looked up in the index first.
         windowModel.loadDataFolder()
-        windowModel.relaunch()
         self.windowModel = windowModel
         let themeController = ThemeController(defaults: .standard, catalog: ThemeCatalog.load(), appearanceSource: NSApp)
         self.themeController = themeController
         NSApp.mainMenu = MainMenu.make(theme: themeController)
         let theme = themeController.theme
         let windowController = MainWindowController(theme: theme, reduceMotion: { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion })
-        dataFolderBanner = DataFolderBannerBinding(window: windowModel, banner: windowController.banner) { [weak windowController] in
+        let chooseWorkspaceFolder = { [weak windowController] () async -> String? in
             guard let window = windowController?.window else { return nil }
             let panel = NSOpenPanel()
             panel.canChooseDirectories = true
             panel.canChooseFiles = false
             panel.canCreateDirectories = true
-            panel.prompt = "Choose"
+            panel.prompt = "Open"
             return await panel.beginSheetModal(for: window) == .OK ? panel.url?.path : nil
         }
+        dataFolderBanner = DataFolderBannerBinding(window: windowModel, banner: windowController.banner, chooseFolder: chooseWorkspaceFolder)
         let tabController = TabViewController(model: windowModel.tabs[0], theme: theme)
         let strip = TabStripView(window: windowModel, theme: theme)
         let saver = DraftSaver(window: windowModel, ask: { [weak windowController] locations, location, reply in
@@ -66,6 +66,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sidebar.askName = { [weak windowController] title, name, button, reply in
             guard let window = windowController?.window else { return reply(nil) }
             NameSheet.present(on: window, title: title, name: name, button: button, reply: reply)
+        }
+        sidebar.chooseWorkspaceFolder = chooseWorkspaceFolder
+        sidebar.chooseNewWorkspace = { [weak windowController] in
+            guard let window = windowController?.window else { return nil }
+            let panel = NSSavePanel()
+            panel.prompt = "Create"
+            panel.nameFieldLabel = "Name:"
+            panel.canCreateDirectories = true
+            panel.directoryURL = URL.homeDirectory
+            return await panel.beginSheetModal(for: window) == .OK ? panel.url?.path : nil
         }
         sidebar.showError = { [weak windowController] message in
             guard let window = windowController?.window else { return }

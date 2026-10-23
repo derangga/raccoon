@@ -47,6 +47,8 @@ final class SidebarItem {
 /// inside the sidebar pane's content view, so the narrow-window overlay borrows it whole.
 final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate,
     NSMenuItemValidation, NSSearchFieldDelegate {
+    /// The open Workspace and the others, above the filter (design-system §6 Workspace pop-up).
+    let workspacePopUp = WorkspacePopUp()
     /// design-system §6 Sidebar filter: names only, every keystroke, no debounce.
     let searchField = NSSearchField()
     let sectionLabel = NSTextField(labelWithString: "Collections")
@@ -65,6 +67,10 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
     /// The name sheet in the app: title, current name, confirm button, and nil on Cancel.
     var askName: (_ title: String, _ name: String, _ button: String, _ reply: @escaping (String?) -> Void) -> Void = { _, _, _, reply in reply(nil) }
+    /// The open panel for one folder (Open Workspace…), nil on Cancel.
+    var chooseWorkspaceFolder: () async -> String? = { nil }
+    /// The save panel for a new folder's name and place (New Workspace…), nil on Cancel.
+    var chooseNewWorkspace: () async -> String? = { nil }
     /// An alert sheet in the app, for an operation that failed.
     var showError: (String) -> Void = { _ in }
     let outline = NSOutlineView()
@@ -150,13 +156,32 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         empty.addArrangedSubview(emptyText)
         empty.addArrangedSubview(emptyPath)
 
+        workspacePopUp.onSwitch = { [window] root in Task { await window.switchWorkspace(root) } }
+        workspacePopUp.onRemove = { [window] root in Task { await window.removeWorkspace(root) } }
+        workspacePopUp.onOpen = { [weak self] in
+            Task {
+                guard let self, let root = await self.chooseWorkspaceFolder() else { return }
+                await self.window.openWorkspace(root)
+            }
+        }
+        workspacePopUp.onNew = { [weak self] in
+            Task {
+                guard let self, let root = await self.chooseNewWorkspace() else { return }
+                if let message = await self.window.newWorkspace(root) { self.showError(message) }
+            }
+        }
+
         searchHeight = searchField.heightAnchor.constraint(equalToConstant: 24)
-        for child in [searchField, sectionLabel, countLabel, scroll, empty, noMatches, addButton] as [NSView] {
+        for child in [workspacePopUp, searchField, sectionLabel, countLabel, scroll, empty, noMatches, addButton] as [NSView] {
             child.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview(child)
         }
         NSLayoutConstraint.activate([
-            searchField.topAnchor.constraint(equalTo: view.topAnchor, constant: 8),
+            workspacePopUp.topAnchor.constraint(equalTo: view.topAnchor, constant: 8),
+            workspacePopUp.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
+            workspacePopUp.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
+            workspacePopUp.heightAnchor.constraint(equalToConstant: 24),
+            searchField.topAnchor.constraint(equalTo: workspacePopUp.bottomAnchor, constant: 6),
             searchField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
             searchField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
             searchHeight,
@@ -188,9 +213,12 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
     /// Re-runs whenever the index or the root changes. Rows that were open stay open.
     private func render() {
-        let (collections, root) = withObservationTracking { (window.index.collections, window.dataFolderRoot) } onChange: { [weak self] in
+        let (collections, root, workspaces) = withObservationTracking {
+            (window.index.collections, window.dataFolderRoot, window.workspaces)
+        } onChange: { [weak self] in
             Task { @MainActor in self?.render() }
         }
+        workspacePopUp.reload(workspaces: workspaces, open: root)
         var expanded = expansionBeforeFilter.map { _ in Set<String>() } ?? Set(byPath.values.filter { outline.isItemExpanded($0) }.map(\.path))
         let filtered = query.isEmpty ? nil : TreeFilter.matches(collections, query)
         if let filtered { expanded = filtered.expanded } else if let before = expansionBeforeFilter { expanded = before }

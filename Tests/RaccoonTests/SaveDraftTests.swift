@@ -51,10 +51,12 @@ struct SaveDraftTests {
     }
 
     @Test func `a taken name writes <name> 2.json and keeps the name inside`() throws {
-        let (window, draft) = try window(folders: ["Payments API"])
+        let (window, _) = try window(folders: ["Payments API"])
         try RequestFile.encode(Request(id: RequestID(UUID()), name: "Refund", definition: .empty))
             .write(to: root.appending(path: "Payments API/Refund.json"))
         window.loadDataFolder()
+        // Loading a Workspace opens a fresh Draft.
+        let draft = try #require(window.selectedTab)
 
         window.saveDraft(draft.tab.id, name: "Refund", in: .folder("Payments API"))
 

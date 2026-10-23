@@ -41,7 +41,7 @@ struct BannerViewTests {
         #expect(content.glyph == .error)
         #expect(content.lead == "Raccoon can't write to the Data Folder.")
         #expect(content.detail == [.text(" "), .code("~/Raccoon"), .text(" is read-only. Collections are unavailable; Drafts and sending still work.")])
-        #expect(content.buttons == [Banner.Button(title: "Choose Folder…", isPrimary: true)])
+        #expect(content.buttons == [Banner.Button(title: "Open Workspace…", isPrimary: true)])
     }
 
     @Test func `an unreadable folder says it can't be read, with the reason`() throws {
