@@ -225,18 +225,18 @@ Feature: The Tab banners and the Data Folder banner
     When Raccoon is launched with -DataFolder /tmp/raccoon-ro
     Then a banner spans the whole window under the toolbar, above both sidebar and Tabs:
       "Raccoon can't write to the Data Folder. /tmp/raccoon-ro is read-only. Collections are unavailable; Drafts and sending still work."
-    And "/tmp/raccoon-ro" is in SF Mono, and Choose Folder… is the primary button
+    And "/tmp/raccoon-ro" is in SF Mono, and Open Workspace… is the primary button
     And the sidebar shows the empty text, and a Draft still sends with ⌘↩
     And ⌘S on a Draft opens no sheet
-    When I click Choose Folder…, Cancel the panel
+    When I click Open Workspace…, Cancel the panel
     Then nothing changes
-    When I click Choose Folder… and pick "$D" (⇧⌘G in the panel, type /tmp/raccoon-collections)
+    When I click Open Workspace… and pick "$D" (⇧⌘G in the panel, type /tmp/raccoon-collections)
     Then the banner leaves and the sidebar shows the three Collections
 
   Scenario: A long path wraps
     Given mkdir -p "/tmp/Library/Mobile Documents/com~apple~CloudDocs/Work/Clients/Northwind/API Collections/Raccoon" and chmod 555 it
     When Raccoon is launched with that path in a 760 pt wide window
-    Then the banner text wraps to two or three lines and Choose Folder… stays whole
+    Then the banner text wraps to two or three lines and Open Workspace… stays whole
 
   Scenario: Reduce Motion
     Given System Settings ▸ Accessibility ▸ Display ▸ Reduce motion is on

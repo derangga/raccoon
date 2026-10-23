@@ -7,9 +7,10 @@
 # line and what you saw instead.
 #
 # Part 1, "One Session file per Data Folder", runs on the current build.
-# Every Feature tagged @not-built-yet describes what the Workspace pop-up will do once it is
-# built. Skip those for now; when they are built, run each one twice: once with macOS
-# Appearance set to Light (System Settings ▸ Appearance ▸ Light), once with Dark.
+# Parts 2 onward describe the Workspace pop-up and run on the current build. Run each Feature
+# twice: once with macOS Appearance set to Light (System Settings ▸ Appearance ▸ Light),
+# once with Dark. The one step that needs the Environments sheet is tagged @not-built-yet:
+# skip it until that sheet exists.
 #
 # ─── Words used below ─────────────────────────────────────────────────────────────────────
 #
@@ -135,7 +136,6 @@ Feature: One Session file per Data Folder
 # ══════════════════════════════════════════════════════════════════════════════════════════
 
 
-@not-built-yet
 Feature: The Workspace pop-up
   Board 13, in Light and in Dark
 
@@ -176,7 +176,6 @@ Feature: The Workspace pop-up
     Then the menu shows the whole 120-character name on its row
 
 
-@not-built-yet
 Feature: New Workspace… and Open Workspace…
   Board 13, in Light and in Dark
 
@@ -230,7 +229,6 @@ Feature: New Workspace… and Open Workspace…
     And the menu lists "api — side" exactly once
 
 
-@not-built-yet
 Feature: Switching Workspaces
 
   Background:
@@ -260,7 +258,6 @@ Feature: Switching Workspaces
     Then the pop-up reads "api — side"
 
 
-@not-built-yet
 Feature: Remove from List
   Board 13, in Light and in Dark
 
@@ -277,7 +274,6 @@ Feature: Remove from List
     Then it opens with one empty Draft: "https://side.example" does not come back
 
 
-@not-built-yet
 Feature: A Workspace that can't be read or written
   Board 13, in Light and in Dark
 
@@ -301,6 +297,7 @@ Feature: A Workspace that can't be read or written
     Given in Terminal B I ran: echo garbage > /tmp/raccoon-side/api/raccoon.json
     When I switch to "api — side"
     Then in Terminal B "cat /tmp/raccoon-side/api/raccoon.json" still prints: garbage
+    # Skip this step until the Environments sheet exists (it is @not-built-yet).
     And when I mark a Variable as secret in the Environments sheet, its row says "raccoon.json can't be read"
 
   Scenario: A folder that can be read but not written
