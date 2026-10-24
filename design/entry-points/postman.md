@@ -16,8 +16,10 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
 | Globals | `_postman_variable_scope == "globals"` | entries merged into Globals |
 
 Anything else (Collection v1, a Postman data-dump zip, an Insomnia file) is listed as "not a
-Postman export Raccoon reads" and not imported. The user picks one or many `.json` files at
-once, so an unzipped Postman data export imports in one pass.
+Postman export Raccoon reads" and not imported. So is a Collection wrapped in
+`{"collection": …}`, as Postman's API returns it, and a file Foundation's JSON parser rejects,
+such as one with a number too large for a Double (`1e309`), which Postman never writes. The user
+picks one or many `.json` files at once, so an unzipped Postman data export imports in one pass.
 
 ## Entry points
 
@@ -110,27 +112,32 @@ and every loss becomes a note on the Import sheet, counted and naming the Reques
 |---|---|
 | item with `item` | Folder, any depth, order kept |
 | item with `request` | Request, a new `RequestID`, order kept; file name from its name (collections.md) |
+| `request.method` absent, `null` or `""` | GET, Postman's default. A method is uppercased |
 | `request.url`, a string or an object | `url` without the query, plus Params from `url.query` (disabled ones become Disabled Rows). `raw` is the url when present, else it is built from `protocol`, `host`, `port` and `path`; a `#fragment` is dropped, since it is never sent. A string url's query is split as the URL bar splits it |
 | path variables `:id` with `url.variable` | the value is written into the path (`.pathVariable`, info); an empty or missing value keeps `:id` and is noted (`.pathVariableEmpty`). Raccoon has no path variables |
 | `header`, `disabled: true` | Headers, Disabled Rows. A `Cookie` header is split into Request Cookies rows, as in Curl Import |
+| `header` as one string, or strings among its objects (`"Name: value"`, one per line) | Headers, split at the first `:` and trimmed, as Postman reads them; a line with no `:` is a name with an empty value |
+| a header, query, `urlencoded` or text `formdata` entry whose key and value are both empty or `null` | no row: there is nothing to send, and the URL bar skips an empty pair the same way. A Disabled one is skipped too |
+| a value that is a number, `true`/`false`, an object or an array | its JSON text (`5000`, `true`, `{"id":1}`, `["some","text"]`): what Postman shows and sends for it |
 | body `raw`, `options.raw.language` json / xml / text | `.raw(.json / .xml / .text)`; html and javascript become `.text` |
 | body `urlencoded` | `.formURLEncoded`, disabled fields kept as Disabled Rows |
-| body `formdata`, text and `src` parts | `.multipart`; a file part keeps its `src` path. Postman often stores only a file name, so the send reports `fileMissing` until it is re-picked, and the note says which |
+| body `formdata`, text and `src` parts | `.multipart`; a file part keeps its `src` path, and a `src` list becomes one file Part per path under the same name, the same bytes on the wire. Postman often stores only a file name, so the send reports `fileMissing` until it is re-picked, and the note says which. A part's `contentType` is dropped without a note, as Curl Import drops `;type=…`: a Part has no Content-Type of its own |
 | body `graphql` | `.raw(.json)` with `{"query", "variables"}`, as in Curl Import |
 | body `file` (binary) | `.none`, noted: binary bodies are not supported |
 | a `raw`, `urlencoded`, `formdata` or `graphql` body with nothing in it | `.none`: Postman exports `{"mode": "raw", "raw": ""}` on plain GETs, and an empty body sends no bytes, so no Content-Type is added for it |
 | auth `noauth`, `basic`, `bearer` | `.none`, `.basic`, `.bearer` |
 | auth `inherit`, or no auth on the item | the nearest Folder's or the Collection's auth, copied onto the Request and noted (`.authInherited`, info) unless it is `noauth`. Raccoon has no inherited Auth, so the effective one is written down |
-| auth `apikey` | a header or a Param with that name and value, which is the same bytes on the wire |
+| auth `apikey` | a header or a Param with that name and value, which is the same bytes on the wire. With no `key` nothing is added: a header or a Param needs a name |
 | auth `oauth2`, `oauth1`, `digest`, `awsv4`, `ntlm`, `jwt`, `hawk`, `akamai`, `edgegrid` | `.none`, noted per Request. The settings are not kept |
 | `protocolProfileBehavior.followRedirects`, `strictSSL: false` | Request Settings `followsRedirects`, `allowsInsecureTLS`. An absent `followRedirects` is Postman's default, which follows, so it imports as on |
+| any other `protocolProfileBehavior` key (`maxRedirects`, `disableUrlEncoding`, `followAuthorizationHeader`, `disabledSystemHeaders`, `disableBodyPruning`) | dropped without a note: Raccoon has no such Request Setting. Postman writes `disableBodyPruning` on most requests it exports, so a note would name nearly every Request |
 | a request item with an empty or blank `name` | named as its Draft Tab would be titled: the URL's path, else the URL as typed; with no URL, its method. A Request needs a name for its file name (collections.md) |
 | collection `variable` | added to Globals (new names only). Raccoon has no Collection Variables; Globals keep Postman's "Environment wins" order, and a name that collides is listed |
 | a variable `key` that is not a `VariableName` (`base url`, `a/b`) | dropped and listed (`.variableNameInvalid`): no `{{…}}` Raccoon resolves could reach it, and the file would not decode. Surrounding spaces are trimmed first, as the Environments sheet trims them; an empty key is no variable and is dropped silently |
 | `{{name}}` | unchanged: Raccoon uses the same syntax |
 | dynamic variables `{{$guid}}`, `{{$timestamp}}`, `{{$randomInt}}`, `{{$random…}}` | left as typed and noted. `$` is not a `VariableName` character, so each is an Undefined Variable and the request will not send until it is replaced. Sending the literal text would be worse |
 | `event` (pre-request and test scripts) | dropped, counted: Raccoon runs no scripts. A blank script is not counted; a Folder's or the Collection's script counts on every Request under it, since Postman runs it for each |
-| `response` (saved examples), `description` | dropped, counted. A Folder's or the Collection's description is named by that Folder or Collection |
+| `response` (saved examples), `description` | dropped, counted. A Folder's or the Collection's description is named by that Folder or Collection. A header's, Param's, path variable's or body field's own `description` is dropped without a note: it is never sent |
 | environment `values`, `enabled` | Environment entries, disabled ones kept disabled |
 | environment, Globals or collection value with `type: "secret"` | a Secret Variable: Keychain first, file without the value (variables.md order). The plan carries the value in `ImportVariable.secret`, which is not Codable; what goes to the file is its `entry`, a `.secret` with none |
 

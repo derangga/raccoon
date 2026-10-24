@@ -243,7 +243,7 @@ public enum PostmanMapping {
             CurlMapping.cookieRows(header.value).map { Row(name: $0.name, value: $0.value, isEnabled: !header.disabled) }
         }
         let body = request.body.map { body($0, notes: &notes) } ?? .none
-        var headers = request.headers.filter { !isCookie($0) }.map(row)
+        var headers = rows(request.headers.filter { !isCookie($0) })
         let postmanAuth = effective(request.auth, over: inherited)
         if effective(request.auth, over: nil) == nil, let postmanAuth, postmanAuth.type != "noauth" { notes.append(.authInherited) }
         let auth = auth(postmanAuth, headers: &headers, params: &params, notes: &notes)
@@ -272,7 +272,7 @@ public enum PostmanMapping {
             notes.append(.pathVariable)
             return Substring(value)
         }
-        let params = url.query.isEmpty ? pairs : url.query.map(row)
+        let params = url.query.isEmpty ? pairs : rows(url.query)
         return (segments.joined(separator: "/"), params)
     }
 
@@ -322,6 +322,8 @@ public enum PostmanMapping {
         case "bearer":
             return .bearer(token: parameter("token"))
         case "apikey":
+            // A header or a Param needs a name.
+            guard !parameter("key").isEmpty else { return .none }
             let row = Row(name: parameter("key"), value: parameter("value"))
             if parameter("in") == "query" { params.append(row) } else { headers.append(row) }
             return .none
@@ -334,13 +336,16 @@ public enum PostmanMapping {
     /// Empty is none: Postman exports `{"mode": "raw", "raw": ""}` on plain GETs.
     private static func body(_ body: PostmanBody, notes: inout [ImportNote.Kind]) -> Body {
         switch body {
-        case .raw("", _), .urlencoded([]), .formdata([]), .graphql("", _):
+        case .raw("", _), .graphql("", _):
             return .none
         case .raw(let text, let language):
             return .raw(language == "json" ? .json : language == "xml" ? .xml : .text, text)
         case .urlencoded(let pairs):
-            return .formURLEncoded(pairs.map(row))
+            let rows = rows(pairs)
+            return rows.isEmpty ? .none : .formURLEncoded(rows)
         case .formdata(let parameters):
+            let parameters = parameters.filter { !$0.key.isEmpty || $0.content != .text("") }
+            if parameters.isEmpty { return .none }
             return .multipart(parameters.flatMap { parameter -> [Part] in
                 switch parameter.content {
                 case .text(let value):
@@ -361,6 +366,12 @@ public enum PostmanMapping {
             notes.append(.binaryBody)
             return .none
         }
+    }
+
+    /// An entry with neither key nor value is no row: there is nothing to send, as the URL bar
+    /// skips an empty pair.
+    private static func rows(_ pairs: [PostmanKeyValue]) -> [Row] {
+        pairs.filter { !$0.key.isEmpty || !$0.value.isEmpty }.map(row)
     }
 
     private static func row(_ pair: PostmanKeyValue) -> Row {

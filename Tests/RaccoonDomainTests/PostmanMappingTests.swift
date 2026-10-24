@@ -467,3 +467,27 @@ extension PostmanMappingTests {
         #expect(plan.notes == [ImportNote(.examplesDropped, names: [planned])])
     }
 }
+
+extension PostmanMappingTests {
+    @Test func `an entry with neither key nor value is no row`() {
+        let blank = PostmanKeyValue(key: "", value: "")
+        let definition = definition(PostmanRequest(
+            name: "r", url: PostmanURL(raw: "http://h/?a=1&", query: [PostmanKeyValue(key: "a", value: "1"), blank, PostmanKeyValue(key: "", value: "v")]),
+            headers: [blank, PostmanKeyValue(key: "X", value: ""), PostmanKeyValue(key: "", value: "", disabled: true)],
+            body: .urlencoded([blank, PostmanKeyValue(key: "f", value: "")])
+        ))
+        #expect(definition?.params == [Row(name: "a", value: "1"), Row(name: "", value: "v")])
+        #expect(definition?.headers == [Row(name: "X", value: ""), Row(name: "Content-Type", value: "application/x-www-form-urlencoded")])
+        #expect(definition?.body == .formURLEncoded([Row(name: "f", value: "")]))
+        let parts = self.definition(PostmanRequest(name: "r", body: .formdata([
+            PostmanFormParameter(key: "", content: .text("")), PostmanFormParameter(key: "t", content: .text("")),
+        ])))?.body
+        #expect(parts == .multipart([Part(name: "t", content: .text(""))]))
+    }
+
+    @Test func `apikey with no key adds no row`() {
+        let definition = definition(PostmanRequest(name: "r", auth: PostmanAuth(type: "apikey", parameters: ["value": "k"])))
+        #expect(definition?.headers == [])
+        #expect(definition?.params == [])
+    }
+}

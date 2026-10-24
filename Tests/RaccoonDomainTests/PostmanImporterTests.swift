@@ -214,3 +214,22 @@ extension PostmanImporterTests {
         #expect(request(#"{"name": "R", "request": {"body": \#(json)}}"#)?.body == nil)
     }
 }
+
+extension PostmanImporterTests {
+    @Test(arguments: [#""method": null"#, #""method": """#, #""header": []"#])
+    func `a request whose method is absent, null or empty is a GET`(json: String) {
+        #expect(request(#"{"name": "R", "request": {\#(json)}}"#)?.method == "GET")
+    }
+
+    @Test(arguments: [
+        (#""Content-Type: application/json\r\nHost: example.com\n""#,
+         [PostmanKeyValue(key: "Content-Type", value: "application/json"), PostmanKeyValue(key: "Host", value: "example.com")]),
+        (#"["Content-Type: application/json", {"key": "X-Custom", "value": "test"}, "Authorization: Bearer a:b"]"#,
+         [PostmanKeyValue(key: "Content-Type", value: "application/json"), PostmanKeyValue(key: "X-Custom", value: "test"),
+          PostmanKeyValue(key: "Authorization", value: "Bearer a:b")]),
+        (#"["X-No-Value"]"#, [PostmanKeyValue(key: "X-No-Value", value: "")]),
+    ] as [(String, [PostmanKeyValue])])
+    func `a header written as a string is split at its first colon`(json: String, headers: [PostmanKeyValue]) {
+        #expect(request(#"{"name": "R", "request": {"header": \#(json)}}"#)?.headers == headers)
+    }
+}

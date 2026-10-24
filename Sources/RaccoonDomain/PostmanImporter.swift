@@ -59,7 +59,8 @@ public enum PostmanImporter {
         let behavior = json["protocolProfileBehavior"] as? Object ?? [:]
         return .request(PostmanRequest(
             name: name, description: description(request["description"]) ?? description(json["description"]),
-            method: text(request["method"]) ?? "GET", url: url(request["url"]), headers: keyValues(request["header"]),
+            method: text(request["method"]).flatMap { $0.isEmpty ? nil : $0 } ?? "GET", url: url(request["url"]),
+            headers: headers(request["header"]),
             body: body(request["body"]), auth: auth(request["auth"]),
             followRedirects: behavior["followRedirects"] as? Bool, strictSSL: behavior["strictSSL"] as? Bool,
             events: events(json["event"]), responseCount: (json["response"] as? [Any])?.count ?? 0
@@ -133,6 +134,17 @@ public enum PostmanImporter {
         guard let string = text(json) else { return nil }
         let trimmed = string.drop { $0 == separator }
         return trimmed.isEmpty ? [] : trimmed.split(separator: separator, omittingEmptySubsequences: false).map(String.init)
+    }
+
+    /// `[{key, value}]`, where an entry may also be a `"Name: value"` string, or one string of
+    /// such lines.
+    private static func headers(_ json: Any?) -> [PostmanKeyValue] {
+        let entries: [Any] = (json as? String)?.split(whereSeparator: \.isNewline).map(String.init) ?? json as? [Any] ?? []
+        return entries.flatMap { entry -> [PostmanKeyValue] in
+            guard let line = entry as? String else { return keyValues([entry]) }
+            let (name, value) = line.firstIndex(of: ":").map { (line[..<$0], line[line.index(after: $0)...]) } ?? (line[...], "")
+            return [PostmanKeyValue(key: name.trimmingCharacters(in: .whitespaces), value: value.trimmingCharacters(in: .whitespaces))]
+        }
     }
 
     private static func keyValues(_ json: Any?) -> [PostmanKeyValue] {
