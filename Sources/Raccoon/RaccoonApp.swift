@@ -128,6 +128,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func showPreviousTab(_ sender: Any?) { windowModel?.selectPrevious() }
     /// ⌃E opens the toolbar's Environment pop-up.
     @objc func chooseEnvironment(_ sender: Any?) { windowController?.environmentPicker.performClick(sender) }
+    /// ⌥⌘F: opens a hidden sidebar and focuses its filter.
+    @objc func focusFilter(_ sender: Any?) {
+        windowController?.split.revealSidebar()
+        sidebar?.focusFilter()
+    }
     /// ⌥⌃E and the picker's Edit Environments….
     @objc func editEnvironments(_ sender: Any?) {
         guard let window = windowController?.window, let windowModel, let theme = themeController?.theme else { return }

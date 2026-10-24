@@ -219,6 +219,13 @@ final class MainSplitViewController: NSSplitViewController {
         if isSidebarOverlaid { closeSidebarOverlay() } else { openSidebarOverlay() }
     }
 
+    /// Opens the sidebar, docked or overlaid as the width allows; an open one stays as it is.
+    /// Not animated, so its views can take focus at once.
+    func revealSidebar() {
+        guard !isSidebarShown else { return }
+        if isNarrow { openSidebarOverlay() } else { sidebarItem.isCollapsed = false }
+    }
+
     /// Fills the inspector pane's content view, which the narrow-window overlay borrows.
     func showInspector(_ controller: NSViewController) {
         inspectorPane.embed(controller)
@@ -227,6 +234,18 @@ final class MainSplitViewController: NSSplitViewController {
     override func toggleInspector(_ sender: Any?) {
         isInspectorShown.toggle()
         placeInspector()
+    }
+
+    /// AppKit titles the View items from the collapsed state, which an overlaid pane also has.
+    override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        let valid = super.validateUserInterfaceItem(item)
+        let shown: (String, Bool)? = switch item.action {
+        case #selector(toggleSidebar(_:)): ("Sidebar", isSidebarShown)
+        case #selector(toggleInspector(_:)): ("Inspector", isInspectorShown)
+        default: nil
+        }
+        if let (pane, isShown) = shown, let item = item as? NSMenuItem { item.title = "\(isShown ? "Hide" : "Show") \(pane)" }
+        return valid
     }
 
     /// Opens the inspector, docked or overlaid as the width allows; an open one stays as it is.

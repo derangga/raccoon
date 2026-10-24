@@ -64,8 +64,8 @@ close Tab (⌘W, ✕) · type in the URL bar · paste curl · edit a row · togg
 pick Body Type · send (⌘↩) · cancel (⌘., Cancel) · switch Pretty/Raw · switch Body/Headers ·
 save (⌘S) · save Draft (⌘S on a Draft, sheet) · Reload · Keep Mine · pick Environment (⌃E,
 pop-up) · open Environments sheet · edit / mark secret · pick Theme or Flavor · switch
-Workspace (pop-up) · New Workspace… · Open Workspace… · Remove from List · Reveal in Finder · Allow insecure TLS for this request · filter the sidebar (type,
-Esc clears) · toggle the inspector · switch Variables / Curl · Copy · Include secrets ·
+Workspace (pop-up) · New Workspace… · Open Workspace… · Remove from List · Reveal in Finder · Allow insecure TLS for this request · filter the sidebar (type, ⌥⌘F focuses,
+Esc clears) · toggle the sidebar (⌃⌘S) · toggle the inspector (⌥⌘I) · find in a body (⌘F) · switch Variables / Curl · Copy · Include secrets ·
 Edit Environments… (from the Variables pane) · Import from Postman… (File menu, ⇧⌘I, the
 sidebar's + menu) · untick a file · Import.
 

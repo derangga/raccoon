@@ -142,6 +142,7 @@ final class ResponseViewer: NSView {
     private func buildBody() {
         textView.isEditable = false
         textView.isSelectable = true
+        textView.usesFindBar = true
         textView.drawsBackground = false
         textView.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
         textView.textContainerInset = NSSize(width: 8, height: 8)

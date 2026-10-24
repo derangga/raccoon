@@ -161,6 +161,7 @@ final class BodyPane: NSView, NSTextViewDelegate {
             textView[keyPath: substitution] = false
         }
         textView.textContainerInset = NSSize(width: 4, height: 8)
+        textView.usesFindBar = true
         // Bodies never wrap: the view grows sideways and scrolls.
         textView.isHorizontallyResizable = true
         textView.isVerticallyResizable = true

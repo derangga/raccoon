@@ -24,6 +24,11 @@ enum MainMenu {
         copyAsCurl.keyEquivalentModifierMask = [.command, .shift]
         let redo = NSMenuItem(title: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
         redo.keyEquivalentModifierMask = [.command, .shift]
+        // The focused body editor or Response body shows its own find bar.
+        let find = NSMenuItem(title: "Find…", action: #selector(NSTextView.performTextFinderAction(_:)), keyEquivalent: "f")
+        find.tag = NSTextFinder.Action.showFindInterface.rawValue
+        let filter = NSMenuItem(title: "Filter Collections", action: #selector(AppDelegate.focusFilter(_:)), keyEquivalent: "f")
+        filter.keyEquivalentModifierMask = [.option, .command]
         // No target: each goes to the first responder, which is the field or text view being edited.
         menu.addItem(submenu("Edit", [
             NSMenuItem(title: "Undo", action: Selector(("undo:")), keyEquivalent: "z"),
@@ -35,6 +40,8 @@ enum MainMenu {
             NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"),
             .separator(),
             copyAsCurl,
+            .separator(),
+            submenu("Find", [find, filter]),
         ]))
         let showSidebar = NSMenuItem(title: "Show Sidebar", action: #selector(NSSplitViewController.toggleSidebar(_:)), keyEquivalent: "s")
         showSidebar.keyEquivalentModifierMask = [.control, .command]
@@ -42,11 +49,12 @@ enum MainMenu {
         chooseEnvironment.keyEquivalentModifierMask = .control
         let editEnvironments = NSMenuItem(title: "Edit Environments…", action: #selector(AppDelegate.editEnvironments(_:)), keyEquivalent: "e")
         editEnvironments.keyEquivalentModifierMask = [.control, .option]
-        // The inspector's shortcut is still an open UI question.
+        let showInspector = NSMenuItem(title: "Show Inspector", action: #selector(NSSplitViewController.toggleInspector(_:)), keyEquivalent: "i")
+        showInspector.keyEquivalentModifierMask = [.option, .command]
         // AppKit adds Enter Full Screen to a menu titled View, as on board 08.
         menu.addItem(submenu("View", [
             showSidebar,
-            NSMenuItem(title: "Show Inspector", action: #selector(NSSplitViewController.toggleInspector(_:)), keyEquivalent: ""),
+            showInspector,
             .separator(),
             chooseEnvironment,
             editEnvironments,

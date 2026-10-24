@@ -169,6 +169,11 @@ file and renames the file to match. Move to Trash does not ask: the Trash is the
      -> the matched ranges, for highlighting
   -> the sidebar shows the filtered tree         query empty -> the tree and the expansion
                                                  state from before the filter, restored
+
+-> focusFilter                                   ⌥⌘F, Edit ▸ Find ▸ Filter Collections
+  -> MainSplitViewController.revealSidebar       hidden -> docked, or the overlay when narrow
+  -> SidebarViewController.focusFilter           E: no Collections, so the field is hidden
+                                                    -> escape: nothing takes focus
 ```
 
 **The filter is a view, not a second index.** It runs over the in-memory tree that

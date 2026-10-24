@@ -317,7 +317,7 @@ is blocked is visible from another section. Seen on: 02, 04, 05, 10.
 - **none**: "This request has no body." in `textTertiary`, centred.
 - **raw**: an NSTextView in SF Mono 12, `background`, `border`, line numbers in
   `textTertiary`, syntax colors for JSON and XML (the same tokens as the response viewer),
-  `{{name}}` highlighting on top.
+  `{{name}}` highlighting on top. ⌘F opens the system find bar (Edit ▸ Find ▸ Find…).
 - **Format** (raw JSON and XML only; hidden for text, none, form and multipart): a bordered
   button with a list glyph at the trailing end of the Body Type row, tooltip "Format JSON
   (⇧⌥F)". It re-indents with 2 spaces in one undo step, keeps key order, number spelling and
@@ -366,7 +366,8 @@ Anatomy: status line (34 pt) over the body area, on `backgroundRecessed`.
   cancels."
 - **received**: Pretty (parsed JSON/XML, syntax tokens) or Raw (no colors). Raw shows first
   while Pretty is computed off the main thread (behavior.md). Above 5 MB Pretty is disabled
-  (`textDisabled`) with "Pretty is off above 5 MB" beside it.
+  (`textDisabled`) with "Pretty is off above 5 MB" beside it. ⌘F opens the system find bar
+  over the body, as in the body editor.
 - **Gutter**: left of the body text in Pretty and Raw, drawn on the body's own background
   with no fill and no divider; 50 pt, wider when the last line number needs it (a 5 MB body
   passes 200,000 lines). Line numbers SF Mono 12, `textTertiary`, right-aligned; then a
@@ -644,7 +645,8 @@ Not drawn on a board yet.
 The sidebar toggle sits at the leading edge of the toolbar and the inspector toggle at the
 trailing edge, as in Finder and Xcode: native toolbar buttons with SF Symbols
 `sidebar.left` and `sidebar.right`, pressed (filled background) while their pane is open.
-Both have View-menu items, "Show Sidebar" (⌃⌘S) / "Show Inspector" (⌥⌘I) (decided, Q12). Seen on: every
+Both have View-menu items, "Show Sidebar" (⌃⌘S) / "Show Inspector" (⌥⌘I) (decided, Q12), which
+read "Hide Sidebar" / "Hide Inspector" while the pane is open, docked or overlaid. Seen on: every
 screen; pressed on 04 and 11.
 
 ### Sidebar filter (native)
@@ -661,6 +663,9 @@ Collections". Hidden while there are no Collections (screen 1).
 - No matches: "No Requests, Folders or Collections match “refnd”. Esc clears the filter."
 - The clear button (ⓧ) and Esc restore the tree and the expansion state from before.
 - Clicking a match opens it; the filter stays until cleared.
+- ⌥⌘F focuses the field, listed as Edit ▸ Find ▸ "Filter Collections" (Q12). A hidden
+  sidebar opens first: docked, or as the overlay in a narrow window. ⌘F stays Edit ▸ Find ▸
+  "Find…", the system find bar over the body editor or Response body that has focus.
 
 Seen on: every screen with Collections; active on 11.
 
@@ -859,8 +864,9 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
     the same `Highlighter.ranges` and tokens as the Response viewer, and `{{name}}`
     highlighting on top (§6 Body editor).
 12. **Shortcuts for the new panes.** Decided 2026-10-24: ⌥⌘F focuses the sidebar filter
-    (⌘F stays find-in-body), ⌥⌘I shows or hides the inspector and ⌃⌘S the sidebar (the
-    system default), each shown on its View-menu item.
+    (Edit ▸ Find ▸ Filter Collections) and ⌘F stays find-in-body (Edit ▸ Find ▸ Find…, the
+    system find bar); ⌥⌘I shows or hides the inspector (View ▸ Show Inspector) and ⌃⌘S the
+    sidebar (View ▸ Show Sidebar, the system default).
 13. **What the filter matches.** Decided 2026-10-19: names only, as drawn. Collection,
     Folder and Request names, and an unreadable row's file name. Matching the method and URL
     too ("POST /refunds") was declined: it would find Requests named badly, at the cost of

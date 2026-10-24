@@ -253,6 +253,12 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
     // MARK: Filter
 
+    /// ⌥⌘F. With no Collections the field is hidden and nothing takes focus.
+    func focusFilter() {
+        guard !searchField.isHidden else { return }
+        view.window?.makeFirstResponder(searchField)
+    }
+
     func controlTextDidChange(_ notification: Notification) {
         setQuery(searchField.stringValue)
     }

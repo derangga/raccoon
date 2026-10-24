@@ -186,3 +186,121 @@ Feature: The Variables pane
 #   Look at it closely next to the board.
 # - variables.feature has no Variables pane scenario to reuse: its scenario 32 scrolls 200
 #   Variables in the Environments sheet, not in this pane.
+
+# Shortcuts
+#
+# Four keys open or focus a part of the window, and each is listed on its menu item:
+#   ⌥⌃E   View ▸ Edit Environments…     opens the Environments sheet
+#   ⌥⌘F   Edit ▸ Find ▸ Filter Collections   focuses the sidebar filter
+#   ⌥⌘I   View ▸ Show Inspector          shows or hides the inspector
+#   ⌃⌘S   View ▸ Show Sidebar            shows or hides the sidebar
+# ⌘F stays Edit ▸ Find ▸ Find…, the system find bar over the body you are typing in or reading.
+# In a menu, ⌃ is drawn as ^, ⌥ as the option glyph and ⌘ as the command glyph, in the order
+# ⌃⌥⇧⌘ whatever order this file writes them in. Scenario 6 sends a request to httpbin.org,
+# so it needs a network connection.
+#
+# ─── How launching works ──────────────────────────────────────────────────────────────────
+#
+# In Terminal A, inside the project folder:
+#   cd ~/Documents/playground/raccoon
+#   swift run Raccoon -DataFolder /tmp/raccoon-shortcuts
+# Quit with ⌘Q while the Raccoon window is in front.
+#
+# ─── Before you start (once) ──────────────────────────────────────────────────────────────
+#
+# In Terminal B, inside the project folder (the commands work in fish, zsh and bash):
+#   cd ~/Documents/playground/raccoon
+#   swift build
+#   rm -rf /tmp/raccoon-shortcuts
+#   cp -R manual-tests/collections.datafolder /tmp/raccoon-shortcuts
+#   rm -f ~/Library/Application\ Support/Raccoon/sessions/0cedfa846a35250d.json
+# "swift build" should end with "Build complete!". The other commands print nothing.
+#
+# ─── When you are done ────────────────────────────────────────────────────────────────────
+#
+# Quit Raccoon. In Terminal B:
+#   rm -rf /tmp/raccoon-shortcuts
+#   rm -f ~/Library/Application\ Support/Raccoon/sessions/0cedfa846a35250d*
+
+Feature: Shortcuts for the sheet, the filter, the inspector and the sidebar
+
+  Background:
+    Given Raccoon is running on /tmp/raccoon-shortcuts (see "How launching works")
+    And the window is at least 1,200 pt wide (double-click its title bar to zoom it if not)
+
+  Scenario: 1. Each shortcut is listed on its menu item
+    When I open the View menu
+    Then "Hide Sidebar" (the sidebar is open) shows ⌃⌘S at its right
+    And "Show Inspector" shows ⌥⌘I at its right
+    And "Edit Environments…" shows ⌃⌥E at its right
+    When I open the Edit menu and point at "Find"
+    Then its submenu holds "Find…" with ⌘F and "Filter Collections" with ⌥⌘F
+
+  Scenario: 2. ⌃⌘S hides and shows the sidebar, and the menu item says which
+    When I press ⌃⌘S
+    Then the sidebar closes and the "Show Sidebar" button at the left of the toolbar is no longer pressed
+    And the View menu's first item reads "Show Sidebar"
+    When I press ⌃⌘S again
+    Then the sidebar opens again, as wide as before, and the toolbar button is pressed
+    And the View menu's first item reads "Hide Sidebar"
+
+  Scenario: 3. ⌥⌘I shows and hides the inspector, and the menu item says which
+    When I press ⌥⌘I
+    Then the inspector opens on the right and the "Show Inspector" button at the right of the toolbar is pressed
+    And the View menu's second item reads "Hide Inspector"
+    When I press ⌥⌘I again
+    Then the inspector closes, the toolbar button is no longer pressed
+    And the View menu's second item reads "Show Inspector"
+
+  Scenario: 4. ⌥⌘F focuses the sidebar filter, opening a hidden sidebar first
+    When I click the URL field and press ⌥⌘F
+    Then the caret blinks in the field reading "Filter Collections" at the top of the sidebar
+    When I type: refund
+    Then the tree narrows to "Payments API" and the rows under it whose names contain "refund", "Refund charge" and "List refunds" among them
+    And the line under the field ends "matches in 1 Collection"
+    When I press Esc
+    Then the filter clears and the whole tree is back
+    When I press ⌃⌘S to close the sidebar, click the URL field, and press ⌥⌘F
+    Then the sidebar opens and the caret blinks in "Filter Collections"
+    When I drag the window's right edge until the window is narrower than 960 pt
+    Then the sidebar closes
+    When I press ⌥⌘F
+    Then the sidebar opens over the left of the content, with a shadow, and the caret blinks in "Filter Collections"
+    When I press Esc
+    Then the overlay closes
+
+  Scenario: 5. ⌥⌃E opens the Environments sheet
+    Given I zoomed the window back to at least 1,200 pt
+    When I press ⌥⌃E
+    Then the "Environments" sheet slides down from the toolbar
+    When I click "Done"
+    Then the sheet closes
+
+  Scenario: 6. ⌘F still finds in the body, not in the sidebar
+    When I click "List charges" in the sidebar
+    And I press ⌘↩ to send it and wait for the Response
+    And I click inside the Response body text
+    And I press ⌘F
+    Then a find bar opens above the Response body with the caret in its search field
+    And the sidebar's "Filter Collections" field stays empty and does not take the caret
+    When I type: charges
+    Then the matches are highlighted in the Response body and the find bar counts them
+    When I press Esc
+    Then the find bar closes
+    When I press ⌘T for a new Tab, set its Body Type to raw, and type in the body editor: {"refund": "charges"}
+    And I press ⌘F
+    Then a find bar opens above the body editor with the caret in its search field
+    When I type: refund
+    Then "refund" in the body editor is highlighted
+    When I click the URL field and press ⌘F
+    Then no find bar opens and nothing else happens
+
+# ─── Known simplifications ────────────────────────────────────────────────────────────────
+#
+# - ⌘F only opens the find bar: there are no Find Next (⌘G), Find Previous (⇧⌘G) or Use
+#   Selection for Find (⌘E) items yet. The find bar's own arrows and Return step through the
+#   matches.
+# - With no Collections the filter field is hidden, so ⌥⌘F opens the sidebar and nothing
+#   takes the caret. "Filter Collections" stays enabled in the menu all the same.
+# - The find bar searches the text shown: matches inside a Folded Fold Region are not found
+#   until it is unfolded.

@@ -1,5 +1,7 @@
 import AppKit
 @testable import Raccoon
+import RaccoonDomain
+import RaccoonTesting
 import Testing
 
 @MainActor
@@ -125,5 +127,45 @@ struct EditMenuTests {
         #expect(edit.item(withTitle: "Copy")?.action == #selector(NSText.copy(_:)))
         #expect(edit.item(withTitle: "Paste")?.action == #selector(NSText.paste(_:)))
         #expect(edit.item(withTitle: "Redo")?.keyEquivalentModifierMask == [.command, .shift])
+    }
+}
+
+@MainActor
+struct ShortcutTests {
+    let menu = MainMenu.make(theme: .standalone())
+
+    func item(_ path: String...) throws -> NSMenuItem {
+        var item = try #require(menu.item(withTitle: path[0]))
+        for title in path.dropFirst() { item = try #require(item.submenu?.item(withTitle: title)) }
+        return item
+    }
+
+    @Test func `⌃⌘S and ⌥⌘I show on Show Sidebar and Show Inspector`() throws {
+        let sidebar = try item("View", "Show Sidebar")
+        #expect(sidebar.keyEquivalent == "s" && sidebar.keyEquivalentModifierMask == [.control, .command])
+        let inspector = try item("View", "Show Inspector")
+        #expect(inspector.keyEquivalent == "i" && inspector.keyEquivalentModifierMask == [.option, .command])
+    }
+
+    @Test func `⌥⌘F shows on Edit ▸ Find ▸ Filter Collections`() throws {
+        let filter = try item("Edit", "Find", "Filter Collections")
+        #expect(filter.keyEquivalent == "f" && filter.keyEquivalentModifierMask == [.option, .command])
+        #expect(filter.action == #selector(AppDelegate.focusFilter(_:)) && filter.target == nil)
+    }
+
+    @Test func `⌘F stays Find…, the text view's own find bar`() throws {
+        let find = try item("Edit", "Find", "Find…")
+        #expect(find.keyEquivalent == "f" && find.keyEquivalentModifierMask == .command)
+        #expect(find.action == #selector(NSTextView.performTextFinderAction(_:)) && find.target == nil)
+        #expect(find.tag == NSTextFinder.Action.showFindInterface.rawValue)
+    }
+
+    @Test func `⌘F finds in the body editor and the Response body`() throws {
+        let find = try item("Edit", "Find", "Find…")
+        let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+                             instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
+        #expect(BodyPane(model: model, theme: theme).textView.validateMenuItem(find))
+        #expect(ResponseViewer(model: model, theme: theme).textView.validateMenuItem(find))
     }
 }

@@ -143,4 +143,31 @@ struct SidebarFilterTests {
         #expect(text.attribute(.foregroundColor, at: 8, effectiveRange: nil) as? NSColor == .alternateSelectedControlTextColor)
         #expect(text.attribute(.font, at: 0, effectiveRange: nil) as? NSFont == .systemFont(ofSize: 13, weight: .semibold))
     }
+
+    func host(_ sidebar: SidebarViewController) -> NSWindow {
+        let window = NSWindow(contentRect: sidebar.view.frame, styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = sidebar.view
+        return window
+    }
+
+    @Test func `⌥⌘F puts the caret in the filter field`() throws {
+        let (_, sidebar) = try sidebar()
+        let window = host(sidebar)
+
+        sidebar.focusFilter()
+
+        #expect(sidebar.searchField.currentEditor() != nil)
+        #expect(window.firstResponder === sidebar.searchField.currentEditor())
+    }
+
+    @Test func `with no Collections the hidden field takes no focus`() {
+        let sidebar = base.sidebar(base.makeWindow())
+        let window = host(sidebar)
+        #expect(sidebar.searchField.isHidden)
+
+        sidebar.focusFilter()
+
+        #expect(sidebar.searchField.currentEditor() == nil)
+        #expect(window.firstResponder === window)
+    }
 }

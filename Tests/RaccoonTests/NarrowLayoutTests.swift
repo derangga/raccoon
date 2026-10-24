@@ -23,6 +23,46 @@ struct NarrowLayoutTests {
                            windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
     }
 
+    /// The View menu item's title after AppKit validates it against the split.
+    func title(_ action: Selector) -> String {
+        let item = NSMenuItem(title: "", action: action, keyEquivalent: "")
+        _ = split.validateUserInterfaceItem(item)
+        return item.title
+    }
+
+    @Test func `the View menu says Hide while a pane is open, docked or overlaid`() {
+        let (sidebar, inspector) = (#selector(NSSplitViewController.toggleSidebar(_:)), #selector(NSSplitViewController.toggleInspector(_:)))
+        resize(width: 1200)
+        #expect((title(sidebar), title(inspector)) == ("Hide Sidebar", "Show Inspector"))
+        split.toggleInspector(nil)
+        #expect(title(inspector) == "Hide Inspector")
+
+        resize(width: 960)
+        #expect(split.isInspectorOverlaid)
+        #expect(title(inspector) == "Hide Inspector")
+
+        resize(width: 900)
+        #expect(title(sidebar) == "Show Sidebar")
+        split.toggleSidebar(nil)
+        #expect(split.isSidebarOverlaid)
+        #expect(title(sidebar) == "Hide Sidebar")
+    }
+
+    @Test func `revealing the sidebar opens it, docked or overlaid, and never closes an open one`() {
+        resize(width: 1200)
+        split.sidebarItem.isCollapsed = true
+        split.revealSidebar()
+        #expect(!split.sidebarItem.isCollapsed && split.isSidebarShown)
+        split.revealSidebar()
+        #expect(!split.sidebarItem.isCollapsed)
+
+        resize(width: 900)
+        split.revealSidebar()
+        #expect(split.isSidebarOverlaid)
+        split.revealSidebar()
+        #expect(split.isSidebarOverlaid)
+    }
+
     @Test func `the window cannot be smaller than 760 × 480`() {
         #expect(window.contentMinSize == NSSize(width: 760, height: 480))
     }
