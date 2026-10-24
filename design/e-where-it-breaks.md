@@ -71,6 +71,8 @@ Postman Import
   ⚠ SecretStore.set fails for an imported secret → escape: the Variable is written as a
                            secret with no value (undefined until set) and noted. Never
                            written in clear
+  ⚠ an Environment file or globals.json fails to write → escape: the result names it, the
+                           secrets just stored for it are deleted again, the rest lands
 Data Folder
   ⚠ root not writable    → escape: banner with Open Workspace…, sidebar empty, Drafts and
                            sending still work. A missing Data Folder must not stop the

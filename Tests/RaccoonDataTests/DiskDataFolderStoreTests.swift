@@ -93,18 +93,39 @@ final class DiskDataFolderStoreTests {
         try? FileManager.default.removeItem(at: trashed)
     }
 
-    @Test func `writeDirectory lands the whole folder`() throws {
-        try store.writeDirectory(["r.json": Data("1".utf8), "F/x.json": Data("2".utf8)], to: "Imported")
+    @Test func `writeDirectory lands the whole folder, empty Folders too`() throws {
+        let contents = DataFolderScan(files: ["r.json": Data("1".utf8), "F/x.json": Data("2".utf8)], folders: ["F", "Empty"])
 
-        #expect(try store.scan().files == ["Imported/r.json": Data("1".utf8), "Imported/F/x.json": Data("2".utf8)])
+        try store.writeDirectory(contents, to: "Imported")
+
+        #expect(try store.scan() == DataFolderScan(
+            files: ["Imported/r.json": Data("1".utf8), "Imported/F/x.json": Data("2".utf8)],
+            folders: ["Imported", "Imported/F", "Imported/Empty"]
+        ))
         #expect(try FileManager.default.contentsOfDirectory(atPath: root.path) == ["Imported"])
+    }
+
+    @Test func `writeDirectory of nothing makes an empty folder`() throws {
+        try store.writeDirectory(DataFolderScan(files: [:], folders: []), to: "Imported")
+
+        #expect(try store.scan() == DataFolderScan(files: [:], folders: ["Imported"]))
     }
 
     @Test func `writeDirectory leaves nothing when a write inside it fails`() throws {
         // a.json cannot be both a file and the folder holding b.json, in either order.
-        let files = ["a.json": Data("1".utf8), "a.json/b.json": Data("2".utf8)]
+        let contents = DataFolderScan(files: ["a.json": Data("1".utf8), "a.json/b.json": Data("2".utf8)], folders: [])
 
-        #expect(throws: StoreError.self) { try store.writeDirectory(files, to: "Imported") }
+        #expect(throws: StoreError.self) { try store.writeDirectory(contents, to: "Imported") }
         #expect(try FileManager.default.contentsOfDirectory(atPath: root.path).isEmpty)
+    }
+
+    @Test func `writeDirectory never writes over a folder already there`() throws {
+        try put("old", at: "Imported/r.json")
+
+        #expect(throws: StoreError.self) {
+            try store.writeDirectory(DataFolderScan(files: ["r.json": Data("new".utf8)], folders: []), to: "Imported")
+        }
+        #expect(try store.scan().files == ["Imported/r.json": Data("old".utf8)])
+        #expect(try FileManager.default.contentsOfDirectory(atPath: root.path) == ["Imported"])
     }
 }

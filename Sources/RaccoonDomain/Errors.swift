@@ -33,6 +33,18 @@ public enum SecretError: Error, Equatable, Sendable {
     case raccoonJSONUnreadable
 }
 
+/// What Postman Import could not write, or wrote without a secret's value; the rest landed.
+public enum ImportError: Error, Equatable, Sendable {
+    /// Nothing of it remains.
+    case collectionUnwritable(name: String, StoreError)
+    /// The secrets stored for it were deleted again.
+    case environmentUnwritable(name: String, StoreError)
+    /// No Global was added.
+    case globalsUnwritable(StoreError)
+    /// Written as a secret with no value, undefined until set. `environment` nil is Globals.
+    case secretNotStored(name: VariableName, environment: String?, SecretError)
+}
+
 /// Where a raw JSON or XML body stopped parsing; the text is left unchanged. 1-based.
 public enum FormatError: Error, Equatable, Sendable {
     case notValid(line: Int, column: Int)

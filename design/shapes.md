@@ -128,6 +128,8 @@ ImportVariable           name VariableName, isEnabled, value .plain(String) · .
                          written to the file, `.secret` with no value. Not Codable
 ImportNode               .folder(name, [ImportNode]) · .request(Request)     in Postman's order;
                          file names are chosen when the plan is written (RequestFileName)
+ImportResult             collections [String]: the ones that landed, by folder name, in plan
+                         order; problems [ImportError]: everything else in the plan landed
 ImportNote               kind, names: what was dropped or changed, and the Requests it applies
                          to by name (a Folder's name for its description, an item's for a
                          skipped one, a Variable's for a Variable, the Collection's for its
@@ -202,7 +204,13 @@ SecretError              .unavailable(OSStatus)
                          .raccoonJSONUnreadable           the Workspace has no id (§4): set and
                                                           delete fail, the row reads
                                                           "raccoon.json can't be read"
-ImportError              .unwritable(collection, reason)    per Collection; the others still land
+ImportError              .collectionUnwritable(name, StoreError)   nothing of it remains; the
+                                                          others still land
+                         .environmentUnwritable(name, StoreError)  its secrets deleted again
+                         .globalsUnwritable(StoreError)    no Global was added
+                         .secretNotStored(name, environment?, SecretError)  written as a secret
+                                                          with no value, undefined until set;
+                                                          environment nil is Globals
 FormatError              .notValid(line, column)          the body text is left unchanged
 ```
 

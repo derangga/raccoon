@@ -39,24 +39,52 @@ once, so an unzipped Postman data export imports in one pass.
                                                  caller, so a test plans with fixed ids
   -> the Import sheet: what will be created, what will be dropped    the user can untick any
                                                  Cancel -> nothing written
-  -> Import
+  -> Import: WindowModel.importPostman(plan) -> ImportResult       R: the window's DataFolderStore,
+                                                 SecretStore and WriteLedger
+    -> WindowModel.checkWritable()               the store's ensureExists. The sheet calls it too,
+                                                 to disable Import
+                                                 E: StoreError -> propagate: Import refuses before
+                                                 anything is written, Keychain included
     -> for each Collection
-      -> DataFolderStore.writeDirectory(tmp)     boundary, atomic per Collection: written to a
+      -> ImportCollection.contents               pure: folders and Request files by path inside the
+                                                 Collection, file names chosen (below)
+      -> DataFolderStore.writeDirectory(contents, to: name)
+                                                 boundary, atomic per Collection: written to a
                                                  hidden temp folder in the Data Folder, then one
-                                                 rename into place
-                                                 E: unwritable -> escape: that Collection is
-                                                 reported failed, the others still land
-      -> WriteLedger.record(every file)          §7: our own writes are not filesChanged
+                                                 rename into place. A name taken on disk since the
+                                                 plan fails the rename: never overwritten
+                                                 E: StoreError -> escape: .collectionUnwritable,
+                                                 nothing of it remains, the others still land
+      -> WriteLedger.record(every file and folder)   §7: our own writes are not filesChanged
     -> for each Environment
-      -> secrets first: SecretStore.set(env, name, value)    R: SecretStore
-                                                 E: SecretError -> escape: the Variable is
-                                                 written as a secret with no value, so it is
-                                                 undefined until set, and the note says so.
-                                                 Never written to the file in clear
-      -> EnvironmentFile.encode -> DataFolderStore.write      E: unwritable -> escape
-    -> Globals: add entries whose names are new  existing names are kept, listed as skipped
+      -> its file already on disk (taken since the plan, any case)?
+                                                 yes -> escape: .environmentUnwritable, never
+                                                 written over, no secret stored
+      -> environments/ made if missing           E: StoreError -> escape: .environmentUnwritable
+      -> secrets first: SecretStore.set(value, env, name)    R: SecretStore
+                                                 an empty value deletes instead, as marking does
+                                                 E: SecretError -> escape: .secretNotStored; the
+                                                 Variable is written as a secret with no value, so
+                                                 it is undefined until set. Never written to the
+                                                 file in clear
+      -> EnvironmentFile.encode -> DataFolderStore.write      through WindowModel.write
+                                                 E: StoreError -> escape: .environmentUnwritable,
+                                                 the secrets it stored are deleted again
+    -> Globals: globals.entries + the plan's     names are new (the plan checked); secrets first,
+                                                 environment nil, as for an Environment
+                                                 E: StoreError -> escape: .globalsUnwritable, also
+                                                 when globals.json does not decode (never rewritten)
+  -> ImportResult: the Collections that landed, by folder name, and every problem
   -> the sidebar reveals and selects the first imported Collection
 ```
+
+**File names inside a Collection** are chosen as New Folder and Save choose them: sanitised
+(`/` and `:` become `-`, a leading `.` too), and ` 2` on a clash with a sibling, ignoring case.
+A Folder and a Request file share one set of sibling names. Postman allows empty names; a
+Folder whose name is empty is written as "New Folder", a Request's as "Request" (its file and
+the name inside it), a Collection's as "New Collection" and an Environment's as "New
+Environment", each with ` 2` when taken. The plan shows the empty name; ImportResult names
+the Collection as written.
 
 **Import never overwrites.** A Collection or Environment whose name is taken gets ` 2`, like a
 duplicate Request file name (collections.md). Re-importing a newer Postman export therefore

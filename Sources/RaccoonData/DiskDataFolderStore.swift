@@ -65,15 +65,20 @@ public struct DiskDataFolderStore: DataFolderStore {
         }
     }
 
-    public func writeDirectory(_ files: [String: Data], to path: String) throws(StoreError) {
+    public func writeDirectory(_ contents: DataFolderScan, to path: String) throws(StoreError) {
         let temp = root.appending(path: ".raccoon-\(UUID())")
         defer { try? FileManager.default.removeItem(at: temp) }
         try lifting({ .unwritable(path: path, reason: $0) }) {
-            for (file, data) in files {
+            try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: false)
+            for folder in contents.folders {
+                try FileManager.default.createDirectory(at: temp.appending(path: folder), withIntermediateDirectories: true)
+            }
+            for (file, data) in contents.files {
                 let target = temp.appending(path: file)
                 try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try data.write(to: target)
             }
+            // moveItem refuses a destination that exists, so nothing is written over.
             try FileManager.default.moveItem(at: temp, to: url(path))
         }
     }

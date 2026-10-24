@@ -114,7 +114,9 @@ must produce no git diff, and a save that changes one header must produce a one-
 
 ```
 -> filesChanged(paths)                           §3: a stream, from FolderWatch
-  -> WriteLedger.isOurs(path, hash)?             every path ours -> drop the batch
+  -> WriteLedger.isOurs(path, hash)?             every path ours -> drop the batch. A hidden
+                                                 path (`.git`, writeDirectory's temp folder) is
+                                                 never in the tree, so it counts as ours
   -> TreeDecoder / DataFolderIndex rebuilt       once per batch, from one scan
   -> for each open Request Tab whose file's definition differs from its baseline
     -> file deleted

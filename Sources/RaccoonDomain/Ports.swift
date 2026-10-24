@@ -25,8 +25,9 @@ public protocol DataFolderStore: Sendable {
     /// To the Trash, never unlinked.
     func trash(_ path: String) throws(StoreError)
     func createDirectory(_ path: String) throws(StoreError)
-    /// Written to a hidden temp folder in the root, then renamed into place: whole or nothing.
-    func writeDirectory(_ files: [String: Data], to path: String) throws(StoreError)
+    /// `contents`, by path inside `path`, written to a hidden temp folder in the root, then renamed
+    /// into place: whole or nothing. A `path` already there is never written over.
+    func writeDirectory(_ contents: DataFolderScan, to path: String) throws(StoreError)
 }
 
 public protocol FolderWatch: Sendable {

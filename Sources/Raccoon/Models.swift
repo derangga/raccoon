@@ -703,10 +703,15 @@ final class WindowModel {
     private func filesChanged(_ paths: [String]) {
         guard let store else { return }
         // A path that reads as nothing (gone, or a folder) is ours if Raccoon removed or made it.
-        guard !paths.allSatisfy({ ledger.isOurs($0, try? store.read($0)) }) else { return }
+        guard !paths.allSatisfy({ Self.isHidden($0) || ledger.isOurs($0, try? store.read($0)) }) else { return }
         let before = index
         guard let scan = rescan() else { return }
         followTabs(before: before, scan: scan)
+    }
+
+    /// `.git`, or writeDirectory's temp folder: the scan skips it, so it is never in the tree.
+    private static func isHidden(_ path: String) -> Bool {
+        path.split(separator: "/").contains { $0.hasPrefix(".") }
     }
 
     /// Each open Request Tab after the tree changed: it follows its RequestID to a new path,
@@ -919,18 +924,24 @@ final class WindowModel {
 
     /// environments/New Environment.json, empty; " 2", " 3"… when taken. Returns its name.
     func newEnvironment() throws(StoreError) -> String {
-        let store = try requireStore()
-        let name = RequestFileName.unique("New Environment", taken: Set(environments.map(\.name) + brokenEnvironments.map(\.name)))
-        let path = Self.path(of: name)
-        let folder = String(Self.environmentsFolder.dropLast())
-        let bytes = EnvironmentFile.encode([])
-        try store.createDirectory(folder)
-        try store.write(bytes, to: path)
-        var scan = lastScan
-        let madeFolder = scan.folders.insert(folder).inserted
-        scan.files[path] = bytes
-        apply(scan, touched: madeFolder ? [folder, path] : [path])
+        let name = newEnvironmentName()
+        try makeEnvironmentsFolder()
+        try write([], to: name)
         return name
+    }
+
+    private func newEnvironmentName() -> String {
+        RequestFileName.unique("New Environment", taken: Set(environments.map(\.name) + brokenEnvironments.map(\.name)))
+    }
+
+    /// environments/, made when missing; a new one goes in the ledger, so its echo is ours.
+    private func makeEnvironmentsFolder() throws(StoreError) {
+        let folder = String(Self.environmentsFolder.dropLast())
+        try requireStore().createDirectory(folder)
+        guard !lastScan.folders.contains(folder) else { return }
+        var scan = lastScan
+        scan.folders.insert(folder)
+        apply(scan, touched: [folder])
     }
 
     /// Its secrets are copied to the new name first, then the file moves, then the old Keychain
@@ -981,6 +992,90 @@ final class WindowModel {
     /// To the Trash; its Keychain items stay, and No Environment is active if it was.
     func deleteEnvironment(_ name: String) throws(StoreError) {
         try trash(Self.path(of: name))
+    }
+
+    // MARK: Postman Import
+
+    /// Whether Import can write. The Import sheet disables Import while this throws (§4).
+    func checkWritable() throws(StoreError) {
+        try requireStore().ensureExists()
+    }
+
+    /// Import on the Postman Import sheet: the plan, written (postman.md). Refused before anything
+    /// is written, Keychain included, when the Data Folder is not writable. A Collection, an
+    /// Environment or Globals that does not write is a problem and the rest still lands; so is a
+    /// secret the Keychain refuses, which is written with no value.
+    func importPostman(_ plan: ImportPlan) throws(StoreError) -> ImportResult {
+        try checkWritable()
+        var result = ImportResult()
+        for collection in plan.collections {
+            do throws(StoreError) {
+                result.collections.append(try importCollection(collection))
+            } catch {
+                result.problems.append(.collectionUnwritable(name: collection.name, error))
+            }
+        }
+        for environment in plan.environments {
+            let name = environment.name.isEmpty ? newEnvironmentName() : environment.name
+            let path = Self.path(of: name)
+            do throws(StoreError) {
+                // Made on disk since the plan (any case, as APFS compares): never written over.
+                if (try? requireStore().read(path)) != nil { throw .unwritable(path: path, reason: "an Environment of that name already exists") }
+                try makeEnvironmentsFolder()
+                result.problems += try importVariables(environment.variables, after: [], to: name)
+            } catch {
+                result.problems.append(.environmentUnwritable(name: name, error))
+            }
+        }
+        guard !plan.globals.isEmpty else { return result }
+        do throws(StoreError) {
+            result.problems += try importVariables(plan.globals, after: globals.entries, to: nil)
+        } catch {
+            result.problems.append(.globalsUnwritable(error))
+        }
+        return result
+    }
+
+    /// One Collection, whole or not at all. Returns its folder name.
+    private func importCollection(_ collection: ImportCollection) throws(StoreError) -> String {
+        let name = collection.name.isEmpty ? RequestFileName.unique("New Collection", taken: folderNames(in: "")) : collection.name
+        let contents = collection.contents
+        try requireStore().writeDirectory(contents, to: name)
+        var scan = lastScan
+        scan.folders.insert(name)
+        scan.folders.formUnion(contents.folders.map { name + "/" + $0 })
+        for (path, data) in contents.files { scan.files[name + "/" + path] = data }
+        apply(scan, touched: scan.paths(under: name))
+        return name
+    }
+
+    /// A set's imported Variables after `existing`: secrets to the Keychain first, then the file
+    /// (variables.md order). Returns the secrets the Keychain refused, which the file holds with
+    /// no value. A file that does not write takes the secrets it stored back out.
+    private func importVariables(_ variables: [ImportVariable], after existing: [VariableEntry], to set: String?) throws(StoreError) -> [ImportError] {
+        var refused: [ImportError] = []
+        var stored: [VariableName] = []
+        for variable in variables {
+            guard case .secret(let value) = variable.value else { continue }
+            do throws(SecretError) {
+                // An empty value stores nothing and clears an old item, as marking does.
+                if value.isEmpty {
+                    try secrets.delete(environment: set, name: variable.name)
+                } else {
+                    try secrets.set(value, environment: set, name: variable.name)
+                    stored.append(variable.name)
+                }
+            } catch {
+                refused.append(.secretNotStored(name: variable.name, environment: set, error))
+            }
+        }
+        do throws(StoreError) {
+            try write(existing + variables.map(\.entry), to: set)
+        } catch {
+            for name in stored { try? secrets.delete(environment: set, name: name) }
+            throw error
+        }
+        return refused
     }
 
     /// Raccoon changed the disk itself: every touched path goes in the ledger, so the watch
