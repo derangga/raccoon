@@ -137,6 +137,7 @@ final class URLBar: NSView, NSTextFieldDelegate {
         urlField.onFocus = { [weak self] in self?.showFocus(true) }
         urlField.onPaste = { [weak self] in self?.pasteCurl($0) ?? false }
         urlField.setAccessibilityLabel("URL")
+        urlField.theme = theme
         urlField.wantsLayer = true
         // Fades the last 32 pt when the text runs past the field.
         fade.startPoint = CGPoint(x: 0, y: 0.5)
@@ -326,6 +327,8 @@ final class URLBar: NSView, NSTextFieldDelegate {
             methodButton.setAccessibilityValue(method)
             // Never rewrite the field under the user's typing: the cursor would jump.
             if urlField.currentEditor() == nil { urlField.attributedStringValue = urlTitle(model.urlText) }
+            urlField.kinds = model.kinds
+            urlField.highlight()
             updateFade()
             renderSend(sending: isSending)
             showFocus(urlField.currentEditor() != nil)
@@ -366,7 +369,7 @@ final class URLBar: NSView, NSTextFieldDelegate {
 }
 
 /// Tells its owner when it takes focus; the end of editing comes through the delegate.
-final class FocusTextField: NSTextField {
+final class FocusTextField: VariableField {
     var onFocus: () -> Void = {}
     /// True when the owner took the pasted text, so the field inserts nothing.
     var onPaste: (String) -> Bool = { _ in false }
@@ -386,20 +389,17 @@ final class FocusTextField: NSTextField {
 /// Hands the field a field editor that offers a paste to the field first. A single-line field
 /// editor turns the newlines of a multi-line paste into spaces, so a curl command has to be
 /// read before it is inserted.
-final class PasteFieldCell: NSTextFieldCell {
-    private let editor: PasteFieldEditor = {
-        let editor = PasteFieldEditor()
-        editor.isFieldEditor = true
-        return editor
-    }()
+final class PasteFieldCell: VariableFieldCell {
+    private let editor = VariableStyle.fieldEditor(PasteFieldEditor.self)
 
     override func fieldEditor(for controlView: NSView) -> NSTextView? {
         editor.onPaste = { [weak controlView] in (controlView as? FocusTextField)?.onPaste($0) ?? false }
+        editor.suggestions = (controlView as? VariableField)?.suggestions
         return editor
     }
 }
 
-final class PasteFieldEditor: NSTextView {
+final class PasteFieldEditor: VariableTextView {
     var onPaste: (String) -> Bool = { _ in false }
     var pasteboard = NSPasteboard.general
 

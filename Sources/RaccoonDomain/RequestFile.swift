@@ -68,7 +68,7 @@ public enum RequestFile {
         }
     }
 
-    private static func phrase(_ error: DecodingError) -> String {
+    static func phrase(_ error: DecodingError) -> String {
         let key = { (context: DecodingError.Context) in context.codingPath.map(\.stringValue).joined(separator: ".") }
         return switch error {
         case .keyNotFound(let missing, let context):

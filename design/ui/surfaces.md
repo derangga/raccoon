@@ -32,7 +32,7 @@ Window                          one, native chrome
     Split                       draggable divider
     ResponseViewer              StatusLine · Body (Pretty | Raw) · Headers
   Inspector                     themed, right of the content, closed by default
-    VariablesPane               what the selected Tab resolves against, read-only
+    VariablesPane               what the selected Tab resolves against; values edit in place
     CurlPane                    Copy as Curl of the selected Tab, live, with Copy
   WindowBanner                  Data Folder not writable or not readable, the one global failure
 Overlays
@@ -153,7 +153,7 @@ Each row is a designed state. "Place" is the surface the user is already looking
 | Sidebar | "No Collections yet." + Data Folder path + New Collection | none: the scan is synchronous at launch (§7 of design/) | unreadable rows inline among good ones, with the reason and Reveal in Finder | Data Folder not writable: WindowBanner, sidebar shows the empty text | n/a |
 | WorkspacePopUp | one Workspace: its row, checked, and Remove from List ▸ disabled | n/a: the switch is as synchronous as launch | n/a | the open one can't be read: the pop-up still shows it; the WindowBanner says why | n/a |
 | SidebarFilter | placeholder "Filter Collections"; hidden while there are no Collections | n/a: synchronous | n/a | n/a | no matches: "No Requests, Folders or Collections match “q”. Esc clears the filter." |
-| VariablesPane | No Environment: the group says so and points at the toolbar; Globals still listed; no Globals: "No Globals." | n/a | disabled Variables are not listed; overridden Globals struck out | undefined names the Tab uses, first, in `variableUndefined`, with where each is used | secret: "Secret", never the value |
+| VariablesPane | No Environment: the group says so and points at the toolbar; Globals still listed; no Globals: "No Globals." | n/a | disabled Variables are not listed; overridden Globals struck out | undefined names the Tab uses, first, in `variableUndefined`, with where each is used; an edit not saved: "Not saved. <reason>." under its row | secret: "Secret", never the value; its field starts empty |
 | CurlPane | empty Draft: `curl ''` is not shown; the pane says "Type a URL to see the curl command." | n/a | secrets stay `{{name}}` | undefined: "No curl command yet" + the names; Copy disabled | n/a |
 | TabStrip | never empty: closing the last Tab opens an empty Draft (Open UI Q1, decided) | n/a | n/a | n/a | n/a |
 | Tab | empty Draft: italic "Draft" | sending: spinner replaces the method badge after 150 ms | n/a | Changed on Disk glyph; Deleted on disk turns it into a Draft | n/a |
@@ -208,7 +208,7 @@ two cases are a binary body and a secret value, and both say why instead of show
 
 | Overlay | Acquires | Released by | Focus returns to |
 |---|---|---|---|
-| VariableTooltip | nothing (no focus) | pointer leaves, any key | n/a |
+| VariableTooltip | nothing until its value is clicked; then the panel, so ⌘C copies | pointer leaves the token and the popover, any other key, a click or scroll outside it, the link | n/a |
 | EnvironmentsSheet | window focus | Done, Esc | the field focused before ⌃E or the menu |
 | PostmanImportSheet | window focus | Import (then Done on the result), Cancel, Esc | the sidebar, on the first imported Collection; on Cancel, where it was |
 | SaveDraftSheet | window focus | Save, Cancel, Esc | the URL field of the same Tab |

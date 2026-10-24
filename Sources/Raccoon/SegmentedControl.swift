@@ -4,20 +4,43 @@ import RaccoonDomain
 /// The segmented control of design-system.md: a 1 pt `border`, 6 pt radius, `backgroundElevated`
 /// box of 22 pt segments split by 1 pt rules. The selected one is `selection` and semibold,
 /// a disabled one `textDisabled`. It answers the parts of NSSegmentedControl the panes use.
-final class SegmentedControl: NSControl {
+final class SegmentedControl: NSControl, NSViewToolTipOwner {
     private let theme: ThemeEnvironment
     private var labels: [String]
+    /// SF Symbols drawn in place of the labels, 30 pt segments; the labels become each segment's
+    /// tooltip and accessibility label (the inspector's pane switch).
+    private let symbols: [String]?
     private var segmentEnabled: [Bool]
     var selectedSegment = -1 { didSet { needsDisplay = true } }
     var segmentCount: Int { labels.count }
 
-    init(labels: [String], theme: ThemeEnvironment) {
+    init(labels: [String], symbols: [String]? = nil, theme: ThemeEnvironment) {
         self.labels = labels
+        self.symbols = symbols
         self.theme = theme
         segmentEnabled = Array(repeating: true, count: labels.count)
         super.init(frame: .zero)
         setAccessibilityRole(.radioGroup)
         theme.paint(self) { control, _ in control.needsDisplay = true }
+        if symbols != nil {
+            for index in labels.indices { addToolTip(NSRect(x: 1 + CGFloat(index) * 31, y: 0, width: 30, height: 24), owner: self, userData: nil) }
+        }
+    }
+
+    func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData data: UnsafeMutableRawPointer?) -> String {
+        frames().firstIndex { $0.insetBy(dx: -0.5, dy: 0).contains(point) }.map { labels[$0] } ?? ""
+    }
+
+    override func accessibilityChildren() -> [Any]? {
+        guard symbols != nil else { return super.accessibilityChildren() }
+        return frames().enumerated().map { index, frame in
+            let element = NSAccessibilityElement.element(
+                withRole: .radioButton, frame: NSAccessibility.screenRect(fromView: self, rect: frame), label: labels[index], parent: self
+            ) as! NSAccessibilityElement
+            element.setAccessibilityValue(index == selectedSegment)
+            element.setAccessibilityEnabled(segmentEnabled[index])
+            return element
+        }
     }
 
     @available(*, unavailable)
@@ -46,7 +69,8 @@ final class SegmentedControl: NSControl {
 
     /// Sized by the semibold title, so selecting a segment never moves its neighbours.
     private func widths() -> [CGFloat] {
-        labels.map { ($0 as NSString).size(withAttributes: [.font: font(selected: true)]).width.rounded(.up) + 20 }
+        if symbols != nil { return labels.map { _ in 30 } }
+        return labels.map { ($0 as NSString).size(withAttributes: [.font: font(selected: true)]).width.rounded(.up) + 20 }
     }
 
     override var intrinsicContentSize: NSSize {
@@ -79,6 +103,16 @@ final class SegmentedControl: NSControl {
                 NSRect(x: frame.maxX, y: 0, width: 1, height: bounds.height).fill()
             }
             let token: ColorToken = !segmentEnabled[index] ? .textDisabled : isSelected ? .text : .textSecondary
+            if let symbols {
+                let configuration = NSImage.SymbolConfiguration(pointSize: 12, weight: .regular)
+                    .applying(.init(paletteColors: [theme.color(token)]))
+                if let image = NSImage(systemSymbolName: symbols[index], accessibilityDescription: labels[index])?.withSymbolConfiguration(configuration) {
+                    image.draw(in: NSRect(x: frame.midX - image.size.width / 2, y: frame.midY - image.size.height / 2,
+                                          width: image.size.width, height: image.size.height),
+                               from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+                }
+                continue
+            }
             let title = NSAttributedString(string: labels[index], attributes: [
                 .font: font(selected: isSelected), .foregroundColor: theme.color(token),
             ])

@@ -22,7 +22,7 @@ final class BodyPane: NSView, NSTextViewDelegate {
         gutter.lines = LineIndex("")
         return gutter
     }()
-    private let layoutManager = NSLayoutManager()
+    private let layoutManager = WavyLayoutManager()
     /// The layout manager does not retain its storage, so the view must.
     private var storage = NSTextStorage()
     let formTable: KeyValueTable
@@ -31,6 +31,9 @@ final class BodyPane: NSView, NSTextViewDelegate {
     private var boxBottom = NSLayoutConstraint()
     /// The kind the storage is colored for, so a kind change recolors without new text.
     private var coloredKind: RawKind?
+    /// The Variables the storage is coloured by; a new Active Environment recolours it.
+    private var kinds = VariableKinds(active: nil, globals: Globals(entries: []))
+    private var coloredKinds: VariableKinds?
 
     init(model: TabModel, theme: ThemeEnvironment) {
         self.model = model
@@ -43,8 +46,13 @@ final class BodyPane: NSView, NSTextViewDelegate {
         layoutManager.allowsNonContiguousLayout = true
         layoutManager.addTextContainer(container)
         storage.addLayoutManager(layoutManager)
-        textView = NSTextView(frame: .zero, textContainer: container)
+        textView = HoverTextView(frame: .zero, textContainer: container)
         super.init(frame: .zero)
+        (textView as? HoverTextView)?.variableHover = VariableHover(
+            layout: { [weak self] in self.map { TextLayout(storage: $0.storage, manager: $0.layoutManager, origin: $0.textView.textContainerOrigin, space: $0.textView) } },
+            kinds: { [weak self] in self?.kinds }, theme: { [weak self] in self?.theme }
+        )
+        (textView as? HoverTextView)?.suggestions = VariableSuggestions(kinds: { [weak self] in self?.kinds }, theme: { [weak self] in self?.theme })
         formTable.onChange = { [weak self] in self?.model.tab.definition.body = .formURLEncoded($0) }
         partsTable.onChange = { [weak self] rows in
             guard let self else { return }
@@ -307,7 +315,10 @@ final class BodyPane: NSView, NSTextViewDelegate {
         showFormatError(nil)
     }
 
-    func setBody(_ body: Body) {
+    func setBody(_ body: Body, kinds: VariableKinds) {
+        self.kinds = kinds
+        formTable.setKinds(kinds)
+        partsTable.setKinds(kinds)
         typeButton.attributedTitle = popTitle(Self.title(body.type))
         typeButton.setAccessibilityValue(Self.title(body.type))
         noneNote.isHidden = body != .none
@@ -350,7 +361,7 @@ final class BodyPane: NSView, NSTextViewDelegate {
             layoutManager.replaceTextStorage(storage)
             textView.scrollToBeginningOfDocument(nil)
             gutter.lines = LineIndex(text)
-        } else if coloredKind != kind {
+        } else if coloredKind != kind || coloredKinds != kinds {
             color(storage, kind: kind)
         }
         coloredKind = kind
@@ -365,7 +376,10 @@ final class BodyPane: NSView, NSTextViewDelegate {
         for range in Highlighter.ranges(storage.string, kind: kind) where NSMaxRange(range.range) <= storage.length {
             storage.addAttribute(.foregroundColor, value: theme.color(range.token), range: range.range)
         }
+        // On top of the syntax colours, as the Highlighter leaves `{{name}}` alone.
+        VariableStyle.apply(kinds, to: storage, disabled: false, theme: theme)
         storage.endEditing()
+        coloredKinds = kinds
     }
 
     func textDidChange(_ notification: Notification) {
@@ -375,6 +389,31 @@ final class BodyPane: NSView, NSTextViewDelegate {
         model.tab.definition.body = .raw(kind, textView.string)
         // ponytail: every line start again per keystroke, O(n); fine for bodies people type.
         gutter.lines = LineIndex(textView.string)
+    }
+}
+
+/// The raw body editor, which shows the Variable popover over a `{{name}}`.
+final class HoverTextView: VariableTextView {
+    var variableHover: VariableHover?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect], owner: self))
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        variableHover?.pointerMoved(to: event.locationInWindow)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        variableHover?.exited()
+    }
+
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        super.viewWillMove(toWindow: newWindow)
+        variableHover?.exited()
     }
 }
 

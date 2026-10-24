@@ -129,7 +129,9 @@ and every place they disagree is a command split inside a quote.
                                                  pure        E: undefined -> escape, the
                                                  menu item says which Variable is missing
                                                  secrets off -> a Secret Variable stays
-                                                 as {{name}} in the output
+                                                 as {{name}} in the output: the scope maps
+                                                 it to its own `{{name}}`, which the
+                                                 one-pass resolver leaves as written
   -> CurlRenderer.render(resolved)               pure
      -> the first line is `curl`, `-X METHOD` unless it is a GET with no body, and
         the URL (board 11)

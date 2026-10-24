@@ -76,8 +76,16 @@ final class TabViewController: NSViewController, NSMenuItemValidation {
     /// is the selected Tab's.
     @objc func copyAsCurl(_ sender: Any?) { model.copyAsCurl() }
 
+    /// Disabled while the Tab does not resolve; an Undefined Variable is named in the item.
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
-        item.action == #selector(copyAsCurl) ? model.curlCommand != nil : true
+        guard item.action == #selector(copyAsCurl) else { return true }
+        let result = model.curl(includeSecrets: false)
+        item.title = switch result {
+        case .failure(.undefined(let names)): "Copy as Curl (\(VariableName.phrase(names)) \(names.count == 1 ? "is" : "are") not defined)"
+        case .success, .failure(.invalidURL): "Copy as Curl"
+        }
+        if case .success = result { return true }
+        return false
     }
 }
 

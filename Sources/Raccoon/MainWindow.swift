@@ -9,6 +9,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     let banner: BannerView
     let sidebarToggle = MainWindowController.toggle(symbol: "sidebar.left", label: "Show Sidebar", action: #selector(NSSplitViewController.toggleSidebar(_:)))
     let inspectorToggle = MainWindowController.toggle(symbol: "sidebar.right", label: "Show Inspector", action: #selector(NSSplitViewController.toggleInspector(_:)))
+    let environmentPicker = EnvironmentPicker()
 
     init(theme: ThemeEnvironment, reduceMotion: @escaping () -> Bool) {
         split = MainSplitViewController(theme: theme)
@@ -57,9 +58,10 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     static let sidebarToggleID = NSToolbarItem.Identifier("sidebarToggle")
     static let titleID = NSToolbarItem.Identifier("title")
     static let inspectorToggleID = NSToolbarItem.Identifier("inspectorToggle")
+    static let environmentID = NSToolbarItem.Identifier("environment")
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [Self.sidebarToggleID, Self.titleID, .flexibleSpace, Self.inspectorToggleID]
+        [Self.sidebarToggleID, Self.titleID, .flexibleSpace, Self.environmentID, Self.inspectorToggleID]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -72,6 +74,18 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             let title = NSTextField(labelWithString: window?.title ?? "")
             title.font = .systemFont(ofSize: 13, weight: .semibold)
             item.view = title
+            return item
+        }
+        if identifier == Self.environmentID {
+            // Boards 01 and 07: an 11 pt secondary "Environment" before the pop-up.
+            let label = NSTextField(labelWithString: "Environment")
+            label.font = .systemFont(ofSize: 11)
+            label.textColor = .secondaryLabelColor
+            let row = NSStackView(views: [label, environmentPicker])
+            row.spacing = 4
+            let item = NSToolbarItem(itemIdentifier: identifier)
+            item.view = row
+            item.label = "Environment"
             return item
         }
         let button = switch identifier {
@@ -205,9 +219,20 @@ final class MainSplitViewController: NSSplitViewController {
         if isSidebarOverlaid { closeSidebarOverlay() } else { openSidebarOverlay() }
     }
 
+    /// Fills the inspector pane's content view, which the narrow-window overlay borrows.
+    func showInspector(_ controller: NSViewController) {
+        inspectorPane.embed(controller)
+    }
+
     override func toggleInspector(_ sender: Any?) {
         isInspectorShown.toggle()
         placeInspector()
+    }
+
+    /// Opens the inspector, docked or overlaid as the width allows; an open one stays as it is.
+    func showInspector() {
+        guard !isInspectorShown else { return }
+        toggleInspector(nil)
     }
 
     override func viewDidLayout() {

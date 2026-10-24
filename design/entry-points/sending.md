@@ -8,7 +8,10 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
 ```
 -> send(tab)                                     ⌘↩ or the Send button
   -> VariableScope(active, globals)              pure        R: none
-  -> VariableResolver.resolve(definition, scope) pure        E: ResolveError -> escape:
+  -> VariableResolver.resolve(definition, scope) pure        E: undefined -> escape: the
+                                                             message line names them; the
+                                                             last Response stays (board 04)
+                                                             E: invalidURL -> escape:
                                                              .notSent, nothing is sent
   -> tab.response = .sending(now)                            R: InstantSource
   -> HTTPTransport.send(resolved)                boundary    R: HTTPTransport

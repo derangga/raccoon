@@ -23,6 +23,8 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
     var missingFile: String? {
         didSet { if missingFile != oldValue { table.reloadData() } }
     }
+    /// What the cells colour `{{name}}` by; the window's Variables, set on every render.
+    private var kinds: VariableKinds?
     let table = KeyTableView()
     private let scroll = NSScrollView()
     private let columns = (check: NSTableColumn(identifier: .init("check")), name: NSTableColumn(identifier: .init("name")),
@@ -38,7 +40,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         layer?.masksToBounds = true
 
         for (column, title, width) in [(columns.check, "", 30.0), (columns.name, "Name", 120), (columns.value, "Value", 200), (columns.delete, "", 30)] {
-            column.headerCell = HeaderCell(theme: theme, ruleBefore: column === columns.value)
+            column.headerCell = KeyHeaderCell(theme: theme, ruleBefore: column === columns.value)
             column.title = title
             column.width = width
             column.resizingMask = []
@@ -164,6 +166,19 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         return true
     }
 
+    /// Recolours the cells on screen in place, so a field being edited keeps its editor; cells
+    /// made later take `kinds` when they are made.
+    func setKinds(_ new: VariableKinds) {
+        guard new != kinds else { return }
+        kinds = new
+        table.enumerateAvailableRowViews { rowView, row in
+            guard row >= lead else { return }
+            for column in 0..<rowView.numberOfColumns {
+                ((rowView.view(atColumn: column) as? NSTableCellView)?.textField as? KeyField)?.kinds = new
+            }
+        }
+    }
+
     /// Replaces only the automatic rows, so a field being edited below them keeps its editor.
     func setAutomaticRows(_ new: [AutomaticHeader]) {
         guard new != automatic else { return }
@@ -241,7 +256,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
             button.isEnabled = true
         }
         relabel(row: row)
-        (table.rowView(atRow: row, makeIfNecessary: false) as? HoverRowView)?.showDeleteIfHovered()
+        (table.rowView(atRow: row, makeIfNecessary: false) as? KeyRowView)?.showDeleteIfHovered()
     }
 
     /// The checkbox and delete button name the row as it is now, after every keystroke.
@@ -254,24 +269,12 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
             .setAccessibilityLabel("Delete \(name.isEmpty ? "row" : name)")
     }
 
-    func controlTextDidBeginEditing(_ notification: Notification) {
-        guard let field = notification.object as? NSTextField else { return }
-        field.layer?.borderWidth = 2
-        field.layer?.backgroundColor = theme.color(.background).cgColor
-    }
-
-    func controlTextDidEndEditing(_ notification: Notification) {
-        guard let field = notification.object as? NSTextField else { return }
-        field.layer?.borderWidth = 0
-        field.layer?.backgroundColor = nil
-    }
-
     // MARK: Data source and cells
 
     func numberOfRows(in tableView: NSTableView) -> Int { rows.count + 1 + automatic.count }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-        HoverRowView(hover: theme.color(.rowHover), selection: theme.color(.selection), rule: theme.color(.border)) { [weak self] in
+        KeyRowView(hover: theme.color(.rowHover), selection: theme.color(.selection), rule: theme.color(.border)) { [weak self] in
             self?.table.rect(ofColumn: 2).minX ?? 0
         }
     }
@@ -313,13 +316,13 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
             field.stringValue = isName ? item?.name ?? "" : item?.value ?? ""
             field.toolTip = field.stringValue.isEmpty ? nil : field.stringValue
             field.textColor = theme.color(item?.isEnabled == false ? .textDisabled : .text)
+            field.isDisabledRow = item?.isEnabled == false
+            field.kinds = kinds
+            field.highlight()
             field.placeholderAttributedString = NSAttributedString(string: isName ? "Name" : allowsFiles ? "Value or file" : "Value", attributes: [
                 .font: NSFont.systemFont(ofSize: 13), .foregroundColor: theme.color(.textTertiary).withAlphaComponent(0.6),
             ])
             field.delegate = self
-            field.wantsLayer = true
-            field.layer?.cornerRadius = 4
-            field.layer?.borderColor = theme.color(.focusRing).cgColor
             field.setAccessibilityLabel(isName ? "Name" : "Value")
             return cellView(field)
         }
@@ -359,8 +362,9 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         return cell
     }
 
-    private func cellField() -> NSTextField {
+    private func cellField() -> KeyField {
         let field = KeyField()
+        field.theme = theme
         field.isBordered = false
         field.drawsBackground = false
         field.focusRingType = .none
@@ -372,18 +376,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
     }
 
     private func cellView(_ field: NSTextField) -> NSTableCellView {
-        let cell = NSTableCellView()
-        cell.textField = field
-        field.translatesAutoresizingMaskIntoConstraints = false
-        cell.addSubview(field)
-        NSLayoutConstraint.activate([
-            field.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
-            field.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
-            // The whole row less 2 pt: what the editing ring surrounds.
-            field.topAnchor.constraint(equalTo: cell.topAnchor, constant: 2),
-            field.bottomAnchor.constraint(equalTo: cell.bottomAnchor, constant: -2),
-        ])
-        return cell
+        EditableCellView(field: field, inset: 4, centersOwnText: true, ring: theme.color(.focusRing), fill: theme.color(.background))
     }
 
     private func centered(_ control: NSView) -> NSView {
@@ -400,26 +393,33 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
 
 /// A cell's text field: its text and its editor sit 4 pt inside the box, so the 2 pt editing ring
 /// does not touch the letters.
-final class KeyField: NSTextField {
+final class KeyField: VariableField {
     override class var cellClass: AnyClass? {
         get { KeyFieldCell.self }
         set {}
     }
 }
 
-final class KeyFieldCell: NSTextFieldCell {
-    private static let inset: CGFloat = 4
-
-    /// Inset 4 pt either side, and one line tall in the middle of the box: a text cell draws at
-    /// the top of a box taller than its text.
-    override func drawingRect(forBounds rect: NSRect) -> NSRect {
-        var box = super.drawingRect(forBounds: rect).insetBy(dx: Self.inset, dy: 0)
+extension NSTextFieldCell {
+    /// One line tall in the middle of `box`: a text cell draws at the top of a box taller than its text.
+    func oneLine(centeredIn box: NSRect) -> NSRect {
+        var box = box
         let line = ceil(max(font?.boundingRectForFont.height ?? 0, placeholderAttributedString?.size().height ?? 0))
         if line > 0, line < box.height {
             box.origin.y += ((box.height - line) / 2).rounded()
             box.size.height = line
         }
         return box
+    }
+}
+
+final class KeyFieldCell: VariableFieldCell {
+    private static let inset: CGFloat = 4
+
+    /// Inset 4 pt either side, and one line tall in the middle of the box: a text cell draws at
+    /// the top of a box taller than its text.
+    override func drawingRect(forBounds rect: NSRect) -> NSRect {
+        oneLine(centeredIn: super.drawingRect(forBounds: rect).insetBy(dx: Self.inset, dy: 0))
     }
 
     override func edit(withFrame rect: NSRect, in controlView: NSView, editor: NSText, delegate: Any?, event: NSEvent?) {
@@ -501,7 +501,7 @@ final class KeyTableView: NSTableView {
 }
 
 /// `rowHover` under the pointer, and the row's delete button shown only then.
-private final class HoverRowView: NSTableRowView {
+final class KeyRowView: NSTableRowView {
     private let hover: NSColor
     private let selection: NSColor
     private let rule: NSColor
@@ -566,7 +566,7 @@ private final class HoverRowView: NSTableRowView {
 }
 
 /// "Name" / "Value" in `textTertiary` 11 semibold on `backgroundRecessed`.
-private final class HeaderCell: NSTableHeaderCell {
+final class KeyHeaderCell: NSTableHeaderCell {
     private let theme: ThemeEnvironment
     private let ruleBefore: Bool
 

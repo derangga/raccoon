@@ -35,6 +35,18 @@ enum EditorSection: CaseIterable {
         }
     }
 
+    /// A count holding an Undefined Variable is drawn in `variableUndefined`, so the reason a send
+    /// is blocked shows from another section. Disabled Rows are not sent, so they never count.
+    func holdsUndefined(in definition: RequestDefinition, kinds: VariableKinds) -> Bool {
+        let rows: [Row] = switch self {
+        case .params: definition.params
+        case .headers: definition.headers
+        case .cookies: definition.cookies
+        case .body, .auth, .settings: []
+        }
+        return rows.contains { $0.isEnabled && (kinds.holdsUndefined($0.name) || kinds.holdsUndefined($0.value)) }
+    }
+
     func title(in definition: RequestDefinition) -> String {
         detail(in: definition).map { "\(name) \($0)" } ?? name
     }
@@ -145,6 +157,11 @@ final class RequestEditor: NSView {
         }
     }
 
+    func sectionButton(_ section: EditorSection) -> SectionButton {
+        guard let button = buttons[section] else { preconditionFailure("every section has a button") }
+        return button
+    }
+
     func table(_ section: EditorSection) -> KeyValueTable {
         guard let table = tables[section] else { preconditionFailure("\(section) has no key/value table") }
         return table
@@ -173,17 +190,21 @@ final class RequestEditor: NSView {
         let bound = model
         withObservationTracking {
             let definition = model.tab.definition
+            // Read here, so switching the Active Environment re-runs this render.
+            let kinds = model.kinds
             for (section, button) in buttons {
-                button.set(name: section.name, detail: section.detail(in: definition))
+                button.set(name: section.name, detail: section.detail(in: definition), isUndefined: section.holdsUndefined(in: definition, kinds: kinds))
             }
             for (section, table) in tables {
+                table.setKinds(kinds)
                 if let rows = Self.rows(section) { table.setRows(definition[keyPath: rows]) }
             }
             // An empty Draft or an invalid URL has no host yet, so nothing to show.
-            let resolved = try? VariableResolver.resolve(definition)
+            let resolved = try? VariableResolver.resolve(definition, scope: model.scope(.asWritten))
             settingsPane.setSettings(definition.settings)
             authPane.setAuth(definition.auth)
-            bodyPane.setBody(definition.body)
+            authPane.setKinds(kinds)
+            bodyPane.setBody(definition.body, kinds: kinds)
             table(.headers).setAutomaticRows(resolved.map(AutomaticHeaders.rows) ?? [])
         } onChange: { [weak self] in
             Task { @MainActor in if self?.model === bound { self?.render() } }
@@ -197,6 +218,7 @@ final class SectionButton: NSButton {
     private let theme: ThemeEnvironment
     private var name = ""
     private var detail: String?
+    private var isUndefined = false
     var isOn = false {
         didSet {
             redraw()
@@ -220,10 +242,16 @@ final class SectionButton: NSButton {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    func set(name: String, detail: String?) {
-        guard (name, detail) != (self.name, self.detail) else { return }
-        (self.name, self.detail) = (name, detail)
+    func set(name: String, detail: String?, isUndefined: Bool = false) {
+        guard (name, detail, isUndefined) != (self.name, self.detail, self.isUndefined) else { return }
+        (self.name, self.detail, self.isUndefined) = (name, detail, isUndefined)
         redraw()
+    }
+
+    /// The count's colour, nil when there is no count.
+    var detailColor: NSColor? {
+        guard detail != nil, attributedTitle.length > name.utf16.count + 1 else { return nil }
+        return attributedTitle.attribute(.foregroundColor, at: name.utf16.count + 1, effectiveRange: nil) as? NSColor
     }
 
     private func redraw() {
@@ -233,8 +261,8 @@ final class SectionButton: NSButton {
         ])
         if let detail {
             title.append(NSAttributedString(string: " \(detail)", attributes: [
-                .font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular),
-                .foregroundColor: theme.color(.textTertiary),
+                .font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: isUndefined ? .semibold : .regular),
+                .foregroundColor: theme.color(isUndefined ? .variableUndefined : .textTertiary),
             ]))
         }
         attributedTitle = title
@@ -258,17 +286,20 @@ final class SectionButton: NSButton {
 
 /// The draggable divider between the RequestEditor and the ResponseViewer: a 6 pt handle with a
 /// 32 × 3 pt grip, and each pane keeping 160 pt (Open UI Q2).
-final class EditorSplitView: NSSplitView, NSSplitViewDelegate {
+final class EditorSplitView: NSSplitView {
     static let minimumPane: CGFloat = 160
     /// The editor's share of the height: 52 % as on board 02, then wherever the user drags it.
     private(set) var editorFraction: CGFloat = 0.52
     var background = NSColor.clear
     var border = NSColor.separatorColor
+    /// Never the split view itself: AppKit's split view passes respondsToSelector: to its
+    /// delegate, so being its own delegate recursed until the stack ran out.
+    private let limits = PaneLimits()
 
     override init(frame: NSRect) {
         super.init(frame: frame)
         isVertical = false
-        delegate = self
+        delegate = limits
         setAccessibilityLabel("Resize editor and Response")
     }
 
@@ -301,12 +332,15 @@ final class EditorSplitView: NSSplitView, NSSplitViewDelegate {
         NSRect(x: rect.minX, y: rect.minY, width: rect.width, height: 1).fill()
         NSBezierPath(roundedRect: NSRect(x: rect.midX - 16, y: rect.minY + 1, width: 32, height: 3), xRadius: 1.5, yRadius: 1.5).fill()
     }
+}
 
+/// Each pane of an EditorSplitView keeps 160 pt.
+private final class PaneLimits: NSObject, NSSplitViewDelegate {
     func splitView(_ splitView: NSSplitView, constrainMinCoordinate proposedMinimumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
-        Self.minimumPane
+        EditorSplitView.minimumPane
     }
 
     func splitView(_ splitView: NSSplitView, constrainMaxCoordinate proposedMaximumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
-        splitView.bounds.height - Self.minimumPane - dividerThickness
+        splitView.bounds.height - EditorSplitView.minimumPane - splitView.dividerThickness
     }
 }

@@ -52,6 +52,26 @@ struct NarrowLayoutTests {
         #expect(split.sidebarItem.isCollapsed)
     }
 
+    @Test func `showing the inspector opens it, docked or overlaid, and never closes an open one`() {
+        resize(width: 1200)
+        split.showInspector()
+        #expect(!split.inspectorItem.isCollapsed && controller.inspectorToggle.state == .on)
+        split.showInspector()
+        #expect(split.isInspectorShown)
+
+        split.toggleInspector(nil)
+        resize(width: 970)  // beside the sidebar, the editor would keep under 480
+        split.showInspector()
+        #expect(split.isInspectorOverlaid && controller.inspectorToggle.state == .on)
+    }
+
+    @Test func `the inspector pane shows the controller it is given`() {
+        let child = NSViewController()
+        child.view = NSView()
+        split.showInspector(child)
+        #expect(child.parent != nil && child.view.superview != nil)
+    }
+
     @Test func `the inspector docks while the editor keeps 480 pt and overlays when it would not`() {
         resize(width: 1200)
         split.toggleInspector(nil)

@@ -62,6 +62,23 @@ Environment              name, [VariableEntry]
 Globals                  [VariableEntry]
 VariableScope            the Active Environment's entries over Globals, flattened once per
                          send or per highlight pass. A value, not a lookup service
+VariableToken            range: NSRange (UTF-16), name: VariableName      one {{name}} in a field
+VariableKinds            name -> .defined | .secret, from the same merge as VariableScope but
+                         with no secret values: what highlighting and the tooltip need without a
+                         Keychain read; also each name's source (Environment name or "Globals")
+VariableTooltip          .defined(name, source, value) | .secret(name, source) |
+                         .undefined(name, environment?): what the hover tooltip says
+VariableCompletion.Query range: NSRange (UTF-16, after `{{` up to the caret), prefix: the
+                         name characters typed so far
+VariableCompletion.Insertion  range: NSRange, text: "name}}", caret: Int
+VariableSuggestion       name, source (Environment name or "Globals"), isSecret: one row of the
+                         suggestion list; never a value
+BrokenEnvironment        name, reason: an environments/*.json that did not decode, kept by the
+                         window so the sheet can list it read-only; never in the picker
+VariableEdit.Refusal     invalidName | duplicate(VariableName): why the sheet refused a name
+EnvironmentEditError     empty | nameTaken(String) | store(StoreError) | secret(SecretError)
+EnvironmentFile.Decoded  entries [VariableEntry], droppedSecretValues [VariableName]
+                         the second is the boundary warning (boundary.md), logged by the window
 
 Tab                      id: TabID
                          source: .draft | .request(RequestID)

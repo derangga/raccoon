@@ -27,4 +27,9 @@ public struct VariableName: Hashable, Sendable {
         else { return nil }
         self.rawValue = rawValue
     }
+
+    /// For a scanner that has checked every character already.
+    init(validated rawValue: String) {
+        self.rawValue = rawValue
+    }
 }

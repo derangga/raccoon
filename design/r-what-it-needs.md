@@ -12,6 +12,12 @@ BodyConversion, Headers.contentType                               Body Type swit
 AutomaticHeaders.rows                                             ResolvedRequest -> the headers
                                                                   sent that no row sets
 VariableTokens.ranges                                             {{…}} positions
+VariableKinds.tooltip                                             name -> what the hover popover says
+VariablesPane                                                     definition + Environment + Globals
+                                                                  -> the inspector's groups
+VariableCompletion.query / .insertion                             text + caret -> the typed `{{name`,
+                                                                  and what accepting a name writes
+VariableKinds.suggestions                                         prefix -> the names offered
 VariableScope, VariableResolver                                   definition -> ResolvedRequest
 PasteTarget.for                                                   current Tab or a new one
 ResponseBody.presentation, Highlighter.ranges                     bytes -> what to draw

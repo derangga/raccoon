@@ -443,6 +443,15 @@ struct EditorSplitTests {
         #expect(split.delegate?.splitView?(split, constrainMaxCoordinate: 494, ofSubviewAt: 0) == 334)
         #expect(split.dividerThickness == 6)
     }
+
+    /// Menu and toolbar validation ask every view in the responder chain this. AppKit's split view
+    /// passes the question to its delegate, so a split view that was its own delegate never returned.
+    @Test func `asking whether it handles the sidebar and inspector actions returns`() {
+        let split = EditorSplitView()
+        #expect(split.delegate !== split)
+        #expect(!split.responds(to: #selector(NSSplitViewController.toggleSidebar(_:))))
+        #expect(!split.responds(to: #selector(NSSplitViewController.toggleInspector(_:))))
+    }
 }
 
 @MainActor

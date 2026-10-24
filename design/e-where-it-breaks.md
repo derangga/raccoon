@@ -74,6 +74,11 @@ Data Folder
   ⚠ write failed         → escape: banner, Tab stays Dirty. Nothing on screen claims a
                            save that did not land
   ⚠ file deleted under a Tab → escape: the Tab becomes a Draft with its content
+  ⚠ globals.json or an Environment file undecodable → escape: its Variables are undefined
+                           until the file is fixed; logged. The Environments sheet lists it
+                           read-only with the reason, the picker does not, and nothing
+                           rewrites it (− can still trash an Environment's)
+  ⚠ a secret entry carries a "value" → escape: the value is dropped and the name logged
 Session
   ⚠ undecodable          → escape: start with one empty Tab; the bad file is renamed
                            <key>.corrupt-<date>.json, not deleted, and logged only
@@ -89,9 +94,34 @@ Session
   ⚠ Active Environment file gone → escape: none active
 Secrets
   ⚠ SecretStore.set fails → escape: the Variable stays unsaved in the sheet with the
-                           OSStatus message; the file is not touched (variables.md order)
+                           OSStatus message; the file is not touched (variables.md order).
+                           Marking, and typing a secret's value, both end here
+  ⚠ mark: file write fails after the Keychain took the value → escape: the item is removed
+                           again, "Not saved. <reason>." under the row
+  ⚠ unmark: the secret cannot be read → escape: the file gets an empty value, nothing is deleted
+  ⚠ hover over a secret → not an error: the popover says "Secret" and the source; no Keychain
+                           read exists on that path, nor on the inspector's selected row
+  ⚠ "Variables in request" for a name no longer in the pane (edited away meanwhile) → not an
+                           error: the inspector opens with nothing selected
+  ⚠ a value edited in the Variables pane is not written (StoreError, or the file does not
+                           decode) → escape: "Not saved. <reason>." under the row; the cell shows
+                           the file's value again; nothing else changes
+  ⚠ a secret typed in the Variables pane is refused by the Keychain → escape: "Not saved. The
+                           Keychain refused the write (OSStatus …)." under the row; the file is
+                           not touched
+  ⚠ a secret in the suggestion list → not an error: its row says "Secret" and the source,
+                           and accepting it writes only {{name}}; no Keychain read
   ⚠ Environment renamed  → not an error: its secrets move with it, Keychain first, file
-                           second
+                           second (copied, file moved, old items deleted: a failure before
+                           the file moves leaves the old name whole)
+  ⚠ rename to a name another Environment has → escape: refused, the field reverts, a red
+                           line under it; nothing moves
+  ⚠ Variable name invalid or repeated → escape: refused, the old name stays, a red line under
+                           the row; nothing written
+  ⚠ Environment deleted  → not an error: the file goes to the Trash, its Keychain items stay
+  ⚠ Keychain item of a deleted row, or of a renamed Environment, not deleted → escape: log
+  ⚠ a sheet write fails  → escape: "Not saved. <reason>." under the row or the name field;
+                           the cell reverts
 Workspaces
   ⚠ remembered folder missing or unreadable → escape: the not-readable banner with Open
                            Workspace… and Remove from List; never created, never dropped

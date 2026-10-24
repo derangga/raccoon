@@ -24,7 +24,7 @@ design/ui/mockups/build.py` regenerates the mockups after a source edit.
 | Area | Colors from | Why |
 |---|---|---|
 | Window, toolbar, sidebar, menus, sheets, alerts, Settings | the system: `NSColor` semantic colors and `NSVisualEffectView` materials. The sidebar is the opaque `windowBackgroundColor`, not a material (decided 2026-10-16): a vibrant material is translucent in a focused window and showed the wallpaper | HIG; follows light/dark and accent by itself. The mockups draw these with `--sys-*` stand-ins, which are not Theme tokens |
-| Tab strip, banners in the content area, URL bar, message line, request editor, response viewer, the Variable tooltip | the Theme's tokens | the content areas named in theme.md |
+| Tab strip, banners in the content area, URL bar, message line, request editor, response viewer, the Variable popover | the Theme's tokens | the content areas named in theme.md |
 | Inspector (Variables, Curl) | the Theme's tokens, on `backgroundRecessed` like the Response pane | it shows request data: Variable names and values, a curl command with `{{name}}` highlighting |
 | Sidebar filter field, the toolbar toggles | the system: `NSSearchField`, toolbar buttons | native controls |
 | Method badges in the sidebar | Theme tokens (`method*`) on the opaque sidebar | the badge is content, drawn straight on the sidebar with no chip; contrast measured against the sidebar, see Q3 (decided) |
@@ -260,7 +260,8 @@ Anatomy: `[method pop-up] [URL field] [Send]`, then the message line.
   is rendered from Params; `?`, `=`, `&` in `textSecondary`.
 - **`{{name}}` highlighting** in the URL field, table cells, body text and Auth fields:
   defined `variableDefined`; secret `variableSecret` + dotted underline; undefined
-  `variableUndefined` + 1 pt wavy underline. Hover shows the Variable tooltip. Inside a
+  `variableUndefined` + 1 pt wavy underline. Hover shows the Variable popover; typing `{{`
+  opens the Variable suggestions. Inside a
   Disabled Row all three are drawn in `textDisabled` (the row is not sent, so it is not
   resolved).
 - **Send**: `accent` fill, `textOnAccent` label, 76 pt min. While sending it becomes
@@ -298,7 +299,7 @@ one vertical rule between Name and Value, 6 pt radius outer border.
 | rest | cells SF Mono 12 `text`, single line, end-truncated with the full value in the field editor and a tooltip |
 | hover | `rowHover`; the delete button (⊖, `textTertiary`) appears |
 | selected | `selection` fill, not the system accent; name and value keep their own colors. An automatic row is never selected |
-| editing | the cell becomes a field editor with a 2 pt `focusRing` outline on `background` |
+| editing | the whole cell, edge to edge, becomes the input as in Postman: a square 2 pt `focusRing` outline drawn inside the cell's bounds, on `background`. The text does not move between rest and editing. A click anywhere in the cell edits it, not only on the text |
 | Disabled Row | checkbox **unchecked** and name/value in `textDisabled`. Both cues, never one |
 | trailing empty row | always present, last; "Name" / "Value" placeholders in `textTertiary` at 60 % opacity, SF Pro 13 (at full strength Latte's `textTertiary` reads as a value); typing in it creates a row and a new trailing row |
 | 60 rows | the table scrolls inside the pane; the header row stays put; an overlay scroller |
@@ -437,7 +438,7 @@ New Workspace… is an `NSSavePanel` as a sheet: "Name" field, prompt "Create", 
 directory `~`. A name that exists gets an alert: "A folder named “<name>” already exists. Use
 Open Workspace… to add it." Open Workspace… is the open panel the banner uses.
 
-Seen on: 13.
+Seen on: 14.
 
 ### Banners
 
@@ -465,26 +466,69 @@ toolbar, above sidebar and content, because it is the only failure with no small
 
 A native pop-up button in the toolbar, labelled "Environment", showing the Active Environment
 or "No Environment". Menu: No Environment, a separator, each Environment by name with a check
-on the active one, a separator, "Edit Environments…" (⌃E opens the menu; ⌥⌃E opens the sheet,
-Q5). Long names end-truncate at 200 pt; the menu shows them in full. Seen on: every screen.
+on the active one, a separator, "Edit Environments…", which opens the sheet and leaves the Active Environment showing. ⌃E
+opens the menu (View ▸ Choose Environment); ⌥⌃E opens the sheet (View ▸ Edit Environments…;
+decided, Q5), so both are listed in the menu bar. Long names end-truncate at 200 pt; the menu shows them in full. Seen on: every screen.
 
 ### Environments sheet (native)
 
 680 × 430 sheet. Left: a source list with Globals, an "Environments" header and each
-Environment; the active one has a check; + and − under it. Right: the selected set's name and
+Environment; the active one has a check; + and − under it in a 28 pt footer as System Settings
+draws one: a hairline across the top, then + | − (borderless, 24 × 22, 13 pt medium symbols, a
+16 pt separator between them). Right: the selected set's name and
 a table `[enabled] [Name] [Value] [Secret]`, SF Mono 12, with the trailing empty row and
-Disabled Rows (unchecked, secondary label color).
+Disabled Rows (unchecked, secondary label color). It opens on the Active Environment, else on
+Globals, and focus goes back to the field that had it (surfaces.md §8).
 
-- **Secret toggle**: a lock button per row. Off: open lock, secondary color. On: closed lock,
-  pressed fill, the value becomes a secure field showing bullets. Turning it on writes the
-  Keychain first, then rewrites the file without the value (variables.md order).
+The Variables table is drawn as the key/value table is, in the Theme's tokens, so a Variable
+looks the same here as in Headers: the 24 pt `backgroundRecessed` header row, 28 pt rows on
+`background`, a 1 pt `border` between rows, the one vertical rule before Value, a 6 pt radius
+outer border hugging the rows (scrolling once they reach the hint), `rowHover`, the `selection`
+fill, Disabled Rows in `textDisabled`, the trailing row's placeholders in SF Pro 13
+`textTertiary` at 60 %, and an edited cell outlined edge to edge in `focusRing` on
+`background`. The Secret column's lock is `textTertiary` when open and `text` on a `selection`
+pill when closed. The rest of the sheet (source list, name field, buttons) stays native. This
+replaces board 07's native table.
+
+- **Writes.** Leaving a cell (Return, Tab, a click elsewhere) writes the whole file through the
+  window; the enabled checkbox writes at once. Done only closes, and so does Esc; there is no
+  Cancel, because nothing is held back to cancel.
+- **Name field.** For an Environment it is an editable field above the table; for Globals a
+  label. Leaving it renames the Environment: its secrets move first, then the file, and the
+  Active Environment follows. A name another Environment has (ignoring case) is refused: the
+  field reverts and an 11 pt system-red line under it reads "An Environment named “Prod”
+  already exists."
+- **+ and −.** + writes `environments/New Environment.json` (" 2", " 3"… when taken), selects
+  it and focuses its name field. − trashes the selected Environment's file with no prompt and
+  keeps its Keychain items; if it was active, No Environment is. − is off for Globals; with no
+  Environments the list is Globals and +.
+- **Name cell.** A name that is not a Variable name is refused, and so is one already in the
+  set: the old name stays, nothing is written, and an 11 pt system-red line under the row reads
+  "Names use letters, digits, _, - and . only." or "tenant is already in Staging." (".. in
+  Globals."). The next edit clears it.
+- **Deleting a row.** ⌫ on the selected row, or its context menu "Delete Variable": the file is
+  rewritten without it; for a secret its Keychain item is then deleted.
+- **A file that does not decode** (an Environment, or globals.json) is a read-only row with a
+  warning triangle. Selecting it shows the reason ("Not valid JSON at line 3. Raccoon won't
+  change this file.") in place of the table. It is never in the picker, never rewritten, and −
+  still trashes it.
+- **Secret column.** A closed lock for a Secret Variable, an open one for a plain one. A
+  secret's value is a secure field showing 8 bullets whatever its length (a placeholder: the
+  value is never read into the field); typing replaces the value in the Keychain on leaving
+  the cell, and the file is not touched. The sheet reads each secret once as its rows load.
+- **Secret toggle**: a lock button per row, 24 × 20. Off: open lock, secondary color. On:
+  closed lock, pressed fill, the value is a secure field showing bullets. Turning it on writes
+  the Keychain first, then rewrites the file without the value (variables.md order); turning
+  it off rewrites the file with the value, then deletes the Keychain item. A row with no
+  value can be locked: nothing goes to the Keychain until one is typed.
 - **Keychain write fails**: the row stays as it was, and an 11 pt system-red line beneath it
   reads "Not saved. The Keychain refused the write (OSStatus −25308, …)." The file is not
-  touched.
+  touched. With no readable raccoon.json it reads "Not saved. raccoon.json can't be read."
 - **Keychain unreadable** for a secret: the value field reads "Not in the Keychain", and the
   Variable resolves as undefined everywhere else (one path, §4).
 - Footer hint: "<Env> overrides Globals while it is the Active Environment. Secret values are
-  kept in the Keychain; only their names are written to the Data Folder." Done closes.
+  kept in the Keychain; only their names are written to the Data Folder." For Globals the
+  first sentence is "Globals apply whichever Environment is active." Done closes.
 
 Seen on: 07, 09.
 
@@ -547,15 +591,53 @@ the full mapping: [design/entry-points/postman.md](../entry-points/postman.md).
 
 Seen on: 12.
 
-### Variable hover tooltip
+### Variable popover
 
-A small popover on `backgroundElevated` with `border`, 11 pt, appearing after the system
-tooltip delay and instantly for the next token while one is open:
-- defined: **name** · <Environment or Globals>, then the value in SF Mono, wrapping anywhere;
-- secret: **name** · <source>, then "Secret". The value is never shown;
-- undefined: **name**, then "Not defined in <Environment> or Globals" in `variableUndefined`.
+A popover on `backgroundElevated` with `border`, 6 pt radius, 8 pt padding, 320 pt wide,
+appearing after the system tooltip delay and instantly for the next token while one is open,
+as Postman's does. Top to bottom:
+- defined: the value in SF Mono 11 / 16, wrapping anywhere, in a box: `backgroundRecessed`,
+  1 pt `border`, 4 pt radius, 6 × 4 pt padding. The box is as tall as the value up to five
+  lines, then scrolls vertically; the text can be selected and copied, never edited;
+- secret: a lock glyph and "Secret" in `variableSecret`, no box. The value is never shown;
+- undefined: "Not defined in <Environment> or Globals" in `variableUndefined`, no box; "Not
+  defined in Globals" when no Environment is active.
 
-Seen on: 02, 09.
+Under it, 6 pt down, a 20 pt footer: a 16 pt chip (4 pt radius, `selection`, 10 pt bold `text`)
+reading "E" for an Environment or "G" for Globals, then the source ("Staging", "Globals") in 11 pt
+`textTertiary`; an undefined name has neither. At the trailing end, **Variables in request →**
+in 11 pt `accent`, underlined on hover: it closes the popover and opens the inspector on
+Variables with that name's row selected.
+
+It hangs 4 pt below the token (above it where the screen ends). The pointer may move from the
+token into it to scroll or select: leaving the token closes it after 0.3 s unless the pointer
+is over it, and leaving it closes it. A key press closes it (⌘C and ⌘A inside it copy and
+select), as does a click or scroll outside it. It takes focus only when the value is clicked,
+so ⌘C reaches it; closing gives focus back to the window.
+
+Seen on: 14.
+
+### Variable suggestions
+
+Typing `{{` in a field that takes Variables (URL field, table cells, raw body, Auth fields)
+opens a list under the caret of the enabled Variables in scope, as Postman does. Typing on
+filters it: case-insensitive, names that start with what was typed first, then the rest, each
+group by name. No match, or no Variables, shows no list.
+
+- Rows 22 pt: the name in SF Mono 12 `text`, and at the trailing end the source ("Staging",
+  "Globals") in 11 pt `textTertiary`, "· Secret" after it for a secret. Never a value.
+- Selected row: `selection` fill; the first row is selected when the list opens.
+- `backgroundElevated`, `border`, 6 pt radius, a shadow; 4 pt inside padding; 200 to 320 pt
+  wide, 8 rows tall at most, then it scrolls. It hangs 4 pt below the caret's line (above it
+  where the screen ends) and takes no focus: the caret stays in the field.
+- ↑ ↓ move the selection, Return or Tab writes `name}}` over what was typed (and over a `}}`
+  already there), a click on a row does the same, Esc closes the list and nothing else. These
+  keys keep their usual meaning while no list is open.
+- It closes when the caret leaves the `{{name`, a character that cannot be in a name is typed,
+  the field loses focus, or on a click outside it, a scroll or a ⌘ shortcut. The hover tooltip
+  hides while it is open.
+
+Not drawn on a board yet.
 
 ### Toolbar toggles
 
@@ -592,7 +674,7 @@ Curl (SF Symbols), 30 × 22 pt each, the selected one on `selection`. Each segme
 tooltip and an accessibility label with the pane's name. The last choice is remembered
 (Q14).
 
-**Variables pane** (read-only; seen on 04, 11):
+**Variables pane** (a table whose values edit in place; seen on 04, 11, 14):
 - Group titles 11 pt semibold `textTertiary`; rows 24 pt, name SF Mono 12 `text`, value SF
   Mono 12 `textSecondary`, end-truncated with the full value in a tooltip.
 - Order: **Not defined** first, only when the Tab uses a name nothing defines: a
@@ -602,7 +684,26 @@ tooltip and an accessibility label with the pane's name. The last choice is reme
   **Globals**, where an entry the Environment overrides is struck out in `textDisabled`.
 - A Secret Variable's value is a lock glyph and "Secret" in `variableSecret`.
 - No Environment: the group reads "No Environment · pick one in the toolbar"; Globals follow.
-- Footer: **Edit Environments…** opens the Environments sheet on the active set.
+  No Globals: the group reads "No Globals.".
+- The selected Variable: its row on `selection`, value in `text`, still one 24 pt table row
+  with its rule. The Variable popover's link selects the row that resolves its name (never a
+  struck-out Global) and scrolls to it; a click anywhere on a row selects that row, and a click
+  on its value also edits it. One row at most is selected, until the next link or click.
+- One click on a value edits it in place, in any row: a 20 pt SF Mono 12 field on
+  `background` with the focus ring. Return or clicking away saves it to its file (the Active
+  Environment's or globals.json), Esc puts it back; an unchanged value writes nothing. Names
+  are not edited here.
+  - A secret's field is a secure field that starts empty: what is typed replaces the
+    Keychain value on Return; the old value is never read or shown. Empty writes nothing.
+  - A Not defined row's field starts empty with the placeholder "Value": a value adds the name
+    to the Active Environment, or to Globals under No Environment, and the row moves there.
+  - Not saved: under the row, 11 pt `error`, "Not saved. <reason>." as in the Environments
+    sheet; the value shown goes back to what the file holds.
+- Footer: **Edit Environments…** opens the Environments sheet on the active set: names,
+  enabling, secrets, new and deleted Variables stay there.
+- Until the Curl pane exists, the Curl segment is disabled.
+
+Seen on: 04, 11, 14.
 
 **Curl pane** (seen on 11):
 - The curl command for the selected Tab, as Copy as Curl renders it, in SF Mono 11 / 17 on
@@ -732,8 +833,8 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
    day after the first run: italic plus a 6 pt `accent` dot before the method badge, which
    reads in every script and costs 12 pt. A Draft has no file, so the dot never meets the
    Changed on Disk glyph that takes the same place.
-5. **Shortcut to open the Environments sheet.** variables.md gives ⌃E to the picker. ⌥⌃E is
-   proposed for the sheet; not decided anywhere.
+5. **Shortcut to open the Environments sheet.** variables.md gives ⌃E to the picker. Decided
+   2026-10-23: ⌥⌃E opens the sheet, listed as View ▸ Edit Environments….
 6. **`success` has no surface.** The prompt requires the token and the JSON carries it, but
    v1 has no success message: a save clears the dot, a Curl Import fills the Tab. Candidates:
    a "Copied" confirmation for Copy as Curl, or a short "Imported from curl" note when nothing

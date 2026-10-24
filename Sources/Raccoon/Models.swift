@@ -120,12 +120,49 @@ final class TabModel {
         return true
     }
 
-    /// Copy as Curl (curl.md): nil while the definition does not resolve, which disables the menu
-    /// item. ponytail: the reason is dropped; naming undefined Variables comes with Variables.
-    var curlCommand: String? { (try? VariableResolver.resolve(tab.definition)).map(CurlRenderer.render) }
+    /// The window's Active Environment and Globals, read at every resolve, so switching the Active
+    /// Environment changes what every Tab sends. The window sets it when it makes the Tab.
+    @ObservationIgnored var variables: () -> (active: Environment?, globals: Globals) = { (nil, Globals(entries: [])) }
 
-    func copyAsCurl() {
-        if let curlCommand { clipboard.setString(curlCommand) }
+    /// How a Secret Variable resolves: its value, read from the SecretStore now, or its own
+    /// `{{name}}`, which the one-pass resolver leaves in the text.
+    enum SecretValues { case read, asWritten }
+
+    /// Built for one resolve and dropped with it, never cached, so no secret value is held by a
+    /// model (cardinality.md). A secret the store cannot give is absent, so it is undefined (§4).
+    func scope(_ secretValues: SecretValues) -> VariableScope {
+        let (active, globals) = variables()
+        var values: [VariableName: String] = [:]
+        // Globals first, so an Environment's secret replaces a Global's, value or absence.
+        for (environment, entries) in [(nil, globals.entries), (active?.name, active?.entries ?? [])] {
+            for entry in entries where entry.isEnabled && entry.value == .secret {
+                values[entry.name] = switch secretValues {
+                case .read: try? secrets.get(environment: environment, name: entry.name)
+                case .asWritten: "{{\(entry.name.rawValue)}}"
+                }
+            }
+        }
+        return VariableScope(active: active, globals: globals, secrets: values)
+    }
+
+    /// What the highlights colour by: names only, no Keychain read.
+    var kinds: VariableKinds {
+        let (active, globals) = variables()
+        return VariableKinds(active: active, globals: globals)
+    }
+
+    /// Copy as Curl (curl.md): the command, or why there is none, which disables the menu item.
+    func curl(includeSecrets: Bool) -> Result<String, ResolveError> {
+        do throws(ResolveError) {
+            return .success(CurlRenderer.render(try VariableResolver.resolve(tab.definition, scope: scope(includeSecrets ? .read : .asWritten))))
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    /// Off by default: a Secret Variable stays `{{name}}` in the copied text.
+    func copyAsCurl(includeSecrets: Bool = false) {
+        if case .success(let command) = curl(includeSecrets: includeSecrets) { clipboard.setString(command) }
     }
 
     /// Methods are free text, stored uppercased; a blank one changes nothing.
@@ -189,10 +226,16 @@ final class TabModel {
         missingFile = nil
         let resolved: ResolvedRequest
         do throws(ResolveError) {
-            resolved = try VariableResolver.resolve(tab.definition)
+            resolved = try VariableResolver.resolve(tab.definition, scope: scope(.read))
         } catch {
-            tab.response = .notSent(error)
-            if case .invalidURL = error { isURLInvalid = true }
+            switch error {
+            case .undefined(let names):
+                // The red underlines are already on screen; the last Response stays (board 04).
+                message = .undefined(names, in: variables().active?.name)
+            case .invalidURL:
+                tab.response = .notSent(error)
+                isURLInvalid = true
+            }
             return
         }
         let since = instants.now
@@ -270,6 +313,27 @@ struct DataFolderLocation {
     var rememberWorkspaces: ([String]) -> Void = { _ in }
 }
 
+/// An environments/*.json that did not decode: listed in the Environments sheet, read-only.
+struct BrokenEnvironment: Equatable {
+    var name: String
+    var reason: String
+}
+
+/// Why the Environments sheet could not rename an Environment.
+enum EnvironmentEditError: Error, Equatable {
+    case empty
+    /// Another Environment has this name, ignoring case.
+    case nameTaken(String)
+    case store(StoreError)
+    case secret(SecretError)
+}
+
+/// Why the Environments sheet could not mark or unmark a Secret Variable.
+enum SecretEditError: Error, Equatable {
+    case store(StoreError)
+    case secret(SecretError)
+}
+
 /// The window's Tabs and the ports that touch the Data Folder, the Session and the Keychain.
 @Observable
 final class WindowModel {
@@ -306,6 +370,24 @@ final class WindowModel {
     /// Every remembered Workspace, as paths.
     var workspaces: [String] { location.workspaces }
 
+    /// globals.json and environments/*.json from the last scan, so they follow every rescan. A
+    /// file that does not decode is in `brokenEnvironments` or `globalsProblem`, not here (§4).
+    private(set) var globals = Globals(entries: [])
+    private(set) var environments: [Environment] = []
+    /// Files that did not decode, kept apart: the Environments sheet lists them read-only with
+    /// the reason, and nothing else uses them or writes them (§4).
+    private(set) var brokenEnvironments: [BrokenEnvironment] = []
+    /// Why globals.json did not decode; nil when it did, or is not there.
+    private(set) var globalsProblem: String?
+    /// One per window, not per Tab (variables.md): switching changes what every Tab sends. A
+    /// name whose file is gone resolves as none.
+    private(set) var activeEnvironment: String?
+
+    /// The toolbar pop-up and ⌃E. The Session write follows from `session` changing.
+    func pickActiveEnvironment(_ name: String?) {
+        activeEnvironment = name
+    }
+
     /// `sessionStore` and `secrets` build the open Workspace's ports from its root and its id (nil
     /// when raccoon.json gave none). `makeTab` builds a TabModel with its own ports and the
     /// Workspace's secrets; the window never hands a Tab its other stores.
@@ -326,6 +408,7 @@ final class WindowModel {
         tabs = [makeTab(noID)]
         selected = tabs[0].tab.id
         writer = makeWriter()
+        connect(tabs[0])
         writeOnChange()
     }
 
@@ -333,11 +416,22 @@ final class WindowModel {
         SessionWriter(store: sessionStore, instants: instants) { [unowned self] in session }
     }
 
-    private func newTabModel() -> TabModel { makeTab(secrets) }
+    private func newTabModel() -> TabModel { connect(makeTab(secrets)) }
 
-    /// ponytail: none until Variables picks one.
+    /// Every Tab resolves against the window's Variables.
+    @discardableResult
+    private func connect(_ model: TabModel) -> TabModel {
+        model.variables = { [weak self] in self?.variables ?? (nil, Globals(entries: [])) }
+        return model
+    }
+
+    /// The Active Environment, if its file is still there, and Globals: what every Tab resolves against.
+    var variables: (active: Environment?, globals: Globals) {
+        (environments.first { $0.name == activeEnvironment }, globals)
+    }
+
     var session: Session {
-        Session(tabs: tabs.map(\.tab.snapshot), selected: selected, activeEnvironment: nil)
+        Session(tabs: tabs.map(\.tab.snapshot), selected: selected, activeEnvironment: activeEnvironment)
     }
 
     /// Every change to a Tab, the order or the selection schedules a write. A Response
@@ -372,6 +466,8 @@ final class WindowModel {
             }
             return
         }
+        // Its file gone since the last run: none (§4).
+        activeEnvironment = environments.contains { $0.name == session.activeEnvironment } ? session.activeEnvironment : nil
         let restored = session.tabs.map { snapshot in
             let model = newTabModel()
             model.tab = restoredTab(snapshot)
@@ -447,6 +543,7 @@ final class WindowModel {
         list(root)
         ledger = WriteLedger()
         unreadableFiles = [:]
+        activeEnvironment = nil
         var id: WorkspaceID?
         do throws(StoreError) {
             if firstLaunch { try store.ensureExists() }
@@ -632,7 +729,242 @@ final class WindowModel {
 
     /// The last scan, kept up to date with Raccoon's own changes so they rebuild the tree with
     /// no disk scan.
-    private var lastScan = DataFolderScan(files: [:], folders: [])
+    private var lastScan = DataFolderScan(files: [:], folders: []) {
+        didSet { loadVariables() }
+    }
+
+    private static let variablesLog = Logger(subsystem: "Raccoon", category: "Variables")
+
+    /// Environments are the `.json` files directly in `environments/`, named by their file name,
+    /// sorted as Finder sorts.
+    private func loadVariables() {
+        func read(_ path: String) -> (entries: [VariableEntry], problem: String?)? {
+            guard let data = lastScan.files[path] else { return nil }
+            do throws(StoreError) {
+                let file = try EnvironmentFile.decode(data, path: path)
+                if !file.droppedSecretValues.isEmpty {
+                    let names = file.droppedSecretValues.map(\.rawValue).joined(separator: ", ")
+                    Self.variablesLog.error("\(path, privacy: .public) holds a value for secret \(names, privacy: .public); it was ignored")
+                }
+                return (file.entries, nil)
+            } catch {
+                switch error {
+                case .undecodable(let path, let reason), .unreadable(let path, let reason), .unwritable(let path, let reason):
+                    Self.variablesLog.error("\(path, privacy: .public) not used: \(reason, privacy: .public)")
+                    return ([], reason)
+                }
+            }
+        }
+        let globalsFile = read(Self.globalsPath)
+        globals = Globals(entries: globalsFile?.entries ?? [])
+        globalsProblem = globalsFile?.problem
+        var good: [Environment] = []
+        var broken: [BrokenEnvironment] = []
+        for path in lastScan.files.keys where path.hasPrefix(Self.environmentsFolder) && path.hasSuffix(".json") && !path.dropFirst(Self.environmentsFolder.count).contains("/") {
+            let name = String(path.dropFirst(Self.environmentsFolder.count).dropLast(".json".count))
+            guard let file = read(path) else { continue }
+            if let problem = file.problem { broken.append(BrokenEnvironment(name: name, reason: problem)) } else { good.append(Environment(name: name, entries: file.entries)) }
+        }
+        let byName = { (a: String, b: String) in a.localizedStandardCompare(b) == .orderedAscending }
+        environments = good.sorted { byName($0.name, $1.name) }
+        brokenEnvironments = broken.sorted { byName($0.name, $1.name) }
+    }
+
+    // MARK: The Environments sheet
+
+    private static let globalsPath = "globals.json"
+    private static let environmentsFolder = "environments/"
+
+    /// `set` is an Environment's name, nil for Globals (as in SecretStore).
+    private static func path(of set: String?) -> String {
+        set.map { environmentsFolder + $0 + ".json" } ?? globalsPath
+    }
+
+    /// The rows of a set; nil when its file does not decode, so the sheet shows no table for it.
+    func entries(of set: String?) -> [VariableEntry]? {
+        guard let set else { return globalsProblem == nil ? globals.entries : nil }
+        return environments.first { $0.name == set }?.entries
+    }
+
+    /// A set's file, whole: edits go through the window, which owns the ledger. One that does
+    /// not decode is never written over (§4).
+    func write(_ entries: [VariableEntry], to set: String?) throws(StoreError) {
+        let path = Self.path(of: set)
+        let store = try requireStore()
+        if set == nil ? globalsProblem != nil : brokenEnvironments.contains(where: { $0.name == set }) {
+            throw .unwritable(path: path, reason: "Raccoon won't change a file it can't read.")
+        }
+        let bytes = EnvironmentFile.encode(entries)
+        try store.write(bytes, to: path)
+        var scan = lastScan
+        scan.files[path] = bytes
+        apply(scan, touched: [path])
+    }
+
+    /// Rewrites the file without the row; then, for a secret, deletes its Keychain item, so a
+    /// failed write leaves both (variables.md order, reversed as for unmark).
+    func removeVariable(at index: Int, from set: String?) throws(StoreError) {
+        guard var entries = entries(of: set), entries.indices.contains(index) else { return }
+        let removed = entries.remove(at: index)
+        try write(entries, to: set)
+        guard removed.value == .secret else { return }
+        do throws(SecretError) {
+            try secrets.delete(environment: set, name: removed.name)
+        } catch {
+            Self.variablesLog.error("Keychain item of \(removed.name.rawValue, privacy: .public) not deleted: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// Marks a plain row: its value goes to the Keychain first, then the file is rewritten without
+    /// it, so a failure at either step never loses the value (variables.md). An empty value stores
+    /// nothing and clears any old item of that name, so none is sent: the row is a secret with no
+    /// value yet.
+    func markSecret(at index: Int, in set: String?) throws(SecretEditError) {
+        guard var entries = entries(of: set), entries.indices.contains(index), case .plain(let value) = entries[index].value else { return }
+        let name = entries[index].name
+        do throws(SecretError) {
+            if value.isEmpty { try secrets.delete(environment: set, name: name) } else { try secrets.set(value, environment: set, name: name) }
+        } catch {
+            throw .secret(error)
+        }
+        entries[index].value = .secret
+        do throws(StoreError) {
+            try write(entries, to: set)
+        } catch {
+            if !value.isEmpty {
+                do throws(SecretError) {
+                    try secrets.delete(environment: set, name: name)
+                } catch {
+                    Self.variablesLog.error("Keychain item of \(name.rawValue, privacy: .public) not removed after a failed save: \(String(describing: error), privacy: .public)")
+                }
+            }
+            throw .store(error)
+        }
+    }
+
+    /// Unmarks a secret row: the file is rewritten with the value first, then the Keychain item is
+    /// deleted. A secret the Keychain cannot give becomes an empty value and nothing is deleted.
+    func unmarkSecret(at index: Int, in set: String?) throws(StoreError) {
+        guard var entries = entries(of: set), entries.indices.contains(index), entries[index].value == .secret else { return }
+        let name = entries[index].name
+        let stored = try? secrets.get(environment: set, name: name)
+        entries[index].value = .plain(stored ?? "")
+        try write(entries, to: set)
+        guard stored != nil else { return }
+        do throws(SecretError) {
+            try secrets.delete(environment: set, name: name)
+        } catch {
+            Self.variablesLog.error("Keychain item of \(name.rawValue, privacy: .public) not deleted: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// A plain value typed in the inspector's Variables pane. `index` is where the pane saw the
+    /// row; if the file moved under it, the enabled row of that name is written instead.
+    func setValue(_ value: String, for name: VariableName, at index: Int, in set: String?) throws(StoreError) {
+        var entries = try readableEntries(of: set)
+        let row = entries.indices.contains(index) && entries[index].name == name ? index : entries.firstIndex { $0.isEnabled && $0.name == name }
+        guard let row, entries[row].value != .plain(value) else { return }
+        entries[row].value = .plain(value)
+        try write(entries, to: set)
+    }
+
+    /// A Not defined name given a value in the inspector: a disabled row of that name is enabled
+    /// with it, else a new row goes at the end, so the file never holds the name twice.
+    func define(_ name: VariableName, value: String, in set: String?) throws(StoreError) {
+        var entries = try readableEntries(of: set)
+        if let row = entries.firstIndex(where: { $0.name == name }) {
+            entries[row] = VariableEntry(name: name, value: .plain(value))
+        } else {
+            entries.append(VariableEntry(name: name, value: .plain(value)))
+        }
+        try write(entries, to: set)
+    }
+
+    /// A set's rows to edit; a file that does not decode, or is gone, is refused as `write` refuses.
+    private func readableEntries(of set: String?) throws(StoreError) -> [VariableEntry] {
+        guard let entries = entries(of: set) else {
+            throw .unwritable(path: Self.path(of: set), reason: "Raccoon won't change a file it can't read.")
+        }
+        return entries
+    }
+
+    /// A secret's value typed in the sheet. The file holds no value, so it is not touched.
+    func setSecretValue(_ value: String, at index: Int, in set: String?) throws(SecretError) {
+        guard let entries = entries(of: set), entries.indices.contains(index), entries[index].value == .secret else { return }
+        try secrets.set(value, environment: set, name: entries[index].name)
+    }
+
+    /// The secrets of a set the Keychain cannot give (absent or unreadable): one read each, and
+    /// only whether it answered is kept.
+    func missingSecrets(in set: String?) -> Set<VariableName> {
+        Set((entries(of: set) ?? []).filter { $0.value == .secret && (try? secrets.get(environment: set, name: $0.name)) == nil }.map(\.name))
+    }
+
+    /// environments/New Environment.json, empty; " 2", " 3"… when taken. Returns its name.
+    func newEnvironment() throws(StoreError) -> String {
+        let store = try requireStore()
+        let name = RequestFileName.unique("New Environment", taken: Set(environments.map(\.name) + brokenEnvironments.map(\.name)))
+        let path = Self.path(of: name)
+        let folder = String(Self.environmentsFolder.dropLast())
+        let bytes = EnvironmentFile.encode([])
+        try store.createDirectory(folder)
+        try store.write(bytes, to: path)
+        var scan = lastScan
+        let madeFolder = scan.folders.insert(folder).inserted
+        scan.files[path] = bytes
+        apply(scan, touched: madeFolder ? [folder, path] : [path])
+        return name
+    }
+
+    /// Its secrets are copied to the new name first, then the file moves, then the old Keychain
+    /// items go: a failure at any step leaves the old name whole. The Active Environment follows.
+    /// Returns the name it has now: the proposed one as a file name.
+    @discardableResult
+    func renameEnvironment(_ old: String, to proposed: String) throws(EnvironmentEditError) -> String {
+        let new = RequestFileName.sanitised(proposed.trimmingCharacters(in: .whitespaces))
+        guard !new.isEmpty else { throw .empty }
+        guard new != old else { return old }
+        if let clash = EnvironmentName.clash(new, among: environments.map(\.name) + brokenEnvironments.map(\.name), except: old) {
+            throw .nameTaken(clash)
+        }
+        guard let environment = environments.first(where: { $0.name == old }) else {
+            throw .store(.unreadable(path: Self.path(of: old), reason: "The file is gone."))
+        }
+        let names = environment.entries.filter { $0.value == .secret }.map(\.name)
+        var copied: [VariableName] = []
+        let undo = { [secrets] in for name in copied { try? secrets.delete(environment: new, name: name) } }
+        do throws(SecretError) {
+            for name in names {
+                guard let value = try secrets.get(environment: old, name: name) else { continue }
+                try secrets.set(value, environment: new, name: name)
+                copied.append(name)
+            }
+        } catch {
+            undo()
+            throw .secret(error)
+        }
+        do throws(StoreError) {
+            try requireStore().move(Self.path(of: old), to: Self.path(of: new))
+        } catch {
+            undo()
+            throw .store(error)
+        }
+        if activeEnvironment == old { activeEnvironment = new }
+        apply(lastScan.moving(Self.path(of: old), to: Self.path(of: new)), touched: [Self.path(of: old), Self.path(of: new)])
+        for name in names {
+            do throws(SecretError) {
+                try secrets.delete(environment: old, name: name)
+            } catch {
+                Self.variablesLog.error("Keychain item of \(name.rawValue, privacy: .public) in \(old, privacy: .public) not deleted: \(String(describing: error), privacy: .public)")
+            }
+        }
+        return new
+    }
+
+    /// To the Trash; its Keychain items stay, and No Environment is active if it was.
+    func deleteEnvironment(_ name: String) throws(StoreError) {
+        try trash(Self.path(of: name))
+    }
 
     /// Raccoon changed the disk itself: every touched path goes in the ledger, so the watch
     /// echo is dropped, and the tree is rebuilt from the edited scan.
@@ -717,6 +1049,7 @@ final class WindowModel {
     func trash(_ path: String) throws(StoreError) {
         try requireStore().trash(path)
         apply(lastScan.removing(path), touched: lastScan.paths(under: path))
+        if let active = activeEnvironment, Self.path(of: active) == path { activeEnvironment = nil }
     }
 
     /// Reload on the Changed on Disk banner: the file wins.

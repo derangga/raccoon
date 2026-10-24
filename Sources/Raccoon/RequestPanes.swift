@@ -55,11 +55,11 @@ final class AuthPane: NSView, NSTextFieldDelegate {
     private let theme: ThemeEnvironment
     let scheme: SegmentedControl
     let noneNote = NSTextField(labelWithString: "No Authorization header is added.")
-    let username = NSTextField()
+    let username = VariableField()
     let password = NSSecureTextField()
     /// Shown in place of the bullets when the password holds a `{{name}}`, so the name is readable.
-    let passwordVariable = NSTextField()
-    let token = NSTextField()
+    let passwordVariable = VariableField()
+    let token = VariableField()
     private(set) var basicFields = NSGridView()
     private(set) var bearerFields = NSGridView()
     var onChange: (Auth) -> Void = { _ in }
@@ -92,6 +92,7 @@ final class AuthPane: NSView, NSTextFieldDelegate {
             field.cell?.wraps = false
             field.delegate = self
         }
+        for field in [username, passwordVariable, token] { field.theme = theme }
         let secret = NSView()
         for field in [password, passwordVariable] { fill(secret, with: field) }
         basicFields = grid([("Username", boxed(username)), ("Password", boxed(secret))])
@@ -186,6 +187,7 @@ final class AuthPane: NSView, NSTextFieldDelegate {
         for (field, value) in [(username, basic.user), (password, basic.password), (passwordVariable, basic.password), (token, bearer)]
             where field.currentEditor() == nil {
             field.stringValue = value
+            (field as? VariableField)?.highlight()
         }
         // Swapped only while neither is being edited, so typing `{{` never moves the focus.
         if password.currentEditor() == nil, passwordVariable.currentEditor() == nil {
@@ -193,6 +195,11 @@ final class AuthPane: NSView, NSTextFieldDelegate {
             password.isHidden = named
             passwordVariable.isHidden = !named
         }
+    }
+
+    /// The password field shows bullets, so it is never coloured.
+    func setKinds(_ kinds: VariableKinds) {
+        for field in [username, passwordVariable, token] { field.kinds = kinds }
     }
 
     private var auth: Auth {

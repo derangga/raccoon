@@ -86,11 +86,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sidebar.focusEditor = { [weak tabController] in
             tabController?.view.window?.makeFirstResponder(tabController?.urlBar.urlField)
         }
+        windowController.environmentPicker.bind(windowModel)
+        windowController.environmentPicker.onEdit = { [weak self] in self?.editEnvironments(nil) }
         windowController.split.showSidebar(sidebar)
         self.sidebar = sidebar
         let tabBanner = TabBannerBinding(window: windowModel, theme: theme, reduceMotion: { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion })
         windowController.split.showTab(ContentViewController(strip: strip, tab: tabController, banner: tabBanner))
         self.tabController = tabController
+        let inspector = InspectorViewController(window: windowModel, theme: theme)
+        inspector.onEditEnvironments = { [weak self] in self?.editEnvironments(nil) }
+        windowController.split.showInspector(inspector)
+        // "Variables in request" in the Variable popover.
+        VariableTooltipPanel.shared.onReveal = { [weak windowController, weak inspector] name in
+            windowController?.split.showInspector()
+            inspector?.reveal(name)
+        }
         showSelectedTab()
         windowController.showWindow(nil)
         self.windowController = windowController
@@ -116,4 +126,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func showTab(_ sender: NSMenuItem) { windowModel?.select(number: sender.tag) }
     @objc func showNextTab(_ sender: Any?) { windowModel?.selectNext() }
     @objc func showPreviousTab(_ sender: Any?) { windowModel?.selectPrevious() }
+    /// ⌃E opens the toolbar's Environment pop-up.
+    @objc func chooseEnvironment(_ sender: Any?) { windowController?.environmentPicker.performClick(sender) }
+    /// ⌥⌃E and the picker's Edit Environments….
+    @objc func editEnvironments(_ sender: Any?) {
+        guard let window = windowController?.window, let windowModel, let theme = themeController?.theme else { return }
+        EnvironmentsSheet.present(on: window, model: windowModel, theme: theme)
+    }
 }

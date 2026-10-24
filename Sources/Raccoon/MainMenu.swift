@@ -38,11 +38,18 @@ enum MainMenu {
         ]))
         let showSidebar = NSMenuItem(title: "Show Sidebar", action: #selector(NSSplitViewController.toggleSidebar(_:)), keyEquivalent: "s")
         showSidebar.keyEquivalentModifierMask = [.control, .command]
+        let chooseEnvironment = NSMenuItem(title: "Choose Environment", action: #selector(AppDelegate.chooseEnvironment(_:)), keyEquivalent: "e")
+        chooseEnvironment.keyEquivalentModifierMask = .control
+        let editEnvironments = NSMenuItem(title: "Edit Environments…", action: #selector(AppDelegate.editEnvironments(_:)), keyEquivalent: "e")
+        editEnvironments.keyEquivalentModifierMask = [.control, .option]
         // The inspector's shortcut is still an open UI question.
         // AppKit adds Enter Full Screen to a menu titled View, as on board 08.
         menu.addItem(submenu("View", [
             showSidebar,
             NSMenuItem(title: "Show Inspector", action: #selector(NSSplitViewController.toggleInspector(_:)), keyEquivalent: ""),
+            .separator(),
+            chooseEnvironment,
+            editEnvironments,
             .separator(),
             themeMenu(theme),
             .separator(),

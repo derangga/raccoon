@@ -24,17 +24,48 @@ struct KeyValueTableTests {
         #expect(height == 108)
     }
 
-    @Test func `the placeholder is fainter than a value, and the field fills the row less 2 pt`() throws {
+    @Test func `the placeholder is fainter than a value, and the text sits in the middle of the row`() throws {
         let table = table(rows)
         let empty = try field(table, column: 1, row: 2)
         let ink = try #require(empty.placeholderAttributedString?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor)
         #expect(ink.alphaComponent < 1 && ink.alphaComponent > 0)
         #expect(try field(table, column: 1, row: 0).textColor == theme.color(.text))
         table.layoutSubtreeIfNeeded()
-        #expect(empty.frame.height == 24)
-        // One line tall, in the middle of the 24 pt box.
+        // The field is the whole row; its text is one line tall in the middle of it.
+        #expect(empty.frame.height == 28)
         let drawn = try #require(empty.cell?.drawingRect(forBounds: empty.bounds))
-        #expect(drawn.height < 24 && abs(drawn.midY - empty.bounds.midY) <= 1)
+        #expect(drawn.height < 28 && abs(drawn.midY - empty.bounds.midY) <= 1)
+    }
+
+    @Test func `a focused cell is the input edge to edge at once, and its text does not move`() throws {
+        let table = table(rows)
+        let field = try field(table, column: 2, row: 0)
+        let cell = try #require(field.superview as? EditableCellView)
+        #expect(cell.frame.size == table.table.frameOfCell(atColumn: 2, row: 0).size)
+        let atRest = field.convert(try #require(field.cell).drawingRect(forBounds: field.bounds), to: cell)
+        #expect(cell.layer?.borderWidth == 0)
+
+        // Focus alone, before any typing.
+        window.makeFirstResponder(field)
+
+        #expect(cell.isEditing)
+        #expect(cell.layer?.borderWidth == 2 && cell.layer?.cornerRadius == 0)
+        #expect(cell.layer?.borderColor == theme.color(.focusRing).cgColor)
+        #expect(cell.layer?.backgroundColor == theme.color(.background).cgColor)
+        let editor = try #require(field.currentEditor())
+        let editing = editor.convert(editor.bounds, to: cell)
+        #expect(abs(editing.minX - atRest.minX) <= 1 && abs(editing.midY - atRest.midY) <= 1)
+
+        window.makeFirstResponder(nil)
+        #expect(!cell.isEditing && cell.layer?.borderWidth == 0)
+    }
+
+    @Test func `a click in the cell's padding edits the cell`() throws {
+        let table = table(rows)
+        let field = try field(table, column: 2, row: 0)
+        let cell = try #require(field.superview as? EditableCellView)
+        let corner = cell.convert(NSPoint(x: 1, y: 1), to: cell.superview)
+        #expect(cell.hitTest(corner) === field)
     }
 
     @Test func `every row draws the one vertical rule at the start of the Value column`() throws {
