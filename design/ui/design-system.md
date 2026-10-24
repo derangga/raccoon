@@ -644,7 +644,7 @@ Not drawn on a board yet.
 The sidebar toggle sits at the leading edge of the toolbar and the inspector toggle at the
 trailing edge, as in Finder and Xcode: native toolbar buttons with SF Symbols
 `sidebar.left` and `sidebar.right`, pressed (filled background) while their pane is open.
-Both have View-menu items, "Show Sidebar" / "Show Inspector" (shortcuts: Q12). Seen on: every
+Both have View-menu items, "Show Sidebar" (⌃⌘S) / "Show Inspector" (⌥⌘I) (decided, Q12). Seen on: every
 screen; pressed on 04 and 11.
 
 ### Sidebar filter (native)
@@ -672,7 +672,7 @@ A right-hand pane, `NSSplitViewItem(inspectorWithViewController:)`, themed:
 on the right, a two-segment icon control: `curlybraces` for Variables and `terminal` for
 Curl (SF Symbols), 30 × 22 pt each, the selected one on `selection`. Each segment has a
 tooltip and an accessibility label with the pane's name. The last choice is remembered
-(Q14).
+in UserDefaults (decided, Q14).
 
 **Variables pane** (a table whose values edit in place; seen on 04, 11, 14):
 - Group titles 11 pt semibold `textTertiary`; rows 24 pt, name SF Mono 12 `text`, value SF
@@ -858,16 +858,16 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
     which sending.md only requires for the response. Decided 2026-10-16: it highlights, with
     the same `Highlighter.ranges` and tokens as the Response viewer, and `{{name}}`
     highlighting on top (§6 Body editor).
-12. **Shortcuts for the new panes.** Proposed ⌥⌘F to focus the sidebar filter (⌘F stays
-    find-in-body) and ⌥⌘I for the inspector, ⌃⌘S for the sidebar (the system default).
-    None is decided in design/.
+12. **Shortcuts for the new panes.** Decided 2026-10-24: ⌥⌘F focuses the sidebar filter
+    (⌘F stays find-in-body), ⌥⌘I shows or hides the inspector and ⌃⌘S the sidebar (the
+    system default), each shown on its View-menu item.
 13. **What the filter matches.** Decided 2026-10-19: names only, as drawn. Collection,
     Folder and Request names, and an unreadable row's file name. Matching the method and URL
     too ("POST /refunds") was declined: it would find Requests named badly, at the cost of
     noisier results.
-14. **Inspector state across relaunch.** Whether it is open, its width and Variables vs Curl
-    could be part of the Session or of UserDefaults; the Session is for Tabs, so
-    UserDefaults is proposed.
+14. **Inspector state across relaunch.** Decided 2026-10-24: whether it is open, its width
+    and Variables vs Curl live in UserDefaults. The Session is for Tabs and does not change
+    when only the inspector changes.
 15. **Format on paste or on save.** Decided 2026-10-16: Format is manual only, from the
     Format button or ⇧⌥F. Formatting on save would rewrite what the user typed into the file
     in git, and formatting on paste would change text the user did not ask to change.
