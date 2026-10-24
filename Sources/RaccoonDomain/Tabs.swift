@@ -39,8 +39,14 @@ public struct Tab: Equatable, Sendable {
     /// The tab strip's name for a Draft: "Draft" without a URL, else its path, else the URL as
     /// typed. A Request Tab shows its Request's name from the index instead (tabs.md).
     public var title: String {
-        let url = definition.url.trimmingCharacters(in: .whitespaces)
-        guard !url.isEmpty else { return "Draft" }
+        Self.title(url: definition.url) ?? "Draft"
+    }
+
+    /// What names a request that has no name: its URL's path, else the URL as typed; nil
+    /// without a URL.
+    public static func title(url: String) -> String? {
+        let url = url.trimmingCharacters(in: .whitespaces)
+        guard !url.isEmpty else { return nil }
         let afterScheme = url.range(of: "://").map { url[$0.upperBound...] } ?? url[...]
         guard let slash = afterScheme.firstIndex(of: "/") else { return url }
         let path = afterScheme[slash...]

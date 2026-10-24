@@ -8,9 +8,12 @@ struct PostmanMappingTests {
         RequestID(UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", n))!)
     }
 
-    func plan(_ files: [PostmanFile]) -> ImportPlan {
+    func plan(_ files: [PostmanFile], collections: [String] = [], globals: [VariableEntry] = [], environments: [String] = []) -> ImportPlan {
         var next = 0
-        return PostmanMapping.plan(files, dataFolder: DataFolderIndex([]), globals: Globals(entries: []), environments: []) {
+        return PostmanMapping.plan(
+            files, dataFolder: DataFolderIndex(collections.map { Collection(name: $0, nodes: []) }), globals: Globals(entries: globals),
+            environments: environments.map { Environment(name: $0, entries: []) }
+        ) {
             next += 1
             return Self.id(next)
         }
@@ -56,7 +59,7 @@ struct PostmanMappingTests {
                 .folder(name: "Deep", children: [.request(Request(id: Self.id(2), name: "c", definition: Self.get))]),
                 .request(Request(id: Self.id(3), name: "a", definition: Self.get)),
             ]),
-        ])], notes: []))
+        ])], environments: [], globals: [], notes: []))
     }
 }
 
@@ -352,5 +355,115 @@ extension PostmanMappingTests {
             ImportNote(.authNotSupported(type: "oauth2"), names: ["Login"]),
         ])
         #expect(plan.notes.map(\.names.count) == [2, 1])
+    }
+}
+
+extension PostmanMappingTests {
+    @Test(arguments: [
+        ([String](), ["Prod"], ["Prod"], [ImportNote]()),
+        (["prod"], ["Prod"], ["Prod 2"], [ImportNote(.renamed(from: "Prod", to: "Prod 2"), names: ["Prod"])]),
+        ([], ["Prod", "Prod"], ["Prod", "Prod 2"], [ImportNote(.renamed(from: "Prod", to: "Prod 2"), names: ["Prod"])]),
+        ([], ["a/b"], ["a-b"], [ImportNote(.renamed(from: "a/b", to: "a-b"), names: ["a/b"])]),
+    ])
+    func `a taken Environment name is planned as name 2 and noted, since Import never overwrites`(
+        taken: [String], imported: [String], planned: [String], notes: [ImportNote]
+    ) {
+        let plan = plan(imported.map { .environment(PostmanEnvironment(name: $0, values: [])) }, environments: taken)
+        #expect(plan.environments.map(\.name) == planned)
+        #expect(plan.notes == notes)
+    }
+}
+
+extension PostmanMappingTests {
+    @Test func `a taken Collection name is planned as name 2 and noted, the Collections and Environments taken apart`() {
+        let plan = plan([
+            .collection(PostmanCollection(name: "Payments", items: [])),
+            .environment(PostmanEnvironment(name: "Payments", values: [])),
+            .collection(PostmanCollection(name: "Payments", items: [])),
+        ], collections: ["payments"])
+        #expect(plan.collections.map(\.name) == ["Payments 2", "Payments 3"])
+        #expect(plan.environments.map(\.name) == ["Payments"])
+        #expect(plan.notes == [
+            ImportNote(.renamed(from: "Payments", to: "Payments 2"), names: ["Payments"]),
+            ImportNote(.renamed(from: "Payments", to: "Payments 3"), names: ["Payments"]),
+        ])
+    }
+}
+
+extension PostmanMappingTests {
+    static func name(_ text: String) -> VariableName { VariableName(text)! }
+
+    @Test(arguments: [
+        (PostmanVariable(key: "host", value: "api.example.com"), [ImportVariable(name: name("host"), value: .plain("api.example.com"))], [ImportNote]()),
+        (PostmanVariable(key: "old", value: "1", enabled: false), [ImportVariable(name: name("old"), isEnabled: false, value: .plain("1"))], []),
+        (PostmanVariable(key: "token", value: "s3cr3t", type: "secret"), [ImportVariable(name: name("token"), value: .secret("s3cr3t"))], []),
+        (PostmanVariable(key: "k", value: "v", type: "default"), [ImportVariable(name: name("k"), value: .plain("v"))], []),
+        (PostmanVariable(key: " padded ", value: "v"), [ImportVariable(name: name("padded"), value: .plain("v"))], []),
+        (PostmanVariable(key: "base url", value: "v"), [], [ImportNote(.variableNameInvalid, names: ["base url"])]),
+        (PostmanVariable(key: "", value: ""), [], []),
+    ])
+    func `Environment values become its Variables, disabled kept disabled, a secret a Secret Variable`(
+        value: PostmanVariable, variables: [ImportVariable], notes: [ImportNote]
+    ) {
+        let plan = plan([.environment(PostmanEnvironment(name: "Dev", values: [value]))])
+        #expect(plan.environments == [ImportEnvironment(name: "Dev", variables: variables)])
+        #expect(plan.notes == notes)
+    }
+
+    @Test func `a secret is planned for the Keychain and never with its value in the file`() throws {
+        let plan = plan([.environment(PostmanEnvironment(name: "Prod", values: [PostmanVariable(key: "token", value: "s3cr3t", type: "secret")]))])
+        let token = try #require(plan.environments.first?.variables.first)
+        #expect(token.value == .secret("s3cr3t"))
+        #expect(token.entry == VariableEntry(name: Self.name("token"), value: .secret))
+        let file = String(decoding: EnvironmentFile.encode([token.entry]), as: UTF8.self)
+        #expect(!file.contains("s3cr3t"))
+    }
+}
+
+extension PostmanMappingTests {
+    static let host = PostmanVariable(key: "host", value: "postman.example.com")
+    static let key = PostmanVariable(key: "key", value: "k", type: "secret")
+
+    @Test(arguments: [
+        ([VariableEntry](), [ImportVariable(name: name("host"), value: .plain("postman.example.com")), ImportVariable(name: name("key"), value: .secret("k"))], [ImportNote]()),
+        ([VariableEntry(name: name("host"), value: .plain("raccoon.example.com"))], [ImportVariable(name: name("key"), value: .secret("k"))],
+         [ImportNote(.globalSkipped, names: ["host"])]),
+        ([VariableEntry(name: name("host"), value: .secret), VariableEntry(name: name("key"), isEnabled: false, value: .plain(""))], [],
+         [ImportNote(.globalSkipped, names: ["host", "key"])]),
+    ])
+    func `Globals keep the names they have and list the imported ones as skipped`(existing: [VariableEntry], added: [ImportVariable], notes: [ImportNote]) {
+        let plan = plan([.globals([Self.host, Self.key])], globals: existing)
+        #expect(plan.globals == added)
+        #expect(plan.notes == notes)
+    }
+
+    @Test func `Collection variables are added to Globals before Globals files, so a Collection variable wins as in Postman`() {
+        let plan = plan([
+            .globals([PostmanVariable(key: "host", value: "global.example.com"), PostmanVariable(key: "page", value: "1")]),
+            .collection(PostmanCollection(name: "A", items: [], variables: [Self.host, PostmanVariable(key: "off", value: "x", enabled: false)])),
+            .collection(PostmanCollection(name: "B", items: [], variables: [PostmanVariable(key: "host", value: "b.example.com")])),
+            .collection(PostmanCollection(name: "C", items: [])),
+        ])
+        #expect(plan.globals == [
+            ImportVariable(name: Self.name("host"), value: .plain("postman.example.com")),
+            ImportVariable(name: Self.name("off"), isEnabled: false, value: .plain("x")),
+            ImportVariable(name: Self.name("page"), value: .plain("1")),
+        ])
+        #expect(plan.notes == [ImportNote(.collectionVariables, names: ["A"]), ImportNote(.globalSkipped, names: ["host", "host"])])
+    }
+}
+
+extension PostmanMappingTests {
+    @Test(arguments: [
+        ("", "{{base}}/users/42?verbose=1", "POST", "/users/42"),
+        ("  ", "https://api.example.com", "GET", "https://api.example.com"),
+        ("", "", "DELETE", "DELETE"),
+        ("Login", "https://h/login", "POST", "Login"),
+    ])
+    func `a Request with no name is named as its Draft Tab would be titled, else by its method`(name: String, url: String, method: String, planned: String) {
+        let plan = plan([.request(PostmanRequest(name: name, method: method, url: PostmanURL(raw: url), responseCount: 1))])
+        guard case .request(let request)? = plan.collections.first?.nodes.first else { Issue.record("no Request planned"); return }
+        #expect(request.name == planned)
+        #expect(plan.notes == [ImportNote(.examplesDropped, names: [planned])])
     }
 }

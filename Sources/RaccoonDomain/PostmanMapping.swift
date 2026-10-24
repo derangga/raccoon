@@ -4,11 +4,53 @@ import Foundation
 /// and Import writes exactly it.
 public struct ImportPlan: Equatable, Sendable {
     public var collections: [ImportCollection]
+    public var environments: [ImportEnvironment]
+    /// Added to Globals; none of these names is in Globals yet.
+    public var globals: [ImportVariable]
     public var notes: [ImportNote]
 
-    public init(collections: [ImportCollection], notes: [ImportNote]) {
+    public init(collections: [ImportCollection], environments: [ImportEnvironment], globals: [ImportVariable], notes: [ImportNote]) {
         self.collections = collections
+        self.environments = environments
+        self.globals = globals
         self.notes = notes
+    }
+}
+
+public struct ImportEnvironment: Equatable, Sendable {
+    public var name: String
+    public var variables: [ImportVariable]
+
+    public init(name: String, variables: [ImportVariable]) {
+        self.name = name
+        self.variables = variables
+    }
+}
+
+/// A planned Environment or Global. Unlike VariableEntry, a secret carries its value, for
+/// SecretStore.set; it is not Codable, and the file gets `entry`, which holds none.
+public struct ImportVariable: Equatable, Sendable {
+    public enum Value: Equatable, Sendable {
+        case plain(String)
+        case secret(String)
+    }
+
+    public var name: VariableName
+    public var isEnabled: Bool
+    public var value: Value
+
+    public init(name: VariableName, isEnabled: Bool = true, value: Value) {
+        self.name = name
+        self.isEnabled = isEnabled
+        self.value = value
+    }
+
+    /// What EnvironmentFile writes: a secret's value is not in it.
+    public var entry: VariableEntry {
+        switch value {
+        case .plain(let text): VariableEntry(name: name, isEnabled: isEnabled, value: .plain(text))
+        case .secret: VariableEntry(name: name, isEnabled: isEnabled, value: .secret)
+        }
     }
 }
 
@@ -55,11 +97,23 @@ public struct ImportNote: Equatable, Sendable {
         case examplesDropped
         /// Names the Requests, Folders and Collections whose description was dropped.
         case descriptionsDropped
+        /// A Collection or Environment planned under another name: taken, or not a file name.
+        /// Names the old name.
+        case renamed(from: String, to: String)
+        /// A variable whose key is not a VariableName, dropped; names the keys.
+        case variableNameInvalid
+        /// A Global or Collection variable whose name Globals already has, which keeps its value;
+        /// names the Variables.
+        case globalSkipped
+        /// Collection variables added to Globals. Info: Raccoon has no Collection Variables, and
+        /// an Environment still wins over them, as in Postman. Names the Collections.
+        case collectionVariables
     }
 
     public var kind: Kind
     /// The Requests, in plan order; a Folder's or Collection's name for its description, an
-    /// item's for a skipped one.
+    /// item's for a skipped one, a Variable's for a Variable, a Collection's for its variables,
+    /// the old name for a rename.
     public var names: [String]
 
     public init(_ kind: Kind, names: [String]) {
@@ -87,22 +141,64 @@ private struct Notes {
 public enum PostmanMapping {
     /// `dataFolder`, `globals` and `environments` are what the Workspace already has: the names
     /// an imported Collection, Environment or Global must not take. `newID` makes each planned
-    /// Request's RequestID. Files that are not a Collection are planned by the Environment and
-    /// Globals half.
+    /// Request's RequestID. Collection variables are added to Globals before Globals files, so
+    /// a Collection variable wins over a Global of the same name, as in Postman. `.notPostman`
+    /// files are not planned: the Import sheet lists them.
     public static func plan(
         _ files: [PostmanFile], dataFolder: DataFolderIndex, globals: Globals, environments: [Environment],
         newID: () -> RequestID
     ) -> ImportPlan {
         var notes = Notes()
         var collections: [ImportCollection] = []
+        var collectionNames = dataFolder.collections.map(\.name)
+        var environmentNames = environments.map(\.name)
+        var planned: [ImportEnvironment] = []
+        var added: [ImportVariable] = []
+        var globalNames = Set(globals.entries.map(\.name))
+        /// Adds the new names to Globals; whether any was.
+        func addGlobals(_ values: [PostmanVariable]) -> Bool {
+            let count = added.count
+            for variable in variables(values, notes: &notes) {
+                if globalNames.insert(variable.name).inserted { added.append(variable) } else { notes.add(.globalSkipped, variable.name.rawValue) }
+            }
+            return added.count > count
+        }
         for case .collection(let collection) in files {
-            if !(collection.description ?? "").isEmpty { notes.add(.descriptionsDropped, collection.name) }
-            collections.append(ImportCollection(name: collection.name, nodes: nodes(
+            let name = name(collection.name, taken: &collectionNames, notes: &notes)
+            if !(collection.description ?? "").isEmpty { notes.add(.descriptionsDropped, name) }
+            collections.append(ImportCollection(name: name, nodes: nodes(
                 collection.items, auth: effective(collection.auth, over: nil), scripts: hasScripts(collection.events),
                 notes: &notes, newID: newID
             )))
+            if addGlobals(collection.variables) { notes.add(.collectionVariables, name) }
         }
-        return ImportPlan(collections: collections, notes: notes.all)
+        for case .environment(let environment) in files {
+            let name = name(environment.name, taken: &environmentNames, notes: &notes)
+            planned.append(ImportEnvironment(name: name, variables: variables(environment.values, notes: &notes)))
+        }
+        for case .globals(let values) in files {
+            _ = addGlobals(values)
+        }
+        return ImportPlan(collections: collections, environments: planned, globals: added, notes: notes.all)
+    }
+
+    /// A key with no name is no variable, so it is dropped without a note.
+    private static func variables(_ values: [PostmanVariable], notes: inout Notes) -> [ImportVariable] {
+        values.compactMap { value in
+            guard let name = VariableName(value.key.trimmingCharacters(in: .whitespaces)) else {
+                if !value.key.isEmpty { notes.add(.variableNameInvalid, value.key) }
+                return nil
+            }
+            return ImportVariable(name: name, isEnabled: value.enabled, value: value.type == "secret" ? .secret(value.value) : .plain(value.value))
+        }
+    }
+
+    /// `name` as a file name not in `taken`, ignoring case, which it then joins.
+    private static func name(_ name: String, taken: inout [String], notes: inout Notes) -> String {
+        let final = RequestFileName.unique(RequestFileName.sanitised(name), taken: Set(taken))
+        taken.append(final)
+        if final != name { notes.add(.renamed(from: name, to: final), name) }
+        return final
     }
 
     /// `auth` is what the items inherit: the nearest Folder's or the Collection's. `scripts` is
@@ -121,13 +217,17 @@ public enum PostmanMapping {
                 return .folder(name: folder.name, children: children)
             case .request(let request):
                 var kinds: [ImportNote.Kind] = []
-                let planned = Request(id: newID(), name: request.name, definition: definition(request, inherited: auth, notes: &kinds))
+                let definition = definition(request, inherited: auth, notes: &kinds)
+                // A Request's file name is its name, so it needs one.
+                let name = request.name.trimmingCharacters(in: .whitespaces).isEmpty
+                    ? Tab.title(url: definition.url) ?? definition.method : request.name
+                let planned = Request(id: newID(), name: name, definition: definition)
                 kinds += dynamicVariables(planned.definition).map { .dynamicVariable(name: $0) }
                 if scripts || hasScripts(request.events) { kinds.append(.scriptsDropped) }
                 if request.responseCount > 0 { kinds.append(.examplesDropped) }
                 if !(request.description ?? "").isEmpty { kinds.append(.descriptionsDropped) }
                 var seen: Set<ImportNote.Kind> = []
-                for kind in kinds where seen.insert(kind).inserted { notes.add(kind, request.name) }
+                for kind in kinds where seen.insert(kind).inserted { notes.add(kind, name) }
                 return .request(planned)
             case .other(let name):
                 notes.add(.itemsSkipped, name)

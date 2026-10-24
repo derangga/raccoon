@@ -61,7 +61,17 @@ once, so an unzipped Postman data export imports in one pass.
 **Import never overwrites.** A Collection or Environment whose name is taken gets ` 2`, like a
 duplicate Request file name (collections.md). Re-importing a newer Postman export therefore
 creates a second copy instead of silently replacing edits made in Raccoon. A merge is a
-later feature (design/ui/design-system.md, Open UI questions).
+later feature (design/ui/design-system.md, Open UI questions); the user confirmed the ` 2`
+rule for v1 on 2026-10-25. Taken means the Workspace's names and the names planned earlier in
+the same import, compared without case, so two imported "Prod" files give Prod and Prod 2. The
+name is sanitised first, as New Collection sanitises it (`/` and `:` become `-`). Any change is
+noted as `.renamed(from, to)`.
+
+**Globals are added to, never changed.** Collection variables are planned first, then Globals
+files, each in file order; a name already in Globals or planned earlier keeps the value it has
+and is listed in `.globalSkipped`. Collection variables first matches Postman, where a
+Collection variable wins over a Global. Collections whose variables were added are named in
+`.collectionVariables` (info).
 
 ## The mapping
 
@@ -86,13 +96,15 @@ and every loss becomes a note on the Import sheet, counted and naming the Reques
 | auth `apikey` | a header or a Param with that name and value, which is the same bytes on the wire |
 | auth `oauth2`, `oauth1`, `digest`, `awsv4`, `ntlm`, `jwt`, `hawk`, `akamai`, `edgegrid` | `.none`, noted per Request. The settings are not kept |
 | `protocolProfileBehavior.followRedirects`, `strictSSL: false` | Request Settings `followsRedirects`, `allowsInsecureTLS`. An absent `followRedirects` is Postman's default, which follows, so it imports as on |
+| a request item with an empty or blank `name` | named as its Draft Tab would be titled: the URL's path, else the URL as typed; with no URL, its method. A Request needs a name for its file name (collections.md) |
 | collection `variable` | added to Globals (new names only). Raccoon has no Collection Variables; Globals keep Postman's "Environment wins" order, and a name that collides is listed |
+| a variable `key` that is not a `VariableName` (`base url`, `a/b`) | dropped and listed (`.variableNameInvalid`): no `{{…}}` Raccoon resolves could reach it, and the file would not decode. Surrounding spaces are trimmed first, as the Environments sheet trims them; an empty key is no variable and is dropped silently |
 | `{{name}}` | unchanged: Raccoon uses the same syntax |
 | dynamic variables `{{$guid}}`, `{{$timestamp}}`, `{{$randomInt}}`, `{{$random…}}` | left as typed and noted. `$` is not a `VariableName` character, so each is an Undefined Variable and the request will not send until it is replaced. Sending the literal text would be worse |
 | `event` (pre-request and test scripts) | dropped, counted: Raccoon runs no scripts. A blank script is not counted; a Folder's or the Collection's script counts on every Request under it, since Postman runs it for each |
 | `response` (saved examples), `description` | dropped, counted. A Folder's or the Collection's description is named by that Folder or Collection |
 | environment `values`, `enabled` | Environment entries, disabled ones kept disabled |
-| environment value with `type: "secret"` | a Secret Variable: Keychain first, file without the value (variables.md order) |
+| environment, Globals or collection value with `type: "secret"` | a Secret Variable: Keychain first, file without the value (variables.md order). The plan carries the value in `ImportVariable.secret`, which is not Codable; what goes to the file is its `entry`, a `.secret` with none |
 
 **The plan is computed before anything is written.** `PostmanMapping.plan` is pure, so the
 Import sheet shows exactly what Import will do, including every note, and the tests assert on
