@@ -120,10 +120,18 @@ PostmanFile              .collection(PostmanCollection) · .environment(PostmanE
                          .notPostman carries no reason: the sheet's row has one sentence (§4)
 ImportPlan               collections, environments, globals to add, each with its final name
                          (" 2" on a collision), and [ImportNote]
-ImportNote               what was dropped or changed, and the Requests it applies to:
-                         .scriptsDropped · .authNotSupported(type) · .binaryBody · .pathVariable
-                         · .dynamicVariable(name) · .fileOnlyName(path) · .globalSkipped(name)
-                         · .examplesDropped · .renamed(from, to)
+ImportCollection         name, nodes [ImportNode]: one planned Collection
+ImportNode               .folder(name, [ImportNode]) · .request(Request)     in Postman's order;
+                         file names are chosen when the plan is written (RequestFileName)
+ImportNote               kind, names: what was dropped or changed, and the Requests it applies
+                         to by name (a Folder's name for its description, an item's for a
+                         skipped one). The count is names.count. One note per kind, in the
+                         order first met. Kinds:
+                         .scriptsDropped · .authNotSupported(type) · .authInherited
+                         · .binaryBody · .pathVariable · .pathVariableEmpty(name)
+                         · .dynamicVariable(name) · .fileOnlyName(path) · .examplesDropped
+                         · .descriptionsDropped · .itemsSkipped
+                         · .globalSkipped(name) · .renamed(from, to)
 
 LineIndex                starts [Int]: the UTF-16 offset of each line start. Lines break
                          where NSString.lineRange breaks them: \n, \r, \r\n, U+2028, U+2029,

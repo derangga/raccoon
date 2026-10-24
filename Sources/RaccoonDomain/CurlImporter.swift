@@ -158,8 +158,9 @@ public enum CurlMapping {
         return Row(name: trimmed, value: value.trimmingCharacters(in: .whitespaces))
     }
 
-    /// `a=1; b=2` → two rows; `secure` is an attribute, not a cookie.
-    private static func cookieRows(_ text: String) -> [Row] {
+    /// `a=1; b=2` → two rows; `secure` is an attribute, not a cookie. Postman Import splits its
+    /// Cookie headers the same way.
+    static func cookieRows(_ text: String) -> [Row] {
         text.split(separator: ";").compactMap { pair in
             let pair = pair.trimmingCharacters(in: .whitespaces)
             guard pair.contains("=") else { return nil }
