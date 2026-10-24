@@ -51,6 +51,13 @@ Curl Import
   ⚠ GET with a body      → not an error: imported as pasted, and the note says it won't
                            send, because URLSession fails it with dataLengthExceedsMaximum
                            and sends nothing (environment-facts.md Q6)
+Curl pane
+  ⚠ blank URL            → escape: "Type a URL to see the curl command.", Copy disabled
+  ⚠ undefined(names)     → escape: "No curl command yet" and every name, Copy disabled
+  ⚠ invalidURL           → escape: "No curl command yet" and the URL after substitution,
+                           Copy disabled. Nothing is outlined: nothing was sent
+  ⚠ Keychain unreadable  → the preview never reads it. With Include secrets, Copy resolves
+                           it as undefined and copies nothing
 Postman Import
   ⚠ file not JSON, or not a v2 Collection / Environment / Globals export
                          → escape: that file's row on the Import sheet says "Not a Postman

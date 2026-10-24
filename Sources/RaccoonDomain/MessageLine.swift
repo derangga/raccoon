@@ -19,8 +19,7 @@ public enum MessageLine: Equatable, Sendable {
     /// Board 04: "Not sent. a and b are not defined in Staging or in Globals." Every name, in
     /// the order the request uses them.
     public static func undefined(_ names: [VariableName], in environment: String?) -> MessageLine {
-        let where_ = environment.map { "\($0) or in Globals" } ?? "Globals"
-        return .error("Not sent. \(VariableName.phrase(names)) \(names.count == 1 ? "is" : "are") not defined in \(where_).")
+        .error("Not sent. " + VariableName.notDefined(names, in: environment))
     }
 }
 
@@ -30,6 +29,13 @@ extension VariableName {
         let raw = names.map(\.rawValue)
         guard raw.count > 1 else { return raw.first ?? "" }
         return raw.dropLast().joined(separator: ", ") + " and " + raw.last!
+    }
+
+    /// "a and b are not defined in Staging or in Globals.": the blocked send's line and the Curl
+    /// pane's sentence.
+    public static func notDefined(_ names: [VariableName], in environment: String?) -> String {
+        let where_ = environment.map { "\($0) or in Globals" } ?? "Globals"
+        return "\(phrase(names)) \(names.count == 1 ? "is" : "are") not defined in \(where_)."
     }
 }
 

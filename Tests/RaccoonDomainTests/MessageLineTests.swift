@@ -34,4 +34,10 @@ struct MessageLineTests {
     func `a blocked send names every missing Variable and where it looked`(names: [String], environment: String?, text: String) {
         #expect(MessageLine.undefined(names.map { VariableName($0)! }, in: environment) == .error(text))
     }
+
+    @Test func `the Curl pane says the same sentence, without "Not sent."`() {
+        let names = ["charge_id", "tenant_id"].map { VariableName($0)! }
+        #expect(VariableName.notDefined(names, in: "Staging") == "charge_id and tenant_id are not defined in Staging or in Globals.")
+        #expect(VariableName.notDefined([names[0]], in: nil) == "charge_id is not defined in Globals.")
+    }
 }

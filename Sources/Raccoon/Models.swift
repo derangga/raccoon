@@ -160,6 +160,10 @@ final class TabModel {
         }
     }
 
+    /// The Curl pane: always resolved with secrets as `{{name}}`, so rendering on every keystroke
+    /// never reads the Keychain (cardinality.md).
+    var curlPreview: CurlPreview { CurlPreview(tab.definition, scope: scope(.asWritten)) }
+
     /// Off by default: a Secret Variable stays `{{name}}` in the copied text.
     func copyAsCurl(includeSecrets: Bool = false) {
         if case .success(let command) = curl(includeSecrets: includeSecrets) { clipboard.setString(command) }

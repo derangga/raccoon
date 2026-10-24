@@ -3,7 +3,8 @@ import Observation
 import RaccoonDomain
 
 /// The inspector's content (design-system §6 Inspector): a 34 pt header with the pane's name and
-/// the Variables / Curl switch, the Variables pane, and its Edit Environments… footer. It follows
+/// the Variables / Curl switch, then the Variables pane and its Edit Environments… footer, or the
+/// Curl pane. It follows
 /// the selected Tab, the Environments, Globals and the Active Environment as they change.
 final class InspectorViewController: NSViewController {
     private let window: WindowModel
@@ -14,6 +15,8 @@ final class InspectorViewController: NSViewController {
     let editButton = NSButton(title: "", target: nil, action: nil)
     /// The Variables pane's Edit Environments… bar; the Curl pane has its own.
     private let footer = NSView()
+    private lazy var footerRule = ThemedView(theme: theme, fill: .border)
+    let curl: CurlPaneView
     var onEditEnvironments: (() -> Void)?
 
     init(window: WindowModel, theme: ThemeEnvironment) {
@@ -21,13 +24,13 @@ final class InspectorViewController: NSViewController {
         self.theme = theme
         paneSwitch = SegmentedControl(labels: ["Variables", "Curl"], symbols: ["curlybraces", "terminal"], theme: theme)
         variables = VariablesPaneView(theme: theme)
+        curl = CurlPaneView(theme: theme)
         super.init(nibName: nil, bundle: nil)
         paneSwitch.selectedSegment = 0
         paneSwitch.target = self
         paneSwitch.action = #selector(switchPane)
-        // shortcut: the Curl pane is not built yet, so its segment is disabled and segment 1 shows
-        // an empty pane. Enable the segment when the Curl pane fills that slot in showPane.
-        paneSwitch.setEnabled(false, forSegment: 1)
+        curl.isHidden = true
+        curl.onCopy = { [weak self] includeSecrets in self?.window.selectedTab?.copyAsCurl(includeSecrets: includeSecrets) }
         paneSwitch.setAccessibilityLabel("Inspector pane")
         paneTitle.font = .systemFont(ofSize: 12, weight: .semibold)
         editButton.isBordered = false
@@ -78,14 +81,13 @@ final class InspectorViewController: NSViewController {
         let root = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: 600))
         let header = NSView()
         let headerRule = ThemedView(theme: theme, fill: .border)
-        let footerRule = ThemedView(theme: theme, fill: .border)
-        for view in [header, variables, footer, headerRule, footerRule, paneTitle, paneSwitch, editButton] {
+        for view in [header, variables, footer, headerRule, footerRule, curl, paneTitle, paneSwitch, editButton] {
             view.translatesAutoresizingMaskIntoConstraints = false
         }
         header.addSubview(paneTitle)
         header.addSubview(paneSwitch)
         footer.addSubview(editButton)
-        for view in [header, variables, footer, headerRule, footerRule] { root.addSubview(view) }
+        for view in [header, variables, footer, headerRule, footerRule, curl] { root.addSubview(view) }
         NSLayoutConstraint.activate([
             header.topAnchor.constraint(equalTo: root.topAnchor),
             header.leadingAnchor.constraint(equalTo: root.leadingAnchor),
@@ -114,6 +116,10 @@ final class InspectorViewController: NSViewController {
             editButton.trailingAnchor.constraint(equalTo: footer.trailingAnchor, constant: -12),
             editButton.centerYAnchor.constraint(equalTo: footer.centerYAnchor),
             editButton.heightAnchor.constraint(equalToConstant: 24),
+            curl.topAnchor.constraint(equalTo: headerRule.bottomAnchor),
+            curl.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            curl.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            curl.bottomAnchor.constraint(equalTo: root.bottomAnchor),
         ])
         view = root
     }
@@ -149,6 +155,10 @@ final class InspectorViewController: NSViewController {
         editButton.layer?.borderColor = theme.color(.border).cgColor
         editButton.removeConstraints(editButton.constraints.filter { $0.firstAttribute == .width })
         editButton.widthAnchor.constraint(equalToConstant: (editButton.attributedTitle.size().width + 20).rounded(.up)).isActive = true
+        // Only while it is up: hidden, it would render a 20 KB body on every keystroke for nothing.
+        if !curl.isHidden, let tab = window.selectedTab {
+            curl.render(tab.curlPreview, kinds: tab.kinds, environment: active?.name)
+        }
     }
 
     @objc private func editEnvironments() { onEditEnvironments?() }
@@ -161,6 +171,9 @@ final class InspectorViewController: NSViewController {
         paneTitle.stringValue = paneSwitch.label(forSegment: index) ?? ""
         variables.isHidden = index != 0
         footer.isHidden = index != 0
+        footerRule.isHidden = index != 0
+        curl.isHidden = index != 1
+        if index == 1 { refresh() }
     }
 }
 

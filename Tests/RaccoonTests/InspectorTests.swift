@@ -13,8 +13,9 @@ struct InspectorTests {
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
     var root: URL { temp.appending(path: "Raccoon") }
     let jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." + String(repeating: "eyJzdWIiOiJvcHMtYm90In0", count: 20)
-    /// The window's Keychain: counts reads, and can refuse a write.
+    /// The window's Keychain, which its Tabs share: counts reads, and can refuse a write.
     let secrets = FlakySecretStore()
+    let clipboard = RecordingClipboardWriter()
 
     func entry(_ name: String, _ value: VariableEntry.Value) -> VariableEntry {
         VariableEntry(name: VariableName(name)!, value: value)
@@ -33,8 +34,8 @@ struct InspectorTests {
             sessionStore: DiskSessionStore(directory: temp.appending(path: "Support"), root: root.path),
             secrets: secrets, instants: FixedInstantSource(.now),
             makeTab: {
-                TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
-                         instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
+                TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: secrets, files: DictionaryFileReading([:]),
+                         instants: FixedInstantSource(.now), clipboard: clipboard)
             }
         )
         window.loadDataFolder()
@@ -57,12 +58,12 @@ struct InspectorTests {
         return (window, inspector)
     }
 
-    @Test func `the header names the pane; Variables is selected and Curl waits for its pane`() throws {
+    @Test func `the header names the pane; Variables is selected and Curl can be picked`() throws {
         let (_, inspector) = try board04()
         #expect(inspector.paneTitle.stringValue == "Variables")
         #expect(inspector.paneSwitch.selectedSegment == 0)
         #expect(inspector.paneSwitch.label(forSegment: 0) == "Variables" && inspector.paneSwitch.label(forSegment: 1) == "Curl")
-        #expect(!inspector.paneSwitch.isEnabled(forSegment: 1))
+        #expect(inspector.paneSwitch.isEnabled(forSegment: 1))
     }
 
     @Test func `each segment's tooltip and accessibility label name its pane`() throws {
@@ -74,7 +75,7 @@ struct InspectorTests {
         #expect(segments.map { $0.accessibilityLabel() } == ["Variables", "Curl"])
         #expect(segments.map { $0.accessibilityRole() } == [.radioButton, .radioButton])
         #expect(segments.map { $0.accessibilityValue() as? Bool } == [true, false])
-        #expect(segments.map { $0.isAccessibilityEnabled() } == [true, false])
+        #expect(segments.map { $0.isAccessibilityEnabled() } == [true, true])
     }
 
     @Test func `the switch swaps the pane under the header and the title follows; a reveal comes back to Variables`() throws {
@@ -83,11 +84,11 @@ struct InspectorTests {
 
         inspector.showPane(1)
         #expect(inspector.paneTitle.stringValue == "Curl" && inspector.paneSwitch.selectedSegment == 1)
-        #expect(inspector.variables.isHidden && footer.isHidden)
+        #expect(inspector.variables.isHidden && footer.isHidden && !inspector.curl.isHidden)
 
         inspector.reveal(VariableName("host")!)
         #expect(inspector.paneTitle.stringValue == "Variables" && inspector.paneSwitch.selectedSegment == 0)
-        #expect(!inspector.variables.isHidden && !footer.isHidden)
+        #expect(!inspector.variables.isHidden && !footer.isHidden && inspector.curl.isHidden)
     }
 
     @Test func `board 04: missing names first, then Staging with the names the Tab uses, then Globals struck where overridden`() throws {
@@ -393,5 +394,171 @@ struct InspectorTests {
         #expect(cell.lineBreakMode == .byTruncatingTail)
         #expect(cell.attributedStringValue.size().width > cell.frame.width)
         #expect(cell.frame.maxX <= inspector.variables.documentView.frame.width - 12)
+    }
+
+    // MARK: Curl pane
+
+    /// Board 11's window: Dev active with a secret api_key, and the refund POST.
+    func board11(isDark: Bool = false) throws -> (WindowModel, InspectorViewController) {
+        let window = try makeWindow(
+            environments: ["Dev": [entry("host", .plain("https://api.dev.payments.example.com")), entry("api_key", .secret)]],
+            globals: []
+        )
+        try secrets.inner.set("sk_live_1", environment: "Dev", name: VariableName("api_key")!)
+        window.pickActiveEnvironment("Dev")
+        let tab = try #require(window.selectedTab)
+        tab.tab.definition.method = "POST"
+        tab.tab.definition.url = "{{host}}/v1/refunds"
+        tab.tab.definition.headers = [Row(name: "Content-Type", value: "application/json"), Row(name: "X-Off", value: "1", isEnabled: false)]
+        tab.tab.definition.auth = .bearer(token: "{{api_key}}")
+        tab.tab.definition.cookies = [Row(name: "session", value: "7f3a"), Row(name: "locale", value: "en")]
+        tab.tab.definition.body = .raw(.json, #"{"charge":"ch_3PqL8x2e","amount":500}"#)
+        let inspector = InspectorViewController(window: window, theme: ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: isDark))
+        inspector.view.frame = NSRect(x: 0, y: 0, width: 280, height: 600)
+        inspector.showPane(1)
+        inspector.view.layoutSubtreeIfNeeded()
+        return (window, inspector)
+    }
+
+    let board11Command = #"""
+        curl -X POST 'https://api.dev.payments.example.com/v1/refunds' \
+          -H 'Content-Type: application/json' \
+          -H 'Authorization: Bearer {{api_key}}' \
+          -b 'session=7f3a; locale=en' \
+          --data-raw '{"charge":"ch_3PqL8x2e","amount":500}'
+        """#
+
+    /// The colour of the command's text at the first `needle`.
+    func color(of needle: String, in pane: CurlPaneView) -> NSColor? {
+        let range = (pane.textView.string as NSString).range(of: needle)
+        guard range.location != NSNotFound else { return nil }
+        return pane.textView.textStorage?.attribute(.foregroundColor, at: range.location, effectiveRange: nil) as? NSColor
+    }
+
+    /// Waits for the observation's re-render, a turn or more after the change.
+    func settle(_ done: () -> Bool) async {
+        for _ in 0..<100 where !done() { await Task.yield() }
+    }
+
+    @Test(arguments: [false, true])
+    func `board 11: the command with flags dimmed, the secret as {{name}}, the note and the footer`(isDark: Bool) throws {
+        let (_, inspector) = try board11(isDark: isDark)
+        let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: isDark)
+        let pane = inspector.curl
+
+        #expect(pane.textView.string == board11Command)
+        #expect(pane.note == "Resolved with Dev. Disabled Rows are left out.")
+        #expect(pane.voidTitle == nil && pane.voidText == nil)
+        #expect(pane.includeSecrets.title == "Include secrets" && pane.includeSecrets.state == .off && !pane.includeSecrets.isHidden)
+        #expect(pane.copyButton.title == "Copy" && pane.copyButton.isEnabled)
+        #expect(color(of: "curl", in: pane) == theme.color(.textSecondary))
+        #expect(color(of: "-H", in: pane) == theme.color(.textSecondary))
+        #expect(color(of: "--data-raw", in: pane) == theme.color(.textSecondary))
+        #expect(color(of: "'Content-Type", in: pane) == theme.color(.text))
+        #expect(color(of: "{{api_key}}", in: pane) == theme.color(.variableSecret))
+        let at = (pane.textView.string as NSString).range(of: "{{api_key}}").location
+        #expect(pane.textView.textStorage?.attribute(.underlineStyle, at: at, effectiveRange: nil) as? Int
+            == NSUnderlineStyle([.single, .patternDot]).rawValue)
+        #expect(pane.textView.font == .monospacedSystemFont(ofSize: 11, weight: .regular))
+        #expect(pane.box.layer?.backgroundColor == theme.color(.background).cgColor)
+        #expect(pane.box.layer?.borderColor == theme.color(.border).cgColor && pane.box.layer?.cornerRadius == 6)
+    }
+
+    @Test(arguments: [false, true])
+    func `the preview never shows a secret value; Include secrets fills it in the copied text only`(on: Bool) throws {
+        let (_, inspector) = try board11()
+        let pane = inspector.curl
+
+        pane.includeSecrets.state = on ? .on : .off
+        pane.copyButton.performClick(nil)
+
+        #expect(!pane.textView.string.contains("sk_live_1"))
+        #expect(clipboard.string == (on ? board11Command.replacing("{{api_key}}", with: "sk_live_1") : board11Command))
+        // Only Copy with Include secrets reads the Keychain; rendering never does.
+        #expect(secrets.gets == (on ? 1 : 0))
+    }
+
+    @Test func `Undefined Variables: no command, every name, Copy disabled`() throws {
+        let (_, inspector) = try board04()
+        inspector.showPane(1)
+        let pane = inspector.curl
+
+        #expect(pane.voidTitle == "No curl command yet")
+        #expect(pane.voidText == "charge_id and tenant_id are not defined in Staging or in Globals.")
+        #expect(pane.box.isHidden && pane.note == nil)
+        #expect(!pane.copyButton.isEnabled && pane.includeSecrets.isHidden)
+    }
+
+    @Test func `an empty Draft asks for a URL, and an invalid one is quoted`() async throws {
+        let (window, inspector) = try board11()
+        let tab = try #require(window.selectedTab)
+        let pane = inspector.curl
+
+        tab.tab.definition = .empty
+        await settle { pane.voidText != nil }
+        #expect(pane.voidTitle == nil && pane.voidText == "Type a URL to see the curl command.")
+        #expect(!pane.copyButton.isEnabled && pane.includeSecrets.isHidden)
+
+        tab.tab.definition.url = "localhost:4000/a"
+        await settle { pane.voidTitle != nil }
+        #expect(pane.voidTitle == "No curl command yet" && pane.voidText == "After substitution the URL was localhost:4000/a.")
+        #expect(!pane.copyButton.isEnabled)
+    }
+
+    @Test func `it follows edits, the Active Environment and the selected Tab`() async throws {
+        let (window, inspector) = try board11()
+        let pane = inspector.curl
+        let tab = try #require(window.selectedTab)
+
+        tab.tab.definition.method = "GET"
+        tab.tab.definition.body = .none
+        tab.tab.definition.headers = []
+        tab.tab.definition.cookies = []
+        tab.tab.definition.auth = .none
+        let get = "curl 'https://api.dev.payments.example.com/v1/refunds'"
+        await settle { pane.textView.string == get }
+        #expect(pane.textView.string == get)
+
+        window.pickActiveEnvironment(nil)
+        await settle { pane.voidTitle != nil }
+        #expect(pane.voidText == "host is not defined in Globals.")
+
+        window.newTab()
+        await settle { pane.voidTitle == nil }
+        #expect(pane.voidText == "Type a URL to see the curl command.")
+
+        window.select(tab.tab.id)
+        await settle { pane.voidTitle != nil }
+        #expect(pane.voidText == "host is not defined in Globals.")
+    }
+
+    @Test func `break-ui: a 2,000-character URL and a 20 KB body wrap, scroll, and Copy gives the exact text`() async throws {
+        let (window, inspector) = try board11()
+        let tab = try #require(window.selectedTab)
+        let pane = inspector.curl
+        let url = "https://h/" + String(repeating: "a", count: 1_990)
+        let body = String(repeating: #"{"k":"0123456789"},"#, count: 1_100)
+        tab.tab.definition.url = url
+        tab.tab.definition.headers = []
+        tab.tab.definition.auth = .none
+        tab.tab.definition.cookies = []
+        tab.tab.definition.body = .raw(.json, body)
+        let expected = "curl -X POST '\(url)' \\\n  --data-raw '\(body)'"
+        await settle { pane.textView.string == expected }
+        inspector.view.layoutSubtreeIfNeeded()
+
+        #expect(url.count == 2_000 && body.utf8.count >= 20_000)
+        #expect(pane.textView.string == expected)
+        let scroll = try #require(pane.textView.enclosingScrollView)
+        #expect(!scroll.hasHorizontalScroller && scroll.hasVerticalScroller)
+        let container = try #require(pane.textView.textContainer)
+        let manager = try #require(pane.textView.layoutManager)
+        manager.ensureLayout(for: container)
+        let used = manager.usedRect(for: container)
+        // Wrapped to the box's width, and taller than it: the box scrolls, nothing is cut.
+        #expect(used.width <= scroll.contentSize.width && used.height > scroll.contentSize.height)
+        #expect(pane.textView.frame.height >= used.height)
+        pane.copyButton.performClick(nil)
+        #expect(clipboard.string == expected)
     }
 }

@@ -706,8 +706,6 @@ in UserDefaults (decided, Q14).
     sheet; the value shown goes back to what the file holds.
 - Footer: **Edit Environments…** opens the Environments sheet on the active set: names,
   enabling, secrets, new and deleted Variables stay there.
-- Until the Curl pane exists, the Curl segment is disabled.
-
 Seen on: 04, 11, 14.
 
 **Curl pane** (seen on 11):
@@ -715,13 +713,16 @@ Seen on: 04, 11, 14.
   `background` inside a 6 pt-radius `border` box. Flags in `textSecondary`, values in `text`,
   a Secret Variable as `{{name}}` in `variableSecret` with its dotted underline. Wraps
   anywhere and scrolls; it never truncates, because Copy must match what is shown.
-- Under it, 11 pt `textTertiary`: "Resolved with Dev. Disabled Rows are left out."
+- Under it, 11 pt `textTertiary`: "Resolved with Dev. Disabled Rows are left out." With No
+  Environment: "Resolved with Globals. Disabled Rows are left out."
 - Footer: an **Include secrets** checkbox (off by default, not remembered) and **Copy**
   (primary). Include secrets fills secrets in the copied text only; the preview never shows
-  them.
+  them. With no command, the footer holds only Copy, disabled.
 - Undefined Variables: an error glyph, "No curl command yet" in `statusFailed`, and the
-  sentence naming every missing Variable; Copy disabled.
-- An empty Draft: "Type a URL to see the curl command." in `textTertiary`.
+  sentence naming every missing Variable ("charge_id and tenant_id are not defined in Staging
+  or in Globals."); Copy disabled.
+- An invalid URL: the same, with "After substitution the URL was <url>." as the sentence.
+- An empty Draft (a blank URL): "Type a URL to see the curl command." in `textTertiary`.
 
 ### View ▸ Theme menu (native)
 

@@ -158,11 +158,16 @@ The inspector's Curl pane is Copy as Curl rendered live for the selected Tab.
 ```
 -> curlPreview(tab)                              on every edit to the Tab, on Tab switch,
                                                  on pickActiveEnvironment
-  -> VariableResolver.resolve(definition, scope, secrets: false)
+  -> CurlPreview(definition, scope)              pure        R: none
+     URL blank                                   -> escape: "Type a URL to see the curl
+                                                 command.", Copy disabled
+    -> VariableResolver.resolve(definition, scope, secrets: false)
                                                  pure        E: undefined -> escape: the pane
                                                  says which Variables are missing, Copy is
                                                  disabled
-  -> CurlRenderer.render(resolved)               pure, the same renderer as Copy as Curl
+                                                 E: invalidURL -> escape: the pane quotes the
+                                                 URL after substitution, Copy is disabled
+    -> CurlRenderer.render(resolved)             pure, the same renderer as Copy as Curl
 -> copy(includeSecrets)                          the pane's Copy button
   -> copyAsCurl(tab, includeSecrets)             the tree above, unchanged
 ```

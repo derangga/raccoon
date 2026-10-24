@@ -71,3 +71,31 @@ struct CurlRendererTests {
         #expect(text == "curl 'https://h/?on=1'")
     }
 }
+
+/// The Curl pane's states (curl.md §The Curl pane): a command, or why there is none.
+struct CurlPreviewTests {
+    let host = VariableName("host")!
+    let id = VariableName("charge_id")!
+
+    func preview(_ url: String, headers: [Row] = [], values: [VariableName: String] = [:]) -> CurlPreview {
+        CurlPreview(RequestDefinition(method: "GET", url: url, params: [], headers: headers, cookies: [], body: .none, auth: .none,
+                                      settings: RequestSettings(allowsInsecureTLS: false, followsRedirects: false)), scope: VariableScope(values: values))
+    }
+
+    @Test func `a URL that resolves is the command Copy as Curl renders`() {
+        #expect(preview("{{host}}/a", values: [host: "https://h"]) == .command("curl 'https://h/a'"))
+    }
+
+    @Test(arguments: ["", "   "])
+    func `a blank URL asks for one, whatever else is undefined`(url: String) {
+        #expect(preview(url, headers: [Row(name: "X", value: "{{charge_id}}")]) == .noURL)
+    }
+
+    @Test func `undefined names come in the order the request uses them`() {
+        #expect(preview("{{host}}/{{charge_id}}") == .undefined([host, id]))
+    }
+
+    @Test func `a URL that is not one after substitution is quoted`() {
+        #expect(preview("{{host}}/a", values: [host: "localhost:4000"]) == .invalidURL("localhost:4000/a"))
+    }
+}

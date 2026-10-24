@@ -37,3 +37,30 @@ public enum CurlRenderer {
         "'" + text.replacing("'", with: #"'\''"#) + "'"
     }
 }
+
+/// The Curl pane (curl.md §The Curl pane): the command Copy as Curl would render, or why there
+/// is none. The caller's scope decides what a secret shows; the pane passes one that keeps it
+/// as `{{name}}`.
+public enum CurlPreview: Equatable, Sendable {
+    case command(String)
+    case undefined([VariableName])
+    /// A blank URL: nothing to render yet, whatever else is missing.
+    case noURL
+    /// The URL after substitution.
+    case invalidURL(String)
+
+    public init(_ definition: RequestDefinition, scope: VariableScope) {
+        guard !definition.url.allSatisfy(\.isWhitespace) else {
+            self = .noURL
+            return
+        }
+        do throws(ResolveError) {
+            self = .command(CurlRenderer.render(try VariableResolver.resolve(definition, scope: scope)))
+        } catch {
+            switch error {
+            case .undefined(let names): self = .undefined(names)
+            case .invalidURL(let text): self = .invalidURL(text)
+            }
+        }
+    }
+}

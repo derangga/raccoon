@@ -47,4 +47,21 @@ struct CopyAsCurlTests {
                                                      windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
         #expect(editor.menu(for: event)?.item(withTitle: "Copy as Curl") != nil)
     }
+
+    @Test func `the Curl pane's command keeps a secret as {{name}} and never reads the Keychain`() throws {
+        let secrets = FlakySecretStore()
+        let key = VariableName("api_key")!
+        try secrets.set("sk_live_1", environment: "Dev", name: key)
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: secrets, files: DictionaryFileReading([:]),
+                             instants: FixedInstantSource(.now), clipboard: clipboard)
+        model.variables = { (Environment(name: "Dev", entries: [VariableEntry(name: key, value: .secret)]), Globals(entries: [])) }
+        model.tab.definition.url = "https://h/a"
+        model.tab.definition.auth = .bearer(token: "{{api_key}}")
+
+        #expect(model.curlPreview == .command("curl 'https://h/a' \\\n  -H 'Authorization: Bearer {{api_key}}'"))
+        #expect(secrets.gets == 0)
+        model.copyAsCurl(includeSecrets: true)
+        #expect(clipboard.string == "curl 'https://h/a' \\\n  -H 'Authorization: Bearer sk_live_1'")
+    }
 }
+

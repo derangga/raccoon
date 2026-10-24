@@ -11,10 +11,6 @@
 #   swift run Raccoon -DataFolder "$D"
 # Quit with ⌘Q while the Raccoon window is in front.
 #
-# The Curl pane is not built yet, so its segment is disabled: board 11's Curl-selected header
-# cannot be reached here. Only the Variables-selected header (board 11's right-hand card, and
-# board 04) is checked.
-#
 # Accessibility checks use Accessibility Inspector (Xcode ▸ Open Developer Tool).
 
 
@@ -38,7 +34,7 @@ Feature: The inspector's frame and header
     And on the right of the header is a two-segment control, 8 pt in from the edge:
       | segment | glyph                | state                                                 |
       | 1       | curly braces { }     | selected: a filled selection background, glyph in text colour |
-      | 2       | terminal >_          | disabled: glyph in the disabled (faint) colour, no fill |
+      | 2       | terminal >_          | not selected: no fill                                   |
     And each segment is 30 pt wide, inside one box with a 1 pt border and rounded corners
     And a 1 pt rule splits the two segments
 
@@ -50,18 +46,113 @@ Feature: The inspector's frame and header
     Then a tooltip reads "Curl"
     When I inspect the control with Accessibility Inspector
     Then it is a radio group labelled "Inspector pane" with two radio buttons, labelled "Variables" and "Curl"
-    And "Variables" is selected and enabled, and "Curl" is not selected and not enabled
+    And "Variables" is selected and enabled, and "Curl" is not selected and enabled
 
-  Scenario: 4. The Curl segment waits for its pane
+  Scenario: 4. The Curl segment opens the Curl pane
     Given the inspector is open
     When I click the terminal segment
-    Then nothing changes: the header still reads "Variables", the curly braces stay selected
-    And the Variables pane and its "Edit Environments…" button stay where they were
+    Then the header reads "Curl" and the terminal segment is selected
+    And the Variables pane and its "Edit Environments…" button are gone, the Curl pane in their place
+    When I click the curly-braces segment
+    Then the header reads "Variables" and the Variables pane is back
 
   Scenario: 5. The toggle closes it again
     Given the inspector is open
     When I click the inspector toggle
     Then the inspector closes and the content reaches the window's right edge again
+
+
+# Curl pane
+#
+# Board 11's left-hand window and its "Curl: blocked by Undefined Variables" card. Run every
+# Scenario in Latte, then again in Mocha. Same Data Folder and launch as above.
+#
+# Setup, once: Edit Environments… ▸ Dev, add "host" = "https://api.dev.payments.example.com"
+# and "api_key" = "sk_live_1" marked secret. Pick Dev in the toolbar. Then ⌘T and paste into
+# the URL field, as one line:
+#   curl -X POST 'https://api.dev.payments.example.com/v1/refunds' -H 'Content-Type: application/json' -H 'Authorization: Bearer {{api_key}}' -b 'session=7f3a; locale=en' --data-raw '{"charge":"ch_3PqL8x2e","amount":500}'
+#
+# Known simplifications: with no command the footer holds only Copy (as on board 11's card);
+# Include secrets is off again at every launch; a secret the Keychain cannot read makes Copy
+# with Include secrets copy nothing.
+
+
+Feature: The Curl pane
+  Board 11, in Latte and in Mocha
+
+  Background:
+    Given Raccoon is running on /tmp/raccoon-inspector with the setup above
+    And the pasted Tab is selected, the inspector open on its terminal segment
+
+  Scenario: 6. The command, as board 11 draws it
+    Then the header reads "Curl"
+    And under it, in a box with 6 pt rounded corners, a 1 pt border and the editor's background, reads in 11 pt monospace:
+      """
+      curl -X POST 'https://api.dev.payments.example.com/v1/refunds' \
+        -H 'Content-Type: application/json' \
+        -H 'Authorization: Bearer {{api_key}}' \
+        -b 'session=7f3a; locale=en' \
+        --data-raw '{"charge":"ch_3PqL8x2e","amount":500}'
+      """
+    And "curl", "-H", "-b" and "--data-raw" are dimmer than the rest of the text
+    And "{{api_key}}" is in the secret colour with a dotted underline, and "sk_live_1" is nowhere in the pane
+    And long lines wrap inside the box, mid-word where needed, with nothing cut off
+    And under the box, in small tertiary text: "Resolved with Dev. Disabled Rows are left out."
+    And the footer holds an unchecked "Include secrets" checkbox on the left and "Copy" in the accent colour on the right
+
+  Scenario: 7. Copy leaves the secret as {{name}}
+    When I click "Copy" and paste into TextEdit
+    Then the pasted text is exactly the command in scenario 6
+
+  Scenario: 8. Include secrets fills the secret in the copied text only
+    When I check "Include secrets"
+    Then the pane still reads "Bearer {{api_key}}"
+    When I click "Copy" and paste into TextEdit
+    Then the pasted text reads "Bearer sk_live_1" where the pane reads "Bearer {{api_key}}", and every other character is the same
+    When I quit with ⌘Q and launch again
+    Then "Include secrets" is unchecked
+
+  Scenario: 9. It follows every edit, the Active Environment and the selected Tab
+    When I uncheck the "Content-Type" row in Headers
+    Then the "-H 'Content-Type: application/json'" line leaves the pane at once
+    When I change the URL to "{{host}}/v1/refunds"
+    Then the first line still reads "curl -X POST 'https://api.dev.payments.example.com/v1/refunds' \"
+    When I pick No Environment in the toolbar
+    Then the pane reads "No curl command yet" and "host is not defined in Globals."
+    And there is no note under it
+    When I pick Dev again
+    Then the command is back, and the note reads "Resolved with Dev. Disabled Rows are left out."
+    When I click another Tab, then this one again
+    Then the pane shows that Tab's command, then this one's
+
+  Scenario: 10. Undefined Variables block the command
+    When I change the URL to "https://api.dev.payments.example.com/v1/charges/{{charge_id}}"
+    And I add a header "X-Tenant" with the value "{{tenant_id}}"
+    Then the box and its note are gone; centred in the pane are a red circled "!" and "No curl command yet" in red semibold
+    And under them, in tertiary text: "charge_id and tenant_id are not defined in Dev or in Globals."
+    And the footer holds only "Copy", in faint text with no accent fill, and clicking it does nothing
+    And "Include secrets" is not shown
+    And the pane matches board 11's "Curl: blocked by Undefined Variables" card
+
+  Scenario: 11. An invalid URL is quoted
+    When I change the URL to "localhost:4000/a"
+    Then the pane reads "No curl command yet" and "After substitution the URL was localhost:4000/a."
+    And "Copy" is disabled
+
+  Scenario: 12. An empty Draft asks for a URL
+    When I press ⌘T
+    Then the pane reads only "Type a URL to see the curl command.", centred, in tertiary text, with no glyph
+    And "Copy" is disabled and "Include secrets" is not shown
+    When I type "https://h/a"
+    Then the pane reads "curl 'https://h/a'" and "Copy" is in the accent colour
+
+  Scenario: 13. A 2,000-character URL and a 20 KB body wrap and scroll
+    When I set the URL to "https://h/" followed by 1,990 "a"s
+    And I set the Body to raw JSON and paste 20 KB of text into it
+    Then the URL wraps across many lines inside the box, with no horizontal scroll bar
+    And the box scrolls down to the body's closing "'"
+    When I click "Copy" and paste into TextEdit
+    Then TextEdit holds the whole command, ending with the body's last character and "'"
 
 # Variables pane
 #
