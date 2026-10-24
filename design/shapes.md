@@ -110,8 +110,14 @@ CurlImport               definition, ignoredFlags [String], fileReferences [Stri
                          "2 more commands" note
 PasteTarget              .currentTab · .newDraftTab
 
-PostmanFile              .collection(Collection) · .environment(Environment)
-                         · .globals([VariableEntry]) · .notPostman(reason)
+PostmanFile              .collection(PostmanCollection) · .environment(PostmanEnvironment)
+                         · .globals([PostmanVariable]) · .notPostman
+                         in Postman's terms (`key`, `disabled`, `mode`, `listen`), not Raccoon's:
+                         PostmanMapping turns them into an ImportPlan. Type variance is settled
+                         here (url string or object, host and path string or array, auth params
+                         array or object, values of any JSON type as text); nothing is dropped
+                         but an item with neither `item` nor `request`, kept as .other(name).
+                         .notPostman carries no reason: the sheet's row has one sentence (§4)
 ImportPlan               collections, environments, globals to add, each with its final name
                          (" 2" on a collision), and [ImportNote]
 ImportNote               what was dropped or changed, and the Requests it applies to:

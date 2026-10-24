@@ -28,8 +28,11 @@ once, so an unzipped Postman data export imports in one pass.
   -> FileReading.read(path) for each             boundary    R: FileReading
                                                  E: unreadable -> that file's row says so
   -> PostmanImporter.read(data)                  pure        R: none
-     -> .collection(PostmanCollection) | .environment(…) | .globals(…) | .notPostman
+     -> .collection(PostmanCollection) | .environment(PostmanEnvironment)
+        | .globals([PostmanVariable]) | .notPostman
                                                  E: not JSON -> .notPostman, never a crash
+                                                 E: an item with neither `item` nor
+                                                 `request` -> .other(name), the plan counts it
   -> PostmanMapping.plan(files, dataFolder, globals, environments)
                                                  pure: the ImportPlan, every note attached
   -> the Import sheet: what will be created, what will be dropped    the user can untick any
