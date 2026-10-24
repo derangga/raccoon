@@ -9,8 +9,7 @@
 # Part 1, "One Session file per Data Folder", runs on the current build.
 # Parts 2 onward describe the Workspace pop-up and run on the current build. Run each Feature
 # twice: once with macOS Appearance set to Light (System Settings ▸ Appearance ▸ Light),
-# once with Dark. The one step that needs the Environments sheet is tagged @not-built-yet:
-# skip it until that sheet exists.
+# once with Dark.
 #
 # ─── Words used below ─────────────────────────────────────────────────────────────────────
 #
@@ -129,8 +128,7 @@ Feature: One Session file per Data Folder
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════
-# Not built yet. Everything below describes the Workspace pop-up and switching as designed.
-# Do not run it until they are built. Each Feature then runs in Light and in Dark, and the
+# The Workspace pop-up and switching. Each Feature runs in Light and in Dark, and the
 # pop-up, its menu and the banner are compared with board 13:
 #   open design/ui/mockups/13-workspaces.html
 # ══════════════════════════════════════════════════════════════════════════════════════════
@@ -297,8 +295,13 @@ Feature: A Workspace that can't be read or written
     Given in Terminal B I ran: echo garbage > /tmp/raccoon-side/api/raccoon.json
     When I switch to "api — side"
     Then in Terminal B "cat /tmp/raccoon-side/api/raccoon.json" still prints: garbage
-    # Skip this step until the Environments sheet exists (it is @not-built-yet).
-    And when I mark a Variable as secret in the Environments sheet, its row says "raccoon.json can't be read"
+    When I press ⌥⌃E and click + under the list
+    And I type token in the empty row's Name cell, press Tab, type abc and press Tab
+    And I click the open lock in token's Secret column
+    Then a red line under the table reads: Not saved. raccoon.json can't be read.
+    And the lock stays open and token's value still reads "abc"
+    When I click Done
+    Then in Terminal B "cat /tmp/raccoon-side/api/raccoon.json" still prints: garbage
 
   Scenario: A folder that can be read but not written
     Given in Terminal B I ran: rm -f /tmp/raccoon-side/api/raccoon.json && chmod 500 /tmp/raccoon-side/api

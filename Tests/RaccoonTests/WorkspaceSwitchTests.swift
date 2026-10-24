@@ -38,20 +38,24 @@ struct WorkspaceSwitchTests {
         DiskSessionStore(directory: temp.appending(path: "Support"), root: root.path)
     }
 
-    @Test func `switching A to B to A restores A's Tabs, Drafts and Dirty edits`() async throws {
+    @Test func `switching A to B to A restores A's Tabs, Drafts, Dirty edits and Active Environment`() async throws {
         let window = makeWindow(open: a, listed: [a, b])
         window.loadDataFolder()
         window.selectedTab?.typeInURLBar("https://a.example/draft")
         window.newTab()
         window.selectedTab?.typeInURLBar("https://a.example/second")
+        let environment = try window.newEnvironment()
+        window.pickActiveEnvironment(environment)
         let before = window.tabs.map(\.tab.snapshot)
 
         await window.switchWorkspace(b.path)
         #expect(window.tabs.count == 1)
         #expect(window.tabs[0].tab.definition == .empty)
+        #expect(window.activeEnvironment == nil)
 
         await window.switchWorkspace(a.path)
         #expect(window.tabs.map(\.tab.snapshot) == before)
+        #expect(window.activeEnvironment == environment)
     }
 
     @Test func `switching to the open Workspace does nothing`() async throws {
