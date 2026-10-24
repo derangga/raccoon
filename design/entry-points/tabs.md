@@ -104,6 +104,24 @@ punish the feature that makes it unnecessary.
   -> activeEnvironment by name               missing -> none, variables.md
 ```
 
+```
+-> restore the inspector                          applicationDidFinishLaunching (design-system
+                                                 §9 Q14). UserDefaults, never the Session
+  -> CompositionRoot.inspectorMemory(defaults)   boundary    R: UserDefaults
+                                                 InspectorShown, InspectorWidth, InspectorPane
+  -> MainSplitViewController(memory)             open as remembered, at the remembered width
+                                                 clamped to 240–400; docked or overlaid as
+                                                 the window allows (Q2)
+  -> InspectorViewController(memory)             on the remembered pane
+-> toggle, drag the divider, pick a pane         each change remembered at once
+  -> memory.rememberShown / rememberWidth / rememberPane
+```
+
+**The Session is for Tabs.** Nothing the inspector does schedules a Session write, so a
+Workspace's Session file does not change when only the inspector does. `NSSplitView`'s
+`autosaveName` was not used: it writes only to the standard defaults, which tests cannot
+swap, and it keeps `isCollapsed`, which is also true of an inspector open as an overlay.
+
 **A relaunch compares baselines.** If a `git pull` changed a Request while Raccoon was not
 running, the Tab's Dirty edits were made against the old file. That is exactly Changed on
 Disk, so it reuses that state instead of inventing a second one.

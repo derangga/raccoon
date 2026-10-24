@@ -11,8 +11,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     let inspectorToggle = MainWindowController.toggle(symbol: "sidebar.right", label: "Show Inspector", action: #selector(NSSplitViewController.toggleInspector(_:)))
     let environmentPicker = EnvironmentPicker()
 
-    init(theme: ThemeEnvironment, reduceMotion: @escaping () -> Bool) {
-        split = MainSplitViewController(theme: theme)
+    init(theme: ThemeEnvironment, inspector: InspectorMemory, reduceMotion: @escaping () -> Bool) {
+        split = MainSplitViewController(theme: theme, inspector: inspector)
         banner = BannerView(theme: theme, reduceMotion: reduceMotion)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 760),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -151,13 +151,21 @@ final class MainSplitViewController: NSSplitViewController {
 
     /// Open, docked or overlaid. The toolbar toggles mirror these through onShownChange.
     private(set) var isSidebarShown = true { didSet { onShownChange?() } }
-    private(set) var isInspectorShown = false { didSet { onShownChange?() } }
+    private(set) var isInspectorShown: Bool {
+        didSet {
+            onShownChange?()
+            memory.rememberShown(isInspectorShown)
+        }
+    }
     var onShownChange: (() -> Void)?
 
     private var isNarrow = false
     private var sidebarWasDocked = true
     private var sidebarWidth: CGFloat = 232
-    private var inspectorWidth: CGFloat = 280
+    private var inspectorWidth: CGFloat {
+        didSet { if inspectorWidth != oldValue { memory.rememberWidth(inspectorWidth) } }
+    }
+    private let memory: InspectorMemory
     private var sidebarOverlay: Overlay?
     private var inspectorOverlay: Overlay?
     private var eventMonitor: Any?
@@ -166,15 +174,19 @@ final class MainSplitViewController: NSSplitViewController {
     var isSidebarOverlaid: Bool { sidebarOverlay != nil }
     var isInspectorOverlaid: Bool { inspectorOverlay != nil }
 
-    init(theme: ThemeEnvironment) {
+    /// Opens as `inspector` remembers, at its width kept within the inspector's 240–400 pt.
+    init(theme: ThemeEnvironment, inspector: InspectorMemory) {
+        memory = inspector
+        inspectorWidth = min(max(inspector.width ?? 280, 240), 400)
+        isInspectorShown = inspector.isShown
         contentPane = Pane(width: 600, view: ThemedView(theme: theme, fill: .background))
-        inspectorPane = Pane(width: 280, view: ThemedView(theme: theme, fill: .backgroundRecessed, leadingBorder: .border))
+        inspectorPane = Pane(width: inspectorWidth, view: ThemedView(theme: theme, fill: .backgroundRecessed, leadingBorder: .border))
         sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarPane)
         sidebarItem.minimumThickness = 180
         sidebarItem.maximumThickness = 360
         sidebarItem.allowsFullHeightLayout = false
         inspectorItem = NSSplitViewItem(inspectorWithViewController: inspectorPane)
-        inspectorItem.minimumThickness = 240
+        inspectorItem.minimumThickness = 240  // and the clamp above
         inspectorItem.maximumThickness = 400
         inspectorItem.allowsFullHeightLayout = false
         inspectorItem.isCollapsed = true
@@ -254,10 +266,20 @@ final class MainSplitViewController: NSSplitViewController {
         toggleInspector(nil)
     }
 
-    override func viewDidLayout() {
-        super.viewDidLayout()
+    /// A divider drag resizes the panes without a layout pass of this view.
+    override func splitViewDidResizeSubviews(_ notification: Notification) {
+        super.splitViewDidResizeSubviews(notification)
+        keepDockedWidths()
+    }
+
+    private func keepDockedWidths() {
         if !sidebarItem.isCollapsed, sidebarPane.view.frame.width > 0 { sidebarWidth = sidebarPane.view.frame.width }
         if !inspectorItem.isCollapsed, inspectorPane.view.frame.width > 0 { inspectorWidth = inspectorPane.view.frame.width }
+    }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        keepDockedWidths()
 
         let isNarrow = view.bounds.width < 960
         if isNarrow != self.isNarrow {

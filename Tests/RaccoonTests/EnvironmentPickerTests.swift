@@ -76,7 +76,7 @@ struct EnvironmentPickerTests {
     }
 
     @Test func `the toolbar carries the picker before the inspector toggle`() {
-        let controller = MainWindowController(theme: ThemeController.standalone().theme, reduceMotion: { false })
+        let controller = MainWindowController(theme: ThemeController.standalone().theme, inspector: InspectorMemory(), reduceMotion: { false })
         let ids = controller.toolbarDefaultItemIdentifiers(NSToolbar())
         #expect(ids.suffix(2) == [MainWindowController.environmentID, MainWindowController.inspectorToggleID])
     }

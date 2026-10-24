@@ -33,6 +33,8 @@ a Postman export file       → PostmanFile               // PostmanImporter, pu
                                                         //   .notPostman, never a throw
 bundled theme JSON          → Theme                     // ours: a failure is DIE (§4)
 UserDefaults ThemeChoice    → ThemeChoice               // unknown names fall back
+UserDefaults Inspector…     → InspectorMemory           // open, width, pane; a wrong type is
+                                                        //   absent, the width clamped by the split
 ```
 
 **Every JSON file Raccoon writes carries `"version": 1`.** The Data Folder is a format other

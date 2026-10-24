@@ -33,7 +33,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.themeController = themeController
         NSApp.mainMenu = MainMenu.make(theme: themeController)
         let theme = themeController.theme
-        let windowController = MainWindowController(theme: theme, reduceMotion: { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion })
+        // The inspector's state is UserDefaults' (Q14), never the Session's.
+        let inspectorMemory = CompositionRoot.inspectorMemory(defaults: .standard)
+        let windowController = MainWindowController(theme: theme, inspector: inspectorMemory, reduceMotion: { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion })
         let chooseWorkspaceFolder = { [weak windowController] () async -> String? in
             guard let window = windowController?.window else { return nil }
             let panel = NSOpenPanel()
@@ -93,7 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let tabBanner = TabBannerBinding(window: windowModel, theme: theme, reduceMotion: { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion })
         windowController.split.showTab(ContentViewController(strip: strip, tab: tabController, banner: tabBanner))
         self.tabController = tabController
-        let inspector = InspectorViewController(window: windowModel, theme: theme)
+        let inspector = InspectorViewController(window: windowModel, theme: theme, memory: inspectorMemory)
         inspector.onEditEnvironments = { [weak self] in self?.editEnvironments(nil) }
         windowController.split.showInspector(inspector)
         // "Variables in request" in the Variable popover.

@@ -395,3 +395,114 @@ Feature: Shortcuts for the sheet, the filter, the inspector and the sidebar
 #   takes the caret. "Filter Collections" stays enabled in the menu all the same.
 # - The find bar searches the text shown: matches inside a Folded Fold Region are not found
 #   until it is unfolded.
+
+# Remembered across relaunch
+#
+# Whether the inspector is open, its width and Variables / Curl are kept in UserDefaults
+# (design-system §9 Q14), never in the Session file. Widths are in points. To read the
+# inspector's width on screen, press ⇧⌘4 and drag from its left border (the 1 pt line) to the
+# window's right edge: the number beside the pointer is the width in points; Esc cancels the
+# screenshot. To read the width Raccoon stored, in Terminal B:
+#   defaults read Raccoon InspectorWidth
+#
+# ─── How launching works ──────────────────────────────────────────────────────────────────
+#
+# In Terminal A, inside the project folder:
+#   cd ~/Documents/playground/raccoon
+#   swift run Raccoon -DataFolder /tmp/raccoon-remember
+# Quit with ⌘Q while the Raccoon window is in front. The window opens 1,200 pt wide.
+#
+# ─── Before you start (once) ──────────────────────────────────────────────────────────────
+#
+# In Terminal B, inside the project folder:
+#   cd ~/Documents/playground/raccoon
+#   swift build
+#   rm -rf /tmp/raccoon-remember
+#   cp -R manual-tests/collections.datafolder /tmp/raccoon-remember
+#   rm -f ~/Library/Application\ Support/Raccoon/sessions/219c9decb85386d1.json
+#   defaults delete Raccoon InspectorShown; defaults delete Raccoon InspectorWidth; defaults delete Raccoon InspectorPane
+# "swift build" should end with "Build complete!". A "defaults delete" of a key that is not
+# there prints "Domain (Raccoon) not found" or "...does not exist"; that is fine.
+#
+# ─── When you are done ────────────────────────────────────────────────────────────────────
+#
+# Quit Raccoon. In Terminal B:
+#   rm -rf /tmp/raccoon-remember
+#   rm -f ~/Library/Application\ Support/Raccoon/sessions/219c9decb85386d1*
+
+Feature: The inspector is remembered across relaunch
+
+  Scenario: 1. With nothing remembered, the inspector starts closed on Variables
+    Given Raccoon is running on /tmp/raccoon-remember for the first time since "Before you start"
+    Then the inspector is closed and the toolbar's "Show Inspector" button is not pressed
+    When I click the inspector toggle
+    Then the inspector opens about 280 pt wide, its header reading "Variables"
+
+  Scenario: 2. Quit with the Curl pane open at 320 pt; relaunch shows the same
+    Given Raccoon is not running
+    When I run in Terminal B: defaults write Raccoon InspectorWidth -float 320
+    And I launch Raccoon and click the inspector toggle if the inspector is closed
+    Then the inspector is 320 pt wide (⇧⌘4, see above)
+    When I click the terminal segment in the inspector's header
+    Then the header reads "Curl"
+    When I quit with ⌘Q and launch Raccoon again
+    Then the inspector is already open, 320 pt wide, the toolbar's "Show Inspector" button pressed
+    And the header reads "Curl", the terminal segment selected, the Curl pane below it
+    And the View menu's second item reads "Hide Inspector"
+
+  Scenario: 3. A width dragged by hand is the width after relaunch
+    Given the inspector is open, docked, on Curl
+    When I drag the inspector's left border to the left by about two finger-widths
+    And I quit with ⌘Q
+    And I run in Terminal B: defaults read Raccoon InspectorWidth
+    Then it prints a number between 340 and 400; call it W
+    When I launch Raccoon again
+    Then the inspector is open on Curl and W pt wide (⇧⌘4)
+    When I click the inspector toggle twice, closing and opening it
+    Then it opens W pt wide again
+
+  Scenario: 4. Closed and on Variables is remembered too
+    Given the inspector is open on Curl
+    When I click the curly-braces segment, then the inspector toggle to close it
+    And I quit with ⌘Q and launch Raccoon again
+    Then the inspector is closed and the toolbar's "Show Inspector" button is not pressed
+    When I press ⌥⌘I
+    Then the inspector opens W pt wide, its header reading "Variables"
+
+  Scenario: 5. A width out of range is kept within 240–400 pt
+    Given Raccoon is not running and the inspector was open when it quit
+    When I run in Terminal B: defaults write Raccoon InspectorWidth -float 1000
+    And I launch Raccoon
+    Then the inspector is open and 400 pt wide
+    When I quit, run: defaults write Raccoon InspectorWidth -float 100, and launch again
+    Then the inspector is open and 240 pt wide
+    When I quit, run: defaults write Raccoon InspectorPane Headers, and launch again
+    Then the inspector's header reads "Variables"
+
+  Scenario: 6. Remembered open in a narrow window, the inspector overlays
+    Given the inspector is open and docked
+    When I drag the window's right edge until the window is about 800 pt wide
+    Then the inspector lies over the right of the content, with a shadow
+    When I quit with ⌘Q and launch Raccoon again
+    Then the window opens 1,200 pt wide and the inspector is docked, not overlaid
+    When I drag the window narrow again, press Esc to close the overlay, quit and relaunch
+    Then the inspector is closed
+
+  Scenario: 7. The Session file does not change when only the inspector changes
+    Given Raccoon is running on /tmp/raccoon-remember with the inspector closed
+    When I type "x" at the end of the URL field and wait two seconds
+    And I run in Terminal B: ls -lT ~/Library/Application\ Support/Raccoon/sessions/219c9decb85386d1.json
+    Then it prints one line; note its time, to the second
+    When I wait until that time is at least five seconds ago
+    And I open the inspector, drag its left border, click the terminal segment, click the curly-braces segment and close the inspector
+    And I wait two seconds and run the same ls -lT
+    Then it prints the same time as before
+
+# ─── Known simplifications ────────────────────────────────────────────────────────────────
+#
+# - Showing a Variable from its popover ("Variables in request") switches to Variables, and
+#   that is remembered as the last choice like a click on the segment.
+# - The window's own size and place are not remembered: it opens 1,200 × 760, centred, so a
+#   narrow-window overlay at quit comes back docked.
+# - Quitting writes the Session file (Tabs) whatever the inspector did, so scenario 7 looks
+#   at the file while Raccoon is running, not across a quit.

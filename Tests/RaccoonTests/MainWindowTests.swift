@@ -6,7 +6,7 @@ import Testing
 
 @MainActor
 struct MainWindowTests {
-    let controller = MainWindowController(theme: ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false), reduceMotion: { true })
+    let controller = MainWindowController(theme: ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false), inspector: InspectorMemory(), reduceMotion: { true })
     var split: MainSplitViewController { controller.split }
 
     @Test func `the window opens with a 232 pt sidebar, the content and a closed inspector`() throws {
@@ -82,7 +82,7 @@ struct MainWindowTests {
     @Test(arguments: [false, true])
     func `the inspector is on backgroundRecessed with a 1 pt border on its leading edge`(isDark: Bool) throws {
         let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: isDark)
-        let split = MainWindowController(theme: theme, reduceMotion: { true }).split
+        let split = MainWindowController(theme: theme, inspector: InspectorMemory(), reduceMotion: { true }).split
         split.toggleInspector(nil)
         split.view.window?.layoutIfNeeded()
         let fill = try #require(split.inspectorItem.viewController.view.subviews.first)

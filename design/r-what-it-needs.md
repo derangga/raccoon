@@ -88,6 +88,11 @@ CurlImport flow   FileReading                       only for @file references
 Copy as Curl      SecretStore, ClipboardWriter
 ThemeController   UserDefaults, the app bundle,     no port: all three are already injectable.
                   an appearance source              NSApp in the app, an NSView in tests
+MainSplitViewController,  InspectorMemory              whether the inspector is open, its width
+InspectorViewController                                 and its pane, and how to remember each;
+                                                        the composition root backs it with
+                                                        UserDefaults (Q14), tests with a
+                                                        suite of their own or nothing
 Postman Import    FileReading, DataFolderStore, SecretStore      through the window, which owns
                                                     the index and the WriteLedger
 ```

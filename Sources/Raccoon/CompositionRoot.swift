@@ -28,4 +28,16 @@ enum CompositionRoot {
             makeTab: { TabModel(transport: transport, secrets: $0, files: files, instants: instants, clipboard: clipboard) }
         )
     }
+
+    /// A value of the wrong type reads as absent; the split clamps the width.
+    static func inspectorMemory(defaults: UserDefaults) -> InspectorMemory {
+        InspectorMemory(
+            isShown: defaults.object(forKey: "InspectorShown") as? Bool ?? false,
+            width: (defaults.object(forKey: "InspectorWidth") as? Double).flatMap { $0.isFinite ? CGFloat($0) : nil },
+            pane: defaults.object(forKey: "InspectorPane") as? String,
+            rememberShown: { defaults.set($0, forKey: "InspectorShown") },
+            rememberWidth: { defaults.set(Double($0), forKey: "InspectorWidth") },
+            rememberPane: { defaults.set($0, forKey: "InspectorPane") }
+        )
+    }
 }

@@ -18,10 +18,13 @@ final class InspectorViewController: NSViewController {
     private lazy var footerRule = ThemedView(theme: theme, fill: .border)
     let curl: CurlPaneView
     var onEditEnvironments: (() -> Void)?
+    private let rememberPane: (String) -> Void
 
-    init(window: WindowModel, theme: ThemeEnvironment) {
+    /// Opens on the pane `memory` names, Variables when it names none.
+    init(window: WindowModel, theme: ThemeEnvironment, memory: InspectorMemory) {
         self.window = window
         self.theme = theme
+        rememberPane = memory.rememberPane
         paneSwitch = SegmentedControl(labels: ["Variables", "Curl"], symbols: ["curlybraces", "terminal"], theme: theme)
         variables = VariablesPaneView(theme: theme)
         curl = CurlPaneView(theme: theme)
@@ -41,6 +44,7 @@ final class InspectorViewController: NSViewController {
         editButton.action = #selector(editEnvironments)
         variables.onEdit = { [weak self] entry, group, text in self?.write(entry, group: group, text) }
         variables.reload = { [weak self] in self?.refresh() }
+        showPane(memory.pane == "Curl" ? 1 : 0)
         observe()
     }
 
@@ -174,6 +178,7 @@ final class InspectorViewController: NSViewController {
         footerRule.isHidden = index != 0
         curl.isHidden = index != 1
         if index == 1 { refresh() }
+        rememberPane(paneTitle.stringValue)
     }
 }
 

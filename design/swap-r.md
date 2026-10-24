@@ -50,4 +50,8 @@ The test column lives in the `RaccoonTesting` target as `ScriptedTransport`,
 `ContinuousInstantSource`, …). DataFolderStore and SessionStore have no fake: the live one
 over a temp dir is the test implementation.
 
+InspectorMemory is not a port: the composition root backs its remember closures with
+UserDefaults, and a test passes the values it wants, or a UserDefaults suite of its own,
+cleared first, to prove the round trip across a relaunch.
+
 If a test needs anything other than this table to run, the design has a hidden dependency.

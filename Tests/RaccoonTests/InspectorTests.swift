@@ -52,7 +52,7 @@ struct InspectorTests {
         let tab = try #require(window.selectedTab)
         tab.tab.definition.url = "{{host}}/v1/charges/{{charge_id}}"
         tab.tab.definition.headers = [Row(name: "Authorization", value: "Bearer {{access_token}}"), Row(name: "X-Tenant", value: "{{tenant_id}}")]
-        let inspector = InspectorViewController(window: window, theme: theme ?? self.theme)
+        let inspector = InspectorViewController(window: window, theme: theme ?? self.theme, memory: InspectorMemory())
         inspector.view.frame = NSRect(x: 0, y: 0, width: 280, height: 600)
         inspector.view.layoutSubtreeIfNeeded()
         return (window, inspector)
@@ -246,7 +246,7 @@ struct InspectorTests {
 
     @Test func `No Environment points at the toolbar, and no Globals says so`() throws {
         let window = try makeWindow(environments: [:], globals: [])
-        let inspector = InspectorViewController(window: window, theme: theme)
+        let inspector = InspectorViewController(window: window, theme: theme, memory: InspectorMemory())
         inspector.view.frame = NSRect(x: 0, y: 0, width: 280, height: 600)
         #expect(inspector.variables.titles == ["No Environment · pick one in the toolbar", "Globals"])
         #expect(inspector.variables.emptyGlobals == "No Globals.")
@@ -315,7 +315,7 @@ struct InspectorTests {
 
     @Test func `board 11 in Mocha: No Environment points at the toolbar and Globals follow`() throws {
         let window = try makeWindow(environments: ["Staging": []], globals: [entry("host", .plain("http://localhost:4000")), entry("user_agent", .plain("Raccoon/1.0"))])
-        let inspector = InspectorViewController(window: window, theme: ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: true))
+        let inspector = InspectorViewController(window: window, theme: ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: true), memory: InspectorMemory())
         inspector.view.frame = NSRect(x: 0, y: 0, width: 280, height: 600)
 
         #expect(inspector.variables.titles == ["No Environment · pick one in the toolbar", "Globals"])
@@ -342,7 +342,7 @@ struct InspectorTests {
         )
         window.pickActiveEnvironment("Staging")
         try #require(window.selectedTab).tab.definition.url = "{{host}}?key={{api_key}}"
-        let inspector = InspectorViewController(window: window, theme: theme)
+        let inspector = InspectorViewController(window: window, theme: theme, memory: InspectorMemory())
         inspector.view.frame = NSRect(x: 0, y: 0, width: 280, height: 600)
         inspector.view.layoutSubtreeIfNeeded()
         #expect(inspector.variables.rows.filter { $0.value == "Secret" }.count == 3)
@@ -363,7 +363,7 @@ struct InspectorTests {
         let entries = (0..<200).map { entry(String(format: "var_%03d", $0), .plain("value \($0)")) }
         let window = try makeWindow(environments: ["Load": entries], globals: [])
         window.pickActiveEnvironment("Load")
-        let inspector = InspectorViewController(window: window, theme: theme)
+        let inspector = InspectorViewController(window: window, theme: theme, memory: InspectorMemory())
         inspector.view.frame = NSRect(x: 0, y: 0, width: 280, height: 600)
         inspector.view.layoutSubtreeIfNeeded()
         let pane = inspector.variables
@@ -384,7 +384,7 @@ struct InspectorTests {
     @Test func `break-ui: a long value end-truncates in its cell, with the full value in its tooltip`() throws {
         let long = "https://api.staging.payments.example.com/" + String(repeating: "segment/", count: 60)
         let window = try makeWindow(environments: [:], globals: [entry("base", .plain(long))])
-        let inspector = InspectorViewController(window: window, theme: theme)
+        let inspector = InspectorViewController(window: window, theme: theme, memory: InspectorMemory())
         inspector.view.frame = NSRect(x: 0, y: 0, width: 280, height: 600)
         inspector.view.layoutSubtreeIfNeeded()
 
@@ -413,7 +413,7 @@ struct InspectorTests {
         tab.tab.definition.auth = .bearer(token: "{{api_key}}")
         tab.tab.definition.cookies = [Row(name: "session", value: "7f3a"), Row(name: "locale", value: "en")]
         tab.tab.definition.body = .raw(.json, #"{"charge":"ch_3PqL8x2e","amount":500}"#)
-        let inspector = InspectorViewController(window: window, theme: ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: isDark))
+        let inspector = InspectorViewController(window: window, theme: ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: isDark), memory: InspectorMemory())
         inspector.view.frame = NSRect(x: 0, y: 0, width: 280, height: 600)
         inspector.showPane(1)
         inspector.view.layoutSubtreeIfNeeded()

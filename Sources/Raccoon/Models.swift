@@ -317,6 +317,19 @@ struct DataFolderLocation {
     var rememberWorkspaces: ([String]) -> Void = { _ in }
 }
 
+/// Whether the inspector is open, its width and its pane, kept across relaunch (design-system
+/// §9 Q14), and how to remember each. The composition root backs it with UserDefaults, never
+/// the Session; tests pass the values they want.
+struct InspectorMemory {
+    var isShown = false
+    var width: CGFloat?
+    /// The pane's name, "Variables" or "Curl".
+    var pane: String?
+    var rememberShown: (Bool) -> Void = { _ in }
+    var rememberWidth: (CGFloat) -> Void = { _ in }
+    var rememberPane: (String) -> Void = { _ in }
+}
+
 /// An environments/*.json that did not decode: listed in the Environments sheet, read-only.
 struct BrokenEnvironment: Equatable {
     var name: String

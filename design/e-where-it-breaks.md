@@ -146,6 +146,11 @@ Theme
                            app; a bad one is our bug, and a test over every bundled Flavor
                            fails before it can ship
   ⚠ stored ThemeChoice names an unknown Theme → escape: Catppuccin Latte / Mocha
+Inspector (UserDefaults)
+  ⚠ stored width not a number          → escape: 280 pt
+  ⚠ stored width outside 240–400       → escape: clamped to the nearer bound
+  ⚠ stored pane names no pane          → escape: Variables
+  ⚠ restored open in a window too narrow to dock it → not an error: overlaid (Q2)
 Invariants
   ⚠ two Tabs with the same .request(id)    → DIE (assertion). openRequest and relaunch
                            are the only ways in and both check

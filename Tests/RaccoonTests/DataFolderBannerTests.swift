@@ -34,7 +34,7 @@ struct DataFolderBannerTests {
     }
 
     @Test func `the banner spans the window above the sidebar and the content`() throws {
-        let controller = MainWindowController(theme: theme, reduceMotion: { true })
+        let controller = MainWindowController(theme: theme, inspector: InspectorMemory(), reduceMotion: { true })
         let window = try #require(controller.window)
         controller.banner.show(try #require(DataFolderBanner.content(for: .unwritable(path: "/x", reason: ""))), animated: false)
         window.layoutIfNeeded()
