@@ -881,10 +881,13 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
 16. **Re-importing a newer Postman export.** Import never overwrites, so a second import makes
     "Payments API 2". A merge (match by Postman item id, update changed Requests, keep
     Raccoon-side edits) is the obvious next step for people who keep using Postman in
-    parallel; it needs its own design.
+    parallel; it needs its own design. Decided 2026-10-25: v1 never overwrites; the merge is
+    out of v1.
 17. **Postman's data-dump zip.** Settings ▸ Export Data gives a zip of every Collection and
     Environment. v1 asks the user to unzip it and pick the files; reading the zip directly is
-    a small addition at the boundary.
+    a small addition at the boundary. Decided 2026-10-25: v1 opens `.json` files only; the user
+    unzips.
 18. **Drag and drop.** Dropping Postman `.json` files onto the sidebar could open the same
-    sheet. Not drawn.
+    sheet. Not drawn. Decided 2026-10-25: not in v1. Import opens from File ▸ Import from
+    Postman… (⇧⌘I) and the sidebar's + menu only.
 
