@@ -42,7 +42,7 @@ struct InspectorTests {
     }
 
     /// Board 04's window: Staging active, a Tab using two names nothing defines.
-    func board04() throws -> (WindowModel, InspectorViewController) {
+    func board04(theme: ThemeEnvironment? = nil) throws -> (WindowModel, InspectorViewController) {
         let window = try makeWindow(
             environments: ["Staging": [entry("host", .plain("https://api.staging")), entry("access_token", .plain(jwt)), entry("api_key", .secret)]],
             globals: [entry("host", .plain("http://localhost:4000")), entry("user_agent", .plain("Raccoon/1.0"))]
@@ -51,7 +51,7 @@ struct InspectorTests {
         let tab = try #require(window.selectedTab)
         tab.tab.definition.url = "{{host}}/v1/charges/{{charge_id}}"
         tab.tab.definition.headers = [Row(name: "Authorization", value: "Bearer {{access_token}}"), Row(name: "X-Tenant", value: "{{tenant_id}}")]
-        let inspector = InspectorViewController(window: window, theme: theme)
+        let inspector = InspectorViewController(window: window, theme: theme ?? self.theme)
         inspector.view.frame = NSRect(x: 0, y: 0, width: 280, height: 600)
         inspector.view.layoutSubtreeIfNeeded()
         return (window, inspector)
@@ -274,5 +274,124 @@ struct InspectorTests {
         inspector.onEditEnvironments = { asked += 1 }
         inspector.editButton.performClick(nil)
         #expect(asked == 1)
+    }
+
+    // MARK: Boards 04 and 11 in Latte and Mocha, rendering without the Keychain, worst case
+
+    /// The pane's labels as drawn: names, "Secret", where an undefined name is used.
+    func labels(_ text: String, in inspector: InspectorViewController) -> [NSTextField] {
+        func all(_ view: NSView) -> [NSView] { view.subviews + view.subviews.flatMap(all) }
+        return all(inspector.variables.documentView).compactMap { $0 as? NSTextField }.filter { !$0.isEditable && $0.stringValue == text }
+    }
+
+    /// The value cell of the row named `name`.
+    func valueCell(_ name: String, in inspector: InspectorViewController) throws -> NSTextField {
+        try #require(inspector.variables.documentView.subviews.compactMap { $0 as? NSTextField }.first { $0.isEditable && $0.accessibilityLabel() == name })
+    }
+
+    func color(_ field: NSTextField) -> NSColor? {
+        field.attributedStringValue.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
+    }
+
+    @Test(arguments: [false, true])
+    func `board 04 in Latte and Mocha: Not defined red with a wavy underline, a secret locked, an overridden Global struck`(isDark: Bool) throws {
+        let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: isDark)
+        #expect(theme.flavor.name == (isDark ? "Mocha" : "Latte"))
+        let (_, inspector) = try board04(theme: theme)
+
+        #expect(inspector.variables.titles == ["Not defined · used by this Tab", "Staging · Active Environment", "Globals"])
+        let chargeID = try #require(labels("charge_id", in: inspector).first)
+        #expect(color(chargeID) == theme.color(.variableUndefined))
+        #expect(chargeID.attributedStringValue.attribute(.wavyUnderline, at: 0, effectiveRange: nil) as? NSColor == theme.color(.variableUndefined))
+        #expect(color(try #require(labels("URL", in: inspector).first)) == theme.color(.variableUndefined))
+
+        #expect(color(try #require(labels("Secret", in: inspector).first)) == theme.color(.variableSecret))
+
+        let struck = try #require(labels("host", in: inspector).first { $0.attributedStringValue.attribute(.strikethroughStyle, at: 0, effectiveRange: nil) != nil })
+        #expect(color(struck) == theme.color(.textDisabled))
+        #expect(struck.toolTip == "Overridden by Staging")
+    }
+
+    @Test func `board 11 in Mocha: No Environment points at the toolbar and Globals follow`() throws {
+        let window = try makeWindow(environments: ["Staging": []], globals: [entry("host", .plain("http://localhost:4000")), entry("user_agent", .plain("Raccoon/1.0"))])
+        let inspector = InspectorViewController(window: window, theme: ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: true))
+        inspector.view.frame = NSRect(x: 0, y: 0, width: 280, height: 600)
+
+        #expect(inspector.variables.titles == ["No Environment · pick one in the toolbar", "Globals"])
+        #expect(inspector.variables.rows.map(\.name) == ["host", "user_agent"])
+        #expect(inspector.variables.rows.map(\.value) == ["http://localhost:4000", "Raccoon/1.0"])
+        #expect(inspector.variables.emptyGlobals == nil && inspector.variables.note == nil)
+    }
+
+    @Test func `switching to Mocha recolours the pane in place`() async throws {
+        let (_, inspector) = try board04()
+        let mocha = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: true)
+        #expect(mocha.color(.variableUndefined) != theme.color(.variableUndefined))
+
+        theme.flavor = mocha.flavor
+        func undefinedColor() -> NSColor? { labels("charge_id", in: inspector).first.flatMap(color) }
+        for _ in 0..<100 where undefinedColor() != mocha.color(.variableUndefined) { await Task.yield() }
+        #expect(undefinedColor() == mocha.color(.variableUndefined))
+    }
+
+    @Test func `the pane renders secrets without one Keychain read, however it changes`() async throws {
+        let window = try makeWindow(
+            environments: ["Staging": [entry("api_key", .secret), entry("host", .plain("https://api.staging"))], "Dev": [entry("api_key", .secret)]],
+            globals: [entry("api_key", .secret), entry("token", .secret)]
+        )
+        window.pickActiveEnvironment("Staging")
+        try #require(window.selectedTab).tab.definition.url = "{{host}}?key={{api_key}}"
+        let inspector = InspectorViewController(window: window, theme: theme)
+        inspector.view.frame = NSRect(x: 0, y: 0, width: 280, height: 600)
+        inspector.view.layoutSubtreeIfNeeded()
+        #expect(inspector.variables.rows.filter { $0.value == "Secret" }.count == 3)
+
+        inspector.reveal(VariableName("api_key")!)
+        window.pickActiveEnvironment("Dev")
+        for _ in 0..<100 where inspector.variables.titles.contains("Staging · Active Environment") { await Task.yield() }
+        window.pickActiveEnvironment(nil)
+        for _ in 0..<100 where inspector.variables.titles.contains("Dev · Active Environment") { await Task.yield() }
+        theme.flavor = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: true).flavor
+        for _ in 0..<100 { await Task.yield() }
+
+        #expect(inspector.variables.titles.contains("No Environment · pick one in the toolbar"))
+        #expect(secrets.gets == 0)
+    }
+
+    @Test func `break-ui: 200 Variables scroll, and the link scrolls to the last`() throws {
+        let entries = (0..<200).map { entry(String(format: "var_%03d", $0), .plain("value \($0)")) }
+        let window = try makeWindow(environments: ["Load": entries], globals: [])
+        window.pickActiveEnvironment("Load")
+        let inspector = InspectorViewController(window: window, theme: theme)
+        inspector.view.frame = NSRect(x: 0, y: 0, width: 280, height: 600)
+        inspector.view.layoutSubtreeIfNeeded()
+        let pane = inspector.variables
+
+        #expect(pane.rows.count == 200)
+        #expect(pane.emptyGlobals == "No Globals.")
+        let visible = pane.documentView.visibleRect
+        #expect(pane.documentView.frame.height > visible.height)
+        #expect(visible.intersects(try #require(pane.rowFrames.first)))
+
+        inspector.reveal(VariableName("var_199")!)
+        let last = try #require(pane.rowFrames.last)
+        // The link scrolls its selection fill into view: the whole row but its 1 pt rule.
+        #expect(pane.documentView.visibleRect.intersection(last).height >= last.height - 1)
+        #expect(!pane.documentView.visibleRect.intersects(try #require(pane.rowFrames.first)))
+    }
+
+    @Test func `break-ui: a long value end-truncates in its cell, with the full value in its tooltip`() throws {
+        let long = "https://api.staging.payments.example.com/" + String(repeating: "segment/", count: 60)
+        let window = try makeWindow(environments: [:], globals: [entry("base", .plain(long))])
+        let inspector = InspectorViewController(window: window, theme: theme)
+        inspector.view.frame = NSRect(x: 0, y: 0, width: 280, height: 600)
+        inspector.view.layoutSubtreeIfNeeded()
+
+        let cell = try valueCell("base", in: inspector)
+        #expect(cell.stringValue == long)
+        #expect(cell.toolTip == long)
+        #expect(cell.lineBreakMode == .byTruncatingTail)
+        #expect(cell.attributedStringValue.size().width > cell.frame.width)
+        #expect(cell.frame.maxX <= inspector.variables.documentView.frame.width - 12)
     }
 }

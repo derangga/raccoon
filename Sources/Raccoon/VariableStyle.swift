@@ -208,9 +208,9 @@ class VariableFieldCell: NSTextFieldCell {
     }
 }
 
-/// The waves of a field at rest, from a TextKit 1 layout of the field's string laid where its
+/// The waves of a field or label at rest, from a TextKit 1 layout of its string laid where its
 /// cell draws it.
-private final class WaveOverlay: NSView {
+final class WaveOverlay: NSView {
     override var isFlipped: Bool { true }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 

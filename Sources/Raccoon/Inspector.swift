@@ -436,6 +436,15 @@ final class VariablesPaneView: NSView, NSTextFieldDelegate {
             let nameLabel = label(entry.name.rawValue, font: mono, color: struck ? .textDisabled : group == .undefined ? .variableUndefined : .text)
             nameLabel.frame = NSRect(x: Self.side, y: y + 4, width: nameWidth, height: 16)
             document.addSubview(nameLabel)
+            if group == .undefined {
+                // Undefined is never shown by colour alone: the wavy underline the editor draws.
+                let name = NSMutableAttributedString(attributedString: nameLabel.attributedStringValue)
+                name.addAttribute(.wavyUnderline, value: theme.color(.variableUndefined), range: NSRange(location: 0, length: name.length))
+                nameLabel.attributedStringValue = name
+                let waves = WaveOverlay(frame: nameLabel.bounds)
+                waves.autoresizingMask = [.width, .height]
+                nameLabel.addSubview(waves)
+            }
 
             let field: NSTextField
             let shownValue: String
