@@ -65,6 +65,31 @@ struct InspectorTests {
         #expect(!inspector.paneSwitch.isEnabled(forSegment: 1))
     }
 
+    @Test func `each segment's tooltip and accessibility label name its pane`() throws {
+        let (_, inspector) = try board04()
+        let control = inspector.paneSwitch
+        let tips = [15, 46].map { control.view(control, stringForToolTip: 0, point: NSPoint(x: $0, y: 12), userData: nil) }
+        #expect(tips == ["Variables", "Curl"])
+        let segments = try #require(control.accessibilityChildren() as? [NSAccessibilityElement])
+        #expect(segments.map { $0.accessibilityLabel() } == ["Variables", "Curl"])
+        #expect(segments.map { $0.accessibilityRole() } == [.radioButton, .radioButton])
+        #expect(segments.map { $0.accessibilityValue() as? Bool } == [true, false])
+        #expect(segments.map { $0.isAccessibilityEnabled() } == [true, false])
+    }
+
+    @Test func `the switch swaps the pane under the header and the title follows; a reveal comes back to Variables`() throws {
+        let (_, inspector) = try board04()
+        let footer = try #require(inspector.editButton.superview)
+
+        inspector.showPane(1)
+        #expect(inspector.paneTitle.stringValue == "Curl" && inspector.paneSwitch.selectedSegment == 1)
+        #expect(inspector.variables.isHidden && footer.isHidden)
+
+        inspector.reveal(VariableName("host")!)
+        #expect(inspector.paneTitle.stringValue == "Variables" && inspector.paneSwitch.selectedSegment == 0)
+        #expect(!inspector.variables.isHidden && !footer.isHidden)
+    }
+
     @Test func `board 04: missing names first, then Staging with the names the Tab uses, then Globals struck where overridden`() throws {
         let (_, inspector) = try board04()
         let pane = inspector.variables

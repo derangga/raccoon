@@ -12,6 +12,8 @@ final class InspectorViewController: NSViewController {
     let paneSwitch: SegmentedControl
     let variables: VariablesPaneView
     let editButton = NSButton(title: "", target: nil, action: nil)
+    /// The Variables pane's Edit Environments… bar; the Curl pane has its own.
+    private let footer = NSView()
     var onEditEnvironments: (() -> Void)?
 
     init(window: WindowModel, theme: ThemeEnvironment) {
@@ -21,7 +23,10 @@ final class InspectorViewController: NSViewController {
         variables = VariablesPaneView(theme: theme)
         super.init(nibName: nil, bundle: nil)
         paneSwitch.selectedSegment = 0
-        // shortcut: the Curl pane is not built yet, so its segment is disabled. Enable it with it.
+        paneSwitch.target = self
+        paneSwitch.action = #selector(switchPane)
+        // shortcut: the Curl pane is not built yet, so its segment is disabled and segment 1 shows
+        // an empty pane. Enable the segment when the Curl pane fills that slot in showPane.
         paneSwitch.setEnabled(false, forSegment: 1)
         paneSwitch.setAccessibilityLabel("Inspector pane")
         paneTitle.font = .systemFont(ofSize: 12, weight: .semibold)
@@ -72,7 +77,6 @@ final class InspectorViewController: NSViewController {
     override func loadView() {
         let root = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: 600))
         let header = NSView()
-        let footer = NSView()
         let headerRule = ThemedView(theme: theme, fill: .border)
         let footerRule = ThemedView(theme: theme, fill: .border)
         for view in [header, variables, footer, headerRule, footerRule, paneTitle, paneSwitch, editButton] {
@@ -116,7 +120,7 @@ final class InspectorViewController: NSViewController {
 
     /// "Variables in request": the Variables pane, with `name`'s resolving row selected and in view.
     func reveal(_ name: VariableName) {
-        paneSwitch.selectedSegment = 0
+        showPane(0)
         // A value being edited is saved first, as clicking away saves it.
         variables.endEditing()
         variables.select(name)
@@ -148,6 +152,16 @@ final class InspectorViewController: NSViewController {
     }
 
     @objc private func editEnvironments() { onEditEnvironments?() }
+
+    @objc private func switchPane() { showPane(paneSwitch.selectedSegment) }
+
+    /// The pane under the header: 0 is Variables, 1 is Curl. The header's title names it.
+    func showPane(_ index: Int) {
+        paneSwitch.selectedSegment = index
+        paneTitle.stringValue = paneSwitch.label(forSegment: index) ?? ""
+        variables.isHidden = index != 0
+        footer.isHidden = index != 0
+    }
 }
 
 /// The Variables pane (design-system §6 Inspector, boards 04, 11, 14): a table of group titles

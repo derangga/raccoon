@@ -77,6 +77,20 @@ struct MainWindowTests {
         #expect(split.inspectorItem.viewController.view.frame.width == 280)
     }
 
+    @Test(arguments: [false, true])
+    func `the inspector is on backgroundRecessed with a 1 pt border on its leading edge`(isDark: Bool) throws {
+        let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: isDark)
+        let split = MainWindowController(theme: theme, reduceMotion: { true }).split
+        split.toggleInspector(nil)
+        split.view.window?.layoutIfNeeded()
+        let fill = try #require(split.inspectorItem.viewController.view.subviews.first)
+        fill.layoutSubtreeIfNeeded()
+        #expect(fill.layer?.backgroundColor == theme.color(.backgroundRecessed).cgColor)
+        let border = try #require(fill.layer?.sublayers?.first)
+        #expect(border.backgroundColor == theme.color(.border).cgColor)
+        #expect(border.frame == NSRect(x: 0, y: 0, width: 1, height: fill.bounds.height))
+    }
+
     @Test func `each toggle is pressed exactly while its pane is open`() {
         #expect(controller.sidebarToggle.state == .on)
         #expect(controller.inspectorToggle.state == .off)
