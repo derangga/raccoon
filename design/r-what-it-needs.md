@@ -95,7 +95,9 @@ InspectorViewController                                 and its pane, and how to
                                                         UserDefaults (Q14), tests with a
                                                         suite of their own or nothing
 Postman Import    FileReading, DataFolderStore, SecretStore      through the window, which owns
-                                                    the index and the WriteLedger
+                                                    the index and the WriteLedger. The sheet
+                                                    reads the picked files through a
+                                                    FileReading the composition root builds
 ```
 
 **`TabModel` does not need `DataFolderStore`.** Saving goes through the window, which owns

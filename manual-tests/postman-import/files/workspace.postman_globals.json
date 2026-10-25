@@ -1,0 +1,32 @@
+{
+  "id": "g0000000-0000-4000-8000-000000000001",
+  "name": "My Workspace Globals",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "https://api.example",
+      "enabled": true
+    },
+    {
+      "key": "trace_header",
+      "value": "X-Trace",
+      "enabled": true
+    },
+    {
+      "key": "retry_count",
+      "value": "3",
+      "enabled": true
+    },
+    {
+      "key": "support_email",
+      "value": "support@example.com",
+      "enabled": true
+    },
+    {
+      "key": "docs_url",
+      "value": "https://docs.example",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "globals"
+}

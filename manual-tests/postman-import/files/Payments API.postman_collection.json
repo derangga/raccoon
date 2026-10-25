@@ -1,0 +1,478 @@
+{
+  "info": {
+    "_postman_id": "5f1e0e8a-0000-4000-8000-000000000001",
+    "name": "Payments API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.request.headers.add({key: 'X-Trace', value: pm.variables.replaceIn('{{$guid}}')});"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Charges",
+      "item": [
+        {
+          "name": "List charges",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/charges"
+          }
+        },
+        {
+          "name": "Create charge",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/v1/charges"
+          }
+        },
+        {
+          "name": "Get charge",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/charges/ch_1"
+          }
+        },
+        {
+          "name": "Update charge",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{base_url}}/v1/charges/ch_1"
+          }
+        },
+        {
+          "name": "Search charges",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/charges/search"
+          }
+        },
+        {
+          "name": "Capture charge",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/v1/charges/ch_1/capture",
+            "auth": {
+              "type": "oauth2",
+              "oauth2": [
+                {
+                  "key": "grantType",
+                  "value": "client_credentials"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Refunds",
+      "item": [
+        {
+          "name": "Create refund",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/v1/refunds",
+            "auth": {
+              "type": "oauth2",
+              "oauth2": [
+                {
+                  "key": "grantType",
+                  "value": "client_credentials"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List refunds",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/refunds"
+          }
+        },
+        {
+          "name": "Cancel refund",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/v1/refunds/re_1/cancel"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payouts",
+      "item": [
+        {
+          "name": "List payouts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/payouts",
+            "auth": {
+              "type": "oauth2",
+              "oauth2": [
+                {
+                  "key": "grantType",
+                  "value": "client_credentials"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create payout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/v1/payouts"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "Rotate webhook secret",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/v1/webhooks/we_1/rotate",
+            "auth": {
+              "type": "oauth2",
+              "oauth2": [
+                {
+                  "key": "grantType",
+                  "value": "client_credentials"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Send test event",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/v1/webhooks/we_1/test?id={{$guid}}"
+          }
+        },
+        {
+          "name": "Replay event",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/v1/webhooks/we_1/replay?at={{$timestamp}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "Customer lookup 01 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers?trace={{$guid}}"
+          }
+        },
+        {
+          "name": "Customer lookup 02 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/2"
+          }
+        },
+        {
+          "name": "Customer lookup 03 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/3"
+          }
+        },
+        {
+          "name": "Customer lookup 04 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/4"
+          }
+        },
+        {
+          "name": "Customer lookup 05 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/5"
+          }
+        },
+        {
+          "name": "Customer lookup 06 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/6"
+          }
+        },
+        {
+          "name": "Customer lookup 07 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/7"
+          }
+        },
+        {
+          "name": "Customer lookup 08 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/8"
+          }
+        },
+        {
+          "name": "Customer lookup 09 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/9"
+          }
+        },
+        {
+          "name": "Customer lookup 10 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/10"
+          }
+        },
+        {
+          "name": "Customer lookup 11 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/11"
+          }
+        },
+        {
+          "name": "Customer lookup 12 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/12"
+          }
+        },
+        {
+          "name": "Customer lookup 13 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/13"
+          }
+        },
+        {
+          "name": "Customer lookup 14 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/14"
+          }
+        },
+        {
+          "name": "Customer lookup 15 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/15"
+          }
+        },
+        {
+          "name": "Customer lookup 16 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/16"
+          }
+        },
+        {
+          "name": "Customer lookup 17 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/17"
+          }
+        },
+        {
+          "name": "Customer lookup 18 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/18"
+          }
+        },
+        {
+          "name": "Customer lookup 19 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/19"
+          }
+        },
+        {
+          "name": "Customer lookup 20 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/20"
+          }
+        },
+        {
+          "name": "Customer lookup 21 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/21"
+          }
+        },
+        {
+          "name": "Customer lookup 22 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/22"
+          }
+        },
+        {
+          "name": "Customer lookup 23 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/23"
+          }
+        },
+        {
+          "name": "Customer lookup 24 by email address and merchant account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/customers/24"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Disputes",
+      "item": [
+        {
+          "name": "List disputes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/disputes"
+          }
+        },
+        {
+          "name": "Close dispute",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/v1/disputes/dp_1/close"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/v1/health"
+      }
+    },
+    {
+      "name": "Ping",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/v1/ping"
+      }
+    },
+    {
+      "name": "Balance",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/v1/balance"
+      }
+    },
+    {
+      "name": "Rates",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/v1/rates"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "api_version",
+      "value": "2026-10-01"
+    },
+    {
+      "key": "merchant",
+      "value": "acct_123"
+    },
+    {
+      "key": "currency",
+      "value": "IDR"
+    },
+    {
+      "key": "page_size",
+      "value": "50"
+    },
+    {
+      "key": "region",
+      "value": "ap-southeast-3"
+    },
+    {
+      "key": "tenant",
+      "value": "sociolla"
+    },
+    {
+      "key": "timeout_ms",
+      "value": "5000"
+    }
+  ]
+}

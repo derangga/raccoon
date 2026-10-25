@@ -1,0 +1,11 @@
+{
+  "id": "0C0FFEE0-0000-4000-8000-0000000000A1",
+  "method": "GET",
+  "name": "Ping",
+  "settings": {
+    "allowsInsecureTLS": false,
+    "followsRedirects": true
+  },
+  "url": "https://httpbin.org/get",
+  "version": 1
+}

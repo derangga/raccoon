@@ -59,7 +59,7 @@ struct SidebarActionsTests {
     @Test func `the + menu offers New Collection and New Folder, in the selected row's folder`() throws {
         let (window, sidebar) = try sidebar()
         sidebar.askName = { _, _, _, reply in reply("Webhooks") }
-        #expect(sidebar.addMenu.items.map(\.title) == ["New Collection", "New Folder"])
+        #expect(sidebar.addMenu.items.map(\.title) == ["New Collection", "New Folder", "", "Import from Postman…"])
 
         sidebar.outline.selectRowIndexes([try row(sidebar, "Create charge")], byExtendingSelection: false)
         sidebar.addMenu.update()
@@ -67,6 +67,28 @@ struct SidebarActionsTests {
         sidebar.newFolder(nil)
 
         #expect(window.index.folders.contains("Payments API/Refunds/Webhooks"))
+    }
+
+    @Test func `the + menu's Import from Postman… asks the app to import`() throws {
+        let (_, sidebar) = try sidebar()
+        var asked = 0
+        sidebar.importFromPostman = { asked += 1 }
+        let item = try #require(sidebar.addMenu.item(withTitle: "Import from Postman…"))
+
+        _ = (item.target as? NSObject)?.perform(item.action, with: item)
+
+        #expect(asked == 1)
+    }
+
+    @Test func `after Postman Import the Collection is selected, past a filter that hid it`() throws {
+        let (_, sidebar) = try sidebar()
+        sidebar.searchField.stringValue = "Refunds"
+        sidebar.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification))
+
+        sidebar.select(collection: "Orders")
+
+        #expect(sidebar.searchField.stringValue == "")
+        #expect((sidebar.outline.item(atRow: sidebar.outline.selectedRow) as? SidebarItem)?.path == "Orders")
     }
 
     @Test func `a failed operation says so in an alert`() throws {

@@ -29,6 +29,9 @@ enum CompositionRoot {
         )
     }
 
+    /// The files picked for Postman Import.
+    static func fileReading() -> any FileReading { DiskFileReading() }
+
     /// A value of the wrong type reads as absent; the split clamps the width.
     static func inspectorMemory(defaults: UserDefaults) -> InspectorMemory {
         InspectorMemory(

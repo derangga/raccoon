@@ -1,0 +1,14 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_source": "insomnia.desktop.app:v2023.5.8",
+  "resources": [
+    {
+      "_id": "req_1",
+      "_type": "request",
+      "name": "List users",
+      "method": "GET",
+      "url": "https://api.example/users"
+    }
+  ]
+}

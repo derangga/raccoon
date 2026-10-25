@@ -62,7 +62,7 @@ Postman Import
   ⚠ file not JSON, or not a v2 Collection / Environment / Globals export
                          → escape: that file's row on the Import sheet says "Not a Postman
                            export Raccoon reads"; the other files still import
-  ⚠ file unreadable      → escape: same row, with the reason
+  ⚠ file unreadable      → escape: same row, disabled: "Can't be read: <reason>"
   ⚠ something Raccoon cannot represent (scripts, OAuth, binary body, dynamic variables)
                          → not an error: an ImportNote, shown on the sheet before Import
   ⚠ Data Folder not writable → escape: the sheet says so and Import is disabled

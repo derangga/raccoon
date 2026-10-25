@@ -1,5 +1,7 @@
 import AppKit
 import Observation
+import RaccoonDomain
+import UniformTypeIdentifiers
 
 @main
 enum RaccoonApp {
@@ -21,6 +23,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var saver: DraftSaver?
     private var sidebar: SidebarViewController?
     private var dataFolderBanner: DataFolderBannerBinding?
+    /// Reads the files picked for Postman Import.
+    private let files = CompositionRoot.fileReading()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Raccoon's Tabs are its own; system window tabs would add a second kind on ⌘T's menu.
@@ -85,6 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.messageText = message
             alert.beginSheetModal(for: window)
         }
+        sidebar.importFromPostman = { [weak self] in self?.importFromPostman(nil) }
         sidebar.focusEditor = { [weak tabController] in
             tabController?.view.window?.makeFirstResponder(tabController?.urlBar.urlField)
         }
@@ -135,6 +140,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowController?.split.revealSidebar()
         sidebar?.focusFilter()
     }
+    /// ⇧⌘I and the sidebar's + menu: an open panel for many .json files, then the Import sheet.
+    /// Cancel in the panel opens no sheet.
+    @objc func importFromPostman(_ sender: Any?) {
+        guard let window = windowController?.window, window.attachedSheet == nil, let windowModel else { return }
+        Task { @MainActor [files] in
+            let panel = NSOpenPanel()
+            panel.allowsMultipleSelection = true
+            panel.allowedContentTypes = [.json]
+            guard await panel.beginSheetModal(for: window) == .OK, !panel.urls.isEmpty else { return }
+            // By file name, as Finder lists them: the rows and " 2" do not depend on click order.
+            let paths = panel.urls.map(\.path).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+            let picked = PickedFile.read(paths, from: files)
+            PostmanImportSheet.present(on: window, files: picked, window: windowModel) { [weak self] collection in
+                guard let collection else { return }
+                self?.windowController?.split.revealSidebar()
+                self?.sidebar?.select(collection: collection)
+            }
+        }
+    }
+
     /// ⌥⌃E and the picker's Edit Environments….
     @objc func editEnvironments(_ sender: Any?) {
         guard let window = windowController?.window, let windowModel, let theme = themeController?.theme else { return }

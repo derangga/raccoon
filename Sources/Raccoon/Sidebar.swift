@@ -73,6 +73,8 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     var chooseNewWorkspace: () async -> String? = { nil }
     /// An alert sheet in the app, for an operation that failed.
     var showError: (String) -> Void = { _ in }
+    /// The + menu's Import from Postman…: the app's open panel, then the Import sheet.
+    var importFromPostman: () -> Void = {}
     let outline = NSOutlineView()
     let empty = NSStackView()
     let emptyText = NSTextField(wrappingLabelWithString: "No Collections yet. Create one, or save a Draft into one with ⌘S.")
@@ -132,6 +134,8 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
         addMenu.addItem(NSMenuItem(title: "New Collection", action: #selector(newCollection(_:)), keyEquivalent: ""))
         addMenu.addItem(NSMenuItem(title: "New Folder", action: #selector(newFolder(_:)), keyEquivalent: ""))
+        addMenu.addItem(.separator())
+        addMenu.addItem(NSMenuItem(title: "Import from Postman…", action: #selector(importPostman), keyEquivalent: ""))
         addMenu.items.forEach { $0.target = self }
         addButton.image = NSImage(systemSymbolName: "plus", accessibilityDescription: "Add")
         addButton.bezelStyle = .accessoryBarAction
@@ -379,6 +383,25 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
             guard let self, let name else { return }
             perform({ "Couldn't create “\(name)”: \($0)." }) { () throws(StoreError) in try self.window.newCollection(name) }
         }
+    }
+
+    @objc private func importPostman() {
+        importFromPostman()
+    }
+
+    /// After Postman Import: the Collection's row selected, in view and focused. A filter that
+    /// would hide it is cleared, and the tree is rebuilt now if the index changed this turn.
+    func select(collection name: String) {
+        if !query.isEmpty {
+            searchField.stringValue = ""
+            setQuery("")
+        }
+        if byPath[name] == nil { render() }
+        guard let item = byPath[name] else { return }
+        let row = outline.row(forItem: item)
+        outline.selectRowIndexes([row], byExtendingSelection: false)
+        outline.scrollRowToVisible(row)
+        view.window?.makeFirstResponder(outline)
     }
 
     /// In the selected row's Collection or Folder.

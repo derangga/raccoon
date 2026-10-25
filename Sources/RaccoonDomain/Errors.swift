@@ -35,7 +35,7 @@ public enum SecretError: Error, Equatable, Sendable {
 
 /// What Postman Import could not write, or wrote without a secret's value; the rest landed.
 public enum ImportError: Error, Equatable, Sendable {
-    /// Nothing of it remains.
+    /// Nothing of it remains. `name` is the folder name it was to have, as for an Environment.
     case collectionUnwritable(name: String, StoreError)
     /// The secrets stored for it were deleted again.
     case environmentUnwritable(name: String, StoreError)

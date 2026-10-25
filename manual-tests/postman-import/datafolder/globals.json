@@ -1,0 +1,10 @@
+{
+  "variables": [
+    {
+      "isEnabled": true,
+      "name": "base_url",
+      "value": "https://raccoon.example"
+    }
+  ],
+  "version": 1
+}

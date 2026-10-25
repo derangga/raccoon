@@ -1009,14 +1009,16 @@ final class WindowModel {
         try checkWritable()
         var result = ImportResult()
         for collection in plan.collections {
+            let name = importName(ofCollection: collection.name)
             do throws(StoreError) {
-                result.collections.append(try importCollection(collection))
+                try importCollection(collection, as: name)
+                result.collections.append(name)
             } catch {
-                result.problems.append(.collectionUnwritable(name: collection.name, error))
+                result.problems.append(.collectionUnwritable(name: name, error))
             }
         }
         for environment in plan.environments {
-            let name = environment.name.isEmpty ? newEnvironmentName() : environment.name
+            let name = importName(ofEnvironment: environment.name)
             let path = Self.path(of: name)
             do throws(StoreError) {
                 // Made on disk since the plan (any case, as APFS compares): never written over.
@@ -1036,9 +1038,19 @@ final class WindowModel {
         return result
     }
 
-    /// One Collection, whole or not at all. Returns its folder name.
-    private func importCollection(_ collection: ImportCollection) throws(StoreError) -> String {
-        let name = collection.name.isEmpty ? RequestFileName.unique("New Collection", taken: folderNames(in: "")) : collection.name
+    /// The folder name Import writes a planned Collection under: Postman allows an empty name,
+    /// which becomes "New Collection", " 2"… when taken. The Import sheet shows this name too.
+    func importName(ofCollection name: String) -> String {
+        name.isEmpty ? RequestFileName.unique("New Collection", taken: folderNames(in: "")) : name
+    }
+
+    /// The name Import writes a planned Environment under: an empty one is "New Environment".
+    func importName(ofEnvironment name: String) -> String {
+        name.isEmpty ? newEnvironmentName() : name
+    }
+
+    /// One Collection, whole or not at all, in the folder `name`.
+    private func importCollection(_ collection: ImportCollection, as name: String) throws(StoreError) {
         let contents = collection.contents
         try requireStore().writeDirectory(contents, to: name)
         var scan = lastScan
@@ -1046,7 +1058,6 @@ final class WindowModel {
         scan.folders.formUnion(contents.folders.map { name + "/" + $0 })
         for (path, data) in contents.files { scan.files[name + "/" + path] = data }
         apply(scan, touched: scan.paths(under: name))
-        return name
     }
 
     /// A set's imported Variables after `existing`: secrets to the Keychain first, then the file

@@ -1,0 +1,10 @@
+{
+  "variables": [
+    {
+      "isEnabled": true,
+      "name": "host",
+      "value": "raccoon-prod.example"
+    }
+  ],
+  "version": 1
+}

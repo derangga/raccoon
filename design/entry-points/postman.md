@@ -145,6 +145,47 @@ and every loss becomes a note on the Import sheet, counted and naming the Reques
 Import sheet shows exactly what Import will do, including every note, and the tests assert on
 the plan without a Data Folder.
 
+## The Import sheet
+
+```
+-> PickedFile.read(paths, FileReading)           R: FileReading, from the composition root
+                                                 E: StoreError -> escape: .unreadable(reason), a
+                                                 disabled row "Can't be read: <reason>"
+  -> PostmanImporter.read(data)                  E: .notPostman -> escape: a disabled row
+-> PostmanImport(files, window)                  R: WindowModel: index, globals, environments,
+                                                 brokenEnvironments (as empty Environments, so a
+                                                 rename never takes an unreadable file's name)
+  -> plan = PostmanMapping.plan(ticked files)    re-planned on every tick: unticking the first of
+                                                 two "Prod" files makes the second plain Prod
+  -> rows: one per picked file, by file name   as Finder lists them; "pick order" below is this
+     -> PostmanMapping.plan(before + [file])     before = the ticked files the planner reads
+                                                 first: Collections, then Environments, then
+                                                 Globals, each in pick order. The row is what
+                                                 this file adds after them: its Collection or
+                                                 Environment (renamed or not), or the Globals it
+                                                 adds and the names it keeps. An unticked row
+                                                 shows what it would add if ticked
+  -> notes: plan.notes as lines                  .renamed is on its row, not a note; .globalSkipped
+                                                 is on the Globals row, and only the Collection
+                                                 variables Globals keeps become a note.
+                                                 Dynamic variables share one line
+  -> footer: WindowModel.checkWritable()         E: StoreError -> escape: Import disabled, the
+                                                 reason in the footer
+  -> Import: WindowModel.importPostman(plan)     E: StoreError -> escape: as above, nothing written
+    -> no problems -> the sheet closes           and the sidebar selects result.collections.first
+    -> problems -> the result, one line each     Done closes, then the same selection
+```
+
+**Names on the sheet are the names written.** The plan keeps Postman's empty name; the sheet
+asks the window for the name Import will give it (`WindowModel.importName`), the same call the
+writer makes, so an empty Collection reads "New Collection" (" 2" when taken) and never "".
+An empty name inside a note's list is left out of the list, never shown blank; the count still
+counts it.
+
+**A note's names fit one line.** Under a note, as many names as fit the sheet's width, joined
+by " · ", then "and N more"; a single name too long for the line is cut in the middle so "and N
+more" stays readable.
+
 ## Rules carried over from Yaak's and Bruno's importers
 
 `yaak/plugins/importer-postman` (MIT) and `bruno/packages/bruno-converters/src/postman` record

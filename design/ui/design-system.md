@@ -574,8 +574,9 @@ the full mapping: [design/entry-points/postman.md](../entry-points/postman.md).
   the name in semibold, and under it what it holds ("Collection · 48 Requests in 6 Folders",
   "Environment · 12 Variables, 2 secrets", "Globals · 4 new · 1 kept as it is in Raccoon").
   The source file name is trailing, in secondary label color. A taken name reads
-  "Prod → Prod 2" with "'Prod' already exists". A file Raccoon can't read is a disabled row:
-  "Not a Postman export Raccoon reads".
+  "Prod → Prod 2" with "“Prod” already exists". A file Raccoon can't read is a disabled row:
+  "Not a Postman export Raccoon reads", or "Can't be read: permission denied" for a file the
+  disk refused. An empty Postman name shows the name Import writes ("New Collection").
 - **What won't come across**: one line per ImportNote, with a count and, under it, the
   Requests it applies to (11 pt, at most one line, then "and 12 more"). Warnings (orange
   triangle) for losses: scripts, unsupported Auth, binary bodies, dynamic variables, file
@@ -583,7 +584,11 @@ the full mapping: [design/entry-points/postman.md](../entry-points/postman.md).
   Collection variables added to Globals, path variables written into the URL.
 - **Footer**: "Imports into ~/Raccoon. Secrets go to the Keychain." and Cancel · **Import**.
   Import is disabled when nothing is ticked or the Data Folder is not writable (the footer
-  then says why).
+  then says why: "Can't import into ~/Raccoon. The folder is not writable."). One line; a long
+  path is cut in the middle.
+- A rename is on its row and Globals' kept names on the Globals row, so neither is a note.
+  Collection variables Globals already has are an info note: "1 Collection variable is not
+  added: Globals already has it." The body grows to 440 pt, then scrolls.
 - **Result** (the same sheet, replaced): "Imported 2 of 3", a check per landed item, and per
   failure a red line saying what was not written and that nothing of it was left behind; a
   Keychain refusal is an orange line. Done closes it and reveals the first imported
