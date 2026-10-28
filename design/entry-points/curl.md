@@ -176,9 +176,31 @@ The inspector's Curl pane is Copy as Curl rendered live for the selected Tab.
                                                  E: invalidURL -> escape: the pane quotes the
                                                  URL after substitution, Copy is disabled
     -> CurlRenderer.render(resolved)             pure, the same renderer as Copy as Curl
+  -> Highlighter.curl(command)                   pure        R: none, never fails: half a
+                                                 command colors what it recognises
+  -> VariableKinds.ranges(command)               the secrets left as `{{name}}`, drawn last
 -> copy(includeSecrets)                          the pane's Copy button
   -> copyAsCurl(tab, includeSecrets)             the tree above, unchanged
 ```
+
+**The command is colored by a scanner of its own** (decided 2026-10-28). `Highlighter.curl`
+sits beside `Highlighter.ranges`, not behind a new `RawKind` case: a command is not a body, and a
+case would make every `.text`/`.json`/`.xml` switch name it. It reads the words CurlRenderer
+writes, using `CurlFlags.takesValue` to know which word is a flag's value:
+
+| Word | Token |
+|---|---|
+| the leading `curl`, and every unquoted word that starts with `-` | `curlFlag` |
+| the value of `-X` / `--request` | the method's own token (`methodGet` … `methodOther`) |
+| a word that is no flag's value (the URL), and the value of `--url` | `text`, as in the URL field |
+| the value of `-H` / `--header`: its name, the `:` (or the `;` of an empty one), its value | `jsonKey`, `jsonPunctuation`, `jsonString` |
+| the value of any other flag (`--data-raw`, `-F`, `-b`, `--data-urlencode`) | `jsonString` |
+| the quotes that open and close a word, and a `\` that continues the line | `jsonPunctuation` |
+
+A `'\''` inside a value belongs to the value. A `{{name}}` is left out of every range, so
+the Variable highlight drawn after it wins over anything inside it. An unterminated quote runs
+to the end of the text. Ranges are UTF-16 and the scan is one pass, so a 20 KB body lays out
+at once.
 
 **The preview never holds a secret.** It always resolves with `secrets: false`, so a Secret
 Variable stays `{{name}}` on screen and the Keychain is not read on every keystroke

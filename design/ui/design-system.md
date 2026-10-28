@@ -79,6 +79,7 @@ raw palette, are in [themes/catppuccin.md](./themes/catppuccin.md), generated wi
 | `xmlTag` | blue | `<tag>`, `</tag>`, `<`, `>` |
 | `xmlAttribute` | yellow | |
 | `xmlValue` | green | attribute values |
+| `curlFlag` | maroon | `curl` and its flags in the Curl pane. Catppuccin's color for parameters; nothing else in that pane is maroon. The rest of the command reuses `method*`, `text`, `jsonKey`, `jsonString` and `jsonPunctuation` (curl.md) |
 | `variableDefined` | blue | `{{name}}` that resolves; no underline |
 | `variableSecret` | mauve | `{{name}}` that resolves to a Secret Variable; plus a dotted underline |
 | `variableUndefined` | red | `{{name}}` that does not resolve; plus a wavy underline |
@@ -155,6 +156,7 @@ material (Q3); the measured sidebar passes too (Q3, decided). Every pair passes 
 | `xmlTag` | blue | 4.5 | 4.61 on backgroundRecessed, L-4% | 5.34 on background | 6.57 on background | 7.79 on background |
 | `xmlAttribute` | yellow | 4.5 | 4.77 on backgroundRecessed, L-18% | 7.62 on background | 10.20 on background | 12.91 on background |
 | `xmlValue` | green | 4.5 | 4.50 on backgroundRecessed, L-10% | 7.10 on background | 9.17 on background | 11.03 on background |
+| `curlFlag` | maroon | 4.5 | 4.70 on backgroundRecessed, L-14% | 5.59 on background | 6.80 on background | 7.93 on background |
 | `variableDefined` | blue | 4.5 | 4.61 on rowHover, L-4% | 4.73 on backgroundElevated, L+4% | 4.99 on backgroundElevated | 5.97 on backgroundElevated |
 | `variableSecret` | mauve | 4.5 | 4.79 on rowHover, L-2% | 4.61 on backgroundElevated, L+2% | 5.21 on backgroundElevated | 6.19 on backgroundElevated |
 | `variableUndefined` | red | 4.5 | 4.83 on rowHover, L-2% | 4.73 on backgroundElevated, L+8% | 4.54 on backgroundElevated | 5.43 on backgroundElevated |
@@ -197,6 +199,7 @@ A 4 pt base. Sizes used: 2, 4, 6, 8, 10, 12, 16, 24.
 | Element | Size |
 |---|---|
 | Toolbar (unified title bar) | 52 pt |
+| Toolbar Environment control | "Environment" 11 pt, 8 pt gap, pop-up 28 pt high (large control size, 12 pt text), 200 pt max; 12 pt clear before the inspector toggle (§6 Environment picker) |
 | Sidebar width | 232 pt default, 180 min, 360 max (NSSplitView) |
 | Sidebar filter field | 24 pt, 6 pt radius, full sidebar width minus 20 pt |
 | Inspector width | 280 pt default, 240 min, 400 max; closed by default |
@@ -631,6 +634,14 @@ on the active one, a separator, "Edit Environments…", which opens the sheet an
 opens the menu (View ▸ Choose Environment); ⌥⌃E opens the sheet (View ▸ Edit Environments…;
 decided, Q5), so both are listed in the menu bar. Long names end-truncate at 200 pt; the menu shows them in full. Seen on: every screen.
 
+Sizes (decided 2026-10-28; the small control at 20 pt left "No Environment" almost no room
+above and below). The label is 11 pt `secondaryLabelColor`, then an 8 pt gap, then the pop-up
+at the large control size, which AppKit draws 28 pt high with the 12 pt text centered (small
+is 20 pt and regular 24 pt; environment-facts.md). The item's own trailing inset is 12 pt, so at
+least 12 pt of toolbar stays clear between the pop-up and the inspector toggle's background
+whatever spacing the toolbar adds. The pop-up gives up width before the window title does: it
+has low horizontal compression resistance and a 200 pt maximum.
+
 ### Environments sheet (native)
 
 680 × 430 sheet. Left: a source list with Globals, an "Environments" header and each
@@ -712,17 +723,92 @@ sheets. The button is disabled while the name is blank. A failed operation is an
 
 ### Close confirmation (native)
 
-An `NSAlert` sheet on the window (Open UI Q8), shown when closing a Tab with losable content
-(a Dirty Tab or a non-empty Draft). Message: "Save “<name>” before closing?", where the name
-is the one the Tab shows. Informative text: for a Draft "This Draft hasn't been saved. Its
-request will be lost."; for a Dirty Tab "Your edits to this Request haven't been saved and
-will be lost." Buttons: **Save** (Return), Don't Save (destructive, red, ⌘D), Cancel (Esc).
+A card sheet on the window (Open UI Q8), shown when closing a Tab with losable content (a
+Dirty Tab or a non-empty Draft) while File ▸ Always Discard Unsaved Changes is off. It
+replaces the `NSAlert` (decided 2026-10-28): an alert has no room for the checkbox and its (i).
+The layout follows Postman's close card; the look is Raccoon's. §1 puts sheets in system
+colors, so it is built like the Save Request and Name sheets: system label colors, native
+buttons and checkbox, no Theme token and no accent of its own. Not drawn on a board; these
+sizes are the spec.
+
+```
+┌──────────────────────────────────────────────── 440 pt ─┐
+│ Save changes?                                       ✕   │  16 pt top, 20 pt sides
+│                                                          │  12 pt
+│ **Create charge** has unsaved changes. Save these        │  13 pt, wraps, 400 pt
+│ changes to avoid losing your work.                       │
+│                                                          │  16 pt
+│ ☐ Always discard unsaved changes when closing a Tab  ⓘ  │  checkbox, 4 pt, glyph
+│                                                          │  20 pt
+│ [Don't Save]                        [Cancel]  [ Save ]   │  8 pt between, 16 pt bottom
+└──────────────────────────────────────────────────────────┘
+```
+
+- **Title**: "Save changes?", 13 pt semibold `labelColor`. The ✕ is a borderless 20 × 20 pt
+  button at the top trailing corner, SF Symbol `xmark` at 11 pt medium in
+  `secondaryLabelColor`, tooltip and accessibility label "Cancel". It is Cancel.
+- **Body**: 13 pt `labelColor`, wrapping at 400 pt. The name is the one the Tab shows
+  (`WindowModel.name(of:)`), in semibold. A Request Tab: "<name> has unsaved changes. Save
+  these changes to avoid losing your work." A Draft: "<name> hasn't been saved. Save it to a
+  Collection to avoid losing your work."
+- **Checkbox**: a native checkbox, "Always discard unsaved changes when closing a Tab", off
+  each time the sheet opens. 4 pt after it, SF Symbol `info.circle` at 12 pt in
+  `secondaryLabelColor`, whose tooltip reads "Closing a Tab with unsaved changes will not ask
+  first. Quitting still keeps your Session." It is remembered only when Don't Save is pressed
+  with it ticked; Save, Cancel, Esc and ✕ forget it (tabs.md §close).
+- **Buttons**: regular push buttons. Don't Save at the leading edge (destructive, ⌘D); Cancel
+  (Esc) and **Save** (default, Return) at the trailing edge, 8 pt apart.
+
 Save saves and then closes: a Request Tab through the window, a Draft through the Save
-Request sheet; a failed write or Cancel in the sheet keeps the Tab open. Return saves, so no
-key a hand rests on discards work (decided 2026-10-19, when Save arrived: the message was
-"Close “<name>” without saving?", which read wrong over a Save default). Cancel and Esc keep
-the Tab and give focus back to where it was. The alert shows the app icon once Raccoon
-has one. Not drawn.
+Request sheet; a failed write or Cancel in that sheet keeps the Tab open. Return saves, so no
+key a hand rests on discards work (decided 2026-10-19). A second ⌘W while the sheet is up asks
+nothing more. Cancel, Esc and ✕ keep the Tab and give focus back to where it was.
+
+### Empty state
+
+The content area when no Tab is open (§9 Q1, reversed 2026-10-28). The tab strip stays, with
+only its + button and the strip's usual `backgroundRecessed` and bottom `border`. Below it there
+is no Breadcrumb, banner or URL bar: one view on `background` fills the rest, holding a column
+centered both ways (12 pt higher than true center, so it reads centered under the strip):
+
+```
+                     ┌──────────┐
+                     │  (face)  │   160 × 160 pt mark
+                     └──────────┘
+                                         24 pt
+       New Tab                         ⌘T         rows 32 pt high, 280 pt wide
+       Import from Postman…           ⇧⌘I
+       Edit Environments…             ⌥⌃E
+```
+
+- **The mark**: the raccoon face from the app icon, `design/ui/assets/empty/RaccoonFace@2x.png`
+  (320 × 320 px, shown at 160 × 160 pt), built by `design/ui/assets/build.py`: the icon's
+  luminance becomes alpha, so the navy background and the dark mask patches drop out and the
+  white and gray fur stays, then it is written as black with that alpha. It is a template
+  image (`isTemplate`) tinted `textTertiary` at 40 % alpha, so every Flavor draws it in its
+  own gray and nothing ships pre-colored. Decorative: no accessibility label.
+- **Rows**: one per command Raccoon has, titled as its menu item is: New Tab (⌘T), Import from
+  Postman… (⇧⌘I), Edit Environments… (⌥⌃E). The name is SF Pro 15 pt `textSecondary` on the
+  leading edge; the shortcut is on the trailing edge as keycaps: each key a 20 pt-high chip,
+  6 pt side padding, 4 pt radius, `backgroundElevated` with a 1 pt `border`, its glyph SF Pro
+  12 pt `textSecondary`, 4 pt between chips. Hover fills the row `rowHover` with a 6 pt radius,
+  8 pt side padding; there is no pressed state. A click sends the menu item's action up the
+  responder chain (`NSApp.sendAction`), so a row does exactly what its menu item does.
+- **Nothing else**: no Ask AI, no find-in-workspace, no protocol row. Those features do not
+  exist in Raccoon.
+
+The rows reach the keyboard only through the menus they mirror: ⌘T and the others work as
+anywhere. Not drawn on a board; these sizes are the spec.
+
+### App icon
+
+`design/ui/assets/icon/AppIcon.png`: 1024 × 1024 on a transparent canvas, the source artwork
+scaled into the 824 × 824 icon body with a 100 pt margin on each side, as every macOS app
+icon has, and continuous corners (a superellipse of exponent 5, which reads like a 185 pt
+radius at that size). No shadow is added: the Dock draws its own. `design/ui/assets/build.py`
+writes it from `Raccoon App Icon.png`, whose pixels are never edited. Set as
+`NSApp.applicationIconImage` at launch, so the Dock, ⌘Tab and every alert show it
+(theme.md).
 
 ### Postman Import sheet (native)
 
@@ -812,8 +898,9 @@ The sidebar toggle sits at the leading edge of the toolbar and the inspector tog
 trailing edge, as in Finder and Xcode: native toolbar buttons with SF Symbols
 `sidebar.left` and `sidebar.right`, pressed (filled background) while their pane is open.
 Both have View-menu items, "Show Sidebar" (⌃⌘S) / "Show Inspector" (⌥⌘I) (decided, Q12), which
-read "Hide Sidebar" / "Hide Inspector" while the pane is open, docked or overlaid. Seen on: every
-screen; pressed on 04 and 11.
+read "Hide Sidebar" / "Hide Inspector" while the pane is open, docked or overlaid. The
+inspector toggle comes right after the Environment control, with that control's 12 pt
+trailing inset between them (§6 Environment picker). Seen on: every screen; pressed on 04 and 11.
 
 ### Sidebar filter (native)
 
@@ -876,9 +963,19 @@ Seen on: 04, 11, 14.
 
 **Curl pane** (seen on 11):
 - The curl command for the selected Tab, as Copy as Curl renders it, in SF Mono 11 / 17 on
-  `background` inside a 6 pt-radius `border` box. Flags in `textSecondary`, values in `text`,
-  a Secret Variable as `{{name}}` in `variableSecret` with its dotted underline. Wraps
-  anywhere and scrolls; it never truncates, because Copy must match what is shown.
+  `background` inside a 6 pt-radius `border` box, colored by `Highlighter.curl`
+  ([curl.md](../entry-points/curl.md#the-curl-pane) has the table):
+  - `curl` and every flag (`-X`, `-H`, `--data-raw`, `-k`) in `curlFlag`;
+  - the method after `-X` in its method token, as in the URL bar;
+  - the URL in `text`, as in the URL field;
+  - a header's name in `jsonKey`, its `:` in `jsonPunctuation`, its value in `jsonString`;
+  - every other quoted value (body, form fields, cookies) in `jsonString`;
+  - the quotes around a word and the `\` that ends a line in `jsonPunctuation`;
+  - a Secret Variable as `{{name}}` in `variableSecret` with its dotted underline, over
+    whatever it sits in.
+
+  Only attributes change: the text is what Copy puts on the pasteboard. Wraps anywhere and
+  scrolls; it never truncates, because Copy must match what is shown.
 - Under it, 11 pt `textTertiary`: "Resolved with Dev. Disabled Rows are left out." With No
   Environment: "Resolved with Globals. Disabled Rows are left out."
 - Footer: an **Include secrets** checkbox (off by default, not remembered) and **Copy**
@@ -985,8 +1082,12 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
 ## 9. Open UI questions
 
 1. **Closing the last Tab.** tabs.md selects "the neighbour", and there is none. Decided
-   2026-10-19: closing the last Tab opens an empty Draft, so the editor always has a Tab
-   (surfaces.md §4/§5 assume this).
+   2026-10-19: closing the last Tab opens an empty Draft, so the editor always has a Tab.
+   **Reversed 2026-10-28:** closing the last Tab leaves no Tab, and the content area shows
+   the empty state (§6 Empty state). A Draft that appears by itself after ⌘W reads as the
+   close not working, and it was written into every Session. A Session of zero Tabs relaunches
+   with zero; a first launch with no Session file still opens board 01's empty Draft, so a new
+   user sees the URL bar first (surfaces.md §4/§5, tabs.md §close and §relaunch).
 2. **Window minimum size** and narrow layouts. Decided 2026-10-16: 760 × 480 minimum, the
    Sidebar collapsing to an overlay below 960 pt, each Split pane keeping 160 pt. With the
    inspector open the editor needs 480 pt, so below about 1,000 pt of content the inspector

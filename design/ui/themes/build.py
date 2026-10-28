@@ -31,6 +31,7 @@ MAPPING = {
     "jsonKey": "blue", "jsonString": "green", "jsonNumber": "peach", "jsonBoolean": "mauve",
     "jsonNull": "maroon", "jsonPunctuation": "overlay2",
     "xmlTag": "blue", "xmlAttribute": "yellow", "xmlValue": "green",
+    "curlFlag": "maroon",
     "variableDefined": "blue", "variableSecret": "mauve", "variableUndefined": "red",
     "dirtyDot": "peach", "warning": "yellow", "error": "red", "success": "green",
 }
@@ -58,7 +59,8 @@ CHECKS = {
     **{t: (4.5, ["background", "backgroundElevated", "backgroundRecessed", "rowHover", "sidebar"])
        for t in MAPPING if t.startswith("method")},
     **{t: (4.5, ["background", "backgroundRecessed"]) for t in MAPPING if t.startswith("status")},
-    **{t: (4.5, CODE_BGS) for t in MAPPING if t.startswith(("json", "xml"))},
+    # The Curl pane's box is `background` inside the `backgroundRecessed` inspector.
+    **{t: (4.5, CODE_BGS) for t in MAPPING if t.startswith(("json", "xml", "curl"))},
     **{t: (4.5, ["background", "backgroundElevated", "backgroundRecessed", "rowHover"]) for t in MAPPING if t.startswith("variable")},
     "dirtyDot": (3.0, ["background", "backgroundRecessed", "rowHover"]),
     **{t: (4.5, ["background", "backgroundElevated", "backgroundRecessed"]) for t in ["warning", "error", "success"]},

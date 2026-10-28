@@ -49,17 +49,75 @@ stack for the window and its actions read whichever Tab is bound, so a switch cl
 
 ```
 -> close(tabID)                                  ⌘W, the ✕
-  -> tab.isDirty or tab is a non-empty Draft?
-    -> ask: Save · Don't Save · Cancel           a sheet on the window (Open UI Q8)
-                                                 escape: Cancel or Esc keeps the Tab
+  -> CloseMemory.alwaysDiscards()                R: UserDefaults "AlwaysDiscardOnClose",
+                                                 read at every close so a change counts at
+                                                 once. Not a Bool -> off, see §4
+  -> CloseStep(hasLosableContent:alwaysDiscards:) pure: ask only when the Tab is Dirty or a
+                                                 non-empty Draft and the preference is off
+     .close -> TabModel.close() below, no sheet
+    -> ask: Don't Save · Cancel · Save           the Close sheet on the window (Open UI Q8),
+            + "Always discard unsaved changes    design-system §6 Close confirmation
+              when closing a Tab"
+                                                 escape: Cancel, Esc or ✕ keeps the Tab;
+                                                 the checkbox is forgotten
+    -> Don't Save, checkbox ticked
+      -> CloseMemory.remember(true)              R: UserDefaults; nothing else writes true
     -> Save -> collections.md save(tab)          a Draft: the Save Request sheet first;
-                                                 closes only once the write landed
+                                                 closes only once the write landed. The
+                                                 checkbox is forgotten
                                                  E: StoreError -> escape, Tab stays open
                                                  with Not saved
   -> TabModel.close()                            §8: cancels the in-flight send
-  -> remove, select the neighbour               the last Tab -> newTab() (Open UI Q1)
-  -> SessionWriter.schedule()
+  -> remove, select the neighbour               the last Tab -> no Tab, selected = nil:
+                                                 the empty state below (reversed 2026-10-28)
+  -> SessionWriter.schedule()                    a Session of zero Tabs is written as such
 ```
+
+**Closing the last Tab leaves the window with no Tab** (decided 2026-10-28, reversing Open
+UI Q1, which opened an empty Draft so the editor always had one). `selectedTab` was already
+optional; what read it as always present now has a state for none:
+
+```
+-> the empty state                               selectedTab == nil, observed like
+                                                 showSelectedTab()
+  -> ContentViewController.show(nil)             the EmptyState view in place of the
+                                                 Breadcrumb, banner and TabViewController's
+                                                 view; the TabStrip stays, + only
+  -> TabViewController                           keeps its last TabModel, out of the window
+                                                 and so out of the responder chain: Copy as
+                                                 Curl finds no target and is disabled
+  -> BreadcrumbBinding, TabBannerBinding         already read `selectedTab?`: a Draft's
+                                                 "Draft" and no banner, both hidden
+  -> InspectorViewController                     Variables: definition .empty, so only the
+                                                 Active Environment and Globals; Curl: "Open a
+                                                 Tab to see its curl command.", Copy disabled
+  -> AppDelegate.validateMenuItem                Save, Close Tab, Show Tab N, Show Next and
+                                                 Previous Tab disabled; ⌘S and ⌘W do nothing
+  -> TabStripLayout(count: 0, selected: nil)     no Tab, + at the leading edge; no scroll
+  -> SessionWriter                               tabs [], selected nil
+-> leave it                                      ⌘T, the strip's +, an EmptyState row, or
+                                                 openRequest from the sidebar
+  -> newTab() / openRequest(id)                  inserted at the end, selected; the editor
+                                                 is bound to it and shown again
+```
+
+An EmptyState row sends its menu item's action through the responder chain
+(`NSApp.sendAction(_:to: nil, from:)`), so New Tab, Import from Postman… and Edit
+Environments… run exactly the code their menu items run. Nothing here can fail: no E.
+
+```
+-> toggle File ▸ Always Discard Unsaved Changes  the way back, and the only other way in
+  -> CloseMemory.remember(!alwaysDiscards())     R: UserDefaults
+                                                 the item is checked while it is on
+```
+
+**Always discarding is reversible from the menu bar** (decided 2026-10-28). It is the one
+path that throws work away without a prompt, so it has to be undoable, and Raccoon has no
+Settings window. The smallest control is a checkable item under Close Tab in the File menu:
+it sits next to the command it changes, it shows the state as a check without opening
+anything, and unchecking it brings the sheet back on the next ⌘W. It is a preference of the
+app, kept in UserDefaults like the inspector's state, never in a Session: it does not change
+with the Workspace.
 
 **A Draft is not Dirty, but closing a non-empty one still asks.** Dirty is defined against a
 saved baseline and a Draft has none (CONTEXT, Dirty). The prompt is about losing work, so the
@@ -103,7 +161,9 @@ punish the feature that makes it unnecessary.
                   disk differs, snapshot Dirty -> edits kept, isChangedOnDisk
          gone  -> Tab becomes a Draft, definition kept
     -> source .draft -> Tab as it was
-  -> select session.selected, else the first Tab, else newTab()
+  -> select session.selected, else the first Tab; a Session of zero Tabs restores zero:
+                                                 the empty state (2026-10-28). No Session
+                                                 file at all keeps the one empty Draft
   -> activeEnvironment by name               missing -> none, variables.md
 ```
 

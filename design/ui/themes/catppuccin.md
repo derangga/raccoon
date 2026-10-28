@@ -49,6 +49,7 @@ A hex that differs from the palette color named is the lightness-adjusted value
 | `xmlTag` | blue | `#0b59f4` | `#8caaee` | `#8aadf4` | `#89b4fa` |
 | `xmlAttribute` | yellow | `#8e5a12` | `#e5c890` | `#eed49f` | `#f9e2af` |
 | `xmlValue` | green | `#307820` | `#a6d189` | `#a6da95` | `#a6e3a1` |
+| `curlFlag` | maroon | `#c91b2a` | `#ea999c` | `#ee99a0` | `#eba0ac` |
 | `variableDefined` | blue | `#0b59f4` | `#9eb7f1` | `#8aadf4` | `#89b4fa` |
 | `variableSecret` | mauve | `#8230ee` | `#cea6e8` | `#c6a0f6` | `#cba6f7` |
 | `variableUndefined` | red | `#c80e36` | `#eea4a6` | `#ed8796` | `#f38ba8` |

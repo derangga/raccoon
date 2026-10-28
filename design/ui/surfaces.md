@@ -22,6 +22,8 @@ Window                          one, native chrome
     TabStrip                    unit: Tab
     Breadcrumb                  unit: segment: Collection · Folder · Request name, or a Draft's
                                 title; "…" for collapsed Folders. Between the TabStrip and the URLBar
+    EmptyState                  in place of the Breadcrumb, banner and editor while no Tab is
+                                open: the raccoon mark and three command rows
     TabBanner                   Changed on Disk · Deleted on disk · Not saved
     URLBar                      MethodPopUp · URLField · SendButton
     MessageLine                 under the URL bar: Curl Import error · Ignored note ·
@@ -48,7 +50,8 @@ Overlays
   NewWorkspacePanel             native NSSavePanel: name + location
   OpenWorkspacePanel            native NSOpenPanel: one folder
   PostmanImportSheet            native sheet: the plan, the notes, then the result
-  CloseConfirm                  native sheet alert: Don't Save · Cancel (Save with Collections)
+  CloseConfirm                  native card sheet: ✕ · body · Always discard checkbox (i) ·
+                                Don't Save · Cancel · Save
   ThemeMenu                     native menu, View ▸ Theme
 ```
 
@@ -85,6 +88,7 @@ sidebar's + menu) · untick a file · Import.
   -> Window                                      N: Session read, Data Folder scanned
     -> Sidebar (tree)                            V: empty -> "No Collections yet" + path
     -> Content with the restored Tabs            V: no Session -> one empty Draft Tab
+                                                 V: a Session of zero Tabs -> EmptyState
 -> compose
   -> TabStrip: select or ⌘T
   -> URLBar: type, or paste curl
@@ -173,7 +177,9 @@ Each row is a designed state. "Place" is the surface the user is already looking
 | SidebarFilter | placeholder "Filter Collections"; hidden while there are no Collections | n/a: synchronous | n/a | n/a | no matches: "No Requests, Folders or Collections match “q”. Esc clears the filter." |
 | VariablesPane | No Environment: the group says so and points at the toolbar; Globals still listed; no Globals: "No Globals." | n/a | disabled Variables are not listed; overridden Globals struck out | undefined names the Tab uses, first, in `variableUndefined`, with where each is used; an edit not saved: "Not saved. <reason>." under its row | secret: "Secret", never the value; its field starts empty |
 | CurlPane | empty Draft: `curl ''` is not shown; the pane says "Type a URL to see the curl command." | n/a | secrets stay `{{name}}` | undefined: "No curl command yet" + the names; invalidURL: the same + the URL after substitution; Copy disabled | n/a |
-| TabStrip | never empty: closing the last Tab opens an empty Draft (Open UI Q1, decided) | n/a | n/a | n/a | n/a |
+| TabStrip | no Tab open: only the + button; the content area under it is the EmptyState. Closing the last Tab gets here, and so does relaunching a Session of zero Tabs (reversed 2026-10-28; it was "never empty", Open UI Q1) | n/a | n/a | n/a | n/a |
+| EmptyState | the raccoon mark and three rows: New Tab ⌘T, Import from Postman… ⇧⌘I, Edit Environments… ⌥⌃E. ⌘T, the strip's +, a row, or opening a Request from the sidebar leaves it by opening a Tab | n/a | n/a | n/a | n/a |
+| Inspector, no Tab open | Variables: no "used by this request" group; the Active Environment and Globals are listed and still edit. Curl: "Open a Tab to see its curl command." in `textTertiary`, Copy disabled, no Include secrets | n/a | n/a | n/a | n/a |
 | Tab | empty Draft: italic "Draft" | sending: spinner replaces the method badge after 150 ms | n/a | Changed on Disk glyph; Deleted on disk turns it into a Draft | n/a |
 | Breadcrumb | a Draft: its title alone, not clickable | n/a: derived from the index in memory | the middle collapsed into "…"; a name end-truncated, tooltip with the full name; last-known segments while the index has no entry for the Request | n/a: no segment can fail, and a click that finds no row selects nothing | n/a |
 | TabBanner | absent | n/a | n/a | Changed on Disk (Reload · Keep Mine), Deleted on disk (Dismiss), Not saved (Dismiss) | n/a |
@@ -189,6 +195,7 @@ Each row is a designed state. "Place" is the surface the user is already looking
 | EnvironmentsSheet | Globals only, no Environments: list shows Globals and "+" | n/a | Keychain unreadable: the secret's row says "Not in the Keychain" and resolves as undefined | SecretStore.set failed: row message with the OSStatus, file untouched | n/a |
 | PostmanImportSheet | no file picked: the sheet does not open (Cancel in the open panel) | parsing is pure and fast; for a large export the rows show a spinner until counted | some files are not Postman exports: their rows are disabled with the reason, the rest import | a Collection fails to write: the result names it, says nothing of it is left behind, the others landed; a secret the Keychain refused is imported with no value | Data Folder not writable: Import disabled, the reason in the footer |
 | SaveDraftSheet | no Collections: Location pop-up offers "New Collection…" only | n/a | n/a | write failed: sheet closes, TabBanner Not saved, Tab stays a Draft | Data Folder not writable: ⌘S on a Draft shows the WindowBanner instead of the sheet |
+| CloseConfirm | n/a: an empty Draft closes without it | n/a | n/a | Save fails: the sheet has closed, TabBanner Not saved, the Tab stays open | Always discard on: no sheet, the Tab closes; File ▸ Always Discard Unsaved Changes is checked and turns it off |
 | Environment picker | "No Environment" | n/a | Active Environment file gone at relaunch: "No Environment" (§4) | n/a | n/a |
 | ThemeMenu | n/a | n/a | n/a | unknown stored Theme: falls back to Catppuccin Latte / Mocha, silently | n/a |
 
@@ -199,8 +206,11 @@ two cases are a binary body and a secret value, and both say why instead of show
 
 | Surface | Needs, satisfied on the edge that reaches it |
 |---|---|
-| RequestEditor, URLBar, ResponseViewer | a selected Tab. There is always one (Q1, decided) |
-| Breadcrumb | a selected Tab, and the window's index for a Request Tab. It reads nothing else |
+| RequestEditor, URLBar, ResponseViewer | a selected Tab. With none, the EmptyState takes their place (reversed 2026-10-28; it was "There is always one", Q1) |
+| Breadcrumb | a selected Tab, and the window's index for a Request Tab. It reads nothing else. With none it is hidden with the editor |
+| TabBanner | a selected Tab; with none it is hidden |
+| Save, Close Tab, Copy as Curl, Show Tab N, Show Next / Previous Tab | a Tab to act on: with none they are disabled, never hidden |
+| EmptyState | `selectedTab == nil`; nothing else |
 | Breadcrumb segment, clickable | a target path: the Collection's, a Folder's, or the Request's own file. A Draft's title and "…" have none |
 | TabBanner Changed on Disk | `tab.isChangedOnDisk`, which only `filesChanged` or relaunch sets |
 | Save on a Request | `tab.source == .request`; on a Draft the same ⌘S routes to SaveDraftSheet |
@@ -211,7 +221,7 @@ two cases are a binary body and a secret value, and both say why instead of show
 | VariableTooltip | pointer over a `{{name}}` range in a field that takes Variables |
 | WorkspacePopUp | always shown; Remove from List needs a row that is not the open Workspace |
 | SidebarFilter | at least one Collection; with none it is hidden, not disabled |
-| Inspector | a selected Tab; width for 280 pt beside an editor of at least 480 pt, otherwise it overlays the content edge (decided, Q2) |
+| Inspector | the Curl pane needs a selected Tab; the Variables pane does not. Width for 280 pt beside an editor of at least 480 pt, otherwise it overlays the content edge (decided, Q2) |
 | Include secrets | the Curl pane; it changes only the copied text |
 | Window minimum size | 760 × 480, Sidebar collapsing to an overlay below 960 wide, each Split pane keeping 160 pt (decided, Open UI Q2) |
 
@@ -235,7 +245,7 @@ two cases are a binary body and a secret value, and both say why instead of show
 | EnvironmentsSheet | window focus | Done, Esc | the field focused before ⌃E or the menu |
 | PostmanImportSheet | window focus | Import (then Done on the result), Cancel, Esc | the sidebar, on the first imported Collection; on Cancel, where it was |
 | SaveDraftSheet | window focus | Save, Cancel, Esc | the URL field of the same Tab |
-| CloseConfirm | window focus | Don't Save, Cancel, Esc (= Cancel); Save once Collections writes Requests | the Tab, or its neighbour if closed |
+| CloseConfirm | window focus | Save (Return), Don't Save (⌘D), Cancel, Esc, ✕ (all three = Cancel) | the Tab, or its neighbour if closed; where it was on Cancel |
 | SidebarFilter | keyboard focus | Esc clears the query; a second Esc, or Return on a match, gives focus back to the editor (Return also opens the match) | the editor of the selected Tab |
 | Inspector | nothing: it is a pane, not an overlay, except when it overlays a narrow window (Q2), where clicking the content or Esc closes it | | |
 | ThemeMenu | menu tracking | pick, Esc, click outside | where it was |

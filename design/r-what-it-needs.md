@@ -25,6 +25,8 @@ VariableKinds.suggestions                                         prefix -> the 
 VariableScope, VariableResolver                                   definition -> ResolvedRequest
 PasteTarget.for                                                   current Tab or a new one
 ResponseBody.presentation, Highlighter.ranges                     bytes -> what to draw
+Highlighter.curl                                                  curl command -> its token ranges
+CloseStep(hasLosableContent:alwaysDiscards:)                      closing a Tab -> ask, or close
 LineIndex, FoldRegion.find                                        text -> line starts, Fold Regions
 FoldSet.toggle, .innermost(at:), FoldedText                       what is folded -> what is shown,
                                                                   and offsets mapped both ways

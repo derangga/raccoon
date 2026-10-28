@@ -161,6 +161,15 @@ Theme
                            app; a bad one is our bug, and a test over every bundled Flavor
                            fails before it can ship
   ⚠ stored ThemeChoice names an unknown Theme → escape: Catppuccin Latte / Mocha
+  ⚠ AppIcon.png missing from the bundle or not an image → escape: log, keep the default
+                           icon. Unlike the Theme file nothing depends on it, so the app
+                           still launches
+Close (UserDefaults)
+  ⚠ stored AlwaysDiscardOnClose not a Bool → escape: off, so closing asks. The safe side of
+                           a preference that discards work is the prompt
+  ⚠ always discarding is on → not an error: a Dirty Tab or a non-empty Draft closes with no
+                           sheet and its edits are gone. File ▸ Always Discard Unsaved
+                           Changes, checked, turns it off (tabs.md)
 Inspector (UserDefaults)
   ⚠ stored width not a number          → escape: 280 pt
   ⚠ stored width outside 240–400       → escape: clamped to the nearer bound

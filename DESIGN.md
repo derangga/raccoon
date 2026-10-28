@@ -44,13 +44,13 @@ Every entry point as a call tree, one file per feature.
 | [sending](design/entry-points/sending.md) | Send · Cancel · Show the Response | M1 |
 | [editing](design/entry-points/editing.md) | Type in the URL bar · Edit a Params row · Edit a Path Variable value · Toggle a Disabled Row · Pick a Body Type · Format the body | M1 |
 | [curl](design/entry-points/curl.md) | Paste into the URL bar · Copy as Curl · The Curl pane | M2 |
-| [tabs](design/entry-points/tabs.md) | New Tab · Switch · Close · Quit · Relaunch · Restore the inspector | M3 |
+| [tabs](design/entry-points/tabs.md) | New Tab · Switch · Close · Always Discard Unsaved Changes · The empty state · Quit · Relaunch · Restore the inspector | M3 |
 | [collections](design/entry-points/collections.md) | Load the Data Folder · Open a Request · Save · Save a Draft · Changed on Disk · Filter the sidebar · Select a location from the Breadcrumb | M4 |
 | [variables](design/entry-points/variables.md) | Pick the Active Environment · Edit a Variable · Highlight `{{name}}` · Resolve on send · The Variables pane | M5 |
 | [postman](design/entry-points/postman.md) | Import Postman Collections, Environments and Globals | M7 |
 | [workspaces](design/entry-points/workspaces.md) | Switch Workspace · New Workspace · Open Workspace · Remove from List | M8 |
 | [folding](design/entry-points/folding.md) | The Gutter · Fold · Unfold · Fold All | — |
-| [theme](design/entry-points/theme.md) | Pick a Theme or Flavor · System appearance changes | M6 |
+| [theme](design/entry-points/theme.md) | Pick a Theme or Flavor · System appearance changes · Set the app icon | M6 |
 
 A new entry point is a new row here and a tree in one of those files, plus its failures in
 §4 and its rules in §5. A tree that exists in neither place is drift.

@@ -11,7 +11,16 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
                                                  E: undecodable -> DIE, see §4
   -> ThemeChoice from UserDefaults               missing or unknown name ->
                                                  Catppuccin, Latte / Mocha
+  -> AppIcon.load(bundle)                        R: Bundle.module
+                                                 E: missing or unreadable -> escape: log,
+                                                 the default icon stays, see §4
+  -> NSApp.applicationIconImage = icon           the Dock, ⌘Tab and every alert
 ```
+
+The icon is `design/ui/assets/icon/AppIcon.png`, built by `design/ui/assets/build.py` from the
+untouched source next to it and shipped as a resource of the `Raccoon` target through a
+symlink, as the Theme file is. `swift run Raccoon` runs a bare executable with no bundle and no
+Info.plist, so the icon is set at launch; there is no `.icns` until something builds a `.app`.
 
 ```
 -> pickTheme(name) · pickFlavor(light: name) · pickFlavor(dark: name)   View ▸ Theme menu
