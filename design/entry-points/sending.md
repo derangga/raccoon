@@ -24,7 +24,53 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
   -> tab.response = .received(response)
 ```
 
-**Every header sent is on screen.** URLSession adds `Host`, `Accept`, `Accept-Language`,
+**Path Variables are substituted inside `VariableResolver.resolve`, once, before the URL is
+built.** The same tree runs for Copy as Curl and the Curl pane, so they show what is sent.
+
+```
+-> VariableResolver.resolve(definition, scope)   pure        the part that reads the URL
+  -> PathVariables.tokens(in: definition.url)    pure        R: none: the typed text, so the
+                                                 table and the send read the same tokens
+  -> for each token, in text order
+    -> value = definition.pathVariables[name]    none -> `:name` stays as typed
+    -> substitute {{name}} in value              pure        one pass, as everywhere
+                                                 E: undefined -> collected with the rest, so one
+                                                 send names every missing Variable. The use is
+                                                 "Params" (variables.md)
+    -> resolved value == "" -> `:name` stays as typed
+                                                 no block and no message: what was typed is
+                                                 what is sent, as curl sends it
+    -> else PathEncoding.segment(resolved value) pure        R: none
+  -> the URL text = the typed text, each `{{name}}` substituted and each token replaced, one
+     left-to-right pass                          a value's own text is never read again for
+                                                 `{{` or `:name`
+  -> URLComponents + percent-encoded params      E: invalidURL (unchanged)
+```
+
+**A Path Variable value is encoded the way Postman encodes it, so a pasted Postman request
+sends the same bytes.** `PathEncoding.segment` percent-encodes the UTF-8 of every character
+`CharacterSet.urlPathAllowed` does not allow (space, `"`, `<`, `>`, `?`, `#`, `{`, `}`, `[`,
+`]`, `|`, `\`, `^`, backtick, controls, anything not ASCII), with two exceptions:
+
+- **`/` is not encoded.** A value `a/b` is two segments, as in Postman. Postman's own encoder
+  leaves `/` alone and inserts the value before encoding; Bruno's send does the same; Yaak
+  alone writes `%2F` (environment-facts.md). The three disagree, and the design follows
+  Postman. A user who wants one segment types `%2F` in the value.
+- **A `%` that starts `%XX` is kept.** `a%2Fb` is sent as `a%2Fb`, which is how that
+  workaround reaches the wire. Any other `%` becomes `%25`. Postman's handling of `%` was not
+  seen, so this half is inferred from the `%2F` workaround; Bruno's send decodes then re-encodes
+  a segment, so it agrees on that case.
+
+`?` and `#` are encoded, so a value cannot start a query or a fragment. `:`, `@`, `,`, `;`,
+`=`, `&` and `+` stay as typed: a path holds them.
+
+A Secret Variable that Copy as Curl leaves as `{{name}}` (secrets off, variables.md) is written
+as `{{name}}`, not as `%7B%7Bname%7D%7D`: the scope maps it to itself, and the encoder skips a
+piece the scope put back.
+
+**Every header sent is on screen, in Headers or as the Auth.** The one exception to "in
+Headers" is the `Authorization` header Auth builds: it is no row, and the Auth pane's paragraph
+says it is sent. URLSession adds `Host`, `Accept`, `Accept-Language`,
 `Accept-Encoding`, `Connection` and `User-Agent`, and a `Content-Type` on any body without one
 (environment-facts.md). None can be removed, only replaced, so the Headers table shows them as
 automatic rows (`AutomaticHeaders.rows(resolved)`), and a row the user types with the same name
@@ -36,6 +82,37 @@ boundary is appended at send as editing.md says.
 **Resolution runs before `.sending`.** A request with an Undefined Variable never shows a
 spinner, because it was never going to be sent. The red highlight is already on screen
 (`variables.md`), and the send only adds the message naming what is missing.
+
+**An enabled Headers row named `Authorization` wins over Auth.** `VariableResolver` appends
+one `Authorization` row for Basic or Bearer after the enabled rows
+(`VariableResolver.swift:40`), and the transport adds every header with `URLRequest.addValue`
+(`URLSessionTransport.swift:69-71`), which would join a repeated name into one value with `,`
+(measured: `Bearer one` then `Basic two` is one header `Bearer one,Basic two`). So the resolver
+does not append Auth's row when an enabled Headers row has the name `Authorization`, compared
+case-insensitively, even when that row's value is empty. A Disabled Row never counts, so it
+neither wins nor blocks Auth. The guard is in the resolver, where the row is appended, so Copy
+as Curl and the Curl pane follow it with no change of their own: they go through the same
+resolve. Curl Import moves an `Authorization` header into Auth and removes the row (curl.md),
+and a Postman Request with both imports both (postman.md), so the clash only comes from a
+row the user types or imports. The Auth pane says so instead of hiding it:
+
+```
+-> VariableResolver.resolve(definition, scope)   pure        the Auth step, after the enabled rows
+  -> Auth .basic / .bearer, and no enabled row   append the Authorization row
+     in headers named `Authorization`
+     (case-insensitive, any value, empty too)
+  -> Auth .none, or such a row is present        nothing appended: the Headers row is what is sent
+```
+
+```
+-> showAuthPane(tab)                             when Auth is shown, and on an Auth or Headers edit
+  -> AuthNote.text(auth, headers)                pure        R: none
+     .none                                       "No Authorization header is added."
+     .basic / .bearer                            the scheme's sentence, plus " An enabled
+                                                 Authorization row in Headers is sent
+                                                 instead." when the same test as the
+                                                 resolver's finds such a row
+```
 
 **Files are read at send time, not at import or edit time.** A multipart part holds a path,
 and a file that changed since it was picked is sent as it is now, which is what curl does.

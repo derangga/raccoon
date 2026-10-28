@@ -75,13 +75,21 @@ body{margin:0}
   </div>
 
   <div class="card">
-    <div class="ct">Auth</div>
-    <div class="stack">
-      <div class="row-ctrls"><span class="lbl">Type</span><span class="segctl"><span>None</span><span class="on">Basic</span><span>Bearer</span></span></div>
-      <div class="formgrid" style="grid-template-columns: 80px minmax(0, 1fr)"><label>Username</label><div class="field mono">ops-bot</div><label>Password</label><div class="field mono"><span class="v-sec">{{v.ops_password}}</span></div></div>
-      <div class="row-ctrls" style="margin-top: 8px"><span class="lbl">Type</span><span class="segctl"><span>None</span><span>Basic</span><span class="on">Bearer</span></span></div>
-      <div class="formgrid" style="grid-template-columns: 80px minmax(0, 1fr)"><label>Token</label><div class="field mono"><span class="v-sec">{{v.api_key}}</span></div></div>
-      <div class="row-ctrls" style="margin-top: 8px"><span class="lbl">Type</span><span class="segctl"><span class="on">None</span><span>Basic</span><span>Bearer</span></span><span class="lbl">No Authorization header is added.</span></div>
+    <div class="ct">Auth: stacked (all schemes on board 15)</div>
+    <div class="authpane stacked">
+      <div class="left">
+        <div class="at">Auth type</div>
+        <div class="pop"><span>Basic Auth</span><svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></div>
+        <div class="note">The Authorization header is generated from the username and password when you send the request.</div>
+      </div>
+      <div class="vrule"></div>
+      <div class="right">
+        <h4>Basic Auth</h4>
+        <div class="rows">
+          <div class="arow"><label>Username</label><div class="field mono">ops-bot</div></div>
+          <div class="arow"><label>Password</label><div class="field mono"><span class="v-sec">{{v.ops_password}}</span></div></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -105,10 +113,10 @@ body{margin:0}
     <div class="sidebar" style="width: auto; border: 0; padding: 4px 10px 10px">
       <div class="sb-row"><svg class="i disc" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg><svg class="i ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 5.5l5.5-3 5.5 3-5.5 3z"/><path d="M2.5 8.5l5.5 3 5.5-3"/></svg><span class="name">Payments API</span></div>
       <div class="sb-row indent1"><svg class="i disc" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg><svg class="i ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4.5h4l1.5 1.5H14v6.5H2z"/></svg><span class="name">Refunds</span></div>
-      <div class="sb-row indent2 sel"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">List refunds</span></div>
-      <div class="sb-row indent2 unreadable"><svg class="i warn" viewBox="0 0 16 16" aria-label="Unreadable"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2M8 11.6v.1"/></svg><span class="name">Cancel refund.json</span><button class="reveal" aria-label="Reveal in Finder" title="Reveal in Finder"><svg class="i" viewBox="0 0 16 16" style="width: 11px; height: 11px" aria-hidden="true"><path d="M6 3H3v10h10v-3M9 3h4v4M13 3L7.5 8.5"/></svg></button></div>
+      <div class="sb-row indent3 sel"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">List refunds</span></div>
+      <div class="sb-row indent3 unreadable"><svg class="i warn" viewBox="0 0 16 16" aria-label="Unreadable"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2M8 11.6v.1"/></svg><span class="name">Cancel refund.json</span><button class="reveal" aria-label="Reveal in Finder" title="Reveal in Finder"><svg class="i" viewBox="0 0 16 16" style="width: 11px; height: 11px" aria-hidden="true"><path d="M6 3H3v10h10v-3M9 3h4v4M13 3L7.5 8.5"/></svg></button></div>
       <div class="sb-sub">Not valid JSON at line 14. Raccoon won't change this file.</div>
-      <div class="sb-row indent2 unreadable"><svg class="i warn" viewBox="0 0 16 16" aria-label="Unreadable"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2M8 11.6v.1"/></svg><span class="name">List refunds copy.json</span><button class="reveal" aria-label="Reveal in Finder" title="Reveal in Finder"><svg class="i" viewBox="0 0 16 16" style="width: 11px; height: 11px" aria-hidden="true"><path d="M6 3H3v10h10v-3M9 3h4v4M13 3L7.5 8.5"/></svg></button></div>
+      <div class="sb-row indent3 unreadable"><svg class="i warn" viewBox="0 0 16 16" aria-label="Unreadable"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3.2M8 11.6v.1"/></svg><span class="name">List refunds copy.json</span><button class="reveal" aria-label="Reveal in Finder" title="Reveal in Finder"><svg class="i" viewBox="0 0 16 16" style="width: 11px; height: 11px" aria-hidden="true"><path d="M6 3H3v10h10v-3M9 3h4v4M13 3L7.5 8.5"/></svg></button></div>
       <div class="sb-sub">Same id as List refunds.json.</div>
     </div>
   </div>

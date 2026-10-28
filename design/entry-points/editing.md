@@ -19,6 +19,8 @@ The Params table is the source of truth for the query string (shapes.md). The UR
      -> enabled rows replaced by the typed pairs, in order
      -> Disabled Rows kept, at their old index
   -> definition.url = base
+  -> PathVariables.prune(pathVariables, to: url) pure: a value whose `:name` left the URL goes;
+                                                 same undo step as the text edit
   -> message.afterURLEdit                        pure: a note goes, an error stays
 ```
 
@@ -63,6 +65,88 @@ Every key/value table keeps one trailing empty row after its rows, at index `row
 -> deleteRow(table, index)                       the ⊖ on hover, or Delete on the selected row
   -> Rows.delete(at: index, in: rows)            pure: the trailing row has nothing to delete
 ```
+
+## Path Variables
+
+A `:name` segment in the URL, and the value the Request keeps for it. The inverse of Params:
+**the URL text is the source of truth for which names exist, in order of first appearance,
+and the table holds only values.** Params is the other way round, where the table is the
+source and the URL bar is rendered from it. So there is no row to add or delete, no enabled
+flag, and a Path Variable cannot be created from the table.
+
+```
+-> PathVariables.tokens(in: url)                 pure        R: none      E: none, any text is
+                                                 a URL to read, and no match is the empty list
+  -> skip the authority: scanning starts at the first `/` that is not part of `://`
+  -> stop at the first `#`                       the rest is a fragment, never sent
+  -> skip every `{{name}}` Variable token        VariableTokens.ranges, so a Variable is never
+                                                 read as part of a Path Variable
+  -> a `:` straight after a `/`, then a run of name characters, at least one: a Path Variable
+     name characters: letters and digits of any script, `_` and `-`. Nothing else, so the name
+     ends at the first `.`, `:`, `{`, `(` or any other character, and what follows is literal
+  -> [PathVariableToken] in text order; a name seen again is not listed again by .names
+
+-> PathVariables.prune(values, to: url)          pure        values whose name is not in the URL go
+-> PathVariables.setValue(text, for: name, in:)  pure        "" removes the key, else it is stored
+```
+
+| `url` | Path Variables |
+|---|---|
+| `http://localhost:3061/posts` | none. `:3061` follows `localhost`, not `/` |
+| `localhost:3061/x` · `{{host}}:8080/x` | none, for the same reason |
+| `http://localhost:3061/posts/:id/retry-share-social-media` | `id` |
+| `/:` · `/:/x` | none: at least one name character |
+| `/:id/:id` | `id`, once |
+| `/:id/:other/:id` | `id`, `other` |
+| `http://h/a:id` | none: `:` is not straight after `/` |
+| `http://:id` | none: the authority is not scanned |
+| `http://h/:{{x}}` | none. `{` is not a name character, and `{{x}}` is a Variable as ever. The send writes `:` then the value of `x` |
+| `http://h/:id{{x}}` | `id`; `{{x}}` stays a Variable after it |
+| `http://h/{{base}}/:id` | `id` |
+| `http://h/:id.json` | `id`; `.json` is literal text after the value. Postman reads the name the same way (environment-facts.md) |
+| `http://h/:id:cancel` | `id`; `:cancel` is literal (Yaak's custom-method case) |
+| `/:user-id` · `/:user_id` · `/:ünï` | `user-id` · `user_id` · `ünï` |
+| `/:Id/:id` | `Id`, `id`: names are case-sensitive |
+| `http://h/a#/:id` | none: after the `#` |
+
+**Names are read from the text as typed, never from the text after `{{name}}` substitution.**
+A Variable whose value is `/:x` does not create a Path Variable at send that the table does not
+show. The table and the send read the same tokens from the same text.
+
+**A name that leaves the URL loses its value.** Typing `:i` and then `:id` leaves no `i` behind.
+The alternative, hidden orphans kept in the file, writes junk to git. Undo covers a typo
+because the prune and the text edit are one step. A hand-edited file may still carry an orphan:
+decoding does not prune (boundary.md), so it is inert until the next URL edit removes it.
+
+**An empty value is no value.** Clearing the cell removes the key, so a Request whose value was
+typed and deleted equals the saved one, and no `"id": ""` reaches the file.
+
+```
+-> editPathVariableValue(name, text)             the Value cell of the Path Variables table;
+                                                 the Name cell is read-only
+  -> PathVariables.setValue(text, for: name, in: definition.pathVariables)
+                                                 pure        R: none      E: none, every string
+                                                 is a valid value
+     -> text == "" -> the key is removed; else stored as typed: not trimmed, not decoded,
+        not encoded (sending.md encodes once, at send)
+     -> a name not in `url` -> no change, the row was leaving under the edit
+  -> definition.pathVariables changed            Dirty, the Session, the Curl pane and the
+                                                 highlight follow, as for any edit (tabs.md)
+
+-> pathVariablesTable(definition)                every render of the Params pane
+  -> PathVariables.tokens(in: definition.url)    pure        R: none
+  -> none -> no header, no table, nothing
+  -> else a "Path Variables" header and one row per name: Name read-only, Value
+     definition.pathVariables[name] ?? ""        a row appears and goes with the URL, and the
+                                                 cell being edited keeps its focus and caret
+                                                 when another row comes or goes
+  -> the URL field paints each token's range     paint only: the text, the caret and the
+                                                 selection are untouched
+```
+
+**Values take `{{name}}`.** The Value cell highlights and suggests Variables like any cell
+(variables.md), and the highlight pass reads `pathVariables` as one more place Variables live,
+so a Path Variable value holding an Undefined Variable is coloured red like any other.
 
 ## Body Type
 

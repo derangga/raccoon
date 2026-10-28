@@ -114,7 +114,7 @@ and every loss becomes a note on the Import sheet, counted and naming the Reques
 | item with `request` | Request, a new `RequestID`, order kept; file name from its name (collections.md) |
 | `request.method` absent, `null` or `""` | GET, Postman's default. A method is uppercased |
 | `request.url`, a string or an object | `url` without the query, plus Params from `url.query` (disabled ones become Disabled Rows). `raw` is the url when present, else it is built from `protocol`, `host`, `port` and `path`; a `#fragment` is dropped, since it is never sent. A string url's query is split as the URL bar splits it |
-| path variables `:id` with `url.variable` | the value is written into the path (`.pathVariable`, info); an empty or missing value keeps `:id` and is noted (`.pathVariableEmpty`). Raccoon has no path variables |
+| path variables `:id` with `url.variable` | `:id` stays in `url`, and each `url.variable` entry whose key is a name `PathVariables.tokens(in: url)` finds in the imported URL, with a value that is not empty, becomes `pathVariables[key]` (the JSON-text rule for non-string values applies). No note: nothing is lost. An empty or missing value is simply an empty Path Variable, and the request sends `:id` as it does in Postman. An entry whose key is not in the URL, a `disabled` entry (Raccoon has no enabled flag), and an entry's `description` and `type` are not written, without a note: none of them is sent. A `{{name}}` in a value is kept, and read at send like any other. Yaak and Bruno do the same: `:id` stays in the URL and the value goes to their own path-parameter store (environment-facts.md) |
 | `header`, `disabled: true` | Headers, Disabled Rows. A `Cookie` header is split into Request Cookies rows, as in Curl Import |
 | `header` as one string, or strings among its objects (`"Name: value"`, one per line) | Headers, split at the first `:` and trimmed, as Postman reads them; a line with no `:` is a name with an empty value |
 | a header, query, `urlencoded` or text `formdata` entry whose key and value are both empty or `null` | no row: there is nothing to send, and the URL bar skips an empty pair the same way. A Disabled one is skipped too |
@@ -128,6 +128,7 @@ and every loss becomes a note on the Import sheet, counted and naming the Reques
 | auth `noauth`, `basic`, `bearer` | `.none`, `.basic`, `.bearer` |
 | auth `inherit`, or no auth on the item | the nearest Folder's or the Collection's auth, copied onto the Request and noted (`.authInherited`, info) unless it is `noauth`. Raccoon has no inherited Auth, so the effective one is written down |
 | auth `apikey` | a header or a Param with that name and value, which is the same bytes on the wire. With no `key` nothing is added: a header or a Param needs a name |
+| auth `basic` or `bearer` on a Request that also has an enabled `Authorization` header | both are imported, with no note. At send the Headers row wins and Auth's header is not sent (sending.md) |
 | auth `oauth2`, `oauth1`, `digest`, `awsv4`, `ntlm`, `jwt`, `hawk`, `akamai`, `edgegrid` | `.none`, noted per Request. The settings are not kept |
 | `protocolProfileBehavior.followRedirects`, `strictSSL: false` | Request Settings `followsRedirects`, `allowsInsecureTLS`. An absent `followRedirects` is Postman's default, which follows, so it imports as on |
 | any other `protocolProfileBehavior` key (`maxRedirects`, `disableUrlEncoding`, `followAuthorizationHeader`, `disabledSystemHeaders`, `disableBodyPruning`) | dropped without a note: Raccoon has no such Request Setting. Postman writes `disableBodyPruning` on most requests it exports, so a note would name nearly every Request |
@@ -196,3 +197,7 @@ cases they already handle. Their fixtures become `PostmanImporter` tests (swap-r
 - A body header (`Content-Type`) is added only when the request has none of that name.
 - An item with neither `item` nor `request` is skipped and counted, not a failure.
 - `{{ name }}` with spaces is the same Variable (variables.md).
+- A path variable's value is kept apart from the URL (Yaak's `:key` URL parameter, Bruno's
+  `type: "path"` param), and a variable with no key is skipped (Bruno), so the importer
+  tests cover: a value, an empty value, no `variable` array, a key that is not in the URL, a
+  variable with no key, a repeated `:id`, and `:id.json`.

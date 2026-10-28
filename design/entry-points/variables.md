@@ -17,10 +17,15 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
   -> drop Disabled Rows
   -> substitute {{name}} in: url, params, headers, cookies, body text and
      form/multipart values, Auth fields, multipart file paths
+  -> substitute {{name}} in each Path Variable value, then replace the `:name` tokens of the
+     URL with the encoded values (sending.md). A value is read as part of "Params" for the
+     missing-name list, the Variables pane and the section count
   -> any name not in scope -> collect it, keep going
   -> collected non-empty -> throw ResolveError.undefined(all of them)
   -> Auth -> an Authorization header appended to headers, auth = .none
      Basic: base64 of user:password; Bearer: `Bearer <token>`
+     not appended when an enabled Headers row is named `Authorization`
+     (case-insensitive, even with an empty value): that row wins (sending.md)
   -> build the URL: base + percent-encoded params    E: ResolveError.invalidURL
   -> ResolvedRequest
 ```
@@ -174,7 +179,10 @@ it with its reason (`brokenEnvironments`, `globalsProblem`), the sheet lists it 
 -> variablesPane(tab, scope)                     the inspector, when it is open
   -> VariablesPane(definition, active, globals)  pure: R none
      -> VariableTokens.ranges over the Tab's enabled parts: which names it uses, and where
-        (URL, Params, Headers, Body, Auth, Cookies); Disabled Rows are not sent, so not counted
+        (URL, Params, Headers, Body, Auth, Cookies); Disabled Rows are not sent, so not counted.
+        A Path Variable's value is named as "Params": it sits in the Params pane, and a use list
+        with a fifth word for it would suggest it is a different kind of Variable. Only values
+        whose name is still in the URL exist, so there is nothing to filter
      -> groups, in order:
         -> names the Tab uses that are not in scope -> "Not defined", with where
         -> the Active Environment's enabled entries, the ones the Tab uses first

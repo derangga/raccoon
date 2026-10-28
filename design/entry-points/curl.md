@@ -29,6 +29,9 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
       -> url        --url, else first positional; with no `://`, `http://` is
                     prefixed, as curl does                     E: noURL
       -> params     the URL's `?` part, then --url-query, then -d values when -G
+      -> pathVariables  none. A `:id` in the pasted URL stays in `url` as typed and appears in
+                    the Path Variables table with no value (editing.md). curl sends `/:id`
+                    literally and so does Raccoon until a value is set: same bytes
       -> headers    -H / --header, and -A / --user-agent as `User-Agent`, in order;
                     `Name;` is an empty header. --json adds `Content-Type` and
                     `Accept: application/json` after them unless -H set either
@@ -147,9 +150,14 @@ and every place they disagree is a command split inside a quote.
   -> NSPasteboard.setString                      boundary    R: ClipboardWriter
 ```
 
+**Path Variables are already substituted in `resolved`.** The command shows the URL that is
+sent: `/posts/689eba19be47b88f9d590367/retry`, not `/posts/:id/retry`. A Path Variable with no
+value is rendered as `:id`, as sent.
+
 **The round trip is the test.** `CurlImporter.import(CurlRenderer.render(r))` must give back
-`r` for every fixture that holds no Variables, which is one property test that covers both
-directions.
+`r` for every fixture that holds no Variables and no Path Variable value, which is one
+property test that covers both directions. A value is substituted into the URL on the way out,
+so it comes back inside `url`, not in `pathVariables`; a `:id` with no value does round-trip.
 
 ## The Curl pane
 

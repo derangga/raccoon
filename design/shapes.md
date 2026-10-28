@@ -25,6 +25,9 @@ RequestDefinition        what Request and Draft share, and the only thing a Tab 
   method                 String, uppercased. Not an enum: curl -X PURGE is a real method
   url                    String, the text before `?`, may hold {{name}}
   params                 [Row]
+  pathVariables          [String: String]   Path Variable name -> value, no `:`. Holds only
+                         names with a non-empty value; "" is absent, so clearing a value
+                         returns the definition to what it was
   headers                [Row]
   cookies                [Row]            Request Cookies
   body                   Body
@@ -32,6 +35,10 @@ RequestDefinition        what Request and Draft share, and the only thing a Tab 
   settings               RequestSettings
 
 Row                      name, value, isEnabled         a Disabled Row is isEnabled == false
+PathVariableToken        range: NSRange (UTF-16, covers `:` and the name), name: String
+                         one Path Variable in `url`, found by PathVariables.tokens(in:)
+                         (editing.md). Names are not VariableNames: Unicode letters and
+                         digits, `_` and `-`, no `.`
 Body                     .none
                          .raw(RawKind, String)          RawKind: json · text · xml
                          .formURLEncoded([Row])
@@ -88,6 +95,14 @@ Tab                      id: TabID
                          isChangedOnDisk: Bool
 Session                  tabs: [TabSnapshot], selected: TabID?, activeEnvironment: String?
 TabSnapshot              id, source, definition, baseline       a Tab minus its Response
+Breadcrumb               segments [BreadcrumbSegment]           derived from the index by RequestID,
+                         never stored on the Tab; a Draft's is its Tab title alone
+BreadcrumbSegment        title, target: String?                 target is a sidebar path: a Collection's
+                         name, a Folder's path, or a file's path, relative to the Data Folder, as
+                         SidebarItem.path. nil is not clickable. The Request's segment is titled
+                         by the name inside its file, never by the file name
+BreadcrumbFit            .all · .collapsed(hidden: Range<Int>)  which middle segments "…" stands
+                         for; the first and the last are never in the range
 
 ResolvedRequest          a RequestDefinition with every {{name}} substituted and every
                          Disabled Row dropped, Auth turned into an Authorization
@@ -136,7 +151,7 @@ ImportNote               kind, names: what was dropped or changed, and the Reque
                          variables, the old name for a rename). The count is names.count. One
                          note per kind, in the order first met. Kinds:
                          .scriptsDropped · .authNotSupported(type) · .authInherited
-                         · .binaryBody · .pathVariable · .pathVariableEmpty(name)
+                         · .binaryBody
                          · .dynamicVariable(name) · .fileOnlyName(path) · .examplesDropped
                          · .descriptionsDropped · .itemsSkipped
                          · .renamed(from, to) · .globalSkipped · .collectionVariables
@@ -169,6 +184,20 @@ construction, which is why every record in it is `Equatable` and nothing in it i
 
 **Disabled is a property of a Row, not a separate list.** Toggling a row does not move it, so
 the table order is the order the user typed, and the order the headers go out in.
+
+**`pathVariables` is a dictionary, not `[Row]`.** A Row has an enabled flag and an order the
+user chose; a Path Variable has neither. Its names and their order come from `url`, so a
+second list holding the names would disagree with the URL after the first edit. Keyed by name,
+a value cannot be attached to the wrong name, and `[String: String]` is `Equatable`, so Dirty,
+Changed on Disk and the Session compare it with the rest of the definition. It is the inverse
+of Params, where the table is the source and the URL is rendered from it. An empty value is
+absent for one reason: a user who types a value and deletes it again must get back a
+definition equal to the saved one, and no `"id": ""` may reach the file.
+
+**A name that leaves `url` loses its value.** Every URL edit prunes `pathVariables` to the
+names still in `url`, so typing `:i` and then `:id` does not leave `i` behind to be written to
+git. The URL edit and its prune are one undo step, so Undo brings the value back. The URL has no
+disabled part, so unlike Params there is no Disabled Row to keep a value alive.
 
 **`url` holds no query string.** Params are the source of truth (`editing.md`), so the `?` part
 of the URL bar is always rendered from `params`. Two places holding the same query is two

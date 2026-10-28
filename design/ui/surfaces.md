@@ -20,14 +20,20 @@ Window                          one, native chrome
     unit: SidebarRow            Collection · Folder · Request · Unreadable
   Content                       themed
     TabStrip                    unit: Tab
+    Breadcrumb                  unit: segment: Collection · Folder · Request name, or a Draft's
+                                title; "…" for collapsed Folders. Between the TabStrip and the URLBar
     TabBanner                   Changed on Disk · Deleted on disk · Not saved
     URLBar                      MethodPopUp · URLField · SendButton
     MessageLine                 under the URL bar: Curl Import error · Ignored note ·
                                 Undefined Variables
     RequestEditor               sections: Params · Headers · Body · Auth · Cookies · Settings
       unit: KeyValueRow         Params, Headers, Cookies, form and multipart fields
+      PathVariablesTable        in the Params pane under the Query Params table, only while the
+                                URL holds a Path Variable. unit: PathVariableRow: read-only Name,
+                                editable Value; no checkbox, delete or trailing row
       BodyEditor                Body Type picker, text editor, multipart rows
-      AuthSection               None · Basic · Bearer
+      AuthSection               two columns, stacked below 600 pt: AuthTypePopUp (None · Basic
+                                Auth · Bearer Token) and AuthNote on the left, the fields on the right
       RequestSettings           two checkboxes
     Split                       draggable divider
     ResponseViewer              StatusLine · Body (Pretty | Raw) · Headers
@@ -53,13 +59,16 @@ Overlays
 | Tab | rest · hover · selected · Dirty · Draft · sending · Changed on Disk · combinations of the last four |
 | KeyValueRow | rest · hover · editing (focus ring) · Disabled Row · trailing empty row |
 | `{{name}}` token | defined · secret · undefined |
+| PathVariableRow | rest · editing (focus ring on the Value cell); the Name cell is never editing |
+| `:name` token (URLField) | one state: drawn while the name is in the URL |
 | SidebarRow | rest · selected · unreadable (decode failure, unknown version, duplicate id) |
+| Breadcrumb segment | rest · hover · last (the Request's name) · static (a Draft's title, "…") |
 | SendButton | Send · Cancel (while sending) |
 | URLField | rest · focus · invalid (outlined after an invalidURL send) |
 | Multipart part | text · file · file missing |
 | Secret toggle | plain · secret · save failed |
 
-**Moves:** open a Request (sidebar click) · new Tab (⌘T) · select Tab (click, ⌘1…9, ⌃⇥) ·
+**Moves:** open a Request (sidebar click) · select a location (click a Breadcrumb segment) · new Tab (⌘T) · select Tab (click, ⌘1…9, ⌃⇥) ·
 close Tab (⌘W, ✕) · type in the URL bar · paste curl · edit a row · toggle a row ·
 pick Body Type · send (⌘↩) · cancel (⌘., Cancel) · switch Pretty/Raw · switch Body/Headers ·
 save (⌘S) · save Draft (⌘S on a Draft, sheet) · Reload · Keep Mine · pick Environment (⌃E,
@@ -105,6 +114,13 @@ sidebar's + menu) · untick a file · Import.
   -> SidebarFilter: type -> the tree narrows to matches, parents open
                                                  V: no matches -> one sentence + Esc hint
   -> click a match -> openRequest; the filter stays until cleared
+  -> click a Request row -> openRequest; keyboard focus stays in the outline (the selection stays
+     emphasized), except that a field being edited in the Tab ends its edit first
+-> locate
+  -> Breadcrumb: click a segment -> Sidebar shows, the row's ancestors expand, a filter that hides
+     it clears, the row is selected and in view; no Tab opens, focus stays in the Tab
+                                                 V: Draft -> its title alone, not clickable
+                                                 V: no row for the path -> the sidebar shows, nothing selected
 -> inspect
   -> inspector toggle -> VariablesPane | CurlPane for the selected Tab
     -> VariablesPane                             V: undefined names first; No Environment
@@ -137,7 +153,9 @@ Every node above appears on a screen in `mockups/` or in a component spec in
 | VariablesPane | many, grouped | No Environment, 0 Globals, 200 Variables (scrolls), values of any length (end-truncated, full value in a tooltip) |
 | CurlPane | one record, live | a 2,000-character URL and a 20 KB body: wraps anywhere, scrolls, Copy gives the exact text |
 | TabStrip | many, ordered | 1 Tab, 30 Tabs (scrolls past the 104 px minimum, selected kept in view) |
-| KeyValue table | many | 0 rows (trailing row only), 60 rows (scrolls, header sticky) |
+| Breadcrumb | one record, the selected Tab's; 1 to many segments | a Draft (1), a Request at the Collection's top (2), 8 Folders deep (middle collapses into "…"), a 120-character name (end-truncated, tooltip), names in any script |
+| KeyValue table | many | 0 rows (trailing row only), 60 rows (scrolls, header sticky; in the Params pane the pane scrolls and no header sticks) |
+| PathVariablesTable | one row per name in the URL, in order | 0 names (the table and its label are absent), 30 names (the pane scrolls), a 200-character name (end-truncated, tooltip), a 2,000-character value (end-truncated) |
 | URLBar, RequestEditor | one record, the selected Tab | a 2,000-character URL on one line |
 | ResponseViewer | one record, **live while sending** | 0 B, 20 MB (Raw only above 5 MB), binary |
 | StatusLine elapsed time | live while sending | ticks every 100 ms, tabular figures so it does not jitter |
@@ -157,10 +175,12 @@ Each row is a designed state. "Place" is the surface the user is already looking
 | CurlPane | empty Draft: `curl ''` is not shown; the pane says "Type a URL to see the curl command." | n/a | secrets stay `{{name}}` | undefined: "No curl command yet" + the names; invalidURL: the same + the URL after substitution; Copy disabled | n/a |
 | TabStrip | never empty: closing the last Tab opens an empty Draft (Open UI Q1, decided) | n/a | n/a | n/a | n/a |
 | Tab | empty Draft: italic "Draft" | sending: spinner replaces the method badge after 150 ms | n/a | Changed on Disk glyph; Deleted on disk turns it into a Draft | n/a |
+| Breadcrumb | a Draft: its title alone, not clickable | n/a: derived from the index in memory | the middle collapsed into "…"; a name end-truncated, tooltip with the full name; last-known segments while the index has no entry for the Request | n/a: no segment can fail, and a click that finds no row selects nothing | n/a |
 | TabBanner | absent | n/a | n/a | Changed on Disk (Reload · Keep Mine), Deleted on disk (Dismiss), Not saved (Dismiss) | n/a |
 | URLField | placeholder "Enter a URL, or paste a curl command" | n/a | n/a | invalidURL: red outline + Response pane message quoting the substituted URL | n/a |
 | MessageLine | absent | n/a | Ignored note: `Ignored: --retry, -s`, "2 more commands", unreadable @file | unterminatedQuote (position), noURL, Undefined Variables (every name) | n/a |
 | KeyValue table | trailing empty row with grey "Name" / "Value" | n/a | Disabled Rows dimmed and unchecked | undefined `{{name}}` red wavy underline in the cell | n/a |
+| PathVariablesTable | absent when the URL has no Path Variable; a Value cell shows the grey placeholder "Value" | n/a | n/a | undefined `{{name}}` in a Value: red wavy underline, and the Params count in red (the label, when there is no count) | n/a |
 | BodyEditor | Body Type none: "This request has no body." | n/a | n/a | multipart file missing: chip outlined red + MessageLine at send | binary @file: Curl note, body none |
 | ResponseViewer | idle: "Send a request to see the Response here." + ⌘↩ | sending: spinner, live elapsed, Cancel in the URL bar | Raw shown first while Pretty is computed off-main; above 5 MB Pretty is disabled with "Pretty is off above 5 MB" | failed: title + detail + the one fix if there is one (Allow insecure TLS); timedOut; transport code | n/a |
 | ResponseViewer Body | 0 B: "Empty body." | as above | not JSON/XML or did not parse: Raw, no error | n/a | binary: "Binary body, N KB …" |
@@ -180,6 +200,8 @@ two cases are a binary body and a secret value, and both say why instead of show
 | Surface | Needs, satisfied on the edge that reaches it |
 |---|---|
 | RequestEditor, URLBar, ResponseViewer | a selected Tab. There is always one (Q1, decided) |
+| Breadcrumb | a selected Tab, and the window's index for a Request Tab. It reads nothing else |
+| Breadcrumb segment, clickable | a target path: the Collection's, a Folder's, or the Request's own file. A Draft's title and "…" have none |
 | TabBanner Changed on Disk | `tab.isChangedOnDisk`, which only `filesChanged` or relaunch sets |
 | Save on a Request | `tab.source == .request`; on a Draft the same ⌘S routes to SaveDraftSheet |
 | SaveDraftSheet | a writable Data Folder; otherwise the WindowBanner shows and the sheet does not open |
@@ -202,6 +224,7 @@ two cases are a binary body and a secret value, and both say why instead of show
 | Banner appearing | occasional | Purpose: prevent a jarring jump. `NSAnimationContext` group, 200 ms, ease-out (`CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)`), height from 0 plus opacity 0 → 1. Leaves the same way in 150 ms. Reduce Motion: no height animation, 150 ms opacity only |
 | Inspector show / hide | tens/day, a toolbar click or a shortcut | The system's `NSSplitViewItem` inspector collapse, unmodified: it is native chrome behaviour and already honours Reduce Motion. No custom motion |
 | Sidebar filter narrowing | every keystroke | **None.** Rows appear and vanish on the same frame as the keystroke |
+| Breadcrumb change, hover, and the sidebar revealing a row | tens/day | **None.** The segments swap on the Tab switch's frame, hover fills at once, and the row is selected and scrolled into view without animating (`scrollRowToVisible`). The sidebar showing is the system's split-view collapse, unmodified |
 | Pretty / Raw switch | tens/day | **None.** The text view swaps on the same frame |
 
 ## §8 Scope: attention

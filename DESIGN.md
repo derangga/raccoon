@@ -42,10 +42,10 @@ Every entry point as a call tree, one file per feature.
 | File | Entry points | Milestone |
 |---|---|---|
 | [sending](design/entry-points/sending.md) | Send · Cancel · Show the Response | M1 |
-| [editing](design/entry-points/editing.md) | Type in the URL bar · Edit a Params row · Toggle a Disabled Row · Pick a Body Type · Format the body | M1 |
+| [editing](design/entry-points/editing.md) | Type in the URL bar · Edit a Params row · Edit a Path Variable value · Toggle a Disabled Row · Pick a Body Type · Format the body | M1 |
 | [curl](design/entry-points/curl.md) | Paste into the URL bar · Copy as Curl · The Curl pane | M2 |
 | [tabs](design/entry-points/tabs.md) | New Tab · Switch · Close · Quit · Relaunch · Restore the inspector | M3 |
-| [collections](design/entry-points/collections.md) | Load the Data Folder · Open a Request · Save · Save a Draft · Changed on Disk · Filter the sidebar | M4 |
+| [collections](design/entry-points/collections.md) | Load the Data Folder · Open a Request · Save · Save a Draft · Changed on Disk · Filter the sidebar · Select a location from the Breadcrumb | M4 |
 | [variables](design/entry-points/variables.md) | Pick the Active Environment · Edit a Variable · Highlight `{{name}}` · Resolve on send · The Variables pane | M5 |
 | [postman](design/entry-points/postman.md) | Import Postman Collections, Environments and Globals | M7 |
 | [workspaces](design/entry-points/workspaces.md) | Switch Workspace · New Workspace · Open Workspace · Remove from List | M8 |

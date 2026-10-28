@@ -183,3 +183,88 @@ file and renames the file to match. Move to Trash does not ask: the Trash is the
 is microseconds even for tens of thousands of Requests (§7 has no wrapper for it, for the
 same reason highlighting has none). A `filesChanged` while a filter is active re-runs it on
 the new tree.
+
+## The Breadcrumb
+
+The line above the URL bar (CONTEXT, Breadcrumb). It is derived, never stored on the Tab, and
+it only ever selects a row in the sidebar.
+
+```
+shapes: Breadcrumb { segments [BreadcrumbSegment] }
+        BreadcrumbSegment { title, target: String? }   target is a sidebar path (shapes.md);
+                                                       nil is not clickable
+        BreadcrumbFit { all, collapsed(hidden: Range<Int>) }
+        no new error enum: the two failures below are escapes with no reason to carry
+
+-> showBreadcrumb(tab)                           the selected Tab changes · the index is rebuilt
+                                                 (loadDataFolder, filesChanged, renameOrMove,
+                                                 saveDraft) · a Draft's title changes · a
+                                                 Workspace switch has restored its Tabs
+  -> Breadcrumb.of(source, title, index, lastKnown)   pure     R: none
+     .draft -> one segment, the Tab's title, target nil
+     .request(id)
+       -> index.path(of: id), index.name(of: id)
+          found     -> one segment per Collection and Folder in the path, titled by the folder
+                       name, target = the path up to it; then the Request, titled by the name
+                       inside the file (never the file name), target = the file's path
+          not found -> lastKnown, else one segment, the Tab's title, target nil
+                                                 E: no entry (the file is unreadable now, or a
+                                                    rescan has not landed) -> escape: keep the
+                                                    last known segments; with none, show as a Draft
+  -> window remembers the segments it showed     per RequestID, in the window; dropped when the
+                                                 Tab closes or becomes a Draft
+  -> BreadcrumbBar.show(breadcrumb)              R: closure select(path)
+     -> Breadcrumb.fit(widths, separator, ellipsis, available)   pure
+                                                 widths: measured per segment by the bar
+        E: too narrow -> escape: the middle collapses into "…"; still too narrow -> the last
+           segment end-truncates, then the first. A truncated segment and "…" carry a tooltip
+
+-> selectLocation(path)                          a click on a segment, the last one too. Segments
+                                                 with a nil target are not buttons
+  -> MainSplitViewController.revealSidebar       hidden -> docked, or the overlay when narrow
+  -> SidebarViewController.reveal(path)          R: none (the tree it already holds)   -> Bool
+     -> a filter that hides the row              query -> "": the tree and the expansion state
+                                                 from before the filter come back first
+     -> SidebarPath.ancestors(of: path)          pure: "A/B/C/F.json" -> ["A", "A/B", "A/B/C"]
+     -> expand each ancestor                     the target itself is left as it is, collapsed or not
+     -> select the row, scroll it into view      selection set in code: the outline's click action
+                                                 does not run, so no Tab opens and nothing toggles
+        E: no row at that path -> escape: the sidebar is shown, nothing is selected, nothing is
+           said. Only last-known segments can be stale, and the next derivation replaces them
+  -> focus is not moved                          it stays in the Tab. The segments are not in the
+                                                 key-view loop, so the click does not take it
+```
+
+```
+production                                       tests: same graph, R swapped
+
+-> showBreadcrumb      R: none                   -> showBreadcrumb      R: none
+-> selectLocation      R: closure select(path)   -> selectLocation      R: a closure that records paths
+```
+
+**Focus is a split, not a parameter.** `reveal(path:)` does everything but move focus, and
+`select(path:)` is `reveal(path:)` followed by focusing the outline. `select(path:)` replaces
+`select(collection:)` for Postman Import, which does want focus in the sidebar. A `focus: Bool`
+would make every call site read `select(path:, focus: false)`, and the two callers want two
+different outcomes, not one outcome in two strengths.
+
+**The filter is cleared before the ancestors expand.** Clearing it brings back the expansion
+state from before the filter, so the expansion done afterwards is the one the user is left
+with. The other order would lose it.
+
+**The derivation is a Domain rule over the index, with the last known segments passed in.**
+The rule stays a pure table: `(source, title, index, lastKnown)` in, segments out. The Tab holds
+no location, so a Folder renamed in the sidebar or a `git mv` changes the index and the next
+derivation follows, with the Tab doing nothing. The Tab strip reads its name from the same
+`index.name(of:)`, so the two always agree.
+
+**"No entry" is rare and is not shown as an error.** `DataFolderIndex` is replaced whole from
+one scan, so there is no half-built index. The id is missing when its file has become
+unreadable (a merge conflict, a half-written file), and it will be missing in a window that
+scans off the main actor. Keeping the last known segments is right for both: the Request is
+still the one in the Tab, and the unreadable row at the same path can still be selected. A
+Request deleted outright turns its Tab into a Draft in `filesChanged`, so that Breadcrumb
+becomes the Draft's. Known simplification: a Folder renamed in Raccoon while a file inside it is
+unreadable leaves the old names, and their clicks select nothing, until the file reads again.
+
+**`…` is a tooltip only.** It holds the full path and does not open a menu of the hidden Folders.

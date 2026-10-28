@@ -654,6 +654,55 @@ Feature: Variable suggestions
     Then no list shows
 
 
+Feature: Variables in a Path Variable value
+  Board 17. A Path Variable is a `:name` segment, not a Variable: the table is "Path Variables"
+  and never "Variables" (CONTEXT.md).
+
+  Background:
+    Given Raccoon is running on /tmp/raccoon-vars (see "How launching works")
+    And I chose "Staging" from the Environment pop-up
+
+  Scenario: 49. A Variable in a Path Variable value is replaced, highlighted and listed
+    When I type in the URL field: https://{{host}}/anything/:id
+    And I type {{tenant}} in the Value cell of the Path Variables row "id"
+    Then "{{tenant}}" in the cell is blue, like a defined Variable anywhere
+    When I press ⌘↩
+    Then the Response's "url" reads "https://httpbin.org/anything/acme"
+    And the Value cell still reads {{tenant}}
+    When I open the inspector on Variables
+    Then "tenant" is listed under Staging with the use "Params"
+
+  Scenario: 50. Typing {{ in the Value cell opens the suggestions
+    When I type {{te in the Value cell of the Path Variables row "id"
+    Then the list shows "tenant"
+    When I press Return
+    Then the cell reads {{tenant}}
+
+  Scenario: 51. A Path Variable value that is not defined blocks the send
+    When I type {{nope}} in the Value cell of "id"
+    Then "{{nope}}" is red with a wavy underline
+    When I press ⌘↩
+    Then no spinner appears and under the URL bar a red line reads: Not sent. nope is not defined in Staging or in Globals.
+    And the Variables pane lists "nope" under "Not defined", used by "Params"
+    When I choose "No Environment" and press ⌘↩
+    Then the red line reads: Not sent. nope is not defined in Globals.
+
+  Scenario: 52. One pass: a Variable whose value looks like :name is not a Path Variable
+    Given in Terminal B I ran:
+      echo '{"version": 1, "variables": [{"name": "tenant", "value": "/:other"}, {"name": "path", "value": "/anything/from-staging"}]}' > /tmp/raccoon-vars/environments/Staging.json
+    When I wait a second, set the URL to https://{{host}}/anything{{tenant}} and press ⌘↩
+    Then the Path Variables table is absent
+    And the Response's "url" reads "https://httpbin.org/anything/:other"
+    When in Terminal B I put Staging.json back with the line from "Before you start"
+    Then nothing else changes
+
+  Scenario: 53. Secrets off keeps a secret as written, in a Path Variable too
+    Given the Globals Variable "key" is a secret with no value (from "Before you start")
+    When I type {{key}} in the Value cell of "id" and press ⇧⌘C
+    And in Terminal B I run: pbpaste
+    Then the URL in the command ends with /{{key}}, not /%7B%7Bkey%7D%7D
+
+
 # ─── Known simplifications ────────────────────────────────────────────────────────────────
 #
 # These differ from the boards on purpose, or were not checked on screen. They are not

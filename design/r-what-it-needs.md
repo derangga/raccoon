@@ -8,6 +8,10 @@ Part of the [Raccoon design graph](../DESIGN.md).
 CurlDetector, CurlLexer, CurlFlags, CurlMapping, CurlImporter     text -> CurlImport
 CurlRenderer                                                      ResolvedRequest -> text
 URLText.split / join, Params.merge                                the URL bar ↔ Params
+PathVariables.tokens / .names / .prune / .setValue                url text -> the `:name` tokens, and
+                                                                  the values kept for them
+PathEncoding.segment                                              a Path Variable value -> what
+                                                                  goes in the path
 BodyConversion, Headers.contentType                               Body Type switches
 AutomaticHeaders.rows                                             ResolvedRequest -> the headers
                                                                   sent that no row sets
@@ -26,6 +30,11 @@ FoldSet.toggle, .innermost(at:), FoldedText                       what is folded
                                                                   and offsets mapped both ways
 ResponseState.showsSpinner(at:)                                   .sending + now -> spinner, §7 150 ms
 TreeDecoder, DataFolderIndex                                      files -> sidebar tree
+Breadcrumb.of                                                     source, title, index, last known
+                                                                  -> segments
+Breadcrumb.fit                                                    segment widths + room -> which
+                                                                  middle segments "…" stands for
+SidebarPath.ancestors(of:)                                        "A/B/C/F.json" -> ["A", "A/B", "A/B/C"]
 WorkspaceFile encode·decode                                       raccoon.json <-> WorkspaceID
 WorkspaceList.titles                                              paths -> pop-up titles, a
                                                                   parent folder only on a clash
@@ -34,6 +43,9 @@ Tab.isDirty, Tab.hasLosableContent                                computed, neve
 ThemeChoice.flavor(for:)                                          appearance -> Flavor
 PostmanImporter.read, PostmanMapping.plan                         export bytes -> ImportPlan
 ```
+
+Path Variables add no port and no boundary: reading the URL, setting a value and encoding it
+are pure, and the file key rides the existing `RequestFile` and `SessionFile` encoders.
 
 Everything a test would want to assert on is in this list. That is the point of it: Curl
 Import, resolution and the URL ↔ Params sync are the three places the app can be wrong
@@ -98,6 +110,12 @@ Postman Import    FileReading, DataFolderStore, SecretStore      through the win
                                                     the index and the WriteLedger. The sheet
                                                     reads the picked files through a
                                                     FileReading the composition root builds
+BreadcrumbBar     the selected Tab's Breadcrumb,        no port. The window derives the
+                  and one closure, select(path)         Breadcrumb from its index and hands it
+                                                        down; the bar reads no file and holds no
+                                                        index. The closure is MainSplitViewController
+                                                        .revealSidebar, then SidebarViewController
+                                                        .reveal(path)
 ```
 
 **`TabModel` does not need `DataFolderStore`.** Saving goes through the window, which owns

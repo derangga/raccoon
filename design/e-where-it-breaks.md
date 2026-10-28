@@ -23,6 +23,18 @@ send
 resolve
   ⚠ undefined(names)     → escape: every name listed, red underlines already on screen,
                            nothing sent, no spinner
+  ⚠ undefined(names) in a Path Variable value
+                         → escape: the same path as above, not a new one. The name is listed
+                           with the rest, the red wavy underline is already in the Value cell,
+                           the Params count is drawn in the undefined colour, and the
+                           Variables pane names the use as "Params"
+  ⚠ a Path Variable with an empty value → not an error and no message: `:id` is sent as
+                           typed, as curl sends it. Nothing blocks, because an empty value
+                           is a choice the user can see in the table and the URL
+  ⚠ a Path Variable value holding `/`, `?`, `#` or `%` → not an error: `/` adds a segment, as
+                           in Postman; `?` and `#` are encoded so a value cannot start a
+                           query or a fragment; a `%XX` is kept and a lone `%` is `%25`
+                           (sending.md)
   ⚠ invalidURL           → escape: .notSent. The URL bar is outlined, the message quotes
                            the URL after substitution, because that is the one that failed
   ⚠ Keychain unreadable  → becomes undefined for that secret. One path, not two: the user
@@ -78,7 +90,8 @@ Data Folder
                            sending still work. A missing Data Folder must not stop the
                            app from being an HTTP client
   ⚠ file undecodable     → escape: an .unreadable row, the file kept byte-for-byte, never
-                           rewritten
+                           rewritten. This includes a `pathVariables` that is not an object
+                           or holds a non-string value (boundary.md)
   ⚠ duplicate RequestID  → escape: the second by path order is .unreadable
   ⚠ write failed         → escape: banner, Tab stays Dirty. Nothing on screen claims a
                            save that did not land
@@ -153,6 +166,17 @@ Inspector (UserDefaults)
   ⚠ stored width outside 240–400       → escape: clamped to the nearer bound
   ⚠ stored pane names no pane          → escape: Variables
   ⚠ restored open in a window too narrow to dock it → not an error: overlaid (Q2)
+Breadcrumb
+  ⚠ the index has no entry for the Tab's RequestID (its file is unreadable now, or a rescan has
+                           not landed) → escape: the last known segments stay, so nothing
+                           flickers; with none ever shown, the Tab's title alone as a Draft's.
+                           Not shown as an error: the Request is still the one in the Tab, and a
+                           file deleted outright makes the Tab a Draft instead
+  ⚠ a segment's path has no row in the sidebar (last-known segments after a Folder was renamed
+                           or removed) → escape: the sidebar shows and nothing is selected. Never
+                           an alert: the next derivation replaces the segments
+  ⚠ too narrow for every segment → not an error: the middle collapses into "…", then the last
+                           name end-truncates, then the first; tooltips hold the full text
 Invariants
   ⚠ two Tabs with the same .request(id)    → DIE (assertion). openRequest and relaunch
                            are the only ways in and both check

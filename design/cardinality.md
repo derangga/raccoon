@@ -27,6 +27,9 @@ Bounded:  VariableScope          valid for one send or one highlight pass. Rebui
           FoldSet                view state: valid until the next send or Pretty | Raw
                                  switch. Never saved
           DataFolderIndex        valid until the next filesChanged
+          Breadcrumb             valid until the next derivation: a Tab switch, a rebuilt index,
+                                 a Draft's title changing. Never saved; the last known segments
+                                 are kept per open Request Tab only to survive a missing entry
           WorkspaceID, SecretStore, SessionStore
                                  valid for one withDataFolder: until the next switch
           highlight ranges       valid for one keystroke

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Breadcrumb</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./raccoon.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.slice{position:relative;display:flex;flex-direction:column;background:var(--background);color:var(--text);font-size:13px}
+.card{border-radius:8px;overflow:hidden;box-shadow:var(--sys-shadow);background:var(--sys-window);display:flex;flex-direction:column}
+.ct{font-size:11px;font-weight:600;color:var(--sys-secondaryLabel);background:var(--sys-window);padding:8px 12px 6px;text-transform:uppercase;letter-spacing:.02em}
+.cap{font-size:11px;color:var(--sys-secondaryLabel);background:var(--sys-window);padding:6px 12px 8px;line-height:1.4}
+.cgrid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;width:1000px}
+.mini-win{display:flex;height:196px}
+.mini-win .sidebar{height:auto}
+.states{display:flex;align-items:center;gap:28px;padding:16px 12px;background:var(--background);color:var(--text)}
+.states .crumbs{padding:0;height:auto}
+.states .lab{font-size:11px;color:var(--textTertiary);display:block;margin-top:4px;text-align:center}
+.states .cell{display:flex;flex-direction:column;align-items:center}
+</style>
+</helmet>
+<div class="sheet-page" style="width: 2120px; height: 900px">
+<h1>16 · Breadcrumb</h1>
+<p class="lede">The Breadcrumb names where the selected Tab's Request lives, from its Collection down to its own name, on the editor's background between the tab strip and the URL bar. Ancestors are <code>textSecondary</code>, the Request's name is <code>text</code> semibold, the chevrons are <code>textTertiary</code>. Clicking any segment, its own included, shows the sidebar, expands the ancestors, clears a filter that would hide the row, and selects and scrolls to it. Focus stays in the Tab, no Tab opens and nothing else changes. Below: the result of a click, the middle collapsed in a narrow content area, a very long name, a Draft, and the segment states.</p>
+<div class="pair">
+<sc-for list="{{flavors}}" as="f" hint-placeholder-count="2">
+<div class="pair-col">
+<div class="pair-label">{{f.label}}</div>
+<div class="{{f.cls}}" style="display:flex;flex-direction:column;gap:16px;width:1000px">
+
+  <div class="card">
+    <div class="ct">After a click on “Beauty Journal”</div>
+    <div class="mini-win">
+      <aside class="sidebar">
+        <div class="sb-row"><svg class="i disc" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg><svg class="i ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 5.5l5.5-3 5.5 3-5.5 3z"/><path d="M2.5 8.5l5.5 3 5.5-3"/></svg><span class="name">Sociolla</span></div>
+        <div class="sb-row indent1 sel"><svg class="i disc" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2l3 3-3 3"/></svg><svg class="i ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4.5h4l1.5 1.5H14v6.5H2z"/></svg><span class="name">Beauty Journal</span></div>
+        <div class="sb-row indent1"><svg class="i disc" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2l3 3-3 3"/></svg><svg class="i ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4.5h4l1.5 1.5H14v6.5H2z"/></svg><span class="name">Checkout</span></div>
+        <div class="sb-row"><svg class="i disc" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2l3 3-3 3"/></svg><svg class="i ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 5.5l5.5-3 5.5 3-5.5 3z"/><path d="M2.5 8.5l5.5 3 5.5-3"/></svg><span class="name">Payments API</span></div>
+      </aside>
+      <main class="content">
+        <div class="tabstrip">
+          <div class="tab sel"><span class="m" style="color: var(--methodPost)">POST</span><span class="t">Retry Share Social Media</span><span class="slot"></span></div>
+          <button class="tab-new" aria-label="New Tab"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
+        </div>
+        <div class="crumbs" role="group" aria-label="Location">
+          <button class="crumb">Sociolla</button><svg class="i sep" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2l3 3-3 3"/></svg>
+          <button class="crumb hover">Beauty Journal</button><svg class="i sep" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2l3 3-3 3"/></svg>
+          <button class="crumb">Article</button><svg class="i sep" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2l3 3-3 3"/></svg>
+          <button class="crumb last" aria-current="location">Retry Share Social Media</button>
+        </div>
+        <div class="urlbar">
+          <button class="method" style="color: var(--methodPost)">POST<svg class="i chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button>
+          <div class="url">https://api.sociolla.example/v1/share/retry</div>
+          <button class="send">Send</button>
+        </div>
+      </main>
+    </div>
+    <div class="cap">The pointer is over “Beauty Journal” (<code>rowHover</code> fill, label in <code>text</code>). After the click, Sociolla is expanded and “Beauty Journal” is selected and in view. “Article” stays collapsed: only ancestors expand. The Tab is the one it was, and the keyboard focus is still in it.</div>
+  </div>
+
+  <div class="cgrid2">
+    <div class="card">
+      <div class="ct">Collapsed middle · content area 400 pt</div>
+      <div class="slice" style="width:400px">
+        <div class="crumbs" role="group" aria-label="Location">
+          <button class="crumb">Sociolla</button><svg class="i sep" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2l3 3-3 3"/></svg>
+          <span class="crumb more" aria-label="Beauty Journal, Article">…</span><svg class="i sep" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2l3 3-3 3"/></svg>
+          <button class="crumb last" aria-current="location">Retry Share Social Media</button>
+        </div>
+        <div class="nstip" style="left:84px;top:32px">Sociolla › Beauty Journal › Article › Retry Share Social Media</div>
+        <div style="height:30px"></div>
+      </div>
+      <div class="cap">The first and last segments stay. “…” is a tooltip only: it holds the full path and does not click or open a menu.</div>
+    </div>
+
+    <div class="card">
+      <div class="ct">A very long Request name</div>
+      <div class="slice" style="width:490px">
+        <div class="crumbs" role="group" aria-label="Location">
+          <button class="crumb">Sociolla</button><svg class="i sep" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2l3 3-3 3"/></svg>
+          <span class="crumb more" aria-label="Beauty Journal, Article">…</span><svg class="i sep" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2l3 3-3 3"/></svg>
+          <button class="crumb last" aria-current="location" title="Retry Share Social Media after the Zalo webhook times out twice in a row">Retry Share Social Media after the Zalo webhook times out twice in a row</button>
+        </div>
+        <div class="nstip" style="left:60px;top:32px;max-width:400px;white-space:normal">Retry Share Social Media after the Zalo webhook times out twice in a row</div>
+        <div style="height:30px"></div>
+      </div>
+      <div class="cap">With the middle already collapsed, the last name end-truncates and its tooltip holds the full name.</div>
+    </div>
+
+    <div class="card">
+      <div class="ct">A Draft</div>
+      <div class="slice" style="width:490px">
+        <div class="tabstrip">
+          <div class="tab sel draft"><span class="m" style="color: var(--methodGet)">GET</span><span class="t">/v1/webhooks</span><span class="slot"></span></div>
+        </div>
+        <div class="crumbs" role="group" aria-label="Location">
+          <span class="crumb last static">/v1/webhooks</span>
+        </div>
+        <div style="height:6px"></div>
+      </div>
+      <div class="cap">One segment, the Tab's title, in the last-segment style, not clickable. An empty Draft reads “Draft”. Saving it makes the Tab a Request and the Breadcrumb its full location.</div>
+    </div>
+
+    <div class="card">
+      <div class="ct">Segment states</div>
+      <div class="states">
+        <div class="cell"><div class="crumbs"><button class="crumb">Ancestor</button></div><span class="lab">rest</span></div>
+        <div class="cell"><div class="crumbs"><button class="crumb hover">Ancestor</button></div><span class="lab">hover</span></div>
+        <div class="cell"><div class="crumbs"><button class="crumb last" aria-current="location">Request</button></div><span class="lab">last</span></div>
+        <div class="cell"><div class="crumbs"><button class="crumb last hover" aria-current="location">Request</button></div><span class="lab">last, hover</span></div>
+      </div>
+      <div class="cap">Hover and press change on the same frame, with no transition. The segments are not in the key-view loop and show no focus ring: a click must not take focus from the Tab.</div>
+    </div>
+  </div>
+
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2120,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return { v: {}, flavors: [{ cls: 'latte', label: 'Latte · light' }, { cls: 'mocha', label: 'Mocha · dark' }] };
+}
+}
+</script>
+</body>
+</html>

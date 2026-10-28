@@ -1,0 +1,43 @@
+{
+  "info": {
+    "name": "Posts",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Retry share",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3061/posts/:id/retry-share-social-media",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3061",
+          "path": ["posts", ":id", "retry-share-social-media"],
+          "variable": [
+            { "key": "id", "value": "689eba19be47b88f9d590367", "description": "the post" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Two names, one with no value",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3061/users/:user/posts/:post",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3061",
+          "path": ["users", ":user", "posts", ":post"],
+          "variable": [
+            { "key": "user", "value": "{{user_id}}" },
+            { "key": "post", "value": "" }
+          ]
+        }
+      }
+    }
+  ]
+}

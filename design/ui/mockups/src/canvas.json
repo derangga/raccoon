@@ -18,9 +18,12 @@
     "11-inspector-filter.dc.html": {"x": 0, "y": 5960, "w": 2120, "h": 1140, "title": "Inspector and sidebar filter"},
     "12-postman-import.dc.html": {"x": 2200, "y": 5960, "w": 2120, "h": 1180, "title": "Postman Import"},
     "13-workspaces.dc.html": {"x": 0, "y": 7260, "w": 2120, "h": 1140, "title": "Workspaces"},
-    "14-variable-popover.dc.html": {"x": 2200, "y": 7260, "w": 2120, "h": 1260, "title": "14 · Variable popover and the selected Variable"}
+    "14-variable-popover.dc.html": {"x": 2200, "y": 7260, "w": 2120, "h": 1260, "title": "14 · Variable popover and the selected Variable"},
+    "15-auth-pane.dc.html": {"x": 0, "y": 8640, "w": 2120, "h": 1200, "title": "15 · Auth pane"},
+    "16-breadcrumb.dc.html": {"x": 2200, "y": 8640, "w": 2120, "h": 900, "title": "16 · Breadcrumb"},
+    "17-path-variables.dc.html": {"x": 0, "y": 9960, "w": 2120, "h": 1780, "title": "17 · Path Variables"}
   },
-  "order": ["Main.dc.html", "02-get-200.dc.html", "03-curl-import.dc.html", "04-undefined.dc.html", "05-tabs.dc.html", "06-tls-failed.dc.html", "07-environments.dc.html", "08-theme-menu.dc.html", "09-components.dc.html", "10-worst-case.dc.html", "11-inspector-filter.dc.html", "12-postman-import.dc.html", "13-workspaces.dc.html", "14-variable-popover.dc.html"],
+  "order": ["Main.dc.html", "02-get-200.dc.html", "03-curl-import.dc.html", "04-undefined.dc.html", "05-tabs.dc.html", "06-tls-failed.dc.html", "07-environments.dc.html", "08-theme-menu.dc.html", "09-components.dc.html", "10-worst-case.dc.html", "11-inspector-filter.dc.html", "12-postman-import.dc.html", "13-workspaces.dc.html", "14-variable-popover.dc.html", "15-auth-pane.dc.html", "16-breadcrumb.dc.html", "17-path-variables.dc.html"],
   "notes": {
     "head": {"x": 0, "y": -300, "text": "Raccoon · Catppuccin Latte and Mocha", "kind": "title1", "maxW": 4320}
   },

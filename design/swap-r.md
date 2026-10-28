@@ -30,6 +30,11 @@ no setup. That is where most of the tests are:
 - **Resolution**: Globals vs Active Environment precedence, Disabled Rows dropped, every
   Undefined Variable reported, a value containing `&` stays one param.
 - **URL ↔ Params**: typing keeps Disabled Rows, `{{name}}` is not encoded.
+- **Path Variables**: the token table in editing.md as `PathVariables.tokens` input → names;
+  prune and setValue as input → output; `PathEncoding.segment` as value → bytes; resolution
+  with a value, none, an empty one, `{{x}}` in a value, an undefined one, and `/:{{x}}`;
+  `RequestFile` and `SessionFile` round trips with and without the key. The server-side
+  facts (`/` and `%2F` reach the echo server as typed) are one `URLSessionFactsTests` case.
 
 **`HTTPTransport.scripted` is what makes sending testable without a server.** `TabModel.send`
 with a scripted transport proves: the spinner state, that an Undefined Variable sends

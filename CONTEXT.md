@@ -7,7 +7,7 @@ A native macOS HTTP client for building, sending and saving HTTP requests, in th
 ### Requests
 
 **Request**:
-A saved HTTP request definition (method, URL, headers, query params, body, cookies, auth) that lives in a Collection.
+A saved HTTP request definition (method, URL, headers, query params, Path Variable values, body, cookies, auth) that lives in a Collection.
 _Avoid_: Call, endpoint, API
 
 **Draft**:
@@ -84,6 +84,10 @@ _Avoid_: Conflict, out of sync, stale
 The set of open Tabs of one Workspace, including Drafts and Dirty edits, that is restored when Raccoon relaunches or the user switches back to that Workspace.
 _Avoid_: State, snapshot
 
+**Breadcrumb**:
+The line above the URL bar that names where the Tab's Request lives, from its Collection down through its Folders to its own name; clicking a name selects that location in the sidebar. A Draft has no location, so its Breadcrumb is its Tab title alone.
+_Avoid_: Path bar, location bar, trail
+
 ### Variables
 
 **Variable**:
@@ -109,6 +113,10 @@ _Avoid_: Hidden variable, sensitive value
 **Undefined Variable**:
 A `{{name}}` reference that neither the Active Environment nor Globals defines; a request containing one cannot be sent.
 _Avoid_: Missing var, unresolved placeholder
+
+**Path Variable**:
+A `:name` segment in a Request's URL, replaced when the request is sent by a value kept on the Request. It is not a Variable: it has no `{{ }}`, belongs to no Environment, and the URL, not a table, says which names exist.
+_Avoid_: URL param, route param, URL variable
 
 ### Response viewer
 

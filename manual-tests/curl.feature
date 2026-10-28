@@ -26,7 +26,7 @@ Feature: Curl Import fills the Tab
     Then the method reads "POST" in the POST color
     And the URL field reads "https://api.payments.example.com/v1/charges", with the caret at the end and nothing selected
     And the note under the URL bar reads "Ignored: --retry, -s", with an info glyph and a ✕
-    And the sections read "Params", "Headers 1", "Body", "Auth Bearer", "Cookies 2", "Settings"
+    And the sections read "Params", "Headers 1", "Body", "Auth", "Cookies 2", "Settings"
     And Headers holds "Content-Type: application/json" and no Authorization row
     And Auth is Bearer with the Token "sk_test_123"
     And Cookies holds "session = abc" and "theme = dark", both checked
@@ -255,3 +255,20 @@ Feature: Copy as Curl
     Given the board 03 request
     When I press ⇧⌘C
     Then no section changed, and ⌘Z takes back the import, not the copy
+
+  Scenario: A :name in a pasted URL stays in the URL and shows in Path Variables
+    When I paste "curl https://httpbin.org/anything/:id" into the URL field
+    Then the URL field reads "https://httpbin.org/anything/:id" with ":id" drawn as a token
+    And under "Query Params" the Path Variables table has one row: Name "id", Value empty
+    When I press ⇧⌘C
+    Then the copied text is:
+      curl 'https://httpbin.org/anything/:id'
+
+  Scenario: Copy as Curl and the Curl pane show the value in place of :name
+    Given the URL "https://httpbin.org/anything/:id/x" and the Path Variable value "689eba19be47b88f9d590367"
+    When I press ⇧⌘C
+    Then the copied text is:
+      curl 'https://httpbin.org/anything/689eba19be47b88f9d590367/x'
+    And the inspector's Curl pane shows the same command
+    When I paste that command back into the URL field
+    Then the URL holds the value inside it, and the Path Variables table is absent

@@ -24,6 +24,11 @@
 #   Prod.postman_environment.json          the same shape; the Workspace already has a Prod
 #   workspace.postman_globals.json         5 Globals; the Workspace already has base_url
 #   insomnia-export.json                   an Insomnia export, not a Postman one
+# manual-tests/postman-import/path-variables/ holds one more file, kept apart so the counts
+# above stay true:
+#   Posts.postman_collection.json          2 Requests with `:id`, `:user` and `:post` in the URL
+#                                          and a url.variable for each (one with a value, one
+#                                          with {{user_id}}, one empty)
 # In the open panel, press ⇧⌘G and paste the folder's path to go there:
 #   ~/Documents/playground/raccoon/manual-tests/postman-import/files
 #
@@ -212,6 +217,20 @@ Feature: What can't be imported
     And the footer reads: "Can't import into /tmp/raccoon-postman. The folder is not writable."
     And Import is greyed out; Cancel still closes the sheet
     And afterwards: chmod u+w /tmp/raccoon-postman
+
+  Scenario: 16. Path variables come across whole, with no note
+    When I press ⇧⌘I, go to manual-tests/postman-import/path-variables with ⇧⌘G, pick Posts.postman_collection.json, and click Open
+    Then the row reads "Posts" · "Collection · 2 Requests"
+    And "What won't come across" is absent: nothing in this file is lost, and no line mentions path variables
+    When I click Import
+    Then the sheet closes and "Posts" is selected in the sidebar
+    When I open "Retry share"
+    Then the URL reads "http://localhost:3061/posts/:id/retry-share-social-media" with ":id" drawn as a token
+    And under "Query Params" the "Path Variables" table has one row: Name "id", Value "689eba19be47b88f9d590367"
+    When I open "Two names, one with no value"
+    Then the URL reads "http://localhost:3061/users/:user/posts/:post"
+    And the Path Variables table has two rows: "user" with the Value {{user_id}} (red if undefined), and "post" with the empty placeholder "Value"
+    And the file Posts/Retry share.json in the Data Folder has "pathVariables": {"id": "689eba19be47b88f9d590367"}
 
 # ─── Known simplifications ────────────────────────────────────────────────────────────────
 #

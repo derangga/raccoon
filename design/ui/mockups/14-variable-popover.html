@@ -79,16 +79,16 @@
 .sb-row .disc { width:10px; height:10px; flex:none; color:var(--sys-secondaryLabel); }
 .sb-row .ico { width:14px; height:14px; flex:none; color:var(--sys-secondaryLabel); }
 .sb-row .name { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.sb-row .badge { width:52px; flex:none; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font: 700 9.5px/1 "SF Mono", ui-monospace, monospace; letter-spacing:.02em; }
+.sb-row .badge { width:52px; flex:none; margin-right:-2px; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font: 700 9.5px/1 "SF Mono", ui-monospace, monospace; letter-spacing:.02em; }
 .sb-row.unreadable .name { color:var(--sys-secondaryLabel); font-style:normal; }
 .sb-row.unreadable .warn { width:14px; height:14px; flex:none; color:var(--warning); }
 .sb-row .reveal { flex:none; width:20px; height:18px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:4px; border:0; color:var(--sys-label);
   background:var(--sys-control); box-shadow:0 0 0 .5px var(--sys-separator); }
-.sb-sub { font-size:11px; color:var(--sys-secondaryLabel); padding:0 6px 4px 64px; line-height:1.3; }
+.sb-sub { font-size:11px; color:var(--sys-secondaryLabel); padding:0 6px 4px 80px; line-height:1.3; }
 .sb-empty { padding:16px 8px; font-size:12px; color:var(--sys-secondaryLabel); line-height:1.4; }
 .sb-empty .path { font-family:"SF Mono", ui-monospace, monospace; font-size:11px; display:block; margin-top:4px; overflow-wrap:anywhere; }
 .sb-footer { margin-top:auto; display:flex; gap:2px; padding-top:6px; }
-.indent1 { padding-left:22px; } .indent2 { padding-left:38px; }
+.indent1 { padding-left:22px; } .indent2 { padding-left:38px; } .indent3 { padding-left:54px; }
 .sb-ws { height:24px; flex:none; display:flex; align-items:center; gap:6px; margin:0 0 6px; padding:0 6px; border:0; border-radius:6px; background:transparent;
   color:var(--sys-label); font:inherit; font-weight:600; text-align:left; min-width:0; }
 .sb-ws.open { background:var(--sys-sidebarSelection); }
@@ -119,6 +119,18 @@
 .tabscroll .tab.sel { width:196px; }
 .tab-new { width:34px; flex:none; border:0; background:transparent; color:var(--textSecondary); display:flex; align-items:center; justify-content:center; }
 .spin { width:12px; height:12px; flex:none; border-radius:50%; border:1.5px solid var(--border); border-top-color:var(--textSecondary); }
+
+/* Breadcrumb: under the tab strip, on the editor's background */
+.crumbs { height:28px; flex:none; display:flex; align-items:center; gap:2px; padding:0 12px; min-width:0; background:var(--background); font-size:13px; }
+.crumb { height:22px; min-width:0; flex:0 0 auto; padding:0 6px; border:0; border-radius:4px; background:transparent; color:var(--textSecondary); font:inherit;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.crumb.hover { background:var(--rowHover); color:var(--text); }
+.crumb.last { color:var(--text); font-weight:600; flex-shrink:1; }
+.crumb.more { flex:none; cursor:default; }
+.crumb.static { cursor:default; }
+.crumbs .sep { width:8px; height:8px; flex:none; color:var(--textTertiary); }
+.nstip { position:absolute; z-index:5; background:var(--sys-menu); color:var(--sys-label); border-radius:4px; padding:3px 6px; font-size:11px; line-height:1.3;
+  box-shadow:0 0 0 .5px var(--sys-separator), 0 2px 6px rgba(0,0,0,.18); white-space:nowrap; }
 
 .banner { flex:none; min-height:36px; display:flex; align-items:center; gap:8px; padding:6px 12px; background:var(--backgroundElevated);
   border-bottom:1px solid var(--border); color:var(--text); }
@@ -208,6 +220,22 @@
 .formgrid { display:grid; grid-template-columns: 140px minmax(0, 360px); gap:8px 12px; align-items:center; }
 .formgrid label { color:var(--textSecondary); text-align:right; }
 .field { height:26px; display:flex; align-items:center; padding:0 8px; border-radius:6px; border:1px solid var(--border); background:var(--backgroundElevated); font-size:12px; min-width:0; overflow:hidden; white-space:nowrap; }
+.authpane { display:flex; align-items:flex-start; padding:16px; font-size:13px; color:var(--text); }
+.authpane .left { width:240px; flex:none; display:flex; flex-direction:column; gap:6px; }
+.authpane .at { font-size:12px; font-weight:600; color:var(--textSecondary); line-height:16px; }
+.authpane .pop { height:28px; box-sizing:border-box; display:flex; align-items:center; justify-content:space-between; padding:0 8px 0 10px; border-radius:6px; border:1px solid var(--border); background:var(--backgroundElevated); color:var(--text); }
+.authpane .pop .chev { width:9px; height:9px; color:var(--textTertiary); }
+.authpane .note { font-size:12px; line-height:16px; color:var(--textSecondary); margin-top:2px; }
+.authpane .vrule { width:1px; align-self:stretch; flex:none; background:var(--border); margin:0 16px; }
+.authpane .right { flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; }
+.authpane h4 { margin:0; font-size:17px; font-weight:400; line-height:22px; color:var(--text); }
+.authpane .rows { display:flex; flex-direction:column; gap:10px; }
+.authpane .arow { display:grid; grid-template-columns:80px minmax(0, 320px); column-gap:12px; align-items:center; }
+.authpane .arow label { text-align:left; color:var(--text); }
+.authpane .field.mono { font-size:12px; }
+.authpane .ph { color:var(--textTertiary); }
+.authpane.stacked { flex-direction:column; align-items:stretch; }
+.authpane.stacked .vrule { width:auto; height:1px; align-self:stretch; margin:16px 0; }
 .check { display:flex; align-items:flex-start; gap:8px; }
 .check .cb { margin:2px 0 0; flex:none; }
 .check .hint { display:block; color:var(--textTertiary); font-size:11px; }
@@ -378,9 +406,9 @@ body{margin:0}
       <div class="sb-search"><svg class="i" viewBox="0 0 16 16" style="width: 12px; height: 12px" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg><input placeholder="Filter Collections" aria-label="Filter Collections"></div>
       <div class="sb-section">Collections</div>
       <div class="sb-row"><svg class="i disc" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg><svg class="i ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 5.5l5.5-3 5.5 3-5.5 3z"/><path d="M2.5 8.5l5.5 3 5.5-3"/></svg><span class="name">Payments API</span></div>
-      <div class="sb-row indent1"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">List charges</span></div>
-      <div class="sb-row indent1 sel"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">Retrieve charge</span></div>
-      <div class="sb-row indent1"><span class="badge" style="color: var(--methodPost)">POST</span><span class="name">Create charge</span></div>
+      <div class="sb-row indent2"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">List charges</span></div>
+      <div class="sb-row indent2 sel"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">Retrieve charge</span></div>
+      <div class="sb-row indent2"><span class="badge" style="color: var(--methodPost)">POST</span><span class="name">Create charge</span></div>
       <div class="sb-footer">
         <button class="tb-btn" aria-label="New Collection"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
       </div>
@@ -519,9 +547,9 @@ body{margin:0}
       <div class="sb-search"><svg class="i" viewBox="0 0 16 16" style="width: 12px; height: 12px" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg><input placeholder="Filter Collections" aria-label="Filter Collections"></div>
       <div class="sb-section">Collections</div>
       <div class="sb-row"><svg class="i disc" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg><svg class="i ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 5.5l5.5-3 5.5 3-5.5 3z"/><path d="M2.5 8.5l5.5 3 5.5-3"/></svg><span class="name">Payments API</span></div>
-      <div class="sb-row indent1"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">List charges</span></div>
-      <div class="sb-row indent1 sel"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">Retrieve charge</span></div>
-      <div class="sb-row indent1"><span class="badge" style="color: var(--methodPost)">POST</span><span class="name">Create charge</span></div>
+      <div class="sb-row indent2"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">List charges</span></div>
+      <div class="sb-row indent2 sel"><span class="badge" style="color: var(--methodGet)">GET</span><span class="name">Retrieve charge</span></div>
+      <div class="sb-row indent2"><span class="badge" style="color: var(--methodPost)">POST</span><span class="name">Create charge</span></div>
       <div class="sb-footer">
         <button class="tb-btn" aria-label="New Collection"><svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
       </div>

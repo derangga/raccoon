@@ -63,7 +63,10 @@ stack for the window and its actions read whichever Tab is bound, so a switch cl
 
 **A Draft is not Dirty, but closing a non-empty one still asks.** Dirty is defined against a
 saved baseline and a Draft has none (CONTEXT, Dirty). The prompt is about losing work, so the
-rule is "has content the user would lose", which for a Draft is `definition != .empty`.
+rule is "has content the user would lose", which for a Draft is `definition != .empty`. That
+holds for Path Variables with no extra code: `pathVariables` is part of the definition, so a
+changed value makes a Request Dirty, Changed on Disk compares it, and the Session's
+`TabSnapshot` carries it for a Draft and a Dirty edit (boundary.md).
 
 ```
 -> quit()                                        ⌘Q, logout, restart

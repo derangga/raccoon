@@ -24,7 +24,7 @@ design/ui/mockups/build.py` regenerates the mockups after a source edit.
 | Area | Colors from | Why |
 |---|---|---|
 | Window, toolbar, sidebar, menus, sheets, alerts, Settings | the system: `NSColor` semantic colors and `NSVisualEffectView` materials. The sidebar is the opaque `windowBackgroundColor`, not a material (decided 2026-10-16): a vibrant material is translucent in a focused window and showed the wallpaper | HIG; follows light/dark and accent by itself. The mockups draw these with `--sys-*` stand-ins, which are not Theme tokens |
-| Tab strip, banners in the content area, URL bar, message line, request editor, response viewer, the Variable popover | the Theme's tokens | the content areas named in theme.md |
+| Tab strip, Breadcrumb, banners in the content area, URL bar, message line, request editor, response viewer, the Variable popover | the Theme's tokens | the content areas named in theme.md |
 | Inspector (Variables, Curl) | the Theme's tokens, on `backgroundRecessed` like the Response pane | it shows request data: Variable names and values, a curl command with `{{name}}` highlighting |
 | Sidebar filter field, the toolbar toggles | the system: `NSSearchField`, toolbar buttons | native controls |
 | Method badges in the sidebar | Theme tokens (`method*`) on the opaque sidebar | the badge is content, drawn straight on the sidebar with no chip; contrast measured against the sidebar, see Q3 (decided) |
@@ -48,10 +48,10 @@ raw palette, are in [themes/catppuccin.md](./themes/catppuccin.md), generated wi
 | `backgroundRecessed` | mantle | tab strip, inactive Tabs, Response pane, table header row |
 | `border` | surface1 | dividers, field outlines, table rules. Decorative: never the only boundary of a control, which also has a fill |
 | `selection` | surface1 (Latte: surface0) | text selection; the selected segment; hover fill of a Tab's close button |
-| `rowHover` | surface0 (Latte: mantle) | table row hover, Tab hover |
+| `rowHover` | surface0 (Latte: mantle) | table row hover, Tab hover, Breadcrumb segment hover |
 | `text` | text | body text, values, names |
-| `textSecondary` | subtext1 | inactive Tab names, labels, meta (time, size), banner detail, the Ignored note |
-| `textTertiary` | subtext0 | placeholders ("Name", "Value"), column headers, counts, line numbers, void-state body text |
+| `textSecondary` | subtext1 | inactive Tab names, Breadcrumb ancestors, labels, meta (time, size), banner detail, the Ignored note |
+| `textTertiary` | subtext0 | placeholders ("Name", "Value"), column headers, counts, line numbers, void-state body text, Breadcrumb chevrons |
 | `textDisabled` | overlay2 | Disabled Row name and value, disabled segments ("Pretty" above 5 MB) |
 | `textOnAccent` | base | the Send label, primary banner buttons, the checked checkbox's mark |
 | `accent` | blue | Send, primary buttons, selected-Tab top rule, active section underline, checked checkbox |
@@ -177,12 +177,12 @@ Two consequences worth knowing:
 
 | Role | Font | Size / weight | Where |
 |---|---|---|---|
-| Body | SF Pro (system) | 13 pt regular | labels, Tab names, banners, sheets, menus |
+| Body | SF Pro (system) | 13 pt regular | labels, Tab names, Breadcrumb ancestors, banners, sheets, menus |
 | Secondary | SF Pro | 11 pt regular | message line, column headers, hints, sidebar sub-rows |
 | Section labels | SF Pro | 11 pt semibold | "Collections", card labels |
-| Emphasis | SF Pro | 13 pt semibold | active section name, banner lead ("Changed on Disk."), void-state titles |
+| Emphasis | SF Pro | 13 pt semibold | active section name, the Breadcrumb's last segment, banner lead ("Changed on Disk."), void-state titles |
 | Code | SF Mono | 12 pt regular | URL field, table cells, bodies, responses, headers |
-| Method badge | SF Mono | 10 pt (Tab), 9.5 pt (sidebar), 12 pt (URL bar), bold, +0.02 em | |
+| Method badge | SF Mono | 10 pt (Tab), 9.5 pt (sidebar), 12 pt (URL bar), bold, +0.02 em | method colour; in the sidebar, selected-text colour on an emphasized selection (§6 Sidebar rows) |
 | Status code | SF Mono | 12 pt bold, tabular figures | status line |
 | Meta numbers | SF Pro | 12 pt, tabular figures | time, size, counts: they update and must not jitter |
 
@@ -201,14 +201,17 @@ A 4 pt base. Sizes used: 2, 4, 6, 8, 10, 12, 16, 24.
 | Sidebar filter field | 24 pt, 6 pt radius, full sidebar width minus 20 pt |
 | Inspector width | 280 pt default, 240 min, 400 max; closed by default |
 | Inspector rows | 24 pt min, name column 46 %; group title 11 pt semibold |
-| Sidebar row | 24 pt, 6 pt radius selection, 16 pt indent per level |
+| Sidebar row | 24 pt, 6 pt radius selection, 16 pt indent per level, the same for every row kind (§6 Sidebar rows) |
+| Sidebar method badge | 52 pt text column, left-aligned, 4 pt before the name (§6 Sidebar rows) |
 | Tab strip | 34 pt |
+| Breadcrumb | 28 pt, 12 pt sides; segments 22 pt high, 6 pt side padding, 4 pt radius, 2 pt apart; chevron 8 pt |
 | Tab | 104 pt min, 196 pt preferred, selected 168 pt min; 10 pt leading, 6 pt trailing |
 | URL bar row | 30 pt controls, 10 pt top / 6 pt bottom, 8 pt gaps, 12 pt sides |
 | Method pop-up | 84–128 pt wide |
 | Send button | 76 pt min |
 | Message line | 16 pt line height, indented to the URL field's leading edge (104 pt) |
 | Section bar | 28 pt, 2 pt accent underline |
+| Auth pane | 16 pt padding; left column 240 pt, 1 pt rule, 16 pt gaps; "Auth type" 16 pt line, pop-up 28 pt; heading 22 pt line; label column 80 pt; fields 26 pt, 320 pt max, rows 36 pt apart; stacks below 600 pt of pane width |
 | Key/value row | 28 pt; header 24 pt; columns 30 pt / 36 % / rest / 30 pt |
 | Status line | 34 pt |
 | Banner | 36 pt min, grows to two lines |
@@ -246,6 +249,40 @@ Anatomy: `[state glyph or Draft dot] [method badge] name [slot]`, slot 16 × 16 
 Accessibility: each Tab is an `NSAccessibility` tab with title "<method> <name>", value
 "Edited", "Draft", "Sending", "Changed on Disk" as applicable. Seen on: 05, 10.
 
+### Breadcrumb
+
+Anatomy: `[Collection] › [Folder] › … › [Request name]`, a row 28 pt high directly under the
+tab strip, on `background`, so the selected Tab runs into it. It has no rule of its own. A
+banner, when there is one, goes under it, then the URL bar.
+
+| Part | Treatment |
+|---|---|
+| ancestor segment | a button: 13 pt `textSecondary`, 22 pt high, 6 pt side padding, 4 pt radius, transparent |
+| last segment | 13 pt semibold `text`. A button too: it selects the Request's own row |
+| hover | `rowHover` fill, label `text`, on the same frame. No pressed state |
+| chevron | an 8 pt right-pointing chevron, `textTertiary`, 2 pt either side of it |
+| `…` | `textSecondary`, not a button, no hover; tooltip is the full path, names joined by " › " |
+| Draft | one segment, the Tab's title, as the last segment, not a button, not italic |
+
+Names are shown as they are: the Collection's and Folders' names, and the Request's name from
+inside its file, never the file name. Overflow, as the content area narrows: the segments
+between the first and the last collapse into one `…`, nearest the first, until the rest fit; if
+the first, `…` and last still do not fit, the last end-truncates, then the first. A truncated
+segment gets a tooltip with its full name. A name is never wrapped.
+
+Clicking a segment, the last included, shows the sidebar (docked, or the overlay when narrow),
+expands every ancestor of that location, clears a filter that would hide it, and selects it and
+scrolls it into view. It opens no Tab, toggles nothing, and keyboard focus stays in the Tab.
+Segments are not in the key-view loop and show no focus ring, so a click cannot take focus.
+No new token: `textSecondary` and `textTertiary` are measured on `backgroundRecessed` and
+`backgroundElevated`, both darker than `background`, so they pass there too, and the hover fill
+is `rowHover`, which they are already checked on.
+
+Accessibility: the row is a group labelled "Location"; each segment is a button labelled with
+its name, the last one `selected`; `…` is static text labelled with the hidden names; a Draft's
+title is static text. Seen on: 16. Boards 01–14 were drawn before the Breadcrumb and do not
+show it.
+
 ### URL bar
 
 Anatomy: `[method pop-up] [URL field] [Send]`, then the message line.
@@ -264,6 +301,16 @@ Anatomy: `[method pop-up] [URL field] [Send]`, then the message line.
   opens the Variable suggestions. Inside a
   Disabled Row all three are drawn in `textDisabled` (the row is not sent, so it is not
   resolved).
+- **`:name` token** (a Path Variable, editing.md): the range from the `:` to the end of the
+  name is drawn as a rounded token, 4 pt radius, filled `backgroundRecessed`, outlined 0.5 pt
+  `border`, the glyph bounds outset 1 pt, with the text in `textSecondary`: the colour of the
+  Name cell in the Path Variables table, so the token and its row read as one thing. No new
+  Theme token: `textSecondary` already passes 4.5 on `backgroundRecessed` and
+  `backgroundElevated` in all four Flavors (Contrast results), so the Theme file and that table
+  do not change. In Latte `backgroundRecessed` against `backgroundElevated` (mantle on base) is
+  a faint step, which is why the hairline outline is there. Paint only: the text stays as typed
+  and the caret and selection are unaffected. Not drawn in a Disabled part, because the URL has
+  none.
 - **Send**: `accent` fill, `textOnAccent` label, 76 pt min. While sending it becomes
   **Cancel**: `backgroundElevated`, `border`, `text`. ⌘↩ sends, ⌘. cancels. A second ⌘↩
   while sending does nothing (behavior.md).
@@ -281,8 +328,10 @@ Seen on: 01, 03, 04, 09, 10.
 Params · Headers · Body · Auth · Cookies · Settings over the RequestEditor's pane, 28 pt each,
 13 pt `textSecondary`, 10 pt padding, 2 pt apart, over a 1 pt `border` rule. Selected: `text`
 semibold with a 2 pt `accent` underline over the rule. Params, Headers and Cookies carry their
-row count in tabular `textTertiary` ("Params 3", Disabled Rows included); a section with no rows
-shows no count. Auth shows its scheme ("Auth Bearer"). Body shows nothing more: the Body Type
+row count in tabular `textTertiary` ("Params 3", Disabled Rows included; Params counts Query
+Params only, never Path Variables); a section with no rows
+shows no count. Auth reads "Auth" whatever the scheme (the pop-up in its pane names it, and
+the section button's accessibility label is "Auth"). Body shows nothing more: the Body Type
 pop-ups in its pane already name it.
 Seen on: 01, 02, 05.
 
@@ -308,6 +357,43 @@ one vertical rule between Name and Value, 6 pt radius outer border.
 The section label carries the count of rows ("Headers 60"), `textTertiary`, tabular. A count
 holding an Undefined Variable is drawn in `variableUndefined` semibold, so the reason a send
 is blocked is visible from another section. Seen on: 02, 04, 05, 10.
+
+### Params pane and the Path Variables table
+
+The Params pane is two labelled tables in one scroll view. Seen on: 17 (`design/ui/mockups/src/17-path-variables.dc.html`).
+
+- **Labels.** "Query Params" always, over the Params table, which keeps its rows, trailing
+  empty row and behaviour as above. "Path Variables" appears over a second table only while the
+  URL has at least one Path Variable (editing.md). With none there is no label, no table and no
+  empty box. Labels are 24 pt rows, 12 pt SF Pro semibold `textSecondary`, with 12 pt above the
+  second one. "Variables" is never the label: a Variable is `{{name}}`, and the two must not be
+  confused (CONTEXT.md).
+- **Scrolling.** The pane scrolls as one: a single scroll view holds both labels and tables, and
+  neither table scrolls on its own or pins its header row. (This replaces the "60 rows" row
+  above for the Params pane only; Headers, Cookies and the body tables are unchanged.)
+- **The Path Variables table** has the key/value table's chrome (6 pt radius border, 24 pt
+  `backgroundRecessed` header row "Name" · "Value" in `textTertiary`, 28 pt rows, 1 pt `border`
+  rules, one vertical rule at 36 %) and these differences: **no checkbox, no delete, no
+  trailing empty row, no row hover fill.** A row exists because its name is in the URL and
+  goes when it leaves.
+- **Name cell:** SF Mono 12, `textSecondary`, the name without its `:`. Read-only: a click does
+  nothing, it is never selected, and it has no field editor.
+- **Value cell:** edits like any cell in the key/value table (the `focusRing` outline, a click
+  anywhere in it). It takes `{{name}}`: highlighted and suggested as everywhere, and a Variable
+  inside it that is undefined is `variableUndefined` with the wavy underline. The placeholder
+  "Value" is `textTertiary` at 60 %, SF Pro 13, as for the trailing empty row. An empty value is
+  empty, not an error, and is sent as `:id` (sending.md).
+- **When the URL changes** a row appears or goes in place. A cell being edited keeps its field
+  editor and caret when a row above or below it comes or goes. A row whose name stays keeps its
+  value and, if it is being edited, its focus.
+- **The Params count** in the Section bar counts Query Params only, Disabled Rows included.
+  Path Variables are not in it: they are drawn in the URL right above. A Path Variable value
+  that holds an Undefined Variable does colour the count `variableUndefined`, as one in a Param
+  does, so the reason a send is blocked is visible from another section. With no Query Params
+  row there is no count to colour (a section with no rows shows none), so the label "Params"
+  itself is drawn in `variableUndefined` instead, semibold, until the Variable is defined or
+  removed. This case exists only here: for every other section a Variable lives in a row, so
+  the row is counted.
 
 ### Body editor
 
@@ -336,15 +422,54 @@ Seen on: 03, 05, 09.
 
 ### Auth section
 
-A three-segment control: None · Basic · Bearer.
+Two columns inside the pane, split by a 1 pt `border` rule, on a 16 pt padding.
 
-- None: "No Authorization header is added." `textTertiary`.
-- Basic: Username and Password fields (Password is a secure field showing its `{{name}}` if it
-  holds one, otherwise bullets).
-- Bearer: one Token field, SF Mono.
+**Left column**, 240 pt fixed:
+- "Auth type": 12 pt semibold `textSecondary`, with nothing at its trailing end.
+- A pull-down pop-up, 28 pt, `backgroundElevated`, `border`, 6 pt radius, 13 pt `text`, the
+  system pull-down chevron, no glyph. Items "None", "Basic Auth", "Bearer Token"; the title is
+  the chosen item. It replaces the segmented control. A pick is one undo step, named "Auth
+  Type", so ⌘Z brings the old scheme back with what was typed in it.
+- Under it, 6 pt apart, a paragraph: 12 pt `textSecondary`, wrapping at the column's width.
+  It says what the send does, from `AuthNote.text(auth, headers)` (sending.md):
+  - None: "No Authorization header is added."
+  - Basic: "The Authorization header is generated from the username and password when you send
+    the request."
+  - Bearer: "The Authorization header is sent as Bearer followed by the token."
+  - Basic or Bearer, and the Headers table holds an enabled `Authorization` row (any case,
+    any value, empty too): the sentence above, then " An enabled Authorization row in Headers
+    is sent instead." The resolver skips Auth's header when such a row exists (sending.md). The
+    right column's fields stay editable and keep their normal look. The pane refreshes the
+    paragraph whenever it is shown and on every Auth or Headers edit.
+- There is no reset button: the pop-up's "None" does the same, and an
+  `arrow.uturn.backward` glyph beside ⌘Z would look like Undo and not be.
 
-Fields are 26 pt, `backgroundElevated`, `border`, labels right-aligned `textSecondary`. The
-section label carries the scheme: "Auth Bearer". Seen on: 03 (label), 09.
+**Right column**, the rest of the width, 16 pt from the rule:
+- None: empty. The paragraph says it.
+- Basic: heading "Basic Auth" (17 pt regular, `text`), 14 pt below it the rows "Username" and
+  "Password", placeholders "Username" and "Password". Password is a secure field showing its
+  `{{name}}` if it holds one, otherwise bullets.
+- Bearer: heading "Bearer Token", one row "Token", placeholder "Token".
+- A row is `[label][field]`: the label left-aligned, 13 pt `text`, in an 80 pt column, 12 pt
+  before the field. Rows are 36 pt apart. The field is 26 pt, `backgroundElevated`, `border`,
+  6 pt radius, SF Mono 12, 8 pt side padding, and takes the rest of the width up to **320 pt**
+  (about a third of a 970 pt editor). Placeholders are `textTertiary`. The fields keep `{{name}}`
+  highlighting, the `{{` suggestions and the Variable popover. There is no enabled flag, so no
+  disabled styling.
+
+**Narrow: the pane's own width below 600 pt.** Two columns need 16 + 240 + 16 + 1 + 16 on the
+left and 80 + 12 + 200 + 16 on the right, 597 pt, so 600 pt is where the field would otherwise
+shrink under 200 pt. Below it the left column (still 240 pt wide) stacks above the right one,
+the rule becomes a horizontal 1 pt `border` rule 16 pt above and below, and the right column
+fills the pane's width. The editor's minimum is 480 pt (the Inspector overlays below that), so
+it always fits. The editor measures its own width, not the window's.
+
+The domain Auth enum, its stored form, the header built at send and Curl Import's mapping of
+an `Authorization` header to Auth are unchanged. Switching the pop-up drops what was typed for
+the old scheme, as the domain Auth enum does: the pane keeps no values of its own, so another
+Tab, or the same Tab after a switch, shows empty fields. ⌘Z brings the old scheme back with its
+values. Seen on: 09 (stacked), 15 (every scheme and
+the narrow case); the section label on 03, 05, 11, 13.
 
 ### Request Settings
 
@@ -406,13 +531,48 @@ Seen on: 01, 02, 04, 06, 09, 10.
 
 NSOutlineView, source-list style, on the sidebar material. 24 pt rows, `sys` label colors.
 
+**One leading edge per level.** `indentationPerLevel` is 16 pt, and a row's leading edge is
+`level × 16` further right than a level 0 row's, whatever the row is: Collection (level 0),
+Folder, Request, Unreadable. AppKit places each cell there and keeps the disclosure slot even
+for rows with no children, so a Request is not pushed in by the missing triangle. Whatever
+the cell shows starts at that edge: a Folder's glyph, a Request's badge, an Unreadable row's
+warning triangle. A Request's badge therefore starts where a Folder's glyph at the same
+level would. Nothing inside a cell may add an offset of its own before the first element:
+the 2 pt padding a label keeps each side is cancelled by placing the label 2 pt left of the
+edge. The filter view keeps the rule: its rows have the same levels as in the unfiltered
+tree (matches expand their ancestors, nothing is flattened).
+
+**A click keeps focus in the outline.** Clicking a Request row opens or selects its Tab and
+leaves keyboard focus in the outline, so the row keeps the system's emphasized selection
+(accent fill, white text) after the button is released instead of flipping to the grey,
+unemphasized one. ↑ ↓ keep moving the sidebar selection. A field being edited in the Tab, or
+in the Inspector, still ends its edit and writes its text to the Tab it was typed in before the
+new Tab shows. Return on a row, and Return in the filter, are the ways focus goes to the URL
+field (surfaces.md §8). Selection is drawn as AppKit draws it, emphasized only while the
+outline has focus: a Breadcrumb click, which leaves focus in the Tab, shows the unemphasized fill.
+
+**Coloured text on a selected row.** Any coloured text or glyph in a row follows the row's
+background style. On an emphasized selection (the outline has focus, the accent fill) it is
+`NSColor.alternateSelectedControlTextColor`, the system's colour for text on that fill, never
+a hard-coded white: the name, the method badge, a Collection's or Folder's glyph, an
+Unreadable row's warning triangle and its reason line. On an unemphasized selection (grey,
+the outline without focus) and on unselected rows, they keep their own colours (`method*`
+and `warning` Theme tokens, secondary label). The cell reads `backgroundStyle == .emphasized`.
+
 - **Collection**: disclosure, a stacked-layers glyph, the name.
-- **Folder**: disclosure, folder glyph, name. 16 pt indent per level.
-- **Request**: the method badge (52 pt, right-aligned, end-truncated: `PROPFIND` fits,
-  longer methods get an ellipsis) then the name, end-truncated.
-- **Unreadable**: a `warning` triangle, the **file name** (not a Request name: there isn't
-  one), in secondary label color, and an icon-only Reveal in Finder button (20 × 18,
-  `aria-label`/tooltip "Reveal in Finder"). Beneath, an 11 pt line with the reason: "Not
+- **Folder**: disclosure, folder glyph, name.
+- **Request**: the method badge (its method colour, white on an emphasized selection), then the name, end-truncated. The badge sits in a fixed
+  52 pt text column, **left-aligned**, then 4 pt, then the name. 52 pt is the width of
+  `PROPFIND` (48.5 pt at SF Mono bold 9.5 pt with +0.02 em) plus slack, so it fits and
+  nothing wider than 8 characters does: longer methods get an ellipsis. Left-aligned in a
+  fixed column, the names of Requests in one parent start at the same x, and a short method
+  (`GET`, `PUT`) starts at the same x as a long one instead of floating 28 pt right of where
+  the Folder glyph would sit. Sizing the column to the widest method among the visible
+  siblings was rejected: names would shift whenever a sibling was added, renamed or filtered
+  out, and the outline would need a reload for it.
+- **Unreadable**: a `warning` triangle at the leading edge, the **file name** (not a Request name: there isn't
+  one) 20 pt after it, in secondary label color, and an icon-only Reveal in Finder button (20 × 18,
+  `aria-label`/tooltip "Reveal in Finder"). Beneath, an 11 pt line with the reason, starting under the name (20 pt after the leading edge): "Not
   valid JSON at line 14. Raccoon won't change this file.", "Unknown file version 3.", "Same id
   as List refunds.json.", and for JSON that is not a Request "Not a Raccoon Request: missing
   “name”. Raccoon won't change this file." Selecting it shows nothing in the editor; double-click reveals.
@@ -443,7 +603,7 @@ Seen on: 14.
 
 ### Banners
 
-In the content area, under the tab strip and above the URL bar, so they belong to the Tab
+In the content area, under the Breadcrumb and above the URL bar, so they belong to the Tab
 whose state they describe. 36 pt min, `backgroundElevated`, `border` bottom, a 16 pt glyph,
 a bold lead sentence and detail in `textSecondary`, buttons trailing.
 
@@ -581,7 +741,8 @@ the full mapping: [design/entry-points/postman.md](../entry-points/postman.md).
   Requests it applies to (11 pt, at most one line, then "and 12 more"). Warnings (orange
   triangle) for losses: scripts, unsupported Auth, binary bodies, dynamic variables, file
   parts with only a name. Info (ⓘ) for changes that keep meaning: inherited Auth copied,
-  Collection variables added to Globals, path variables written into the URL.
+  Collection variables added to Globals. Path variables are not a note: they come across whole
+  (postman.md).
 - **Footer**: "Imports into ~/Raccoon. Secrets go to the Keychain." and Cancel · **Import**.
   Import is disabled when nothing is ticked or the Data Folder is not writable (the footer
   then says why: "Can't import into ~/Raccoon. The folder is not writable."). One line; a long
@@ -766,6 +927,9 @@ Every entry of [e-where-it-breaks.md](../e-where-it-breaks.md) with a visible pl
 | duplicate RequestID | the second is an unreadable row: "Same id as …" | Sidebar rows |
 | write failed | Tab banner "Not saved", Tab stays Dirty | Banners |
 | file deleted under a Tab | Tab banner "Deleted on disk", the Tab becomes a Draft (italic) | Banners, Tab |
+| Breadcrumb: no index entry for the Tab's Request | the last known segments stay; none: the Tab's title alone | Breadcrumb |
+| Breadcrumb: a segment's path has no sidebar row | the sidebar shows, nothing is selected, nothing is said | Breadcrumb, Sidebar |
+| Breadcrumb: too narrow | the middle becomes "…", then the names truncate; tooltips hold the full text | Breadcrumb |
 | Session undecodable | one empty Draft Tab (screen 1). The renamed file is not surfaced (Q7) | Tab |
 | Session unwritable on quit | logged only; no visible place, by decision | — |
 | snapshot Request gone | restored as a Draft | Tab |
@@ -795,7 +959,7 @@ visually by rendering the local mockups in headless Chrome at 2120 px.
 | 1 | Broken | sidebar unreadable row | `Create charge (conflicted copy 2026-10-14).json` | the Reveal in Finder text button took the row; the name showed as "Creat…" | icon-only Reveal button (20 × 18) with label and tooltip; the reason moves to its own line |
 | 2 | Broken | status line | `511 Network Authentication Required`, `20.4 MB` | code, time, size and the Pretty note each wrapped onto two lines | `nowrap` on every status-line item; only the reason truncates (`min-width: 0`), never the code, time or size |
 | 3 | Ugly | Tab | 6 Tabs in a 768 pt content area | a later `min-width: 0` overrode the 104 pt minimum; every Tab shrank to "List c…" including the selected one | removed the override; the selected Tab keeps 168 pt |
-| 4 | Ugly | sidebar method badge | `PROPFIND`, `OPTIONS` | the 38 pt badge cut them to "PROPFI…" | 52 pt badge, end-truncated beyond 8 characters |
+| 4 | Ugly | sidebar method badge | `PROPFIND`, `OPTIONS` | the 38 pt badge cut them to "PROPFI…" | 52 pt badge, end-truncated beyond 8 characters (left-aligned since the indentation pass, §6 Sidebar rows) |
 | 5 | Ugly | URL bar method | `PROPFIND` | fixed 84 pt pop-up truncated it | 84–128 pt, sized to the label |
 | 6 | Broken | multipart file chip | `~/Documents/receipt-1042.pdf` | the `direction: rtl` truncation trick reordered the path to `Documents/receipt-1042.pdf/~` | show the file name only, full path in the tooltip and in the missing-file message |
 | 7 | Fragile | 30 Tabs | 30 | nothing marks hidden Tabs | 24 pt fade masks at both edges of the scrolling strip; selected Tab scrolled into view |

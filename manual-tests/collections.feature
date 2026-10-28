@@ -53,7 +53,7 @@ Feature: The sidebar tree
       | POST   | Refund charge      | 1     |
       | PATCH  | Update charge      | 1     |
     And each level is indented 16 pt more than its parent, and rows are 24 pt tall
-    And every badge is SF Mono bold 9.5 pt, right-aligned in one 52 pt column, in its method's Theme colour, with no chip behind it
+    And every badge is SF Mono bold 9.5 pt, left-aligned in one 52 pt column, in its method's Theme colour, with no chip behind it
     And the sidebar is the plain window background (#f0f0f0 in Light, #2c2c2c in Dark), focused or not
 
   Scenario: break-ui, board 10
@@ -61,6 +61,33 @@ Feature: The sidebar tree
     Then "PROPFIND" shows whole in its badge, and "🦝 Webhooks テスト 🚀" sits beside it
     And "CORS preflight for the merchant onboarding dashboard" ends in "…" at the sidebar's edge
     And the single-letter Request "x" still has its DELETE badge
+
+  Scenario: Every level starts the same step right of the last, boards 02 and 09
+    Given I quit Raccoon and run, in the fixture Data Folder:
+      mkdir -p "$D/Sociolla/Beauty Journal" "$D/Sociolla/Zalo Vietguy"
+      for r in "Get Zalo:GET" "Send SMS:POST" "Template Detail:GET" "Lookup:PROPFIND"; do printf '{"version":1,"id":"%s","name":"%s","method":"%s","url":"x"}' $(uuidgen) "${r%%:*}" "${r##*:}" > "$D/Sociolla/Zalo Vietguy/${r%%:*}.json"; done
+    And Raccoon is launched with the Data Folder
+    When I expand Sociolla and Zalo Vietguy
+    Then the rows read, in order, with each row's leading edge the same 16 pt further right than its parent's:
+      | row               | level | what starts at the leading edge   |
+      | Sociolla          | 0     | its stacked-layers glyph          |
+      | Beauty Journal    | 1     | its folder glyph                  |
+      | Zalo Vietguy      | 1     | its folder glyph                  |
+      | Get Zalo          | 2     | its GET badge                     |
+      | Lookup            | 2     | its PROPFIND badge                |
+      | Send SMS          | 2     | its POST badge                    |
+      | Template Detail   | 2     | its GET badge                     |
+    And the GET badge of "Get Zalo" starts 16 pt right of the folder glyph of "Zalo Vietguy", the same as a Folder's glyph inside Zalo Vietguy would
+    And the badges "GET" and "POST" start at the same x, and the names "Get Zalo" and "Send SMS" start at the same x
+    And the name "Get Zalo" starts 56 pt right of the leading edge, and "Zalo Vietguy" starts 20 pt right of its own
+    And "PROPFIND" shows whole, with no "…", and "Lookup" starts at the same x as "Get Zalo"
+    When I type "zalo" in the filter
+    Then the rows keep the same levels and leading edges as above
+    When I clear the filter
+    And I run: printf 'nope' > "$D/Sociolla/Zalo Vietguy/Broken.json"
+    Then the Unreadable row "Broken.json" has its warning triangle at the same leading edge as "Get Zalo"'s badge, and its reason line starts under its name
+    # Known simplification: the badge column is a fixed 52 pt, so a custom method of more than
+    # 8 characters ends in "…" in the sidebar (the whole method is in the URL bar and the Tab).
 
   Scenario: Expansion survives a relaunch
     When I expand Payments API and collapse Refunds, then quit with ⌘Q and relaunch with the same command
@@ -395,6 +422,26 @@ Feature: The sidebar filter
     When I type "refund" in the filter and press Return
     Then "Cancel refund" opens in a Tab and the URL field has focus, and the filter stays
 
+  Scenario: A click keeps focus in the sidebar
+    Given a Draft Tab is selected and "Send SMS" is closed
+    When I press the mouse button on the "Send SMS" row
+    Then the row is the saturated accent blue with white text, and "POST" is white too, not its method colour
+    When I release the button
+    Then "Send SMS" opens in a Tab and is selected, and the row is still the same blue with white text and a white "POST", with no flip to grey
+    When focus leaves the sidebar, such as clicking a Breadcrumb segment
+    Then the row turns grey and "POST" goes back to its method colour
+    And ↓ moves the sidebar selection to the next row, and ↑ back, without changing the selected Tab
+    When I click a Collection row, such as "Payments API"
+    Then its row is the same blue with white text and a white glyph after release, and no Tab opens or changes
+
+  Scenario: A click commits the field being edited
+    Given the selected Tab is a Draft and I have typed "https://a.example/x" in its URL field, with the caret still in it
+    When I click the "Send SMS" row
+    Then the Draft keeps "https://a.example/x" as its URL
+    And the "Send SMS" Tab is selected and shows its own URL, and the caret is no longer in a text field
+    When I click the Draft's Tab
+    Then the URL bar reads "https://a.example/x"
+
   Scenario: A change on disk while filtering
     When the filter reads "refund" and I run: cp "$D/Payments API/List charges.json" "$D/Payments API/Refund status.json" && sed -i '' 's#"List charges"#"Refund status"#; s#0C0FFEE0-0000-4000-8000-000000000002#0C0FFEE0-0000-4000-8000-000000000077#' "$D/Payments API/Refund status.json"
     Then "Refund status" joins the results and the count reads "7 matches in 1 Collection"
@@ -405,6 +452,109 @@ Feature: The sidebar filter
     When I type "request"
     Then the count reads "2,000 matches in 4 Collections" and the list scrolls smoothly to the end
 
+
+Feature: The Breadcrumb
+  Board 16, in Latte and in Mocha
+
+  Background:
+    Given a fresh copy of the fixture Data Folder and a fresh Session
+    And I quit Raccoon and run, in the fixture Data Folder:
+      mkdir -p "$D/Sociolla/Beauty Journal/Article"
+      printf '{"version":1,"id":"%s","name":"Retry Share Social Media","method":"POST","url":"https://httpbin.org/anything/share"}' $(uuidgen) > "$D/Sociolla/Beauty Journal/Article/Retry Share Social Media.json"
+    And Raccoon is launched with the Data Folder in a window at least 1200 pt wide
+    And only the Sociolla row is showing, collapsed
+
+  Scenario: The line above the URL bar
+    When I expand Sociolla, Beauty Journal and Article, and click "Retry Share Social Media"
+    Then a 28 pt line sits between the tab strip and the URL bar, on the editor's background, and reads:
+      "Sociolla › Beauty Journal › Article › Retry Share Social Media"
+    And "Sociolla", "Beauty Journal" and "Article" are 13 pt in the secondary text colour, and the chevrons are smaller and lighter
+    And "Retry Share Social Media" is 13 pt semibold in the primary text colour
+    And it shows the name inside the file, not "Retry Share Social Media.json"
+
+  Scenario: Click an ancestor
+    Given "Retry Share Social Media" is open in its Tab, and only the Sociolla row is showing, collapsed
+    And the focus is in the URL field
+    When I click "Beauty Journal" in the Breadcrumb
+    Then Sociolla expands, the "Beauty Journal" row is selected and in view, and "Article" stays collapsed
+    And no Tab opens or changes, and the URL field still has the focus
+    And the Breadcrumb has no focus ring on any segment
+
+  Scenario: Click the last segment
+    When I click "Retry Share Social Media" in the Breadcrumb
+    Then Sociolla, Beauty Journal and Article are expanded and the Request's own row is selected and in view
+    And the Tab is unchanged and is not reopened, and there is still one Tab for it
+
+  Scenario: A filter that hides the row
+    Given the filter field holds "zalo", which hides the row
+    When I click "Article" in the Breadcrumb
+    Then the filter clears, the tree is back with the rows expanded as before the filter plus Sociolla and Beauty Journal, and the "Article" row is selected
+    Given the filter field holds "retry", which shows the row
+    When I click "Article"
+    Then the filter is left as it is and the "Article" row is selected
+
+  Scenario: The sidebar is hidden
+    Given the window is narrow enough that the sidebar is hidden, or I hide it with ⌃⌘S
+    When I click "Sociolla" in the Breadcrumb
+    Then the sidebar opens, docked or over the content when the window is narrow, and "Sociolla" is selected
+    And the focus is still in the Tab
+
+  Scenario: A Draft
+    When I press ⌘T
+    Then the Breadcrumb reads "Draft" in the last-segment style, not italic
+    When I click it
+    Then nothing happens and the sidebar does not change
+    When I type "https://httpbin.org/anything/webhooks" in the URL field
+    Then the Breadcrumb reads "/anything/webhooks"
+    When I press ⌘S and save it as "Hook" in Payments API
+    Then the Breadcrumb reads "Payments API › Hook" at once
+
+  Scenario: A rename and a move follow without the Tab doing anything
+    Given "Retry Share Social Media" is open in its Tab
+    When I rename "Article" to "Articles" in the sidebar
+    Then the Breadcrumb reads "Sociolla › Beauty Journal › Articles › Retry Share Social Media" at once
+    When I run: mv "$D/Sociolla/Beauty Journal/Articles" "$D/Sociolla/Articles"
+    Then the Breadcrumb reads "Sociolla › Articles › Retry Share Social Media" after a moment, with no banner
+    When I rename the Request to "Retry Share" in the sidebar
+    Then the Breadcrumb and the Tab name both read "Retry Share"
+
+  Scenario: The file turns unreadable
+    When I run: printf 'nope' > "$D/Sociolla/Articles/Retry Share.json"
+    Then the Breadcrumb keeps reading "Sociolla › Articles › Retry Share"
+    When I click "Retry Share" in it
+    Then the warning row "Retry Share.json" is selected
+    # Known simplification: if Articles is then renamed in Raccoon, the old names stay and
+    # their clicks select nothing until the file reads again.
+
+  Scenario: Too narrow, the middle collapses
+    Given I run: mkdir -p "$D/Sociolla/Beauty Journal/Article/Webhooks/Retries" && cp "$D/Sociolla/Beauty Journal/Article/Retry Share Social Media.json" "$D/Sociolla/Beauty Journal/Article/Webhooks/Retries/Backoff.json" && sed -i '' 's#"name":"Retry Share Social Media"#"name":"Backoff"#; s#"id":"[^"]*"#"id":"0C0FFEE0-0000-4000-8000-000000000088"#' "$D/Sociolla/Beauty Journal/Article/Webhooks/Retries/Backoff.json"
+    And "Backoff" is open in its Tab
+    When I drag the window narrower, with the sidebar hidden, until the line no longer fits
+    Then the Folders between "Sociolla" and "Backoff" collapse into one "…", the nearest to "Sociolla" first
+    And "Sociolla" and "Backoff" stay
+    When I hover "…"
+    Then the tooltip reads "Sociolla › Beauty Journal › Article › Webhooks › Retries › Backoff"
+    When I click "…"
+    Then nothing happens
+    When I widen the window again
+    Then every segment is back
+
+  Scenario: A very long name
+    When I rename the Request to a 120-character name and open its Tab
+    Then the last segment ends in "…" at the right edge, with no second line
+    And hovering it shows the whole name in a tooltip
+    And the name in the Tab strip and the sidebar are end-truncated too, as before
+
+  Scenario: break-ui, names in any script
+    When I open "PROPFIND 🦝 Webhooks テスト 🚀" and click its Collection in the Breadcrumb
+    Then the Collection row is selected and in view, and nothing in the Breadcrumb is clipped or overlaps
+
+  Scenario: Accessibility
+    When I inspect the Breadcrumb with Accessibility Inspector
+    Then it is a group labelled "Location"
+    And each of "Sociolla", "Beauty Journal", "Article" is a button labelled with its name
+    And "Retry Share Social Media" is a button labelled with its name and marked selected
+    And a Draft's title is static text, not a button
 
 Feature: Save from the close prompt
   Not drawn; design-system §6 Close confirmation

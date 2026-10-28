@@ -137,6 +137,118 @@ Feature: URL bar and Params stay in sync
     Then the Params value of id reads "{{user_id}}", not "%7B%7Buser_id%7D%7D"
 
 
+Feature: Path Variables
+  Board 17
+
+  Scenario: A :name in the URL makes a Path Variables table
+    Given a new Draft, GET, URL empty
+    When I type "https://httpbin.org/anything/posts/:id/retry" in the URL field
+    Then ":id" is drawn as a rounded token, filled and outlined, in the same colour as a Name cell
+    And the Params section shows the label "Query Params" over a table with one empty row
+    And under it a label "Path Variables" and a table with one row: Name "id", Value empty with the grey placeholder "Value"
+    And that table has no checkbox, no delete button and no trailing empty row
+    And the section bar reads "Params" with no count
+    When I click the Name cell "id"
+    Then nothing happens: it is not editable and not selected
+
+  Scenario: A value is sent in place of :id, and Copy as Curl shows the same
+    Given the URL "https://httpbin.org/anything/posts/:id/retry"
+    When I click the Value cell (it shows its outline), type "689eba19be47b88f9d590367" and press ⌘↩
+    Then httpbin's "url" reads "https://httpbin.org/anything/posts/689eba19be47b88f9d590367/retry"
+    When I press ⇧⌘C and paste
+    Then the curl command's URL is the same
+    And the inspector's Curl pane shows the same URL
+
+  Scenario: The value follows the URL
+    Given the value "689eba19be47b88f9d590367" for :id
+    When I change the host in the URL field
+    Then the Path Variables row and its value are still there
+    And if I was editing the Value cell, it keeps its outline and caret
+    When I delete ":id" from the URL
+    Then the "Path Variables" label and table disappear, and "Query Params" stays
+    When I press ⌘Z in the URL field
+    Then ":id" is back, with the value
+
+  Scenario: A name typed letter by letter keeps no stray value
+    Given the URL "https://httpbin.org/anything/:i" with the value "7" for i
+    When I type "d" after ":i"
+    Then the table shows "id" with an empty Value, and "i" is gone
+
+  Scenario Outline: What is and is not a Path Variable
+    When I type "<url>" in the URL field
+    Then the Path Variables table <shows>
+
+    Examples:
+      | url                                       | shows                                       |
+      | http://localhost:3061/posts               | is absent, and ":3061" is not a token       |
+      | localhost:3061/x                          | is absent                                   |
+      | {{host}}:8080/x                           | is absent                                   |
+      | http://h/:                                | is absent                                   |
+      | http://h/:id/:id                          | has one row, "id"                           |
+      | http://h/:id.json                         | has one row, "id"; ".json" is not in the token |
+      | http://h/:id:cancel                       | has one row, "id"                           |
+      | http://h/:user-id/:user_id                | has two rows: "user-id", "user_id"          |
+      | http://h/:{{x}}                           | is absent                                   |
+
+  Scenario: Empty is sent as typed
+    Given the URL "https://httpbin.org/anything/:id" and no value
+    When I press ⌘↩
+    Then httpbin's "url" reads "https://httpbin.org/anything/:id"
+    And there is no message under the URL bar
+
+  Scenario Outline: Encoding a value
+    Given the URL "https://httpbin.org/anything/:id" and the value "<value>"
+    When I press ⌘↩
+    Then httpbin's "url" ends with "<sent>"
+
+    Examples:
+      | value     | sent        | why                                         |
+      | a b       | /a%20b      | a space is encoded                          |
+      | a/b       | /a/b        | "/" is not encoded: two segments, as in Postman |
+      | a%2Fb     | /a%2Fb      | to send one segment, type %2F: it goes as typed |
+      | 100%      | /100%25     | a lone % is encoded                         |
+      | a?b#c     | /a%3Fb%23c  | a value cannot start a query or a fragment  |
+      | a,b;c=d   | /a,b;c=d    | what a path can hold stays                  |
+
+  Scenario: A Variable in a value
+    Given an Environment with user_id = "42" is active, and the value of :id is "{{user_id}}"
+    When I press ⌘↩
+    Then the request goes to ".../anything/42"
+    And "{{user_id}}" in the Value cell is blue
+
+  Scenario: An Undefined Variable in a value blocks the send
+    Given the value of :id is "{{missing}}", defined nowhere
+    Then "{{missing}}" in the Value cell is red with a wavy underline
+    And the section bar's "Params" is in the undefined colour, semibold, with no count (there is no Query Param row)
+    When I add the Param page=1
+    Then the label reads "Params 1" with the count, not the label, in the undefined colour
+    When I press ⌘↩
+    Then the message line reads "Not sent. missing is not defined in <Environment> or in Globals."
+    And no request reached the server
+
+  Scenario: A saved Request keeps its Path Variables
+    Given a Request with the URL ".../:id" and the value "7"
+    When I save it with ⌘S
+    Then the file in the Data Folder has a "pathVariables" key: {"id": "7"}
+    When I clear the value and save again
+    Then the file has no "pathVariables" key
+    And a Request that never had a value is saved with the same bytes as before this feature
+
+  Scenario: A Dirty edit and a Draft survive a relaunch
+    Given a Draft with the URL ".../:id" and the value "7"
+    When I quit with ⌘Q and launch again
+    Then the Draft is back with the value "7" in the Path Variables table
+
+  Scenario: Pasting a curl command with :id (break-ui: two kinds of colon)
+    When I paste "curl https://httpbin.org/anything/:id" into the URL field
+    Then the URL reads "https://httpbin.org/anything/:id" and the table shows one row "id", empty
+
+  Scenario: Many names and a long value (break-ui)
+    When I type a URL with 30 names
+    Then the pane scrolls as one, and no table header stays pinned
+    And a 2,000-character value is end-truncated in its cell
+
+
 Feature: Key/value table
   Boards 02, 05, 10 (Params, Headers, Cookies, form-urlencoded, multipart)
 
@@ -179,14 +291,14 @@ Feature: Request sections
   Scenario: Section bar
     Then the sections read Params · Headers · Body · Auth · Cookies · Settings, Params selected
     And a count follows each table name only when it has rows
-    And Body shows no type, whatever its Body Type, and Auth shows its scheme ("Auth Bearer")
+    And Body shows no type, whatever its Body Type, and Auth reads "Auth" whatever its scheme
 
   Scenario: The editor/Response split
     When I drag the divider between the editor and the Response
     Then neither pane gets smaller than 160 pt
 
 
-Feature: Every header sent is on screen
+Feature: Every header sent is on screen, in Headers or as the Auth
   Headers section, automatic rows
 
   Scenario: Automatic rows
@@ -406,17 +518,28 @@ Feature: Request Settings
 
 
 Feature: Auth
-  Boards 03, 09
+  Boards 03, 05, 09, 11, 13, 15
 
   Scenario: None
     When I open Auth
-    Then "Type" shows None · Basic · Bearer with None selected
-    And it reads "No Authorization header is added."
+    Then the section bar reads "Auth"
+    And "Auth type" is a label, with a pop-up reading "None" under it
+    And "No Authorization header is added." shows under the pop-up
+    And the right column is empty
+    And there is no reset button
+
+  Scenario: The pop-up holds three items
+    When I open the "Auth type" pop-up
+    Then it lists "None", "Basic Auth" and "Bearer Token", with the current one checked
 
   Scenario: Basic
-    When I pick "Basic" and type Username "user" and Password "pass"
-    Then the section reads "Auth Basic"
-    And the password shows as bullets
+    When I choose "Basic Auth"
+    Then the section bar still reads "Auth"
+    And the right column shows the heading "Basic Auth" and the rows "Username" and "Password"
+    And the paragraph reads "The Authorization header is generated from the username and password when you send the request."
+    When I type Username "user" and Password "pass"
+    Then the password shows as bullets
+    And the Tab is Dirty
     When I send "https://httpbin.org/basic-auth/user/pass"
     Then the Response is "200 OK"
 
@@ -425,15 +548,64 @@ Feature: Auth
     Then the field shows "{{ops_password}}" as text, not bullets
 
   Scenario: Bearer
-    When I pick "Bearer" and type the Token "abc.def"
-    Then the section reads "Auth Bearer"
+    When I choose "Bearer Token"
+    Then the heading reads "Bearer Token" and one row "Token" shows
+    And the paragraph reads "The Authorization header is sent as Bearer followed by the token."
+    When I type the Token "abc.def"
+    And I send "https://httpbin.org/headers"
+    Then the echo shows Authorization "Bearer abc.def"
+
+  Scenario: An enabled Authorization row in Headers is sent instead of Auth's
+    Given Auth is "Bearer Token" with the Token "abc.def"
+    And Headers holds the enabled row "Authorization: Basic eHl6"
+    When I open Auth
+    Then the paragraph reads "The Authorization header is sent as Bearer followed by the token. An enabled Authorization row in Headers is sent instead."
+    And the Token field is editable and looks as it does without the row
+    When I send "https://httpbin.org/headers"
+    Then the echo shows Authorization "Basic eHl6", not "Basic eHl6,Bearer abc.def"
+    When I disable the Headers row and open Auth
+    Then the paragraph reads "The Authorization header is sent as Bearer followed by the token."
     When I send "https://httpbin.org/headers"
     Then the echo shows Authorization "Bearer abc.def"
 
-  Scenario: Switching away and back keeps what was typed
+  Scenario: The row wins whatever its case or value
+    Given Auth is "Basic Auth" with Username "ana" and Password "pw"
+    And Headers holds the enabled row "authorization" with an empty value
+    When I send "https://httpbin.org/headers"
+    Then the echo shows no Authorization from Auth: not "Basic YW5hOnB3"
+    And Copy as Curl and the Curl pane show the same Authorization header, or none, as the echo
+
+  Scenario: Switching the scheme drops what was typed for the old one
     Given the Bearer token "abc.def"
-    When I pick "None", then "Bearer"
-    Then the token still reads "abc.def"
+    When I choose "None", then "Bearer Token"
+    Then the Token field is empty
+    When I press ⌘Z twice
+    Then the pop-up reads "Bearer Token" and the Token reads "abc.def"
+
+  Scenario: Another Tab does not inherit typed credentials
+    Given Tab A has "Basic Auth" with Username "ana" and Password "pw"
+    When I open Tab B, which has Auth "None", and choose "Basic Auth"
+    Then Username and Password are empty
+
+  Scenario: Choosing None is one undo step
+    Given Auth is "Bearer Token" with the Token "abc.def"
+    When I choose "None"
+    Then the pop-up reads "None" and the right column is empty
+    When I press ⌘Z
+    Then the pop-up reads "Bearer Token" and the Token reads "abc.def"
+
+  Scenario: A saved Request never puts the scheme in the section bar
+    Given a Request opened from a saved file with Basic Auth
+    Then the section bar reads "Auth", never "Auth Basic"
+    And the Auth pane shows "Basic Auth" in the pop-up
+
+  Scenario: A narrow editor stacks the pane
+    Given the Auth pane is "Basic Auth"
+    When the editor is 800 pt wide
+    Then "Auth type" and its paragraph sit left of a vertical rule, and the fields right of it
+    When I drag the editor narrower than 600 pt
+    Then the left column sits above the right one, with a horizontal rule between them
+    And the fields keep their labels and fill the width up to 320 pt
 
 
 Feature: Body editor
