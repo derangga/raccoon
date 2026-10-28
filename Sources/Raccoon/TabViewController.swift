@@ -54,8 +54,11 @@ final class TabViewController: NSViewController, NSMenuItemValidation {
     /// Shows another Tab in the same views, keeping where the old one was.
     func bind(_ model: TabModel) {
         guard model !== self.model else { return }
-        // A field being edited writes its text to the Tab it was typed in.
-        view.window?.makeFirstResponder(nil)
+        // A field being edited, here or in the Inspector, writes its text to the Tab it was typed in.
+        // Other focus stays: a click on a sidebar row keeps it in the outline, so the selection stays emphasized.
+        if let window = view.window, let focused = window.firstResponder as? NSView, focused.isDescendant(of: view) || focused is NSTextView {
+            window.makeFirstResponder(nil)
+        }
         self.model.viewState = TabModel.ViewState(
             section: editor.selected, body: editor.bodyPane.textView.place, response: viewer.textView.place
         )

@@ -78,4 +78,35 @@ struct TabSwitchTests {
         controller.bind(b)
         #expect(window.undoManager?.canUndo == false)
     }
+
+    @Test func `a field being edited in the Tab ends its edit when another Tab is bound`() {
+        let (a, b) = (tab(url: "https://a.example", body: "a"), tab(url: "https://b.example", body: "b"))
+        let controller = shown(a)
+        let field = controller.urlBar.urlField
+        window.makeFirstResponder(field)
+        #expect(field.currentEditor() != nil)
+
+        controller.bind(b)
+
+        #expect(field.currentEditor() == nil)
+        #expect(window.firstResponder === window)
+    }
+
+    @Test func `focus outside the Tab, in the sidebar's outline, stays there when another Tab is bound`() {
+        let (a, b) = (tab(url: "https://a.example", body: "a"), tab(url: "https://b.example", body: "b"))
+        let controller = TabViewController(model: a, theme: theme)
+        let host = NSView(frame: NSRect(x: 0, y: 0, width: 900, height: 700))
+        let outline = NSOutlineView(frame: NSRect(x: 0, y: 0, width: 100, height: 100))
+        controller.view.frame = NSRect(x: 100, y: 0, width: 800, height: 700)
+        outline.addTableColumn(NSTableColumn(identifier: NSUserInterfaceItemIdentifier("name")))
+        host.addSubview(outline)
+        host.addSubview(controller.view)
+        window.contentView = host
+        window.makeFirstResponder(outline)
+        #expect(window.firstResponder === outline)
+
+        controller.bind(b)
+
+        #expect(window.firstResponder === outline)
+    }
 }
