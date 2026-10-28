@@ -35,7 +35,9 @@ Window                          one, native chrome
                                 editable Value; no checkbox, delete or trailing row
       BodyEditor                Body Type picker, text editor, multipart rows
       AuthSection               two columns, stacked below 600 pt: AuthTypePopUp (None · Basic
-                                Auth · Bearer Token) and AuthNote on the left, the fields on the right
+                                Auth · Bearer Token) and AuthNote on the left, the fields on the right;
+                                the rule between them runs the pane's full height. None: the right
+                                side is an empty state ("No Auth")
       RequestSettings           two checkboxes
     Split                       draggable divider
     ResponseViewer              StatusLine · Body (Pretty | Raw) · Headers
@@ -97,7 +99,7 @@ sidebar's + menu) · untick a file · Import.
 -> send ⌘↩
   -> resolve                                     V: undefined -> MessageLine, no spinner
   -> ResponseViewer .sending (after 150 ms)
-  -> ResponseViewer .received                    V: failed / binary / empty / raw-only
+  -> ResponseViewer .received                    V: failed / binary / image / empty / raw-only
 -> keep
   -> ⌘S on a Request -> Tab clean                V: write failed -> TabBanner, stays Dirty
   -> ⌘S on a Draft -> SaveDraftSheet -> Tab becomes the Request, row appears in Sidebar
@@ -161,7 +163,7 @@ Every node above appears on a screen in `mockups/` or in a component spec in
 | KeyValue table | many | 0 rows (trailing row only), 60 rows (scrolls, header sticky; in the Params pane the pane scrolls and no header sticks) |
 | PathVariablesTable | one row per name in the URL, in order | 0 names (the table and its label are absent), 30 names (the pane scrolls), a 200-character name (end-truncated, tooltip), a 2,000-character value (end-truncated) |
 | URLBar, RequestEditor | one record, the selected Tab | a 2,000-character URL on one line |
-| ResponseViewer | one record, **live while sending** | 0 B, 20 MB (Raw only above 5 MB), binary |
+| ResponseViewer | one record, **live while sending** | 0 B, 20 MB (Raw only above 5 MB), binary, an image |
 | StatusLine elapsed time | live while sending | ticks every 100 ms, tabular figures so it does not jitter |
 | EnvironmentsSheet | list + detail | no Environments (Globals only), secrets the Keychain cannot read |
 
@@ -187,9 +189,10 @@ Each row is a designed state. "Place" is the surface the user is already looking
 | MessageLine | absent | n/a | Ignored note: `Ignored: --retry, -s`, "2 more commands", unreadable @file | unterminatedQuote (position), noURL, Undefined Variables (every name) | n/a |
 | KeyValue table | trailing empty row with grey "Name" / "Value" | n/a | Disabled Rows dimmed and unchecked | undefined `{{name}}` red wavy underline in the cell | n/a |
 | PathVariablesTable | absent when the URL has no Path Variable; a Value cell shows the grey placeholder "Value" | n/a | n/a | undefined `{{name}}` in a Value: red wavy underline, and the Params count in red (the label, when there is no count) | n/a |
+| AuthSection | Auth type None: right side shows "No Auth" + "Pick Basic Auth or Bearer Token under Auth type to add one." | n/a | n/a | n/a | n/a |
 | BodyEditor | Body Type none: "This request has no body." | n/a | n/a | multipart file missing: chip outlined red + MessageLine at send | binary @file: Curl note, body none |
 | ResponseViewer | idle: "Send a request to see the Response here." + ⌘↩ | sending: spinner, live elapsed, Cancel in the URL bar | Raw shown first while Pretty is computed off-main; above 5 MB Pretty is disabled with "Pretty is off above 5 MB" | failed: title + detail + the one fix if there is one (Allow insecure TLS); timedOut; transport code | n/a |
-| ResponseViewer Body | 0 B: "Empty body." | as above | not JSON/XML or did not parse: Raw, no error | n/a | binary: "Binary body, N KB …" |
+| ResponseViewer Body | 0 B: "Empty body." | as above | not JSON/XML or did not parse: Raw, no error | n/a | binary: "Binary body, N KB …"; an image that does not decode is the same |
 | ResponseViewer Headers | none: "No headers." | n/a | wire order can't be kept (environment-facts.md): rows sorted by name, footer "macOS merges repeated headers and doesn't keep their order." | n/a | n/a |
 | VariableTooltip | n/a | n/a | n/a | undefined: "Not defined in <Env> or Globals" | secret: "Secret", the value is never shown |
 | EnvironmentsSheet | Globals only, no Environments: list shows Globals and "+" | n/a | Keychain unreadable: the secret's row says "Not in the Keychain" and resolves as undefined | SecretStore.set failed: row message with the OSStatus, file untouched | n/a |

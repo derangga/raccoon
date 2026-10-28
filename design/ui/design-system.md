@@ -214,7 +214,7 @@ A 4 pt base. Sizes used: 2, 4, 6, 8, 10, 12, 16, 24.
 | Send button | 76 pt min |
 | Message line | 16 pt line height, indented to the URL field's leading edge (104 pt) |
 | Section bar | 28 pt, 2 pt accent underline |
-| Auth pane | 16 pt padding; left column 240 pt, 1 pt rule, 16 pt gaps; "Auth type" 16 pt line, pop-up 28 pt; heading 22 pt line; label column 80 pt; fields 26 pt, 320 pt max, rows 36 pt apart; stacks below 600 pt of pane width |
+| Auth pane | 16 pt padding; left column 240 pt, 1 pt rule, 16 pt gaps; "Auth type" 16 pt line, pop-up 28 pt; heading 22 pt line; None's empty state 8 pt between symbol, title and message; label column 80 pt; fields 26 pt, 320 pt max, rows 36 pt apart; stacks below 600 pt of pane width |
 | Key/value row | 28 pt; header 24 pt; columns 30 pt / 36 % / rest / 30 pt |
 | Status line | 34 pt |
 | Banner | 36 pt min, grows to two lines |
@@ -425,7 +425,8 @@ Seen on: 03, 05, 09.
 
 ### Auth section
 
-Two columns inside the pane, split by a 1 pt `border` rule, on a 16 pt padding.
+Two columns inside the pane, split by a 1 pt `border` rule, on a 16 pt padding. The rule runs
+the pane's full height, top edge to bottom edge, whatever the columns hold.
 
 **Left column**, 240 pt fixed:
 - "Auth type": 12 pt semibold `textSecondary`, with nothing at its trailing end.
@@ -448,7 +449,13 @@ Two columns inside the pane, split by a 1 pt `border` rule, on a 16 pt padding.
   `arrow.uturn.backward` glyph beside ⌘Z would look like Undo and not be.
 
 **Right column**, the rest of the width, 16 pt from the rule:
-- None: empty. The paragraph says it.
+- None: an empty state, centered both ways in the right area (the part right of the rule, 16 pt
+  clear of it, to the pane's trailing edge and from its top to its bottom). Stacked below 600 pt,
+  the area is the part under the horizontal rule. A column, 8 pt apart, centered on each other:
+  the `lock.open` symbol (20 pt, `textTertiary`), the title "No Auth" (13 pt semibold,
+  `textSecondary`), and the message "Pick Basic Auth or Bearer Token under Auth type to add one."
+  (12 pt `textTertiary`, centered, wrapping at 260 pt). It is the void-state look of the Curl
+  pane. Picking Basic or Bearer removes it and shows that scheme's heading and fields.
 - Basic: heading "Basic Auth" (17 pt regular, `text`), 14 pt below it the rows "Username" and
   "Password", placeholders "Username" and "Password". Password is a secure field showing its
   `{{name}}` if it holds one, otherwise bullets.
@@ -520,7 +527,14 @@ Anatomy: status line (34 pt) over the body area, on `backgroundRecessed`.
   send), "No response after 60 s", URLError's description plus the code and host for
   transport errors, "Invalid URL" quoting the URL after substitution (status line "Not sent").
 - **binary**: "Binary body", then "48.2 KB that is not UTF-8 text. Raccoon shows text bodies
-  only."
+  only." Until the off-main presentation lands the body area is empty, not the bytes as text.
+- **image** (`Content-Type: image/*` other than `image/svg+xml`, and the bytes decode): the
+  body area shows the picture centered on `backgroundRecessed`, scaled down to fit and never
+  past its natural size, aspect ratio kept; no Gutter, no Pretty | Raw. The status line holds
+  a caption left of the Body | Headers control, `textDisabled` 11 pt like the Pretty note:
+  "900 × 900 · image/webp" (pixels, then the media type). Bytes that do not decode show
+  **binary**, above. The picture appears at once, decided by the header: no text is drawn
+  first.
 - **empty body** (0 B): "Empty body." Status line unchanged.
 - **Headers**: two columns, name `textSecondary`, value `text`, SF Mono 12, end-truncated
   with the full value in a tooltip. Wire order and duplicates are gone before Raccoon sees
@@ -588,7 +602,8 @@ Seen on: 01, 02, 09, 10.
 
 An `NSPopUpButton` (pull-down off, borderless, `.small`) at the top of the sidebar, above the
 filter field, full sidebar width minus 20 pt, 24 pt high. Its title is the open Workspace's
-title in `sys` label color, end-truncated. The menu:
+title in `sys` label color, end-truncated. The menu opens as a dropdown (Dropdown placement,
+below): under the control, not over it. Its items:
 
 - every Workspace by title (`localizedStandardCompare`), the open one checked. A title is
   the folder name; two Workspaces with the same folder name read "api — work" and
@@ -632,7 +647,13 @@ A native pop-up button in the toolbar, labelled "Environment", showing the Activ
 or "No Environment". Menu: No Environment, a separator, each Environment by name with a check
 on the active one, a separator, "Edit Environments…", which opens the sheet and leaves the Active Environment showing. ⌃E
 opens the menu (View ▸ Choose Environment); ⌥⌃E opens the sheet (View ▸ Edit Environments…;
-decided, Q5), so both are listed in the menu bar. Long names end-truncate at 200 pt; the menu shows them in full. Seen on: every screen.
+decided, Q5), so both are listed in the menu bar. Long names end-truncate at 200 pt; the menu shows them in full. The menu opens as a dropdown (Dropdown placement, below). Seen on: every screen.
+
+**Dropdown placement.** The Workspace pop-up and the Environment picker share one placement
+(`DropdownPopUp`). AppKit's own pop-up menu slides so the selected item sits over the button,
+which covers the control; these two open instead 4 pt below the control's bottom edge with the
+menu's left edge on the control's left edge, the selected item still checked, whatever the
+window position. Click, Space on the focused control and ⌃E all open it there.
 
 Sizes (decided 2026-10-28; the small control at 20 pt left "No Environment" almost no room
 above and below). The label is 11 pt `secondaryLabelColor`, then an 8 pt gap, then the pop-up
@@ -1008,7 +1029,7 @@ Every entry of [e-where-it-breaks.md](../e-where-it-breaks.md) with a visible pl
 | transport(code) | Response pane: description plus the code and host | failed |
 | resolve: undefined(names) | red underlines already on screen; message line names every one; no spinner | URL bar, key/value table |
 | Keychain unreadable | becomes undefined; the Environments sheet row says "Not in the Keychain" | Environments sheet |
-| body not UTF-8 | Response pane: binary | Response viewer |
+| body not UTF-8, or image/* that does not decode | Response pane: binary | Response viewer |
 | JSON did not parse | Raw, no message | Response viewer |
 | unterminatedQuote | message line with the position; Tab unchanged | URL bar |
 | noURL | message line: "No URL in this curl command." | URL bar |

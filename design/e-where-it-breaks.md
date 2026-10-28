@@ -42,6 +42,8 @@ resolve
                            why
 showResponse
   ⚠ body not UTF-8       → not an error: .binary(byteCount)
+  ⚠ image/* that does not decode (NSImage nil)
+                         → not an error: the same binary state as above
   ⚠ JSON did not parse   → not an error: .raw. A server that says json and sends HTML
                            is the server's fact
   ⚠ body does not nest   → not an error: no Fold Regions, no chevrons

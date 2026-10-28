@@ -126,13 +126,45 @@ and a file that changed since it was picked is sent as it is now, which is what 
 ```
 -> showResponse(response)                        when .received lands, and on Tab switch
   -> StatusLine(status, elapsed, byteCount)      pure
-  -> ResponseBody.presentation(response)         pure
+  -> ResponseBody.imageMediaType(response)       pure, a header read: runs on the main actor at
+                                                 once, before the presentation (below) lands.
+                                                 Some(type) -> showImage; the text view is
+                                                 never filled, so no text flashes
+  -> ResponseBody.presentation(response)         pure, off the main actor
+     .image(mediaType)                           Content-Type is image/* (not image/svg+xml,
+                                                 which is XML text), whatever the bytes are
      .pretty(text, .json | .xml)                 byteCount ≤ 5 MB and it parses
      .raw(text)                                  > 5 MB, or not JSON/XML, or did not parse
      .binary(byteCount)                          not valid UTF-8
   -> Highlighter.ranges(text, kind)              pure, only for .pretty      R: none
   -> Theme colours applied to the ranges         R: ThemeChoice (theme.md)
 ```
+
+```
+-> showImage(response, mediaType)                when imageMediaType is Some; Raccoon.app
+  -> NSImage(data: response.body)                boundary    R: ImageIO, through AppKit
+                                                 decoded once per Response and kept by the
+                                                 viewer: Body | Headers, resizing and a Theme
+                                                 change redraw from it; a Tab switch or a new
+                                                 send decodes again
+                                                 E: bytes do not decode -> escape: the
+                                                 .binary void, as for a body that is not text
+  -> NSImageView, scaled down to fit, never up   V: centered in the body area
+  -> caption "<w> × <h> · <mediaType>"           pixel size from the bitmap, in the status line
+```
+
+**An image is decided by `Content-Type` alone.** A body is text or binary by its bytes and
+Pretty by parsing, but nothing parses an image without decoding it, and decoding is AppKit's.
+So the rule is the header (`image/*`), and the decode is the viewer's: bytes that do not decode
+show the binary state. A binary body under any other type, or none, stays binary; Raccoon does
+not sniff bytes for a picture. The body bytes reach the viewer whole: the transport decodes
+nothing, and URLSession undoes a `Content-Encoding` on its own (environment-facts.md).
+
+**Until the presentation lands, nothing is drawn that it would replace.** The presentation is
+computed off the main actor, so the viewer first draws what it can know at once. An image
+(header) goes straight to the picture. A body whose bytes are not UTF-8 shows an empty body
+area, not the bytes as garbled text, and then the binary state. Any other body shows Raw
+first, as before.
 
 **5 MB is measured, and so is the text engine.** The body views are `NSTextView`s on TextKit 1
 with non-contiguous layout. On the default TextKit 2, scrolling to the end of a 20 MB body

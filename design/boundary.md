@@ -28,6 +28,8 @@ URLSession reply            → Response                  // status, headers in 
                                                         //   body bytes. Nothing decoded here
 Response.body               → ResponseBody presentation // JSON/XML parsed off the main
                                                         //   actor; failure is .raw
+Response.body, image/*      → NSImage                   // in Raccoon.app, on show; nil is
+                                                        //   the binary state
 FolderWatch event paths     → [RequestID]               // via DataFolderIndex, so a path
                                                         //   that is not a Request is dropped
 a Postman export file       → PostmanFile               // PostmanImporter, pure. Not JSON
