@@ -99,7 +99,7 @@ public struct VariablesPane: Equatable, Sendable {
         case .bearer(let token): [token]
         }
         let sections: [(String, [String])] = [
-            ("URL", [definition.url]), ("Params", texts(definition.params)), ("Headers", texts(definition.headers)),
+            ("URL", [definition.url]), ("Params", texts(definition.params) + PathVariables.sentValues(definition.pathVariables, in: definition.url)), ("Headers", texts(definition.headers)),
             ("Body", body), ("Auth", auth), ("Cookies", texts(definition.cookies)),
         ]
         var found: [(name: VariableName, sections: [String])] = []

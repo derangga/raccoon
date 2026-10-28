@@ -85,7 +85,7 @@ struct SidebarActionsTests {
         sidebar.searchField.stringValue = "Refunds"
         sidebar.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification))
 
-        sidebar.select(collection: "Orders")
+        sidebar.select(path: "Orders")
 
         #expect(sidebar.searchField.stringValue == "")
         #expect((sidebar.outline.item(atRow: sidebar.outline.selectedRow) as? SidebarItem)?.path == "Orders")

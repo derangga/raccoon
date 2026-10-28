@@ -237,10 +237,6 @@ struct PostmanImport {
                 add(false, "Auth inherited from Folders is copied onto \(requests).")
             case .binaryBody:
                 add(true, "\(requests) \(one ? "has" : "have") a binary body and \(one ? "is" : "are") imported with no body.")
-            case .pathVariable:
-                add(false, "Path variables are written into the URL of \(requests).")
-            case .pathVariableEmpty(let name):
-                add(true, ":\(name) has no value in \(requests), so it stays in the URL as typed.")
             case .dynamicVariable(let name):
                 if dynamic == nil {
                     dynamic = (lines.count, [], [])

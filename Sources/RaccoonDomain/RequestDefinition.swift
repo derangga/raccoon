@@ -7,6 +7,9 @@ public struct RequestDefinition: Equatable, Sendable {
     /// The text before `?`. The query is always rendered from `params`.
     public var url: String
     public var params: [Row]
+    /// Path Variable name -> value, without the `:`. Holds only non-empty values: `""` is absent,
+    /// so clearing a value gives back an equal definition. The URL says which names exist.
+    public var pathVariables: [String: String]
     public var headers: [Row]
     /// Request Cookies.
     public var cookies: [Row]
@@ -15,12 +18,14 @@ public struct RequestDefinition: Equatable, Sendable {
     public var settings: RequestSettings
 
     public init(
-        method: String, url: String, params: [Row], headers: [Row], cookies: [Row],
+        method: String, url: String, params: [Row], pathVariables: [String: String] = [:],
+        headers: [Row], cookies: [Row],
         body: Body, auth: Auth, settings: RequestSettings
     ) {
         self.method = method
         self.url = url
         self.params = params
+        self.pathVariables = pathVariables
         self.headers = headers
         self.cookies = cookies
         self.body = body

@@ -108,20 +108,52 @@ extension PostmanMappingTests {
     }
 
     @Test(arguments: [
-        (
-            PostmanURL(raw: "https://h:8080/users/:id/posts/:post", variable: [PostmanKeyValue(key: "id", value: "7"), PostmanKeyValue(key: "post", value: "{{p}}")]),
-            "https://h:8080/users/7/posts/{{p}}", [ImportNote(.pathVariable, names: ["r"])]
-        ),
-        (
-            PostmanURL(host: ["h"], path: ["users", ":id", ":other"], variable: [PostmanKeyValue(key: "id", value: "")]),
-            "h/users/:id/:other", [ImportNote(.pathVariableEmpty(name: "id"), names: ["r"]), ImportNote(.pathVariableEmpty(name: "other"), names: ["r"])]
-        ),
-        (PostmanURL(raw: "http://h/a:b/:x?y=:z", variable: [PostmanKeyValue(key: "x", value: "1")]), "http://h/a:b/1", [ImportNote(.pathVariable, names: ["r"])]),
-    ])
-    func `a path variable's value is written into the path, and an empty one keeps :name and is noted`(url: PostmanURL, expected: String, notes: [ImportNote]) {
+        // A value, and one holding a Variable.
+        (PostmanURL(raw: "https://h:8080/users/:id/posts/:post", variable: [PostmanKeyValue(key: "id", value: "7"), PostmanKeyValue(key: "post", value: "{{p}}")]),
+         "https://h:8080/users/:id/posts/:post", ["id": "7", "post": "{{p}}"]),
+        // An empty value, and a name with no entry, are no value.
+        (PostmanURL(host: ["h"], path: ["users", ":id", ":other"], variable: [PostmanKeyValue(key: "id", value: "")]), "h/users/:id/:other", [:]),
+        // No variable array.
+        (PostmanURL(raw: "http://h/users/:id"), "http://h/users/:id", [:]),
+        // A key that is not in the URL, and `:z` in the query, which is not a Path Variable.
+        (PostmanURL(raw: "http://h/a:b/:x?y=:z", variable: [PostmanKeyValue(key: "x", value: "1"), PostmanKeyValue(key: "z", value: "2"), PostmanKeyValue(key: "gone", value: "3")]),
+         "http://h/a:b/:x", ["x": "1"]),
+        // A variable with no key.
+        (PostmanURL(raw: "http://h/:id", variable: [PostmanKeyValue(key: "", value: "1")]), "http://h/:id", [:]),
+        // A repeated :id is one name with one value.
+        (PostmanURL(raw: "http://h/:id/x/:id", variable: [PostmanKeyValue(key: "id", value: "7")]), "http://h/:id/x/:id", ["id": "7"]),
+        // `:id.json`: the name ends at the dot, as Postman reads it.
+        (PostmanURL(raw: "http://h/:id.json", variable: [PostmanKeyValue(key: "id", value: "7"), PostmanKeyValue(key: "id.json", value: "8")]),
+         "http://h/:id.json", ["id": "7"]),
+        // A non-string value arrives as its JSON text.
+        (PostmanURL(raw: "http://h/:n", variable: [PostmanKeyValue(key: "n", value: "5000")]), "http://h/:n", ["n": "5000"]),
+        // A fragment is dropped, and nothing after it is read.
+        (PostmanURL(raw: "http://h/:a#/:b", variable: [PostmanKeyValue(key: "a", value: "1"), PostmanKeyValue(key: "b", value: "2")]), "http://h/:a", ["a": "1"]),
+    ] as [(PostmanURL, String, [String: String])])
+    func `a path variable stays in the URL and its value goes to pathVariables, with no note`(url: PostmanURL, expected: String, values: [String: String]) {
         let request = PostmanRequest(name: "r", url: url)
         #expect(definition(request)?.url == expected)
-        #expect(self.notes(request) == notes)
+        #expect(definition(request)?.pathVariables == values)
+        #expect(notes(request) == [])
+    }
+
+    @Test func `a non-string path variable value is its JSON text`() throws {
+        let json = #"{"info": {"name": "C", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"}, "item": [{"name": "r", "request": {"method": "GET", "url": {"raw": "http://h/:n/:b", "variable": [{"key": "n", "value": 5000}, {"key": "b", "value": true}]}}}]}"#
+        let file = PostmanImporter.read(Data(json.utf8))
+        guard case .request(let planned)? = plan([file]).collections.first?.nodes.first else { Issue.record("no request"); return }
+        #expect(planned.definition.pathVariables == ["n": "5000", "b": "true"])
+    }
+
+    @Test func `the sample file plans with the id kept and no note`() throws {
+        let sample = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "manual-tests/postman-import/path-variables/Posts.postman_collection.json")
+        let plan = plan([PostmanImporter.read(try Data(contentsOf: sample))])
+        guard case .request(let first)? = plan.collections.first?.nodes.first,
+              case .request(let second)? = plan.collections.first?.nodes.last else { Issue.record("no requests"); return }
+        #expect(first.definition.url == "http://localhost:3061/posts/:id/retry-share-social-media")
+        #expect(first.definition.pathVariables == ["id": "689eba19be47b88f9d590367"])
+        #expect(second.definition.pathVariables == ["user": "{{user_id}}"])
+        #expect(plan.notes == [])
     }
 }
 

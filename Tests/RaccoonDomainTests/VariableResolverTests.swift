@@ -80,6 +80,21 @@ struct VariableResolverTests {
         #expect(resolved.auth == .none)
     }
 
+    @Test(arguments: [
+        ([Row(name: "Authorization", value: "Basic eHl6")], [Row(name: "Authorization", value: "Basic eHl6")]),
+        ([Row(name: "authorization", value: "Bearer x")], [Row(name: "authorization", value: "Bearer x")]),
+        ([Row(name: "AUTHORIZATION", value: "")], [Row(name: "AUTHORIZATION", value: "")]),
+        ([Row(name: "Authorization", value: "Basic eHl6", isEnabled: false)], [Row(name: "Authorization", value: "Bearer abc")]),
+        ([Row(name: "Accept", value: "*/*")], [Row(name: "Accept", value: "*/*"), Row(name: "Authorization", value: "Bearer abc")]),
+    ])
+    func `an enabled Authorization row wins over Auth's header, a disabled one does not`(headers: [Row], sent: [Row]) throws {
+        var request = definition("GET", "http://h/")
+        request.headers = headers
+        request.auth = .bearer(token: "abc")
+
+        #expect(try VariableResolver.resolve(request).definition.headers == sent)
+    }
+
     @Test func `no Auth adds no header`() throws {
         #expect(try VariableResolver.resolve(definition("GET", "http://h/")).definition.headers.isEmpty)
     }
@@ -191,5 +206,58 @@ struct VariableResolverTests {
         request.params = [Row(name: "q", value: "{{q}}"), Row(name: "n", value: "1")]
 
         #expect(try VariableResolver.resolve(request, scope: scope(["q": "a&b=c"])).url.absoluteString == "http://h/search?q=a%26b=c&n=1")
+    }
+
+    // MARK: Path Variables
+
+    @Test(arguments: [
+        ("http://h/posts/:id/retry", ["id": "689eba19be47b88f9d590367"], [:], "http://h/posts/689eba19be47b88f9d590367/retry"),
+        ("http://h/posts/:id/retry", [:], [:], "http://h/posts/:id/retry"),
+        ("http://h/posts/:id/retry", ["id": ""], [:], "http://h/posts/:id/retry"),
+        ("http://h/posts/:id", ["id": "{{user_id}}"], ["user_id": "u 1"], "http://h/posts/u%201"),
+        ("http://h/posts/:id", ["id": "{{empty}}"], ["empty": ""], "http://h/posts/:id"),
+        ("http://h/:{{x}}", [:], ["x": "val"], "http://h/:val"),
+        ("http://h/:id/:id", ["id": "7"], [:], "http://h/7/7"),
+        ("http://h/:id.json", ["id": "7"], [:], "http://h/7.json"),
+        ("http://h/:id", ["id": "a/b"], [:], "http://h/a/b"),
+        ("http://h/:id", ["id": "a%2Fb"], [:], "http://h/a%2Fb"),
+        ("http://h/:id", ["id": "100%"], [:], "http://h/100%25"),
+        ("http://h/:id", ["id": "a?b#c"], [:], "http://h/a%3Fb%23c"),
+        ("http://h/:id", ["id": "{{other}}"], ["other": "/:other"], "http://h//:other"),
+        ("{{base}}/:id", ["id": "7"], ["base": "http://h/:id"], "http://h/:id/7"),
+        ("http://h/a#/:id", ["id": "7"], [:], "http://h/a#/:id"),
+        ("http://localhost:3061/:id", ["id": "7"], [:], "http://localhost:3061/7"),
+    ] as [(String, [String: String], [String: String], String)])
+    func `a Path Variable's value replaces :name once, encoded as a path segment`(url: String, values: [String: String], scope values2: [String: String], sent: String) throws {
+        var request = definition("GET", url)
+        request.pathVariables = values
+        #expect(try VariableResolver.resolve(request, scope: scope(values2)).url.absoluteString == sent)
+    }
+
+    @Test func `a Path Variable value and a header Undefined Variable are reported together, in order`() {
+        var request = definition("GET", "http://h/:id/{{base}}")
+        request.pathVariables = ["id": "{{missing}} {{base}}"]
+        request.headers = [Row(name: "X", value: "{{token}}")]
+        #expect(throws: ResolveError.undefined([name("missing"), name("base"), name("token")])) {
+            try VariableResolver.resolve(request, scope: scope([:]))
+        }
+    }
+
+    @Test func `a Variable whose value is /:other creates no Path Variable at send`() throws {
+        var request = definition("GET", "http://h/:id")
+        request.pathVariables = ["id": "{{o}}", "other": "ZZ"]
+        #expect(try VariableResolver.resolve(request, scope: scope(["o": "/:other"])).url.absoluteString == "http://h//:other")
+    }
+
+    @Test func `a value of a name that is not in the URL is not sent and not scanned`() throws {
+        var request = definition("GET", "http://h/x")
+        request.pathVariables = ["gone": "{{missing}}"]
+        #expect(try VariableResolver.resolve(request, scope: scope([:])).url.absoluteString == "http://h/x")
+    }
+
+    @Test func `a Path Variable's value does not reach the resolved definition's other fields`() throws {
+        var request = definition("GET", "http://h/:id")
+        request.pathVariables = ["id": "7"]
+        #expect(try VariableResolver.resolve(request).definition.url == "http://h/7")
     }
 }

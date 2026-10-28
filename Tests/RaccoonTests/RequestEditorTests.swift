@@ -26,14 +26,21 @@ struct RequestEditorTests {
             == ["Params 3", "Headers 1", "Body", "Auth", "Cookies", "Settings"])
     }
 
-    @Test func `Auth shows its scheme and Body shows no Body Type`() {
+    @Test func `Auth and Body show no detail, whatever the scheme or Body Type`() {
         var definition = RequestDefinition.empty
         definition.body = .raw(.json, "{}")
-        definition.auth = .bearer(token: "t")
-        #expect((EditorSection.body.title(in: definition), EditorSection.auth.title(in: definition)) == ("Body", "Auth Bearer"))
-        definition.body = .formURLEncoded([])
-        definition.auth = .basic(user: "u", password: "p")
-        #expect((EditorSection.body.title(in: definition), EditorSection.auth.title(in: definition)) == ("Body", "Auth Basic"))
+        for auth in [Auth.none, .basic(user: "u", password: "p"), .bearer(token: "t")] {
+            definition.auth = auth
+            #expect((EditorSection.body.title(in: definition), EditorSection.auth.title(in: definition)) == ("Body", "Auth"))
+            #expect(EditorSection.auth.detail(in: definition) == nil)
+        }
+    }
+
+    @Test func `the Auth section button is labelled Auth with Basic set`() {
+        let editor = editor()
+        model.tab.definition.auth = .basic(user: "u", password: "p")
+        editor.render()
+        #expect(editor.sectionButton(.auth).accessibilityLabel() == "Auth")
     }
 
     @Test func `a count needs no plural change`() {
@@ -45,9 +52,10 @@ struct RequestEditorTests {
     @Test func `Params is shown first, and picking a section shows only its pane`() {
         let editor = editor()
         #expect(editor.selected == .params)
-        #expect(!editor.table(.params).isHidden && editor.table(.headers).isHidden)
+        // The Params table sits in its pane, so it is hidden with it.
+        #expect(!editor.table(.params).isHiddenOrHasHiddenAncestor && editor.table(.headers).isHidden)
         editor.select(.headers)
-        #expect(editor.table(.params).isHidden && !editor.table(.headers).isHidden)
+        #expect(editor.table(.params).isHiddenOrHasHiddenAncestor && !editor.table(.headers).isHidden)
     }
 
     @Test(arguments: [EditorSection.params, .headers, .cookies])
@@ -104,9 +112,9 @@ struct RequestEditorTests {
         #expect(insecure.state == .off)
     }
 
-    func pick(_ scheme: Int, in pane: AuthPane) {
-        pane.scheme.selectedSegment = scheme
-        pane.scheme.sendAction(pane.scheme.action, to: pane.scheme.target)
+    func pick(_ title: String, in pane: AuthPane) {
+        let menu = pane.typeMenu
+        menu.performActionForItem(at: menu.indexOfItem(withTitle: title))
     }
 
     func type(_ text: String, in field: NSTextField, of pane: AuthPane) {
@@ -114,25 +122,44 @@ struct RequestEditorTests {
         pane.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification, object: field))
     }
 
-    @Test func `Auth starts at None, which says no header is added`() {
-        let pane = editor().authPane
-        #expect((0..<3).map { pane.scheme.label(forSegment: $0) } == ["None", "Basic", "Bearer"])
-        #expect(pane.scheme.selectedSegment == 0)
-        #expect(!pane.noneNote.isHidden && pane.noneNote.stringValue == "No Authorization header is added.")
-        #expect(pane.basicFields.isHidden && pane.bearerFields.isHidden)
+    /// The pane at `width` pt of editor width, laid out.
+    func authPane(width: CGFloat) -> (RequestEditor, AuthPane) {
+        let editor = editor()
+        editor.setFrameSize(NSSize(width: width, height: 400))
+        editor.select(.auth)
+        editor.layoutSubtreeIfNeeded()
+        return (editor, editor.authPane)
     }
 
-    @Test func `Basic writes the username and password, and the section label reads the scheme`() {
+    @Test func `Auth starts at None, which says no header is added`() {
+        let pane = editor().authPane
+        #expect(pane.typeButton.attributedTitle.string == "None")
+        #expect(pane.note.stringValue == "No Authorization header is added.")
+        #expect(pane.heading.isHidden && pane.basicFields.isHidden && pane.bearerFields.isHidden)
+    }
+
+    @Test func `the pop-up holds three items and checks the current one`() {
+        let pane = editor().authPane
+        #expect(pane.typeMenu.items.map(\.title) == ["None", "Basic Auth", "Bearer Token"])
+        #expect(pane.typeMenu.items.map(\.state) == [.on, .off, .off])
+        pick("Bearer Token", in: pane)
+        #expect(pane.typeMenu.items.map(\.state) == [.off, .off, .on])
+    }
+
+    @Test func `Basic writes the username and password, and the section label stays Auth`() {
         let editor = editor()
         let pane = editor.authPane
-        pick(1, in: pane)
+        pick("Basic Auth", in: pane)
         #expect(model.tab.definition.auth == .basic(user: "", password: ""))
-        #expect(!pane.basicFields.isHidden && pane.bearerFields.isHidden && pane.noneNote.isHidden)
+        #expect(pane.heading.stringValue == "Basic Auth" && !pane.heading.isHidden)
+        #expect(!pane.basicFields.isHidden && pane.bearerFields.isHidden)
+        #expect(pane.note.stringValue == "The Authorization header is generated from the username and password when you send the request.")
+        #expect((pane.username.placeholderString, pane.password.placeholderString) == ("Username", "Password"))
 
         type("ops-bot", in: pane.username, of: pane)
         type("hunter2", in: pane.password, of: pane)
         #expect(model.tab.definition.auth == .basic(user: "ops-bot", password: "hunter2"))
-        #expect(EditorSection.auth.title(in: model.tab.definition) == "Auth Basic")
+        #expect(EditorSection.auth.title(in: model.tab.definition) == "Auth")
         #expect(pane.username.font == .monospacedSystemFont(ofSize: 12, weight: .regular))
     }
 
@@ -149,22 +176,111 @@ struct RequestEditorTests {
         #expect(pane.passwordVariable.stringValue == "{{ops_password}}")
     }
 
-    @Test func `Bearer writes its token, and switching schemes away and back keeps what was typed`() {
+    @Test func `Bearer writes its token under its own heading`() {
         let editor = editor()
         let pane = editor.authPane
-        pick(2, in: pane)
+        pick("Bearer Token", in: pane)
+        #expect(pane.heading.stringValue == "Bearer Token" && pane.basicFields.isHidden && !pane.bearerFields.isHidden)
+        #expect(pane.note.stringValue == "The Authorization header is sent as Bearer followed by the token.")
+        #expect(pane.token.placeholderString == "Token")
         type("{{api_key}}", in: pane.token, of: pane)
         #expect(model.tab.definition.auth == .bearer(token: "{{api_key}}"))
-        #expect(EditorSection.auth.title(in: model.tab.definition) == "Auth Bearer")
+    }
 
-        editor.select(.auth)
-        editor.layoutSubtreeIfNeeded()
-        #expect(pane.token.frame.width > 200 && pane.token.superview!.frame.height == 26)
-
-        pick(0, in: pane)
+    @Test func `switching the scheme drops what was typed, and Bearer to None to Bearer is empty`() {
+        let pane = editor().authPane
+        pick("Bearer Token", in: pane)
+        type("abc.def", in: pane.token, of: pane)
+        pick("None", in: pane)
         #expect(model.tab.definition.auth == .none)
-        pick(2, in: pane)
-        #expect(model.tab.definition.auth == .bearer(token: "{{api_key}}"))
+        pick("Bearer Token", in: pane)
+        #expect(model.tab.definition.auth == .bearer(token: ""))
+        #expect(pane.token.stringValue == "")
+    }
+
+    @Test func `another Tab does not inherit typed credentials`() {
+        let pane = editor().authPane
+        pane.setAuth(.basic(user: "ana", password: "pw"))
+        #expect(pane.username.stringValue == "ana")
+        pane.setAuth(.none)
+        pick("Basic Auth", in: pane)
+        #expect((pane.username.stringValue, pane.password.stringValue, pane.passwordVariable.stringValue) == ("", "", ""))
+    }
+
+    @Test func `choosing None is one undo step that brings the scheme back with its values`() throws {
+        let editor = editor()
+        let pane = editor.authPane
+        model.tab.definition.auth = .bearer(token: "abc.def")
+        editor.render()
+        let undo = try #require(window.undoManager)
+        undo.groupsByEvent = false
+        undo.beginUndoGrouping()
+        pick("None", in: pane)
+        undo.endUndoGrouping()
+        #expect(model.tab.definition.auth == .none && undo.undoActionName == "Auth Type")
+
+        undo.undo()
+        #expect(model.tab.definition.auth == .bearer(token: "abc.def"))
+        #expect(pane.token.stringValue == "abc.def" && pane.typeButton.attributedTitle.string == "Bearer Token")
+        undo.redo()
+        #expect(model.tab.definition.auth == .none)
+    }
+
+    @Test func `an enabled Authorization row in Headers changes the paragraph, and the fields stay editable`() {
+        let editor = editor()
+        let pane = editor.authPane
+        model.tab.definition.auth = .bearer(token: "abc.def")
+        model.tab.definition.headers = [Row(name: "Authorization", value: "Basic eHl6")]
+        editor.render()
+        #expect(pane.note.stringValue == "The Authorization header is sent as Bearer followed by the token. An enabled Authorization row in Headers is sent instead.")
+        #expect(pane.token.isEditable && pane.token.isEnabled)
+
+        model.tab.definition.headers[0].isEnabled = false
+        editor.render()
+        #expect(pane.note.stringValue == "The Authorization header is sent as Bearer followed by the token.")
+    }
+
+    @Test func `800 pt gives two columns, a 240 pt left one, a vertical rule and fields up to 320 pt`() {
+        let (_, pane) = authPane(width: 800)
+        model.tab.definition.auth = .basic(user: "ana", password: "pw")
+        pane.setAuth(model.tab.definition.auth)
+        pane.layoutSubtreeIfNeeded()
+        #expect(!pane.isStacked)
+        #expect(pane.leftColumn.frame.width == 240 && pane.rule.frame.width == 1 && pane.rule.frame.height > 1)
+        #expect(pane.rule.frame.minX == pane.leftColumn.frame.maxX + 16 && pane.rightColumn.frame.minX == pane.rule.frame.maxX + 16)
+        #expect(pane.username.superview!.frame.width == 320 && pane.username.superview!.frame.height == 26)
+        #expect(pane.rightColumn.frame.maxY == pane.leftColumn.frame.maxY)
+    }
+
+    @Test func `below 600 pt the left column stacks over the right one, with a horizontal rule 16 pt around`() {
+        let (_, pane) = authPane(width: 480)
+        pane.setAuth(.basic(user: "ana", password: "pw"))
+        pane.layoutSubtreeIfNeeded()
+        #expect(pane.isStacked)
+        #expect(pane.leftColumn.frame.width == 240 && pane.rule.frame.height == 1 && pane.rule.frame.width == 448)
+        #expect(pane.leftColumn.frame.minY - pane.rule.frame.maxY == 16 && pane.rule.frame.minY - pane.rightColumn.frame.maxY == 16)
+        #expect(pane.rightColumn.frame.width == 448)
+    }
+
+    @Test func `crossing 600 pt switches the layout and keeps what was typed`() {
+        let (editor, pane) = authPane(width: 800)
+        pane.setAuth(.basic(user: "ana", password: "pw"))
+        editor.setFrameSize(NSSize(width: 599, height: 400))
+        editor.layoutSubtreeIfNeeded()
+        #expect(pane.isStacked && pane.username.stringValue == "ana")
+        editor.setFrameSize(NSSize(width: 600, height: 400))
+        editor.layoutSubtreeIfNeeded()
+        #expect(!pane.isStacked && pane.username.stringValue == "ana")
+    }
+
+    @Test func `a long token scrolls inside its field and a long Authorization name leaves the left column alone`() {
+        let (editor, _) = authPane(width: 800)
+        model.tab.definition.headers = [Row(name: String(repeating: "x", count: 200), value: "")]
+        model.tab.definition.auth = .bearer(token: String(repeating: "t", count: 400))
+        editor.render()
+        editor.layoutSubtreeIfNeeded()
+        let pane = editor.authPane
+        #expect(pane.token.superview!.frame.width == 320 && pane.leftColumn.frame.width == 240)
     }
 }
 

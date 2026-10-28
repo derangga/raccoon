@@ -49,6 +49,19 @@ struct URLSessionTransportTests {
         }
     }
 
+    @Test func `an enabled Authorization row reaches the server alone, not joined with Auth's header`() async throws {
+        try await withEchoServer { server in
+            var definition = RequestDefinition.empty
+            definition.url = server.url("/echo").absoluteString
+            definition.headers = [Row(name: "Authorization", value: "Basic eHl6")]
+            definition.auth = .bearer(token: "abc")
+
+            let text = String(decoding: try await transport().send(VariableResolver.resolve(definition)).body, as: UTF8.self)
+
+            #expect(text.components(separatedBy: "\r\n").filter { $0.hasPrefix("Authorization:") } == ["Authorization: Basic eHl6"])
+        }
+    }
+
     @Test func `enabled Request Cookies go out as one Cookie header and a Disabled Row does not`() async throws {
         try await withEchoServer { server in
             var definition = RequestDefinition.empty

@@ -64,8 +64,16 @@ final class TabModel {
         let (base, pairs) = URLText.split(text)
         tab.definition.url = base
         tab.definition.params = Params.merge(pairs, into: tab.definition.params)
+        tab.definition.pathVariables = PathVariables.prune(tab.definition.pathVariables, to: base)
         message = message?.afterURLEdit
         isURLInvalid = false
+    }
+
+    /// The Value cell of the Path Variables table (editing.md). A name the URL no longer has is a row
+    /// that is leaving under this edit, so it changes nothing.
+    func setPathVariable(_ name: String, to text: String) {
+        guard PathVariables.names(in: tab.definition.url).contains(name) else { return }
+        tab.definition.pathVariables = PathVariables.setValue(text, for: name, in: tab.definition.pathVariables)
     }
 
     /// Curl Import (curl.md): a pasted curl command becomes this Tab's request. False means an

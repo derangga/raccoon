@@ -112,6 +112,24 @@ struct RequestFileTests {
         }
 
         """,
+        """
+        {
+          "id" : "6F1C2B3A-0000-4000-8000-000000000004",
+          "method" : "GET",
+          "name" : "Retry share",
+          "pathVariables" : {
+            "id" : "689eba19be47b88f9d590367",
+            "other" : "{{other}}"
+          },
+          "settings" : {
+            "allowsInsecureTLS" : false,
+            "followsRedirects" : false
+          },
+          "url" : "http://localhost:3061/posts/:id/retry/:other",
+          "version" : 1
+        }
+
+        """,
     ]
 
     @Test(arguments: fixtures)
@@ -131,5 +149,46 @@ struct RequestFileTests {
     @Test func `version 3 is an unknown version, never guessed at`() {
         let json = #"{"version": 3, "id": "6F1C2B3A-0000-4000-8000-000000000001", "name": "A", "method": "GET", "url": "x"}"#
         #expect(throws: RequestFileError.unknownVersion(3)) { try RequestFile.decode(Data(json.utf8)) }
+    }
+
+    // MARK: pathVariables
+
+    @Test func `Path Variable values round-trip, and a file without the key has none`() throws {
+        let with = try RequestFile.decode(Data(Self.fixtures[3].utf8))
+        #expect(with.definition.pathVariables == ["id": "689eba19be47b88f9d590367", "other": "{{other}}"])
+        #expect(try RequestFile.decode(RequestFile.encode(with)) == with)
+        for absent in Self.fixtures[..<3] {
+            #expect(try RequestFile.decode(Data(absent.utf8)).definition.pathVariables == [:])
+        }
+    }
+
+    @Test func `no values means no key in the file`() throws {
+        var request = try RequestFile.decode(Data(Self.fixtures[3].utf8))
+        request.definition.pathVariables = [:]
+        #expect(!String(decoding: RequestFile.encode(request), as: UTF8.self).contains("pathVariables"))
+    }
+
+    @Test func `changing one value changes one line of the file`() throws {
+        var request = try RequestFile.decode(Data(Self.fixtures[3].utf8))
+        request.definition.pathVariables["id"] = "7"
+        let before = Self.fixtures[3].split(separator: "\n", omittingEmptySubsequences: false)
+        let after = String(decoding: RequestFile.encode(request), as: UTF8.self).split(separator: "\n", omittingEmptySubsequences: false)
+        #expect(before.count == after.count)
+        #expect(zip(before, after).filter { $0 != $1 }.map(\.1) == [#"    "id" : "7","#])
+    }
+
+    @Test func `a value for a name the URL no longer has is kept, and an empty value is absent`() throws {
+        let json = #"{"version": 1, "id": "6F1C2B3A-0000-4000-8000-000000000001", "name": "A", "method": "GET", "url": "http://h/x", "pathVariables": {"gone": "1", "empty": ""}}"#
+        #expect(try RequestFile.decode(Data(json.utf8)).definition.pathVariables == ["gone": "1"])
+    }
+
+    @Test(arguments: [#"["id"]"#, #"{"id": 7}"#, #""id""#, #"{"id": null}"#, #"{"id": {"a": "b"}}"#])
+    func `pathVariables that is not an object of strings is malformed`(value: String) {
+        let json = #"{"version": 1, "id": "6F1C2B3A-0000-4000-8000-000000000001", "name": "A", "method": "GET", "url": "x", "pathVariables": \#(value)}"#
+        #expect {
+            try RequestFile.decode(Data(json.utf8))
+        } throws: { error in
+            if case .malformed = error as? RequestFileError { true } else { false }
+        }
     }
 }

@@ -16,27 +16,21 @@ enum EditorSection: CaseIterable {
         }
     }
 
-    /// What follows the name: a row count (Disabled Rows too, none for no rows) or
-    /// the Auth scheme.
+    /// What follows the name: a row count (Disabled Rows too, none for no rows). Auth and Body
+    /// show none: the pop-ups in their panes name the scheme and the Body Type.
     func detail(in definition: RequestDefinition) -> String? {
         func count(_ rows: [Row]) -> String? { rows.isEmpty ? nil : "\(rows.count)" }
         return switch self {
         case .params: count(definition.params)
         case .headers: count(definition.headers)
         case .cookies: count(definition.cookies)
-        // Body shows no Body Type: its pane's pop-ups already name it.
-        case .body, .settings: nil
-        case .auth:
-            switch definition.auth {
-            case .none: nil
-            case .basic: "Basic"
-            case .bearer: "Bearer"
-            }
+        case .body, .auth, .settings: nil
         }
     }
 
     /// A count holding an Undefined Variable is drawn in `variableUndefined`, so the reason a send
-    /// is blocked shows from another section. Disabled Rows are not sent, so they never count.
+    /// is blocked shows from another section. Disabled Rows are not sent, so they never count. Params
+    /// also holds the Path Variable values the URL has; with no count the label takes the colour.
     func holdsUndefined(in definition: RequestDefinition, kinds: VariableKinds) -> Bool {
         let rows: [Row] = switch self {
         case .params: definition.params
@@ -44,7 +38,9 @@ enum EditorSection: CaseIterable {
         case .cookies: definition.cookies
         case .body, .auth, .settings: []
         }
+        let pathValues = self == .params ? PathVariables.sentValues(definition.pathVariables, in: definition.url) : []
         return rows.contains { $0.isEnabled && (kinds.holdsUndefined($0.name) || kinds.holdsUndefined($0.value)) }
+            || pathValues.contains(where: kinds.holdsUndefined)
     }
 
     func title(in definition: RequestDefinition) -> String {
@@ -61,6 +57,7 @@ final class RequestEditor: NSView {
     private var buttons: [EditorSection: SectionButton] = [:]
     private var panes: [EditorSection: NSView] = [:]
     private var tables: [EditorSection: KeyValueTable] = [:]
+    let paramsPane: ParamsPane
     let settingsPane: SettingsPane
     let authPane: AuthPane
     let bodyPane: BodyPane
@@ -69,9 +66,11 @@ final class RequestEditor: NSView {
         self.model = model
         self.theme = theme
         settingsPane = SettingsPane(theme: theme)
+        paramsPane = ParamsPane(theme: theme)
         authPane = AuthPane(theme: theme)
         bodyPane = BodyPane(model: model, theme: theme)
         super.init(frame: .zero)
+        paramsPane.pathTable.onChange = { [weak self] in self?.model.setPathVariable($0, to: $1) }
         authPane.onChange = { [weak self] in self?.model.tab.definition.auth = $0 }
         settingsPane.onChange = { [weak self] in self?.model.tab.definition.settings = $0 }
 
@@ -93,7 +92,12 @@ final class RequestEditor: NSView {
             bar.addArrangedSubview(button)
 
             let pane: NSView
-            if let rows = Self.rows(section) {
+            if section == .params {
+                let table = paramsPane.queryTable
+                table.onChange = { [weak self] in self?.model.tab.definition.params = $0 }
+                tables[section] = table
+                pane = paramsPane
+            } else if let rows = Self.rows(section) {
                 let table = KeyValueTable(theme: theme)
                 table.onChange = { [weak self] in self?.model.tab.definition[keyPath: rows] = $0 }
                 tables[section] = table
@@ -110,14 +114,16 @@ final class RequestEditor: NSView {
             panes[section] = pane
             pane.translatesAutoresizingMaskIntoConstraints = false
             paneArea.addSubview(pane)
+            // Auth pads itself (16 pt) and measures the editor's width, so it takes the whole area.
+            let (side, edge): (CGFloat, CGFloat) = section == .auth ? (0, 0) : (12, 8)
             NSLayoutConstraint.activate([
-                pane.leadingAnchor.constraint(equalTo: paneArea.leadingAnchor, constant: 12),
-                pane.trailingAnchor.constraint(equalTo: paneArea.trailingAnchor, constant: -12),
-                pane.topAnchor.constraint(equalTo: paneArea.topAnchor, constant: 8),
-                pane.bottomAnchor.constraint(lessThanOrEqualTo: paneArea.bottomAnchor, constant: -8),
+                pane.leadingAnchor.constraint(equalTo: paneArea.leadingAnchor, constant: side),
+                pane.trailingAnchor.constraint(equalTo: paneArea.trailingAnchor, constant: -side),
+                pane.topAnchor.constraint(equalTo: paneArea.topAnchor, constant: edge),
+                pane.bottomAnchor.constraint(lessThanOrEqualTo: paneArea.bottomAnchor, constant: -edge),
             ])
             // A table hugs its rows; any other pane fills the area.
-            if !(pane is KeyValueTable) { pane.bottomAnchor.constraint(equalTo: paneArea.bottomAnchor, constant: -8).isActive = true }
+            if !(pane is KeyValueTable) { pane.bottomAnchor.constraint(equalTo: paneArea.bottomAnchor, constant: -edge).isActive = true }
             pane.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         }
 
@@ -199,10 +205,11 @@ final class RequestEditor: NSView {
                 table.setKinds(kinds)
                 if let rows = Self.rows(section) { table.setRows(definition[keyPath: rows]) }
             }
+            paramsPane.setPathVariables(names: PathVariables.names(in: definition.url), values: definition.pathVariables, kinds: kinds)
             // An empty Draft or an invalid URL has no host yet, so nothing to show.
             let resolved = try? VariableResolver.resolve(definition, scope: model.scope(.asWritten))
             settingsPane.setSettings(definition.settings)
-            authPane.setAuth(definition.auth)
+            authPane.setAuth(definition.auth, headers: definition.headers)
             authPane.setKinds(kinds)
             bodyPane.setBody(definition.body, kinds: kinds)
             table(.headers).setAutomaticRows(resolved.map(AutomaticHeaders.rows) ?? [])
@@ -248,6 +255,9 @@ final class SectionButton: NSButton {
         redraw()
     }
 
+    /// The label's colour.
+    var nameColor: NSColor? { attributedTitle.length > 0 ? attributedTitle.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor : nil }
+
     /// The count's colour, nil when there is no count.
     var detailColor: NSColor? {
         guard detail != nil, attributedTitle.length > name.utf16.count + 1 else { return nil }
@@ -255,9 +265,11 @@ final class SectionButton: NSButton {
     }
 
     private func redraw() {
+        // With no count to colour, the label itself says an Undefined Variable blocks the send.
+        let labelUndefined = isUndefined && detail == nil
         let title = NSMutableAttributedString(string: name, attributes: [
-            .font: NSFont.systemFont(ofSize: 13, weight: isOn ? .semibold : .regular),
-            .foregroundColor: theme.color(isOn ? .text : .textSecondary),
+            .font: NSFont.systemFont(ofSize: 13, weight: isOn || labelUndefined ? .semibold : .regular),
+            .foregroundColor: theme.color(labelUndefined ? .variableUndefined : isOn ? .text : .textSecondary),
         ])
         if let detail {
             title.append(NSAttributedString(string: " \(detail)", attributes: [

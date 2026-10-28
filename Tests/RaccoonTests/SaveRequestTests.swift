@@ -114,7 +114,8 @@ struct SaveRequestTests {
         try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: folder.path)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path) }
         let strip = TabStripView(window: window, theme: theme)
-        let content = ContentViewController(strip: strip, tab: TabViewController(model: tab, theme: theme),
+        let content = ContentViewController(strip: strip, breadcrumb: BreadcrumbBinding(window: window, theme: theme, select: { _ in }),
+                                            tab: TabViewController(model: tab, theme: theme),
                                             banner: TabBannerBinding(window: window, theme: theme, reduceMotion: { true }))
         content.view.frame = NSRect(x: 0, y: 0, width: 900, height: 600)
 
@@ -124,7 +125,7 @@ struct SaveRequestTests {
         let banner = content.banner.view
         #expect(!banner.isHidden)
         #expect(banner.content?.lead == "Not saved.")
-        #expect(banner.frame.maxY == strip.frame.minY)
+        #expect(banner.frame.maxY == content.breadcrumb.bar.frame.minY)
         #expect(banner.frame.minY == content.tab.view.frame.maxY)
 
         window.select(window.tabs[0].tab.id)

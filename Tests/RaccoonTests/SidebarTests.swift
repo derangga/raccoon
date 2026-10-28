@@ -66,7 +66,7 @@ struct SidebarTests {
     }
 
     @Test(arguments: ["GET", "DELETE", "OPTIONS", "PROPFIND"])
-    func `the badge is 52 pt, right-aligned, and fits the method`(method: String) throws {
+    func `the badge is 52 pt, left-aligned, and fits the method`(method: String) throws {
         try put("R", method: method, at: "C/R.json")
         let sidebar = sidebar(makeWindow())
         let row: RequestCell = try cell(sidebar, row: 1)
@@ -74,10 +74,44 @@ struct SidebarTests {
         #expect(row.badge.frame.width - 4 == 52)
         // The drawn alignment: an attributed string's paragraph style overrides the field's.
         let style = row.badge.attributedStringValue.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
-        #expect(style?.alignment == .right)
+        #expect(style?.alignment == .left)
         #expect(row.badge.stringValue == method)
         #expect((row.badge.cell?.cellSize.width ?? .infinity) <= row.badge.frame.width)
         #expect(row.badge.textColor == theme.color(.method(method)))
+    }
+
+    @Test func `the badge turns the selected-text colour on an emphasized selection and keeps its method colour otherwise`() throws {
+        try put("R", method: "POST", at: "C/R.json")
+        let row: RequestCell = try cell(sidebar(makeWindow()), row: 1)
+        let method = theme.color(.method("POST"))
+        func drawn() -> NSColor? { row.badge.attributedStringValue.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor }
+
+        row.backgroundStyle = .emphasized
+        #expect(drawn() == .alternateSelectedControlTextColor)
+        #expect(row.badge.textColor == .alternateSelectedControlTextColor)
+
+        row.backgroundStyle = .normal
+        #expect(drawn() == method)
+        #expect(row.badge.textColor == method)
+    }
+
+    @Test func `a Collection's glyph and an Unreadable row's glyph and reason follow the selection too`() throws {
+        try write(Data(#"{"version": 3}"#.utf8), at: "C/Broken.json")
+        let sidebar = sidebar(makeWindow())
+        let node: NodeCell = try cell(sidebar, row: 0)
+        let unreadable: UnreadableCell = try cell(sidebar, row: 1)
+
+        node.backgroundStyle = .emphasized
+        unreadable.backgroundStyle = .emphasized
+        #expect(node.glyph.contentTintColor == .alternateSelectedControlTextColor)
+        #expect(unreadable.glyph.contentTintColor == .alternateSelectedControlTextColor)
+        #expect(unreadable.reason.textColor == .alternateSelectedControlTextColor)
+
+        node.backgroundStyle = .normal
+        unreadable.backgroundStyle = .normal
+        #expect(node.glyph.contentTintColor == .secondaryLabelColor)
+        #expect(unreadable.glyph.contentTintColor == theme.color(.warning))
+        #expect(unreadable.reason.textColor == .secondaryLabelColor)
     }
 
     @Test func `a longer method end-truncates in the badge`() throws {

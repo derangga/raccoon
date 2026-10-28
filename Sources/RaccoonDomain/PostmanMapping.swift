@@ -75,10 +75,6 @@ public struct ImportNote: Equatable, Sendable {
     public enum Kind: Hashable, Sendable {
         /// An item with neither `item` nor `request`; names the items.
         case itemsSkipped
-        /// A `:name` segment's value was written into the path. Info: the bytes sent are the same.
-        case pathVariable
-        /// A `:name` segment with no value, kept as typed.
-        case pathVariableEmpty(name: String)
         /// A binary (`file`) body, imported as none.
         case binaryBody
         /// A multipart file part whose `src` is not an absolute path: the send reports
@@ -237,7 +233,8 @@ public enum PostmanMapping {
     }
 
     private static func definition(_ request: PostmanRequest, inherited: PostmanAuth?, notes: inout [ImportNote.Kind]) -> RequestDefinition {
-        var (url, params) = url(request.url, notes: &notes)
+        let (url, parsedParams, pathVariables) = url(request.url)
+        var params = parsedParams
         let isCookie = { (header: PostmanKeyValue) in header.key.caseInsensitiveCompare("Cookie") == .orderedSame }
         let cookies = request.headers.filter(isCookie).flatMap { header in
             CurlMapping.cookieRows(header.value).map { Row(name: $0.name, value: $0.value, isEnabled: !header.disabled) }
@@ -249,31 +246,26 @@ public enum PostmanMapping {
         let auth = auth(postmanAuth, headers: &headers, params: &params, notes: &notes)
         headers = Headers.contentType(headers, from: .none, to: body.type)
         return RequestDefinition(
-            method: request.method.uppercased(), url: url, params: params, headers: headers, cookies: cookies, body: body, auth: auth,
+            method: request.method.uppercased(), url: url, params: params, pathVariables: pathVariables, headers: headers, cookies: cookies, body: body, auth: auth,
             settings: RequestSettings(allowsInsecureTLS: request.strictSSL == false, followsRedirects: request.followRedirects ?? true)
         )
     }
 
     /// `raw` when present, else built from the parts; the fragment is never sent, so it is
-    /// dropped. Params come from `query`, or for a string url from its own query.
-    private static func url(_ url: PostmanURL, notes: inout [ImportNote.Kind]) -> (String, [Row]) {
+    /// dropped. Params come from `query`, or for a string url from its own query. A `:name` stays
+    /// in the URL, and each `variable` entry for a name the URL has, with a value, is its value.
+    private static func url(_ url: PostmanURL) -> (String, [Row], [String: String]) {
         let scheme: String = url.protocol.map { $0 + "://" } ?? ""
         let port: String = url.port.map { ":" + $0 } ?? ""
         let path: String = url.path.map { "/" + $0.joined(separator: "/") } ?? ""
         let text = url.raw ?? scheme + (url.host ?? []).joined(separator: ".") + port + path
         let (base, pairs) = URLText.split(String(text.prefix { $0 != "#" }))
-        let segments = base.split(separator: "/", omittingEmptySubsequences: false).map { segment -> Substring in
-            guard segment.hasPrefix(":"), segment.count > 1 else { return segment }
-            let name = String(segment.dropFirst())
-            guard let value = url.variable.first(where: { $0.key == name })?.value, !value.isEmpty else {
-                notes.append(.pathVariableEmpty(name: name))
-                return segment
-            }
-            notes.append(.pathVariable)
-            return Substring(value)
+        let names = Set(PathVariables.names(in: base))
+        var values: [String: String] = [:]
+        for entry in url.variable where names.contains(entry.key) && !entry.value.isEmpty && values[entry.key] == nil {
+            values[entry.key] = entry.value
         }
-        let params = url.query.isEmpty ? pairs : rows(url.query)
-        return (segments.joined(separator: "/"), params)
+        return (base, url.query.isEmpty ? pairs : rows(url.query), values)
     }
 
     /// Postman often exports `exec: [""]`: a blank script runs nothing, so it is not counted.

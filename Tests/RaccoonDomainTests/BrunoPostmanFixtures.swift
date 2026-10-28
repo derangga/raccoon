@@ -2111,8 +2111,8 @@ enum BrunoPostmanFixtures {
               ]
             }
             """#, plan: imported("collection with null query params", [planned(1, "request with null query params", "GET", "https://example.com/api", params: rows(("search", "test"), ("", "somevalue"), ("emptyval", "")))])),
-        // Differs: `:accountId` is written into the path and noted (path variables `:id` with
-        // `url.variable`); Bruno keeps it as a path Param.
+        // Differs: `:accountId` stays in the URL and its value goes to `pathVariables`, with no note
+        // (path variables `:id` with `url.variable`); Bruno keeps it as a path Param.
         PostmanFixture("should convert numeric values to strings in headers, params, and body fields", #"""
             {
               "info": {
@@ -2154,7 +2154,7 @@ enum BrunoPostmanFixtures {
                 }
               ]
             }
-            """#, plan: imported("collection with numeric values", [planned(1, "request with numeric values", "POST", "https://example.com/api/0", params: rows(("limit", "100"), ("offset", "0")), headers: rows(("X-Account-Id", "0"), ("X-Retry-Count", "3")) + [form], body: .formURLEncoded(rows(("timeout", "5000")))), planned(2, "request with numeric multipart form values", "POST", "https://example.com/upload", headers: [multipart], body: parts(("retries", .text("3")), ("priority", .text("0"))))], notes: [note(.pathVariable, "request with numeric values")])),
+            """#, plan: imported("collection with numeric values", [planned(1, "request with numeric values", "POST", "https://example.com/api/:accountId", params: rows(("limit", "100"), ("offset", "0")), pathVariables: ["accountId": "0"], headers: rows(("X-Account-Id", "0"), ("X-Retry-Count", "3")) + [form], body: .formURLEncoded(rows(("timeout", "5000")))), planned(2, "request with numeric multipart form values", "POST", "https://example.com/upload", headers: [multipart], body: parts(("retries", .text("3")), ("priority", .text("0"))))])),
         // Differs: the saved example is dropped and counted (`response`).
         PostmanFixture("should convert numeric values to strings in example request and response fields", #"""
             {
@@ -2774,7 +2774,7 @@ enum BrunoPostmanFixtures {
                 }
               ]
             }
-            """#, plan: imported("Test Collection", [planned(1, "Test Request", "GET", "https://api.example.com/users/123")], notes: [note(.pathVariable, "Test Request")])),
+            """#, plan: imported("Test Collection", [planned(1, "Test Request", "GET", "https://api.example.com/users/:id", pathVariables: ["id": "123"])])),
         PostmanFixture("should handle form data descriptions with new format", #"""
             {
               "info": {

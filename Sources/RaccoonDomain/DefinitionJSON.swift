@@ -6,6 +6,8 @@ struct DefinitionJSON: Codable {
     var method: String
     var url: String
     var params: [RowJSON]?
+    /// Path Variable name to value; left out when there are none (boundary.md).
+    var pathVariables: [String: String]?
     var headers: [RowJSON]?
     var cookies: [RowJSON]?
     var body: BodyJSON?
@@ -67,7 +69,8 @@ struct DefinitionJSON: Codable {
         }
         self.init(
             method: definition.method, url: definition.url,
-            params: Self.rows(definition.params), headers: Self.rows(definition.headers),
+            params: Self.rows(definition.params),
+            pathVariables: definition.pathVariables.isEmpty ? nil : definition.pathVariables, headers: Self.rows(definition.headers),
             cookies: Self.rows(definition.cookies),
             body: body, auth: auth,
             settings: SettingsJSON(allowsInsecureTLS: definition.settings.allowsInsecureTLS,
@@ -80,9 +83,10 @@ struct DefinitionJSON: Codable {
         rows.isEmpty ? nil : rows.map(RowJSON.init)
     }
 
-    init(method: String, url: String, params: [RowJSON]?, headers: [RowJSON]?, cookies: [RowJSON]?,
+    init(method: String, url: String, params: [RowJSON]?, pathVariables: [String: String]?, headers: [RowJSON]?, cookies: [RowJSON]?,
          body: BodyJSON?, auth: AuthJSON?, settings: SettingsJSON?) {
         (self.method, self.url, self.params, self.headers, self.cookies) = (method, url, params, headers, cookies)
+        self.pathVariables = pathVariables
         (self.body, self.auth, self.settings) = (body, auth, settings)
     }
 
@@ -90,7 +94,10 @@ struct DefinitionJSON: Codable {
         let empty = RequestDefinition.empty
         return RequestDefinition(
             method: method, url: url,
-            params: (params ?? []).map(\.row), headers: (headers ?? []).map(\.row), cookies: (cookies ?? []).map(\.row),
+            params: (params ?? []).map(\.row),
+            // An empty value is absent (shapes.md); an orphan name is kept: decoding never prunes.
+            pathVariables: (pathVariables ?? [:]).filter { !$0.value.isEmpty },
+            headers: (headers ?? []).map(\.row), cookies: (cookies ?? []).map(\.row),
             body: try body.map { json throws(Malformed) in try json.body() } ?? .none,
             auth: try auth.map { json throws(Malformed) in try json.auth() } ?? .none,
             settings: RequestSettings(

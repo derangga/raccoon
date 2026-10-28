@@ -13,8 +13,21 @@ struct CurlRendererTests {
         return CurlRenderer.render(try VariableResolver.resolve(definition))
     }
 
+    @Test func `a Path Variable's value is in the URL, an empty one is :id, and a secret kept as written stays {{key}}`() throws {
+        var request = RequestDefinition.empty
+        request.url = "https://h/posts/:id/x/:other/:key"
+        request.pathVariables = ["id": "a b", "key": "{{key}}"]
+        let scope = VariableScope(values: [VariableName("key")!: "{{key}}"])
+        #expect(CurlRenderer.render(try VariableResolver.resolve(request, scope: scope)) == "curl 'https://h/posts/a%20b/x/:other/{{key}}'")
+    }
+
     @Test func `a GET with no body is the URL alone`() throws {
         #expect(try render() == "curl 'https://h/'")
+    }
+
+    @Test func `an enabled Authorization row and Auth write one Authorization header`() throws {
+        #expect(try render(headers: [Row(name: "Authorization", value: "Basic eHl6")], auth: .bearer(token: "abc"))
+            == "curl 'https://h/' \\\n  -H 'Authorization: Basic eHl6'")
     }
 
     @Test func `the board's POST renders flag by flag`() throws {

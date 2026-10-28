@@ -90,4 +90,15 @@ struct VariablesPaneTests {
         #expect(pane.row(of: name(raw))! == VariablesPane.Place(group: group, index: index))
         #expect(pane.row(of: name("nowhere")) == nil)
     }
+
+    @Test func `a Variable in a Path Variable value is used by Params, and a value for a name the URL lacks is not used`() {
+        var tab = definition(url: "{{host}}/posts/:id", headers: [Row(name: "X", value: "{{h}}")])
+        tab.pathVariables = ["id": "{{missing}}/{{host}}", "gone": "{{orphan}}"]
+        let pane = VariablesPane(definition: tab, active: nil, globals: Globals(entries: []))
+        #expect(pane.undefined == [
+            .init(name: name("host"), shown: .usedIn(["URL", "Params"])),
+            .init(name: name("missing"), shown: .usedIn(["Params"])),
+            .init(name: name("h"), shown: .usedIn(["Headers"])),
+        ])
+    }
 }

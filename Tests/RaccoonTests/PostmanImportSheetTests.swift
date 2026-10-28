@@ -190,11 +190,9 @@ struct PostmanImportSheetTests {
 
     @Test(arguments: [
         (ImportNote(.authInherited, names: ["a", "b"]), false, "Auth inherited from Folders is copied onto 2 Requests."),
-        (ImportNote(.pathVariable, names: ["a"]), false, "Path variables are written into the URL of 1 Request."),
         (ImportNote(.collectionVariables, names: ["C"]), false, "Collection variables of 1 Collection are added to Globals."),
         (ImportNote(.binaryBody, names: ["a"]), true, "1 Request has a binary body and is imported with no body."),
         (ImportNote(.fileOnlyName(path: "a.png"), names: ["a", "b"]), true, "The file “a.png” in 2 Requests has only a name, so they won't send until you pick it again."),
-        (ImportNote(.pathVariableEmpty(name: "id"), names: ["a"]), true, ":id has no value in 1 Request, so it stays in the URL as typed."),
         (ImportNote(.examplesDropped, names: ["a", "b"]), true, "Saved examples in 2 Requests are not imported."),
         (ImportNote(.descriptionsDropped, names: ["a"]), true, "1 description is not imported. Raccoon keeps no descriptions."),
         (ImportNote(.itemsSkipped, names: ["a", "b"]), true, "2 Postman items that are neither a Request nor a Folder are skipped."),

@@ -207,16 +207,18 @@ struct TabStripViewTests {
 
 @MainActor
 struct ContentLayoutTests {
-    @Test func `the tab strip sits 34 pt tall over the selected Tab's editor`() {
+    @Test func `the tab strip sits 34 pt tall, the Breadcrumb 28 pt under it, then the selected Tab's editor`() {
         let window = TabStripViewTests().makeWindow()
         let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
         let tab = TabViewController(model: window.tabs[0], theme: theme)
-        let content = ContentViewController(strip: TabStripView(window: window, theme: theme), tab: tab,
+        let content = ContentViewController(strip: TabStripView(window: window, theme: theme),
+                                            breadcrumb: BreadcrumbBinding(window: window, theme: theme, select: { _ in }), tab: tab,
                                             banner: TabBannerBinding(window: window, theme: theme, reduceMotion: { true }))
         content.view.frame = NSRect(x: 0, y: 0, width: 900, height: 600)
         content.view.layoutSubtreeIfNeeded()
 
         #expect(content.strip.frame == NSRect(x: 0, y: 566, width: 900, height: 34))
-        #expect(tab.view.frame == NSRect(x: 0, y: 0, width: 900, height: 566))
+        #expect(content.breadcrumb.bar.frame == NSRect(x: 0, y: 538, width: 900, height: 28))
+        #expect(tab.view.frame == NSRect(x: 0, y: 0, width: 900, height: 538))
     }
 }

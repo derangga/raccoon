@@ -7,7 +7,7 @@ public enum CurlRenderer {
         if definition.method != "GET" || definition.body != .none {
             first += ["-X", definition.method.allSatisfy { $0.isASCII && $0.isLetter } ? definition.method : quoted(definition.method)]
         }
-        first.append(quoted(request.url.absoluteString))
+        first.append(quoted(keepingVariables(request.url.absoluteString)))
 
         var flags = definition.headers.map { "-H " + quoted($0.value.isEmpty ? "\($0.name);" : "\($0.name): \($0.value)") }
         if !definition.cookies.isEmpty {
@@ -31,6 +31,12 @@ public enum CurlRenderer {
         if definition.settings.allowsInsecureTLS { flags.append("-k") }
         if definition.settings.followsRedirects { flags.append("-L") }
         return ([first.joined(separator: " ")] + flags).joined(separator: " \\\n  ")
+    }
+
+    /// A Secret Variable left as `{{name}}` (secrets off) went through the URL's percent-encoding as
+    /// `%7B%7Bname%7D%7D`: show it as written. A name has no character that encoding touches.
+    private static func keepingVariables(_ url: String) -> String {
+        url.replacing(/%7B%7B([A-Za-z0-9_.\-]+)%7D%7D/) { "{{\($0.output.1)}}" }
     }
 
     private static func quoted(_ text: String) -> String {

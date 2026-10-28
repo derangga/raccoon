@@ -105,4 +105,11 @@ struct CurlMappingTests {
         let definition = try CurlImporter.import("curl http://h/ -b 'a=1; path=/; secure; HttpOnly'").definition
         #expect(definition.cookies == [row("a", "1"), row("path", "/")])
     }
+
+    @Test func `a :id in the URL stays in url with no value, and renders back as typed`() throws {
+        let imported = try CurlImporter.import("curl http://x/:id")
+        #expect(imported.definition.url == "http://x/:id")
+        #expect(imported.definition.pathVariables == [:])
+        #expect(CurlRenderer.render(try VariableResolver.resolve(imported.definition)) == "curl 'http://x/:id'")
+    }
 }

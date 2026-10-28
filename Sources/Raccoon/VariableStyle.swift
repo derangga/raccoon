@@ -11,7 +11,8 @@ extension NSAttributedString.Key {
 /// `variableSecret` with a dotted underline, undefined in `variableUndefined` with a wavy one, so
 /// undefined is never shown by colour alone. In a Disabled Row all three are `textDisabled`.
 enum VariableStyle {
-    static func apply(_ kinds: VariableKinds, to text: NSMutableAttributedString, disabled: Bool, theme: ThemeEnvironment) {
+    /// `pathTokens` also marks the `:name` tokens, for the URL field.
+    static func apply(_ kinds: VariableKinds, to text: NSMutableAttributedString, disabled: Bool, theme: ThemeEnvironment, pathTokens: Bool = false) {
         let all = NSRange(location: 0, length: text.length)
         for key in [NSAttributedString.Key.underlineStyle, .underlineColor, .wavyUnderline] { text.removeAttribute(key, range: all) }
         for range in kinds.ranges(in: text.string) where NSMaxRange(range.range) <= text.length {
@@ -26,6 +27,7 @@ enum VariableStyle {
                 break
             }
         }
+        if pathTokens { PathTokenStyle.apply(to: text, theme: theme) }
     }
 
     /// Waves under every `.wavyUnderline` run in `glyphs`, one per line fragment, with the text
@@ -72,6 +74,11 @@ enum VariableStyle {
 /// TextKit 1 layout that draws `.wavyUnderline` after the glyphs: the raw body editor and every
 /// field editor of a VariableField.
 nonisolated final class WavyLayoutManager: NSLayoutManager {
+    override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+        super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
+        PathTokenStyle.draw(self, glyphs: glyphsToShow, at: origin)
+    }
+
     override func drawGlyphs(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin)
         VariableStyle.drawWaves(self, glyphs: glyphsToShow, at: origin)
@@ -87,6 +94,8 @@ class VariableField: NSTextField {
     }
     /// The row is not sent, so its Variables are not resolved: `textDisabled`.
     var isDisabledRow = false
+    /// The URL field draws each Path Variable's `:name` as a token (editing.md §Path Variables).
+    var paintsPathTokens = false
     /// Made on first edit only: a table makes a field per cell on every reload.
     private(set) lazy var editor: VariableTextView = {
         let editor = VariableStyle.fieldEditor(VariableTextView.self)
@@ -109,16 +118,16 @@ class VariableField: NSTextField {
             let base = textColor ?? theme.color(.text)
             storage.beginEditing()
             storage.addAttribute(.foregroundColor, value: base, range: NSRange(location: 0, length: storage.length))
-            VariableStyle.apply(kinds, to: storage, disabled: isDisabledRow, theme: theme)
+            VariableStyle.apply(kinds, to: storage, disabled: isDisabledRow, theme: theme, pathTokens: paintsPathTokens)
             storage.endEditing()
             // Typing after a token must not continue its colour.
             editor.typingAttributes[.foregroundColor] = base
-            for key in [NSAttributedString.Key.underlineStyle, .underlineColor, .wavyUnderline] { editor.typingAttributes[key] = nil }
+            for key in [NSAttributedString.Key.underlineStyle, .underlineColor, .wavyUnderline, .pathToken] { editor.typingAttributes[key] = nil }
             // The editor draws its own waves.
             waves?.isHidden = true
         } else {
             let text = NSMutableAttributedString(attributedString: attributedStringValue)
-            VariableStyle.apply(kinds, to: text, disabled: isDisabledRow, theme: theme)
+            VariableStyle.apply(kinds, to: text, disabled: isDisabledRow, theme: theme, pathTokens: paintsPathTokens)
             attributedStringValue = text
             showWaves(text)
         }

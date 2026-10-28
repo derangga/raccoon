@@ -98,7 +98,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowController.split.showSidebar(sidebar)
         self.sidebar = sidebar
         let tabBanner = TabBannerBinding(window: windowModel, theme: theme, reduceMotion: { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion })
-        windowController.split.showTab(ContentViewController(strip: strip, tab: tabController, banner: tabBanner))
+        // A click shows the sidebar and selects the row; focus stays where it is.
+        let breadcrumb = BreadcrumbBinding(window: windowModel, theme: theme) { [weak windowController, weak sidebar] path in
+            windowController?.split.revealSidebar()
+            sidebar?.reveal(path: path)
+        }
+        windowController.split.showTab(ContentViewController(strip: strip, breadcrumb: breadcrumb, tab: tabController, banner: tabBanner))
         self.tabController = tabController
         let inspector = InspectorViewController(window: windowModel, theme: theme, memory: inspectorMemory)
         inspector.onEditEnvironments = { [weak self] in self?.editEnvironments(nil) }
@@ -155,7 +160,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             PostmanImportSheet.present(on: window, files: picked, window: windowModel) { [weak self] collection in
                 guard let collection else { return }
                 self?.windowController?.split.revealSidebar()
-                self?.sidebar?.select(collection: collection)
+                self?.sidebar?.select(path: collection)
             }
         }
     }

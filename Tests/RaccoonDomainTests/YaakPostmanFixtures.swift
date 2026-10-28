@@ -1155,8 +1155,8 @@ enum YaakPostmanFixtures {
         ]))
 
     // Differs from Yaak's output, each by a row of the mapping:
-    // - `:foo` and `:bar` are written into the path and noted (path variables `:id` with
-    //   `url.variable`); Yaak keeps them as `:foo` Params.
+    // - `:foo` and `:bar` stay in the URL and their values go to `pathVariables`, with no note
+    //   (path variables `:id` with `url.variable`); Yaak keeps them as `:foo` Params.
     // - The query entry with no key and a null value is no row (a header, query, … entry whose
     //   key and value are both empty or `null`).
     // - The file part's `contentType` is dropped (body `formdata`).
@@ -1290,15 +1290,16 @@ enum YaakPostmanFixtures {
         }
         """#, plan: imported("New Collection", [
             planned(
-                1, "Form URL", "POST", "example.com/fff/bbb",
+                1, "Form URL", "POST", "example.com/:foo/:bar",
                 params: [Row(name: "disabled", value: "secondvalue", isEnabled: false), Row(name: "q", value: "qqq")],
+                pathVariables: ["foo": "fff", "bar": "bbb"],
                 headers: [Row(name: "X-foo", value: "bar"), Row(name: "Disabled", value: "tnroant", isEnabled: false),
                           Row(name: "Content-Type", value: "multipart/form-data")],
                 // macOS names a screenshot with a narrow no-break space before "PM".
                 body: .multipart([Part(name: "Key", content: .file(path: "/Users/gschier/Desktop/Screenshot 2024-05-31 at 12.05.11\u{202F}PM.png"))]),
                 auth: .bearer(token: "my-token")
             ),
-        ], notes: [note(.pathVariable, "Form URL"), note(.variableNameInvalid, "COLLECTION VARIABLE")]))
+        ], notes: [note(.variableNameInvalid, "COLLECTION VARIABLE")]))
 
     // Differs from Yaak's output by the dynamic variables row: each `{{$name}}` is left as typed
     // and noted, once per name, where Yaak rewrites it to one of its template functions.

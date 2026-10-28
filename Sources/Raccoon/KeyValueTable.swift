@@ -26,7 +26,12 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
     /// What the cells colour `{{name}}` by; the window's Variables, set on every render.
     private var kinds: VariableKinds?
     let table = KeyTableView()
-    private let scroll = NSScrollView()
+    private let scroll = ForwardingScrollView()
+    /// True where the owner scrolls: the table is as tall as its rows and hands the wheel on.
+    var forwardsScrolling: Bool {
+        get { scroll.forwards }
+        set { scroll.forwards = newValue }
+    }
     private let columns = (check: NSTableColumn(identifier: .init("check")), name: NSTableColumn(identifier: .init("name")),
                            value: NSTableColumn(identifier: .init("value")), delete: NSTableColumn(identifier: .init("delete")))
 
@@ -311,7 +316,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
             if !isName, let item, files.indices.contains(row), files[row] {
                 return fileCell(item.value)
             }
-            let field = cellField()
+            let field = Self.cellField(theme: theme)
             field.tag = isName ? 0 : 1
             field.stringValue = isName ? item?.name ?? "" : item?.value ?? ""
             field.toolTip = field.stringValue.isEmpty ? nil : field.stringValue
@@ -324,7 +329,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
             ])
             field.delegate = self
             field.setAccessibilityLabel(isName ? "Name" : "Value")
-            return cellView(field)
+            return Self.cellView(field, theme: theme)
         }
     }
 
@@ -340,13 +345,13 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
             return centered(box)
         }
         guard column === columns.name || column === columns.value else { return NSView() }
-        let field = cellField()
+        let field = Self.cellField(theme: theme)
         field.isEditable = false
         field.stringValue = column === columns.name ? header.name : header.value ?? "calculated when sent"
         field.toolTip = field.stringValue
         field.textColor = theme.color(.textTertiary)
         field.setAccessibilityLabel(column === columns.name ? "Automatic header" : "Value")
-        return cellView(field)
+        return Self.cellView(field, theme: theme)
     }
 
     private func fileCell(_ path: String) -> NSView {
@@ -362,7 +367,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         return cell
     }
 
-    private func cellField() -> KeyField {
+    static func cellField(theme: ThemeEnvironment) -> KeyField {
         let field = KeyField()
         field.theme = theme
         field.isBordered = false
@@ -375,7 +380,7 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
         return field
     }
 
-    private func cellView(_ field: NSTextField) -> NSTableCellView {
+    static func cellView(_ field: NSTextField, theme: ThemeEnvironment) -> NSTableCellView {
         EditableCellView(field: field, inset: 4, centersOwnText: true, ring: theme.color(.focusRing), fill: theme.color(.background))
     }
 
@@ -480,6 +485,13 @@ final class FileChip: NSView {
 /// Space toggles the selected row, Delete removes it, Return edits its name.
 final class KeyTableView: NSTableView {
     weak var keys: KeyValueTable?
+
+    /// AppKit asks the table whether a click may go straight to a field, and says no unless the row can
+    /// be selected: a click then selects the row and edits. A table with no `keys` (Path Variables) never
+    /// selects, so its Value cells would never take a click; say yes.
+    override func validateProposedFirstResponder(_ responder: NSResponder, for event: NSEvent?) -> Bool {
+        keys == nil && responder is NSTextField ? true : super.validateProposedFirstResponder(responder, for: event)
+    }
 
     /// Grid lines stop at the last row instead of filling the empty space below it. The vertical
     /// rule between Name and Value is drawn by each row view: a row view paints over the table.
@@ -589,5 +601,15 @@ final class KeyHeaderCell: NSTableHeaderCell {
             .font: NSFont.systemFont(ofSize: 11, weight: .semibold), .foregroundColor: theme.color(.textTertiary),
         ])
         title.draw(at: NSPoint(x: cellFrame.minX + 8, y: cellFrame.midY - title.size().height / 2))
+    }
+}
+
+/// A scroll view that, when told to, hands the wheel to its owner's scroll view: a table as tall as
+/// its rows inside a pane that scrolls.
+final class ForwardingScrollView: NSScrollView {
+    var forwards = false
+
+    override func scrollWheel(with event: NSEvent) {
+        if forwards { nextResponder?.scrollWheel(with: event) } else { super.scrollWheel(with: event) }
     }
 }

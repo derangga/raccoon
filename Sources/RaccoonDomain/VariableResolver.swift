@@ -16,10 +16,11 @@ public enum VariableResolver {
         }
 
         var resolved = definition
-        resolved.url = text(definition.url)
+        resolved.url = urlText(definition, scope, &undefined)
         resolved.params = rows(definition.params)
         resolved.headers = rows(definition.headers)
         resolved.cookies = rows(definition.cookies)
+        resolved.pathVariables = [:]
         resolved.body = switch definition.body {
         case .none: .none
         case .raw(let kind, let body): .raw(kind, text(body))
@@ -37,9 +38,36 @@ public enum VariableResolver {
         case .bearer(let token): .bearer(token: text(token))
         }
         guard undefined.isEmpty else { throw .undefined(undefined) }
-        resolved.headers += authorization(auth)
+        // Rows are enabled only by now; a repeated name would be joined into one header at send.
+        if !resolved.headers.contains(where: \.winsOverAuth) { resolved.headers += authorization(auth) }
         resolved.auth = .none
         return ResolvedRequest(definition: resolved, url: try url(resolved.url, params: resolved.params))
+    }
+
+    /// The typed URL in one left-to-right pass: each `{{name}}` is its value and each `:name` the
+    /// Path Variable's value, substituted and then encoded as a path segment. A value's own text is
+    /// never read again, so a Variable cannot create a Path Variable. A name with no value, or a
+    /// value that resolves to "", stays `:name` as typed.
+    private static func urlText(_ definition: RequestDefinition, _ scope: VariableScope, _ undefined: inout [VariableName]) -> String {
+        let source = definition.url as NSString
+        // A Variable's range and a Path Variable's never overlap: `{` is not a name character.
+        let pieces: [(range: NSRange, pathName: String?)] = (VariableTokens.ranges(definition.url).map { ($0.range, nil) }
+            + PathVariables.tokens(in: definition.url).map { ($0.range, $0.name) })
+            .sorted { $0.range.location < $1.range.location }
+        var result = ""
+        var last = 0
+        for (range, pathName) in pieces {
+            result += source.substring(with: NSRange(location: last, length: range.location - last))
+            let typed = source.substring(with: range)
+            if let pathName {
+                let value = definition.pathVariables[pathName].map { substitute($0, scope, &undefined) } ?? ""
+                result += value.isEmpty ? typed : PathEncoding.segment(value)
+            } else {
+                result += substitute(typed, scope, &undefined)
+            }
+            last = NSMaxRange(range)
+        }
+        return result + source.substring(from: last)
     }
 
     /// Token ranges start at `{` and end at `}`, so cutting at them never splits a character.

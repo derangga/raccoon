@@ -72,4 +72,30 @@ struct SessionFileTests {
             if case .undecodable(path: "session.json", _) = error as? StoreError { true } else { false }
         }
     }
+
+    @Test func `a Draft and a Dirty edit carry their Path Variable values through the Session`() throws {
+        var saved = Self.saved
+        saved.url = "https://h/charges/:id"
+        saved.pathVariables = ["id": "7"]
+        var edited = saved
+        edited.pathVariables["id"] = "8"
+        var draft = RequestDefinition.empty
+        draft.url = "https://h/:a/:b"
+        draft.pathVariables = ["a": "1"]
+        let session = Session(tabs: [
+            TabSnapshot(id: TabID(UUID()), source: .draft, definition: draft, baseline: nil),
+            TabSnapshot(id: TabID(UUID()), source: .request(RequestID(UUID())), definition: edited, baseline: saved),
+        ], selected: nil, activeEnvironment: nil)
+        #expect(try SessionFile.decode(SessionFile.encode(session)) == session)
+    }
+
+    @Test(arguments: [#"["id"]"#, #"{"id": 7}"#])
+    func `pathVariables that is not an object of strings leaves the Session undecodable`(value: String) {
+        let json = #"{"version": 1, "tabs": [{"id": "\#(UUID())", "definition": {"method": "GET", "url": "", "pathVariables": \#(value)}}]}"#
+        #expect {
+            try SessionFile.decode(Data(json.utf8))
+        } throws: { error in
+            if case .undecodable(path: "session.json", _) = error as? StoreError { true } else { false }
+        }
+    }
 }

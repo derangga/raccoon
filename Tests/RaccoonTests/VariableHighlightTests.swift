@@ -144,4 +144,44 @@ struct VariableHighlightTests {
         window.makeFirstResponder(nil)
         #expect(isWavy(field.attributedStringValue, at: 0))
     }
+
+    // MARK: Path Variable values
+
+    @Test func `a Path Variable value with an Undefined Variable colours the count, or the label when there are no rows`() throws {
+        let window = try makeWindow()
+        let model = try #require(window.selectedTab)
+        model.typeInURLBar("http://h/:id")
+        model.tab.definition.pathVariables = ["id": "{{nope}}"]
+        let editor = RequestEditor(model: model, theme: theme)
+        let params = editor.sectionButton(.params)
+
+        // No Query Params row: no count to colour, so the label itself.
+        #expect(params.detailColor == nil)
+        #expect(params.nameColor == theme.color(.variableUndefined))
+        #expect(params.attributedTitle.string == "Params")
+
+        // A Query Params row: the count is coloured and counts the row only, not the Path Variable.
+        model.tab.definition.params = [Row(name: "a", value: "1")]
+        editor.render()
+        #expect(params.attributedTitle.string == "Params 1" && params.detailColor == theme.color(.variableUndefined))
+        #expect(params.nameColor == theme.color(.textSecondary) || params.nameColor == theme.color(.text))
+
+        // Defined, or gone from the URL, it is not undefined any more.
+        model.setPathVariable("id", to: "{{tenant}}")
+        editor.render()
+        #expect(params.detailColor == theme.color(.textTertiary))
+        model.setPathVariable("id", to: "{{nope}}")
+        model.tab.definition.params = []
+        model.typeInURLBar("http://h/x")
+        editor.render()
+        #expect(params.nameColor != theme.color(.variableUndefined))
+    }
+
+    @Test func `adding a Path Variable does not change the Params count`() {
+        var definition = RequestDefinition.empty
+        definition.params = [Row(name: "a", value: "1")]
+        let before = EditorSection.params.title(in: definition)
+        definition.url = "http://h/:id"
+        #expect(EditorSection.params.title(in: definition) == before)
+    }
 }

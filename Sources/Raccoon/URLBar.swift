@@ -11,6 +11,7 @@ final class URLBar: NSView, NSTextFieldDelegate {
     let methodButton = NSButton()
     let urlField = FocusTextField()
     let urlBox = NSView()
+    private lazy var pathTokens = PathTokenUnderlay(field: urlField)
     private let focusRing = NSView()
     private let fade = CAGradientLayer()
     let sendButton = NSButton()
@@ -138,6 +139,7 @@ final class URLBar: NSView, NSTextFieldDelegate {
         urlField.onPaste = { [weak self] in self?.pasteCurl($0) ?? false }
         urlField.setAccessibilityLabel("URL")
         urlField.theme = theme
+        urlField.paintsPathTokens = true
         urlField.wantsLayer = true
         // Fades the last 32 pt when the text runs past the field.
         fade.startPoint = CGPoint(x: 0, y: 0.5)
@@ -145,8 +147,15 @@ final class URLBar: NSView, NSTextFieldDelegate {
         fade.colors = [NSColor.black.cgColor, NSColor.black.cgColor, NSColor.clear.cgColor]
         urlField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         urlField.translatesAutoresizingMaskIntoConstraints = false
+        // Under the field, which draws its own text over the tokens.
+        pathTokens.translatesAutoresizingMaskIntoConstraints = false
+        urlBox.addSubview(pathTokens)
         urlBox.addSubview(urlField)
         NSLayoutConstraint.activate([
+            pathTokens.leadingAnchor.constraint(equalTo: urlField.leadingAnchor),
+            pathTokens.trailingAnchor.constraint(equalTo: urlField.trailingAnchor),
+            pathTokens.topAnchor.constraint(equalTo: urlField.topAnchor, constant: -PathTokenUnderlay.outset),
+            pathTokens.bottomAnchor.constraint(equalTo: urlField.bottomAnchor, constant: PathTokenUnderlay.outset),
             urlField.leadingAnchor.constraint(equalTo: urlBox.leadingAnchor, constant: 10),
             urlField.trailingAnchor.constraint(equalTo: urlBox.trailingAnchor, constant: -10),
             urlField.centerYAnchor.constraint(equalTo: urlBox.centerYAnchor),
@@ -297,12 +306,30 @@ final class URLBar: NSView, NSTextFieldDelegate {
 
     func controlTextDidChange(_ notification: Notification) {
         guard notification.object as? NSTextField === urlField else { return }
+        let before = model.tab.definition.pathVariables
         model.typeInURLBar(urlField.stringValue)
+        if model.tab.definition.pathVariables != before { keepForUndo(before) }
+    }
+
+    /// A value the URL edit pruned comes back with Undo: registered right after the field editor's
+    /// own text undo, so both are one step. Undoing the text alone would find the name with no value.
+    private func keepForUndo(_ old: [String: String]) {
+        let current = model.tab.definition.pathVariables
+        // The field editor's manager, which is the one its own text undo is in.
+        urlField.currentEditor()?.undoManager?.registerUndo(withTarget: self) { bar in
+            MainActor.assumeIsolated {
+                bar.model.tab.definition.pathVariables = old
+                bar.keepForUndo(current)
+            }
+        }
     }
 
     /// The ring shows on focus, not on the first keystroke, so the empty Draft shows it at launch.
     func showFocus(_ focused: Bool) {
         focusRing.isHidden = !focused
+        // The editor draws the tokens while the field is edited.
+        pathTokens.isHidden = focused
+        pathTokens.needsDisplay = true
         urlBox.layer?.borderColor = theme.color(model.isURLInvalid ? .error : focused ? .focusRing : .border).cgColor
         updateFade()
     }
@@ -311,6 +338,8 @@ final class URLBar: NSView, NSTextFieldDelegate {
         showFocus(false)
         // The typed text was the source while editing; now show it as Params render it.
         render()
+        // render() still sees the editor, which goes only after this returns.
+        pathTokens.isHidden = false
     }
 
     func bind(_ model: TabModel) {
@@ -329,6 +358,7 @@ final class URLBar: NSView, NSTextFieldDelegate {
             if urlField.currentEditor() == nil { urlField.attributedStringValue = urlTitle(model.urlText) }
             urlField.kinds = model.kinds
             urlField.highlight()
+            pathTokens.needsDisplay = true
             updateFade()
             renderSend(sending: isSending)
             showFocus(urlField.currentEditor() != nil)

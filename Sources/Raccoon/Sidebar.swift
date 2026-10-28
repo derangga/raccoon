@@ -25,6 +25,11 @@ final class SidebarItem {
         self.children = children
     }
 
+    /// This row's own path, or one below it.
+    func contains(_ path: String) -> Bool {
+        self.path == path || children.contains { $0.contains(path) }
+    }
+
     static func tree(_ collections: [Collection]) -> [SidebarItem] {
         func items(_ nodes: [TreeNode], in parent: String) -> [SidebarItem] {
             nodes.map { node in
@@ -82,7 +87,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
     private let window: WindowModel
     private let theme: ThemeEnvironment
-    private let reveal: (String) -> Void
+    private let revealInFinder: (String) -> Void
     private var items: [SidebarItem] = []
     private var byPath: [String: SidebarItem] = [:]
     private var laidOutWidth: CGFloat = 0
@@ -91,7 +96,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     init(window: WindowModel, theme: ThemeEnvironment, reveal: @escaping (String) -> Void) {
         self.window = window
         self.theme = theme
-        self.reveal = reveal
+        self.revealInFinder = reveal
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -355,7 +360,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         guard let item = outline.item(atRow: row) as? SidebarItem else { return }
         switch item.kind {
         case .request: open(row: row)
-        case .unreadable: reveal(window.dataFolderRoot + "/" + item.path)
+        case .unreadable: revealInFinder(window.dataFolderRoot + "/" + item.path)
         case .collection, .folder: break
         }
     }
@@ -389,19 +394,38 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         importFromPostman()
     }
 
-    /// After Postman Import: the Collection's row selected, in view and focused. A filter that
-    /// would hide it is cleared, and the tree is rebuilt now if the index changed this turn.
-    func select(collection name: String) {
-        if !query.isEmpty {
-            searchField.stringValue = ""
-            setQuery("")
+    /// The row at a path in the tree now shown: a Collection's name, a Folder's or a file's path.
+    func item(path: String) -> SidebarItem? { byPath[path] }
+
+    /// Shows a location: a filter that would hide the row is cleared first, so the expansion from
+    /// before it comes back, then every ancestor opens, the row is selected and scrolled into
+    /// view. The row itself stays as it is, no Tab opens, nothing toggles and focus does not
+    /// move: the selection is set in code, so the outline's click action does not run. False,
+    /// with nothing changed, when no row has that path.
+    @discardableResult
+    func reveal(path: String) -> Bool {
+        if item(path: path) == nil {
+            // A tree rebuilt this turn may not have reached the outline yet; a filter may hide the row.
+            if query.isEmpty { render() } else if SidebarItem.tree(window.index.collections).contains(where: { $0.contains(path) }) {
+                searchField.stringValue = ""
+                setQuery("")
+            }
         }
-        if byPath[name] == nil { render() }
-        guard let item = byPath[name] else { return }
+        guard item(path: path) != nil else { return false }
+        for ancestor in SidebarPath.ancestors(of: path) { item(path: ancestor).map { outline.expandItem($0) } }
+        guard let item = item(path: path) else { return false }
         let row = outline.row(forItem: item)
         outline.selectRowIndexes([row], byExtendingSelection: false)
         outline.scrollRowToVisible(row)
+        return true
+    }
+
+    /// After Postman Import: `reveal(path:)`, then focus in the outline.
+    @discardableResult
+    func select(path: String) -> Bool {
+        guard reveal(path: path) else { return false }
         view.window?.makeFirstResponder(outline)
+        return true
     }
 
     /// In the selected row's Collection or Folder.
@@ -491,7 +515,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
     @objc private func revealItem(_ sender: NSMenuItem) {
         guard let item = sender.representedObject as? SidebarItem else { return }
-        reveal(window.dataFolderRoot + "/" + item.path)
+        revealInFinder(window.dataFolderRoot + "/" + item.path)
     }
 
     /// Runs an operation; a failure is an alert, and nothing changes.
@@ -620,7 +644,12 @@ final class NodeCell: NSTableCellView {
     }
 
     private var shown: (String, Range<String.Index>?) = ("", nil)
-    override var backgroundStyle: NSView.BackgroundStyle { didSet { renderName() } }
+    override var backgroundStyle: NSView.BackgroundStyle {
+        didSet {
+            renderName()
+            glyph.contentTintColor = backgroundStyle == .emphasized ? .alternateSelectedControlTextColor : .secondaryLabelColor
+        }
+    }
     private func renderName() { name.attributedStringValue = highlighted(shown.0, shown.1, color: .labelColor, style: backgroundStyle) }
 
     override func layout() {
@@ -631,16 +660,17 @@ final class NodeCell: NSTableCellView {
     }
 }
 
-/// A Request: the 52 pt right-aligned method badge, then the name.
+/// A Request: the 52 pt left-aligned method badge, then the name.
 final class RequestCell: NSTableCellView, ThemedRow {
     static let identifier = NSUserInterfaceItemIdentifier("request")
     let badge = NSTextField(labelWithString: "")
     let name = NSTextField(labelWithString: "")
     private var method = ""
+    private var methodColor = NSColor.labelColor
 
     init() {
         super.init(frame: .zero)
-        badge.alignment = .right
+        badge.alignment = .left
         badge.lineBreakMode = .byTruncatingTail
         badge.font = .monospacedSystemFont(ofSize: 9.5, weight: .bold)
         name.font = .systemFont(ofSize: 13)
@@ -660,34 +690,42 @@ final class RequestCell: NSTableCellView, ThemedRow {
         paint(theme)
     }
 
-    private static let rightAligned: NSParagraphStyle = {
+    private static let leftAligned: NSParagraphStyle = {
         let style = NSMutableParagraphStyle()
-        style.alignment = .right
+        style.alignment = .left
         style.lineBreakMode = .byTruncatingTail
         return style
     }()
 
     private var shown: (String, Range<String.Index>?) = ("", nil)
-    override var backgroundStyle: NSView.BackgroundStyle { didSet { renderName() } }
+    override var backgroundStyle: NSView.BackgroundStyle { didSet { renderName(); renderBadge() } }
     private func renderName() { name.attributedStringValue = highlighted(shown.0, shown.1, color: .labelColor, style: backgroundStyle) }
 
     func paint(_ theme: ThemeEnvironment) {
+        methodColor = theme.color(.method(method))
+        renderBadge()
+    }
+
+    /// The method colour, or the selected-text colour on an emphasized selection (design-system §6 Sidebar rows).
+    private func renderBadge() {
+        let color = backgroundStyle == .emphasized ? NSColor.alternateSelectedControlTextColor : methodColor
         badge.attributedStringValue = NSAttributedString(string: method, attributes: [
-            .paragraphStyle: Self.rightAligned,
+            .paragraphStyle: Self.leftAligned,
             .font: NSFont.monospacedSystemFont(ofSize: 9.5, weight: .bold),
-            .foregroundColor: theme.color(.method(method)),
+            .foregroundColor: color,
             .kern: 0.19,
         ])
-        badge.textColor = theme.color(.method(method))
+        badge.textColor = color
     }
 
     override func layout() {
         super.layout()
         let badgeHeight = badge.cell?.cellSize.height ?? 12
-        // The label's 2 pt padding each side sits outside the 52 pt badge: PROPFIND needs 48.5.
+        // The label keeps 2 pt of padding each side, so its frame starts 2 pt left of the cell's leading edge and the
+        // left-aligned text starts on it, where a Folder's glyph would. The 52 pt text column fits PROPFIND (48.5).
         badge.frame = NSRect(x: -2, y: ((bounds.height - badgeHeight) / 2).rounded(), width: 56, height: badgeHeight)
         let height = name.cell?.cellSize.height ?? 16
-        name.frame = NSRect(x: 58, y: ((bounds.height - height) / 2).rounded(), width: max(0, bounds.width - 58), height: height)
+        name.frame = NSRect(x: 54, y: ((bounds.height - height) / 2).rounded(), width: max(0, bounds.width - 54), height: height)
     }
 }
 
@@ -733,11 +771,19 @@ final class UnreadableCell: NSTableCellView, ThemedRow {
     }
 
     func paint(_ theme: ThemeEnvironment) {
-        glyph.contentTintColor = theme.color(.warning)
+        warningColor = theme.color(.warning)
+        renderColors()
+    }
+
+    private var warningColor = NSColor.systemYellow
+    private func renderColors() {
+        let emphasized = backgroundStyle == .emphasized
+        glyph.contentTintColor = emphasized ? .alternateSelectedControlTextColor : warningColor
+        reason.textColor = emphasized ? .alternateSelectedControlTextColor : .secondaryLabelColor
     }
 
     private var shown: (String, Range<String.Index>?) = ("", nil)
-    override var backgroundStyle: NSView.BackgroundStyle { didSet { renderName() } }
+    override var backgroundStyle: NSView.BackgroundStyle { didSet { renderName(); renderColors() } }
     private func renderName() { name.attributedStringValue = highlighted(shown.0, shown.1, color: .secondaryLabelColor, style: backgroundStyle) }
 
     /// The first 24 pt line, the reason wrapped under the name, and 4 pt below.

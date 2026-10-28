@@ -1,3 +1,4 @@
+import Foundation
 @testable import Raccoon
 import RaccoonDomain
 import RaccoonTesting
@@ -45,5 +46,49 @@ struct TabModelEditingTests {
     func `a method is stored uppercased, and a blank one keeps the old`(typed: String, stored: String) {
         model.setMethod(typed)
         #expect(model.tab.definition.method == stored)
+    }
+
+    // MARK: Path Variables
+
+    @Test func `typing :i then d leaves no value for i, and a value for id survives a host edit`() {
+        model.typeInURLBar("http://h/:i")
+        model.setPathVariable("i", to: "1")
+        model.typeInURLBar("http://h/:id")
+        #expect(model.tab.definition.pathVariables == [:])
+
+        model.setPathVariable("id", to: "7")
+        model.typeInURLBar("http://other/:id")
+        #expect(model.tab.definition.pathVariables == ["id": "7"])
+        model.typeInURLBar("http://other/x")
+        #expect(model.tab.definition.pathVariables == [:])
+    }
+
+    @Test func `a value is set for a name the URL has, and an empty one removes it`() {
+        model.typeInURLBar("http://h/:id")
+        model.setPathVariable("id", to: "7")
+        #expect(model.tab.definition.pathVariables == ["id": "7"])
+        model.setPathVariable("nope", to: "x")
+        #expect(model.tab.definition.pathVariables == ["id": "7"])
+        model.setPathVariable("id", to: "")
+        #expect(model.tab.definition.pathVariables == [:])
+    }
+
+    @Test func `setting a value makes a Request Dirty and clearing it makes it clean again`() {
+        model.typeInURLBar("http://h/:id")
+        model.tab.source = .request(RequestID(UUID()))
+        model.tab.baseline = model.tab.definition
+        #expect(!model.tab.isDirty)
+        model.setPathVariable("id", to: "7")
+        #expect(model.tab.isDirty)
+        model.setPathVariable("id", to: "")
+        #expect(!model.tab.isDirty)
+    }
+
+    @Test func `a curl command pasted into a Tab leaves pathVariables empty`() {
+        model.typeInURLBar("http://h/:id")
+        model.setPathVariable("id", to: "7")
+        #expect(model.pasteInURLBar("curl http://x/:id"))
+        #expect(model.tab.definition.url == "http://x/:id")
+        #expect(model.tab.definition.pathVariables == [:])
     }
 }

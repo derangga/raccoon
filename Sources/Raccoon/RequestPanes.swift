@@ -49,12 +49,21 @@ final class SettingsPane: NSView {
     }
 }
 
-/// The Auth section: None · Basic · Bearer, then the scheme's fields (design-system.md §6 Auth
-/// section). A scheme switched away from keeps its values here, so switching back restores them.
+/// The Auth section (design-system.md §6 Auth section): a 240 pt left column with the Auth type
+/// pop-up and the paragraph saying what the send does, a 1 pt rule, and the scheme's fields on
+/// the right. Below 600 pt of its own width the columns stack. The pane keeps no values of its
+/// own: `auth` is the Tab's, so another Tab, or the same one after a switch, shows what it holds.
 final class AuthPane: NSView, NSTextFieldDelegate {
+    /// Two columns need 597 pt (design-system.md), so 600 pt is where the field would shrink.
+    static let stackedBelow: CGFloat = 600
+    private static let schemes: [(title: String, auth: Auth)] = [
+        ("None", .none), ("Basic Auth", .basic(user: "", password: "")), ("Bearer Token", .bearer(token: "")),
+    ]
+
     private let theme: ThemeEnvironment
-    let scheme: SegmentedControl
-    let noneNote = NSTextField(labelWithString: "No Authorization header is added.")
+    let typeButton = PopButton()
+    let note = NSTextField(wrappingLabelWithString: "")
+    let heading = NSTextField(labelWithString: "")
     let username = VariableField()
     let password = NSSecureTextField()
     /// Shown in place of the bullets when the password holds a `{{name}}`, so the name is readable.
@@ -62,75 +71,178 @@ final class AuthPane: NSView, NSTextFieldDelegate {
     let token = VariableField()
     private(set) var basicFields = NSGridView()
     private(set) var bearerFields = NSGridView()
+    let leftColumn = NSStackView()
+    let rightColumn = NSStackView()
+    let rule = NSBox()
+    private(set) var isStacked = false
+    private var wideConstraints: [NSLayoutConstraint] = []
+    private var stackedConstraints: [NSLayoutConstraint] = []
+    private let chevron = NSImageView()
     var onChange: (Auth) -> Void = { _ in }
 
-    private var basic = (user: "", password: "")
-    private var bearer = ""
+    private var auth = Auth.none
+    private var headers: [Row] = []
 
     init(theme: ThemeEnvironment) {
         self.theme = theme
-        scheme = SegmentedControl(labels: ["None", "Basic", "Bearer"], theme: theme)
         super.init(frame: .zero)
-        let typeLabel = NSTextField(labelWithString: "Type")
-        for label in [typeLabel, noneNote] {
-            label.font = .systemFont(ofSize: 11)
-            theme.paint(label) { $0.textColor = $1.color(.textTertiary) }
+        buildLeft()
+        buildRight()
+        rule.boxType = .custom
+        rule.borderWidth = 0
+        rule.contentViewMargins = .zero
+        theme.paint(rule) { $0.fillColor = $1.color(.border) }
+        for view in [leftColumn, rule, rightColumn] {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(view)
         }
-        scheme.target = self
-        scheme.action = #selector(schemePicked)
-        scheme.selectedSegment = 0
-        let row = NSStackView(views: [typeLabel, scheme, noneNote])
-        row.spacing = 8
-
-        for field in [username, password, passwordVariable, token] {
-            field.isBordered = false
-            field.drawsBackground = false
-            field.focusRingType = .none
-            field.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-            theme.paint(field) { $0.textColor = $1.color(.text) }
-            field.cell?.isScrollable = true
-            field.cell?.wraps = false
-            field.delegate = self
-        }
-        for field in [username, passwordVariable, token] { field.theme = theme }
-        let secret = NSView()
-        for field in [password, passwordVariable] { fill(secret, with: field) }
-        basicFields = grid([("Username", boxed(username)), ("Password", boxed(secret))])
-        bearerFields = grid([("Token", boxed(token))])
-
-        let column = NSStackView(views: [row, basicFields, bearerFields])
-        column.orientation = .vertical
-        column.alignment = .leading
-        column.spacing = 12
-        column.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(column)
-        NSLayoutConstraint.activate([
-            column.topAnchor.constraint(equalTo: topAnchor),
-            column.leadingAnchor.constraint(equalTo: leadingAnchor),
-            column.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
-            basicFields.widthAnchor.constraint(equalTo: column.widthAnchor),
-            bearerFields.widthAnchor.constraint(equalTo: column.widthAnchor),
-            column.widthAnchor.constraint(equalTo: widthAnchor).withPriority(.defaultLow),
-        ])
+        constrain()
+        theme.paint(self) { pane, _ in pane.restyle() }
         setAuth(.none)
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    /// Labels right-aligned in `textSecondary` at 80 pt, then the fields, up to 360 pt wide.
+    // MARK: Layout
+
+    private func buildLeft() {
+        let label = NSTextField(labelWithString: "Auth type")
+        label.font = .systemFont(ofSize: 12, weight: .semibold)
+        note.font = .systemFont(ofSize: 12)
+        note.preferredMaxLayoutWidth = 240
+        theme.paint(label) { $0.textColor = $1.color(.textSecondary) }
+        theme.paint(note) { $0.textColor = $1.color(.textSecondary) }
+
+        typeButton.isBordered = false
+        typeButton.alignment = .left
+        typeButton.wantsLayer = true
+        typeButton.layer?.cornerRadius = 6
+        typeButton.layer?.borderWidth = 1
+        typeButton.target = self
+        typeButton.action = #selector(showTypes)
+        typeButton.setAccessibilityRole(.popUpButton)
+        typeButton.setAccessibilityLabel("Auth type")
+        chevron.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 9, weight: .semibold))
+        chevron.translatesAutoresizingMaskIntoConstraints = false
+        typeButton.addSubview(chevron)
+        typeButton.translatesAutoresizingMaskIntoConstraints = false
+
+        leftColumn.orientation = .vertical
+        leftColumn.alignment = .leading
+        leftColumn.spacing = 6
+        for view in [label, typeButton, note] { leftColumn.addArrangedSubview(view) }
+        NSLayoutConstraint.activate([
+            leftColumn.widthAnchor.constraint(equalToConstant: 240),
+            typeButton.widthAnchor.constraint(equalToConstant: 240),
+            typeButton.heightAnchor.constraint(equalToConstant: 28),
+            note.widthAnchor.constraint(equalToConstant: 240),
+            chevron.trailingAnchor.constraint(equalTo: typeButton.trailingAnchor, constant: -8),
+            chevron.centerYAnchor.constraint(equalTo: typeButton.centerYAnchor),
+        ])
+    }
+
+    private func buildRight() {
+        heading.font = .systemFont(ofSize: 17)
+        theme.paint(heading) { $0.textColor = $1.color(.text) }
+        for field in [username, password, passwordVariable, token] {
+            field.isBordered = false
+            field.drawsBackground = false
+            field.focusRingType = .none
+            field.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+            theme.paint(field) { field, theme in
+                field.textColor = theme.color(.text)
+                field.placeholderAttributedString = NSAttributedString(string: field.placeholderString ?? "", attributes: [
+                    .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular), .foregroundColor: theme.color(.textTertiary),
+                ])
+            }
+            field.cell?.isScrollable = true
+            field.cell?.wraps = false
+            field.delegate = self
+            field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        }
+        for field in [username, passwordVariable, token] { field.theme = theme }
+        username.placeholderString = "Username"
+        for field in [password, passwordVariable] { field.placeholderString = "Password" }
+        token.placeholderString = "Token"
+        let secret = NSView()
+        for field in [password, passwordVariable] { fill(secret, with: field) }
+        basicFields = grid([("Username", boxed(username)), ("Password", boxed(secret))])
+        bearerFields = grid([("Token", boxed(token))])
+
+        rightColumn.orientation = .vertical
+        rightColumn.alignment = .leading
+        rightColumn.spacing = 14
+        for view in [heading, basicFields, bearerFields] { rightColumn.addArrangedSubview(view) }
+        NSLayoutConstraint.activate([
+            basicFields.trailingAnchor.constraint(lessThanOrEqualTo: rightColumn.trailingAnchor),
+            bearerFields.trailingAnchor.constraint(lessThanOrEqualTo: rightColumn.trailingAnchor),
+        ])
+    }
+
+    /// Both layouts are built once and one set is active, so crossing 600 pt moves views and
+    /// touches no value.
+    private func constrain() {
+        let pad: CGFloat = 16
+        NSLayoutConstraint.activate([
+            leftColumn.topAnchor.constraint(equalTo: topAnchor, constant: pad),
+            leftColumn.leadingAnchor.constraint(equalTo: leadingAnchor, constant: pad),
+            rightColumn.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -pad),
+        ])
+        // The rule is as tall as the taller column and no taller.
+        let flush = rule.bottomAnchor.constraint(equalTo: rule.topAnchor)
+        flush.priority = .init(1)
+        wideConstraints = [
+            rule.topAnchor.constraint(equalTo: topAnchor, constant: pad),
+            rule.leadingAnchor.constraint(equalTo: leftColumn.trailingAnchor, constant: pad),
+            rule.widthAnchor.constraint(equalToConstant: 1),
+            rule.bottomAnchor.constraint(greaterThanOrEqualTo: leftColumn.bottomAnchor),
+            rule.bottomAnchor.constraint(greaterThanOrEqualTo: rightColumn.bottomAnchor),
+            flush,
+            rightColumn.topAnchor.constraint(equalTo: topAnchor, constant: pad),
+            rightColumn.leadingAnchor.constraint(equalTo: rule.trailingAnchor, constant: pad),
+        ]
+        stackedConstraints = [
+            rule.topAnchor.constraint(equalTo: leftColumn.bottomAnchor, constant: pad),
+            rule.leadingAnchor.constraint(equalTo: leadingAnchor, constant: pad),
+            rule.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -pad),
+            rule.heightAnchor.constraint(equalToConstant: 1),
+            rightColumn.topAnchor.constraint(equalTo: rule.bottomAnchor, constant: pad),
+            rightColumn.leadingAnchor.constraint(equalTo: leadingAnchor, constant: pad),
+        ]
+        NSLayoutConstraint.activate(wideConstraints)
+    }
+
+    /// The pane's own width decides, not the window's. Switched when the width is set, so the
+    /// constraints that lay the columns out are the ones for the width they get.
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        let stacked = newSize.width < Self.stackedBelow
+        guard stacked != isStacked else { return }
+        isStacked = stacked
+        NSLayoutConstraint.deactivate(stacked ? wideConstraints : stackedConstraints)
+        NSLayoutConstraint.activate(stacked ? stackedConstraints : wideConstraints)
+    }
+
+    /// Labels left-aligned in `text` at 80 pt, then the fields, up to 320 pt wide, rows 36 pt apart.
     private func grid(_ rows: [(String, NSView)]) -> NSGridView {
         let grid = NSGridView(views: rows.map { title, field in
             let label = NSTextField(labelWithString: title)
-            theme.paint(label) { $0.textColor = $1.color(.textSecondary) }
-            label.alignment = .right
-            field.widthAnchor.constraint(lessThanOrEqualToConstant: 360).isActive = true
+            label.font = .systemFont(ofSize: 13)
+            theme.paint(label) { $0.textColor = $1.color(.text) }
+            field.widthAnchor.constraint(lessThanOrEqualToConstant: 320).isActive = true
+            let preferred = field.widthAnchor.constraint(equalToConstant: 320)
+            preferred.priority = .init(700)
+            preferred.isActive = true
             return [label, field]
         })
         grid.column(at: 0).width = 80
-        grid.column(at: 0).xPlacement = .trailing
+        grid.column(at: 0).xPlacement = .leading
+        grid.column(at: 1).xPlacement = .leading
         grid.columnSpacing = 12
-        grid.rowSpacing = 8
+        grid.rowSpacing = 10
         grid.yPlacement = .center
         return grid
     }
@@ -168,30 +280,86 @@ final class AuthPane: NSView, NSTextFieldDelegate {
         ])
     }
 
+    // MARK: Pop-up
+
+    var typeMenu: NSMenu {
+        let menu = NSMenu()
+        for (index, scheme) in Self.schemes.enumerated() {
+            let item = NSMenuItem(title: scheme.title, action: #selector(pickScheme), keyEquivalent: "")
+            item.target = self
+            item.tag = index
+            item.state = index == Self.index(of: auth) ? .on : .off
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    private static func index(of auth: Auth) -> Int {
+        switch auth {
+        case .none: 0
+        case .basic: 1
+        case .bearer: 2
+        }
+    }
+
+    @objc private func showTypes() { typeMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: typeButton.bounds.height + 4), in: typeButton) }
+
+    @objc private func pickScheme(_ item: NSMenuItem) {
+        let picked = Self.schemes[item.tag].auth
+        guard Self.index(of: picked) != Self.index(of: auth) else { return }
+        change(to: picked)
+    }
+
+    /// One undo step: the old Auth comes back with what was typed, and undoing registers the redo.
+    private func change(to new: Auth) {
+        let old = auth
+        onChange(new)
+        setAuth(new)
+        undoManager?.registerUndo(withTarget: self) { $0.change(to: old) }
+        undoManager?.setActionName("Auth Type")
+    }
+
+    // MARK: Content
+
+    private func restyle() {
+        let title = NSMutableParagraphStyle()
+        title.alignment = .left
+        title.firstLineHeadIndent = 10
+        typeButton.attributedTitle = NSAttributedString(string: Self.schemes[Self.index(of: auth)].title, attributes: [
+            .font: NSFont.systemFont(ofSize: 13), .foregroundColor: theme.color(.text), .paragraphStyle: title,
+        ])
+        typeButton.layer?.borderColor = theme.color(.border).cgColor
+        typeButton.layer?.backgroundColor = theme.color(.backgroundElevated).cgColor
+        chevron.contentTintColor = theme.color(.textTertiary)
+    }
+
     private static func holdsVariable(_ text: String) -> Bool { text.contains(/\{\{[^{}]+\}\}/) }
 
-    func setAuth(_ auth: Auth) {
-        switch auth {
-        case .none: scheme.selectedSegment = 0
-        case .basic(let user, let password):
-            scheme.selectedSegment = 1
-            basic = (user, password)
-        case .bearer(let token):
-            scheme.selectedSegment = 2
-            bearer = token
+    /// Shows `auth`, the Tab's, and the paragraph for it and the Headers rows. Every field is set
+    /// from it, the ones of another scheme to empty, so nothing typed elsewhere shows here.
+    func setAuth(_ auth: Auth, headers: [Row]? = nil) {
+        self.auth = auth
+        if let headers { self.headers = headers }
+        let values: (user: String, password: String, token: String) = switch auth {
+        case .none: ("", "", "")
+        case .basic(let user, let password): (user, password, "")
+        case .bearer(let token): ("", "", token)
         }
-        noneNote.isHidden = scheme.selectedSegment != 0
-        basicFields.isHidden = scheme.selectedSegment != 1
-        bearerFields.isHidden = scheme.selectedSegment != 2
+        restyle()
+        note.stringValue = AuthNote.text(auth, headers: self.headers)
+        heading.stringValue = Self.schemes[Self.index(of: auth)].title
+        heading.isHidden = auth == .none
+        basicFields.isHidden = Self.index(of: auth) != 1
+        bearerFields.isHidden = Self.index(of: auth) != 2
         // Never rewrite a field under the user's typing: the cursor would jump.
-        for (field, value) in [(username, basic.user), (password, basic.password), (passwordVariable, basic.password), (token, bearer)]
+        for (field, value) in [(username, values.user), (password, values.password), (passwordVariable, values.password), (token, values.token)]
             where field.currentEditor() == nil {
             field.stringValue = value
             (field as? VariableField)?.highlight()
         }
         // Swapped only while neither is being edited, so typing `{{` never moves the focus.
         if password.currentEditor() == nil, passwordVariable.currentEditor() == nil {
-            let named = Self.holdsVariable(basic.password)
+            let named = Self.holdsVariable(values.password)
             password.isHidden = named
             passwordVariable.isHidden = !named
         }
@@ -202,25 +370,12 @@ final class AuthPane: NSView, NSTextFieldDelegate {
         for field in [username, passwordVariable, token] { field.kinds = kinds }
     }
 
-    private var auth: Auth {
-        switch scheme.selectedSegment {
-        case 1: .basic(user: basic.user, password: basic.password)
-        case 2: .bearer(token: bearer)
-        default: .none
-        }
-    }
-
-    @objc private func schemePicked() {
-        onChange(auth)
-        setAuth(auth)
-    }
-
     func controlTextDidChange(_ notification: Notification) {
         guard let field = notification.object as? NSTextField else { return }
-        switch field {
-        case username: basic.user = field.stringValue
-        case password, passwordVariable: basic.password = field.stringValue
-        case token: bearer = field.stringValue
+        switch (auth, field) {
+        case (.basic(_, let password), username): auth = .basic(user: field.stringValue, password: password)
+        case (.basic(let user, _), password), (.basic(let user, _), passwordVariable): auth = .basic(user: user, password: field.stringValue)
+        case (.bearer, token): auth = .bearer(token: field.stringValue)
         default: return
         }
         onChange(auth)
