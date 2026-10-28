@@ -925,12 +925,16 @@ An `NSSearchField` at the top of the sidebar, above "Collections", placeholder "
 Collections". Hidden while there are no Collections (screen 1).
 
 - Filters as you type, no debounce, over Request, Folder and Collection names, case- and
-  diacritic-insensitive. A node stays if it or an ancestor matches; ancestors open.
-  Unreadable rows match by file name.
+  diacritic-insensitive. A name matches when it contains the query, or failing that, when
+  the query's characters appear in it in order with gaps (Q19): "refnd" finds "List
+  refunds". Unreadable rows match by file name.
+- A node stays if it matches; ancestors open. Everything under a Collection or Folder stays
+  only when its name contains the query. A container matched only with gaps keeps just the
+  rows under it that match on their own.
 - The match is highlighted with the system find-highlight color **and** set semibold, so it
-  is not shown by color alone.
+  is not shown by color alone. A match with gaps highlights each run: "**ref**u**nd**s".
 - Under the field, an 11 pt count in secondary label color: "4 matches in 1 Collection".
-- No matches: "No Requests, Folders or Collections match “refnd”. Esc clears the filter."
+- No matches: "No Requests, Folders or Collections match “graphql”. Esc clears the filter."
 - The clear button (ⓧ) and Esc restore the tree and the expansion state from before.
 - Clicking a match opens it; the filter stays until cleared.
 - ⌥⌘F focuses the field, listed as Edit ▸ Find ▸ "Filter Collections" (Q12). A hidden
@@ -1178,3 +1182,12 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
     sheet. Not drawn. Decided 2026-10-25: not in v1. Import opens from File ▸ Import from
     Postman… (⇧⌘I) and the sidebar's + menu only.
 
+19. **Fuzzy matching in the sidebar filter.** A query that is not a substring of any name,
+    such as "refnd" for "List refunds" or "crch" for "Create charge", found nothing. Decided
+    2026-10-28: a name matches when it contains the query, or failing that, when the query's
+    characters appear in it in order (a subsequence). Q13 still holds: names only. Results
+    keep tree order, so nothing ranks them. A Collection or Folder keeps everything under it
+    only on a substring match; a gap match on a long container name is usually an accident
+    ("pai" in "Payments API"), so there it keeps only the rows that match on their own.
+    Swapped or wrong letters ("refnuds") and queries across levels ("pay ref") still find
+    nothing.

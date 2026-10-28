@@ -165,10 +165,19 @@ file and renames the file to match. Move to Trash does not ask: the Trash is the
 ```
 -> filterSidebar(query)                          every keystroke in the sidebar search field
   -> TreeFilter.matches(tree, query)             pure        R: none
-     -> a node is kept if its name contains the query (case- and diacritic-insensitive,
-        localizedStandardContains), or an ancestor's does; .unreadable rows match by file name
+     -> TreeFilter.ranges(of: query, in: name)  pure        -> the matched runs and the Hit
+        -> substring first: localizedStandardRange, one run (case- and diacritic-insensitive)
+        -> else subsequence: the query's characters in order, gaps allowed, each Character
+           folded case- and diacritic-insensitive; the first window that holds them all,
+           shrunk from its end (fzf v1), so "refnd" in "Purge refund cache" lands on
+           "refund", not the r and e of "Purge"; adjacent hits merged into runs
+        E: neither -> escape: the node does not match
+     -> a node is kept if its name matches, or an ancestor's matched as a substring;
+        .unreadable rows match by file name
+     -> a Collection or Folder that matched only as a subsequence keeps only the
+        descendants that match on their own
      -> ancestors of a kept node are kept and shown expanded
-     -> the matched ranges, for highlighting
+     -> the matched runs, for highlighting
   -> the sidebar shows the filtered tree         query empty -> the tree and the expansion
                                                  state from before the filter, restored
 
@@ -180,8 +189,8 @@ file and renames the file to match. Move to Trash does not ask: the Trash is the
 
 **The filter is a view, not a second index.** It runs over the in-memory tree that
 `DataFolderIndex` already holds, so it needs no I/O and no debounce: a linear scan of names
-is microseconds even for tens of thousands of Requests (§7 has no wrapper for it, for the
-same reason highlighting has none). A `filesChanged` while a filter is active re-runs it on
+takes about 5 ms at 2,000 Requests and about 50 ms at the worst query over 20,000, release
+build (environment-facts.md, Sidebar filter speed), so §7 has no wrapper for it. A `filesChanged` while a filter is active re-runs it on
 the new tree.
 
 ## The Breadcrumb

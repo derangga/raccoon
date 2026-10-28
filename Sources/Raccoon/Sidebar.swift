@@ -574,15 +574,15 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         switch item.kind {
         case .collection, .folder:
             let cell = reuse(NodeCell.identifier) { NodeCell() }
-            cell.show(item, match: matches[item.path]?.range)
+            cell.show(item, match: matches[item.path]?.ranges ?? [])
             return cell
         case .request(_, let method):
             let cell = reuse(RequestCell.identifier) { RequestCell() }
-            cell.show(name: item.name, method: method, match: matches[item.path]?.range, theme: theme)
+            cell.show(name: item.name, method: method, match: matches[item.path]?.ranges ?? [], theme: theme)
             return cell
         case .unreadable(let reason):
             let cell = reuse(UnreadableCell.identifier) { UnreadableCell(target: self, action: #selector(revealClicked)) }
-            cell.show(name: item.name, reason: reason, match: matches[item.path]?.range, theme: theme)
+            cell.show(name: item.name, reason: reason, match: matches[item.path]?.ranges ?? [], theme: theme)
             return cell
         }
     }
@@ -599,16 +599,16 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     }
 }
 
-/// A row's name, with the filter's match in the system find colour and semibold, so it is not
+/// A row's name, with each run of the filter's match in the system find colour and semibold, so it is not
 /// told by colour alone (design-system §6 Sidebar filter).
 /// On a selected row in a focused outline the name takes the selected-text colour, as AppKit
 /// would do for a registered textField.
-private func highlighted(_ name: String, _ match: Range<String.Index>?, color: NSColor, style: NSView.BackgroundStyle) -> NSAttributedString {
+private func highlighted(_ name: String, _ matches: [Range<String.Index>], color: NSColor, style: NSView.BackgroundStyle) -> NSAttributedString {
     let color = style == .emphasized ? NSColor.alternateSelectedControlTextColor : color
     let text = NSMutableAttributedString(string: name, attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: color])
-    if let match {
+    for range in matches {
         text.addAttributes([.font: NSFont.systemFont(ofSize: 13, weight: .semibold), .backgroundColor: NSColor.findHighlightColor],
-                           range: NSRange(match, in: name))
+                           range: NSRange(range, in: name))
     }
     return text
 }
@@ -637,14 +637,14 @@ final class NodeCell: NSTableCellView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    func show(_ item: SidebarItem, match: Range<String.Index>?) {
+    func show(_ item: SidebarItem, match: [Range<String.Index>]) {
         let symbol = item.kind == .collection ? "square.3.layers.3d" : "folder"
         glyph.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 12, weight: .regular))
         shown = (item.name, match)
         renderName()
     }
 
-    private var shown: (String, Range<String.Index>?) = ("", nil)
+    private var shown: (String, [Range<String.Index>]) = ("", [])
     override var backgroundStyle: NSView.BackgroundStyle {
         didSet {
             renderName()
@@ -683,7 +683,7 @@ final class RequestCell: NSTableCellView, ThemedRow {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    func show(name: String, method: String, match: Range<String.Index>?, theme: ThemeEnvironment) {
+    func show(name: String, method: String, match: [Range<String.Index>], theme: ThemeEnvironment) {
         self.method = method
         shown = (name, match)
         renderName()
@@ -699,7 +699,7 @@ final class RequestCell: NSTableCellView, ThemedRow {
         return style
     }()
 
-    private var shown: (String, Range<String.Index>?) = ("", nil)
+    private var shown: (String, [Range<String.Index>]) = ("", [])
     override var backgroundStyle: NSView.BackgroundStyle { didSet { renderName(); renderBadge() } }
     private func renderName() { name.attributedStringValue = highlighted(shown.0, shown.1, color: .labelColor, style: backgroundStyle) }
 
@@ -766,7 +766,7 @@ final class UnreadableCell: NSTableCellView, ThemedRow {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    func show(name: String, reason: String, match: Range<String.Index>?, theme: ThemeEnvironment) {
+    func show(name: String, reason: String, match: [Range<String.Index>], theme: ThemeEnvironment) {
         shown = (name, match)
         renderName()
         self.name.toolTip = name
@@ -786,7 +786,7 @@ final class UnreadableCell: NSTableCellView, ThemedRow {
         reason.textColor = emphasized ? .alternateSelectedControlTextColor : .secondaryLabelColor
     }
 
-    private var shown: (String, Range<String.Index>?) = ("", nil)
+    private var shown: (String, [Range<String.Index>]) = ("", [])
     override var backgroundStyle: NSView.BackgroundStyle { didSet { renderName(); renderColors() } }
     private func renderName() { name.attributedStringValue = highlighted(shown.0, shown.1, color: .secondaryLabelColor, style: backgroundStyle) }
 

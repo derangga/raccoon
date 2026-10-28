@@ -61,12 +61,24 @@ struct SidebarFilterTests {
         #expect(text.attribute(.backgroundColor, at: 7, effectiveRange: nil) == nil)
     }
 
-    @Test func `no matches says so in place of the tree`() throws {
+    @Test func `letters in order with gaps match, each run highlighted apart`() throws {
         let (_, sidebar) = try sidebar()
         type("refnd", in: sidebar)
 
+        #expect(names(sidebar) == ["Payments API", "Refunds", "Cancel refund", "List refunds", "Refund charge"])
+        let text = try #require(nameField(sidebar, row: 4)).attributedStringValue
+        #expect(text.string == "Refund charge")
+        let semibold = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        #expect((0..<7).map { text.attribute(.font, at: $0, effectiveRange: nil) as? NSFont == semibold }
+            == [true, true, true, false, true, true, false])
+    }
+
+    @Test func `no matches says so in place of the tree`() throws {
+        let (_, sidebar) = try sidebar()
+        type("graphql", in: sidebar)
+
         #expect(sidebar.outline.enclosingScrollView?.isHidden == true)
-        #expect(sidebar.noMatches.stringValue == "No Requests, Folders or Collections match “refnd”.\nEsc clears the filter.")
+        #expect(sidebar.noMatches.stringValue == "No Requests, Folders or Collections match “graphql”.\nEsc clears the filter.")
         #expect(!sidebar.noMatches.isHidden)
     }
 

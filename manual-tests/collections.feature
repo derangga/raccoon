@@ -410,8 +410,19 @@ Feature: The sidebar filter
       "Esc clears the filter."
 
   Scenario: No matches, board 11
+    When I type "graphql"
+    Then the sidebar reads "No Requests, Folders or Collections match “graphql”." and "Esc clears the filter." on the next line
+
+  Scenario: Letters in order, with gaps
     When I type "refnd"
-    Then the sidebar reads "No Requests, Folders or Collections match “refnd”." and "Esc clears the filter." on the next line
+    Then the count reads "7 matches in 2 Collections"
+    And Payments API ▸ Refunds ▸ (Cancel refund, List refunds, Old refund.json, Purge refund cache), then Refund charge, show open, with "ref" and "nd" highlighted apart in each, e.g. "**Ref**u**nd** charge"
+    And in "Purge refund cache" the highlight is in "refund", not on the r and e of "Purge"
+    And 決済API（本番環境・東京リージョン） ▸ "CORS preflight for the merchant onboarding dashboard" shows too, with "re" of "preflight", "f" of "for", "n" of "onboarding" and the "d" after it highlighted: a gap match is literal, not smart
+    When I type "pai"
+    Then the count reads "2 matches in 2 Collections"
+    And Payments API shows with "P", "A" and "I" highlighted and nothing under it: a Collection matched with gaps keeps only rows that match on their own
+    And 決済API（本番環境・東京リージョン） ▸ "CORS preflight for the merchant onboarding dashboard" shows open, with "p", "a" and "i" highlighted
 
   Scenario: Esc and Return
     Given only Payments API is expanded
