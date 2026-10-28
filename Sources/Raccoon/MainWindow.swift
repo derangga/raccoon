@@ -82,7 +82,9 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             label.font = .systemFont(ofSize: 11)
             label.textColor = .secondaryLabelColor
             let row = NSStackView(views: [label, environmentPicker])
-            row.spacing = 4
+            row.spacing = 8
+            // The clear space before the inspector toggle, on top of the toolbar's own spacing.
+            row.edgeInsets.right = 12
             let item = NSToolbarItem(itemIdentifier: identifier)
             item.view = row
             item.label = "Environment"

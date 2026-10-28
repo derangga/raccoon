@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import os
 import RaccoonDomain
 import UniformTypeIdentifiers
 
@@ -14,10 +15,25 @@ enum RaccoonApp {
     }
 }
 
+/// The Dock and ⌘Tab icon (design-system §6 App icon). `swift run` has no bundle Info.plist to name it.
+enum AppIcon {
+    private static let log = Logger(subsystem: "Raccoon", category: "AppIcon")
+
+    /// nil keeps the default icon: nothing depends on this one, so the app still launches (§4).
+    static func load(from bundle: Bundle = .module) -> NSImage? {
+        guard let url = bundle.url(forResource: "AppIcon", withExtension: "png"), let image = NSImage(contentsOf: url) else {
+            log.error("AppIcon.png is missing from the bundle or not an image; keeping the default icon")
+            return nil
+        }
+        return image
+    }
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowModel: WindowModel?
     private var windowController: MainWindowController?
     private var tabController: TabViewController?
+    private var content: ContentViewController?
     private var themeController: ThemeController?
     private var closer: TabCloser?
     private var saver: DraftSaver?
@@ -25,10 +41,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var dataFolderBanner: DataFolderBannerBinding?
     /// Reads the files picked for Postman Import.
     private let files = CompositionRoot.fileReading()
+    /// The app's preference, never a Session's (tabs.md §close).
+    private let closeMemory = CompositionRoot.closeMemory(defaults: .standard)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Raccoon's Tabs are its own; system window tabs would add a second kind on ⌘T's menu.
         NSWindow.allowsAutomaticWindowTabbing = false
+        if let icon = AppIcon.load() { NSApp.applicationIconImage = icon }
         let windowModel = CompositionRoot.live(defaults: .standard)
         // Loading restores the Session too: a Request Tab is looked up in the index first.
         windowModel.loadDataFolder()
@@ -50,7 +69,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return await panel.beginSheetModal(for: window) == .OK ? panel.url?.path : nil
         }
         dataFolderBanner = DataFolderBannerBinding(window: windowModel, banner: windowController.banner, chooseFolder: chooseWorkspaceFolder)
-        let tabController = TabViewController(model: windowModel.tabs[0], theme: theme)
+        // A Session of zero Tabs opens on the empty state: the editor holds a Tab no list has.
+        let tabController = TabViewController(model: windowModel.tabs.first ?? windowModel.unlistedTab(), theme: theme)
         let strip = TabStripView(window: windowModel, theme: theme)
         let saver = DraftSaver(window: windowModel, ask: { [weak windowController] locations, location, reply in
             guard let window = windowController?.window else { return reply(nil) }
@@ -60,7 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             tabController.flatMap { $0.view.window?.makeFirstResponder($0.urlBar.urlField) }
         })
         self.saver = saver
-        let closer = TabCloser(window: windowModel, saver: saver) { [weak windowController] model, reply in
+        let closer = TabCloser(window: windowModel, saver: saver, memory: closeMemory) { [weak windowController] model, reply in
             guard let window = windowController?.window else { return }
             CloseConfirm.ask(model, name: windowModel.name(of: model.tab), in: window, reply: reply)
         }
@@ -103,7 +123,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             windowController?.split.revealSidebar()
             sidebar?.reveal(path: path)
         }
-        windowController.split.showTab(ContentViewController(strip: strip, breadcrumb: breadcrumb, tab: tabController, banner: tabBanner))
+        let content = ContentViewController(strip: strip, breadcrumb: breadcrumb, tab: tabController, banner: tabBanner,
+                                            emptyState: EmptyStateView(theme: theme, menu: NSApp.mainMenu))
+        windowController.split.showTab(content)
+        self.content = content
         self.tabController = tabController
         let inspector = InspectorViewController(window: windowModel, theme: theme, memory: inspectorMemory)
         inspector.onEditEnvironments = { [weak self] in self?.editEnvironments(nil) }
@@ -122,19 +145,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// ⌘Q, logout and restart all end here, with no prompt: the Session keeps every Tab.
     func applicationWillTerminate(_ notification: Notification) { windowModel?.quit() }
 
-    /// The one editor follows the selection, however it changed.
+    /// The one editor follows the selection, however it changed; with no Tab, the empty state.
     private func showSelectedTab() {
         guard let windowModel, let tabController else { return }
         let selected = withObservationTracking { windowModel.selectedTab } onChange: { [weak self] in
             Task { @MainActor in self?.showSelectedTab() }
         }
         if let selected { tabController.bind(selected) }
+        content?.showsTab(selected != nil)
     }
 
     @objc func newTab(_ sender: Any?) { windowModel?.newTab() }
     @objc func newCollection(_ sender: Any?) { sidebar?.newCollection(sender) }
     @objc func save(_ sender: Any?) { if let tab = windowModel?.selectedTab { saver?.save(tab) } }
     @objc func closeTab(_ sender: Any?) { if let tab = windowModel?.selectedTab { closer?.close(tab) } }
+    /// File ▸ Always Discard Unsaved Changes: the way back from the close sheet's checkbox.
+    @objc func toggleAlwaysDiscard(_ sender: Any?) { closeMemory.remember(!closeMemory.alwaysDiscards()) }
     @objc func showTab(_ sender: NSMenuItem) { windowModel?.select(number: sender.tag) }
     @objc func showNextTab(_ sender: Any?) { windowModel?.selectNext() }
     @objc func showPreviousTab(_ sender: Any?) { windowModel?.selectPrevious() }
@@ -169,5 +195,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func editEnvironments(_ sender: Any?) {
         guard let window = windowController?.window, let windowModel, let theme = themeController?.theme else { return }
         EnvironmentsSheet.present(on: window, model: windowModel, theme: theme)
+    }
+}
+
+extension AppDelegate: NSMenuItemValidation {
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        switch item.action {
+        case #selector(toggleAlwaysDiscard(_:)):
+            item.state = closeMemory.alwaysDiscards() ? .on : .off
+            return true
+        // Disabled, not hidden, while no Tab is open (surfaces.md §5).
+        case #selector(save(_:)), #selector(closeTab(_:)), #selector(showNextTab(_:)), #selector(showPreviousTab(_:)):
+            return windowModel?.selectedTab != nil
+        case #selector(showTab(_:)):
+            return !(windowModel?.tabs.isEmpty ?? true)
+        default:
+            return true
+        }
     }
 }

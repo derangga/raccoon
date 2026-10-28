@@ -71,6 +71,7 @@ public enum ColorToken: String, CaseIterable, Sendable {
     case xmlTag
     case xmlAttribute
     case xmlValue
+    case curlFlag
     case variableDefined
     case variableSecret
     case variableUndefined

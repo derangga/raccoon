@@ -116,7 +116,8 @@ struct SaveRequestTests {
         let strip = TabStripView(window: window, theme: theme)
         let content = ContentViewController(strip: strip, breadcrumb: BreadcrumbBinding(window: window, theme: theme, select: { _ in }),
                                             tab: TabViewController(model: tab, theme: theme),
-                                            banner: TabBannerBinding(window: window, theme: theme, reduceMotion: { true }))
+                                            banner: TabBannerBinding(window: window, theme: theme, reduceMotion: { true }),
+                                            emptyState: EmptyStateView(theme: theme, menu: nil))
         content.view.frame = NSRect(x: 0, y: 0, width: 900, height: 600)
 
         window.save(tab.tab.id)

@@ -32,6 +32,14 @@ enum CompositionRoot {
     /// The files picked for Postman Import.
     static func fileReading() -> any FileReading { DiskFileReading() }
 
+    /// Not a Bool reads as off, so closing asks (§4).
+    static func closeMemory(defaults: UserDefaults) -> CloseMemory {
+        CloseMemory(
+            alwaysDiscards: { defaults.object(forKey: "AlwaysDiscardOnClose") as? Bool ?? false },
+            remember: { defaults.set($0, forKey: "AlwaysDiscardOnClose") }
+        )
+    }
+
     /// A value of the wrong type reads as absent; the split clamps the width.
     static func inspectorMemory(defaults: UserDefaults) -> InspectorMemory {
         InspectorMemory(

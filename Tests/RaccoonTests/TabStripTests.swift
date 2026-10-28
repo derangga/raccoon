@@ -213,7 +213,8 @@ struct ContentLayoutTests {
         let tab = TabViewController(model: window.tabs[0], theme: theme)
         let content = ContentViewController(strip: TabStripView(window: window, theme: theme),
                                             breadcrumb: BreadcrumbBinding(window: window, theme: theme, select: { _ in }), tab: tab,
-                                            banner: TabBannerBinding(window: window, theme: theme, reduceMotion: { true }))
+                                            banner: TabBannerBinding(window: window, theme: theme, reduceMotion: { true }),
+                                            emptyState: EmptyStateView(theme: theme, menu: nil))
         content.view.frame = NSRect(x: 0, y: 0, width: 900, height: 600)
         content.view.layoutSubtreeIfNeeded()
 

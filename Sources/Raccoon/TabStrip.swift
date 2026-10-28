@@ -330,12 +330,15 @@ final class ContentViewController: NSViewController {
     let breadcrumb: BreadcrumbBinding
     let tab: TabViewController
     let banner: TabBannerBinding
+    /// In place of the Breadcrumb, banner and editor while no Tab is open (tabs.md, the empty state).
+    let emptyState: EmptyStateView
 
-    init(strip: TabStripView, breadcrumb: BreadcrumbBinding, tab: TabViewController, banner: TabBannerBinding) {
+    init(strip: TabStripView, breadcrumb: BreadcrumbBinding, tab: TabViewController, banner: TabBannerBinding, emptyState: EmptyStateView) {
         self.strip = strip
         self.breadcrumb = breadcrumb
         self.tab = tab
         self.banner = banner
+        self.emptyState = emptyState
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -345,7 +348,7 @@ final class ContentViewController: NSViewController {
     override func loadView() {
         let root = NSView()
         addChild(tab)
-        for part in [strip, breadcrumb.bar, banner.view, tab.view] {
+        for part in [strip, breadcrumb.bar, banner.view, tab.view, emptyState] {
             part.translatesAutoresizingMaskIntoConstraints = false
             root.addSubview(part)
         }
@@ -366,7 +369,22 @@ final class ContentViewController: NSViewController {
             tab.view.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             tab.view.trailingAnchor.constraint(equalTo: root.trailingAnchor),
             tab.view.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+            emptyState.topAnchor.constraint(equalTo: strip.bottomAnchor),
+            emptyState.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            emptyState.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            emptyState.bottomAnchor.constraint(equalTo: root.bottomAnchor),
         ])
         view = root
+        showsTab(true)
+    }
+
+    /// With no Tab, only the strip stays; focus inside the editor leaves it first, so no hidden
+    /// field keeps typing or the editor's menu items.
+    func showsTab(_ shown: Bool) {
+        if !shown, let window = view.window, let focused = window.firstResponder as? NSView, focused.isDescendant(of: view) {
+            window.makeFirstResponder(nil)
+        }
+        for part in [breadcrumb.bar, banner.view, tab.view] { part.isHidden = !shown }
+        emptyState.isHidden = shown
     }
 }

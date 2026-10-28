@@ -35,6 +35,11 @@ struct SessionFileTests {
         activeEnvironment: "Prod"
     )
 
+    @Test func `a Session with zero Tabs round-trips as zero Tabs`() throws {
+        let empty = Session(tabs: [], selected: nil, activeEnvironment: "Prod")
+        #expect(try SessionFile.decode(SessionFile.encode(empty)) == empty)
+    }
+
     @Test func `a Session with a Draft, a Dirty Request Tab and an Active Environment round-trips`() throws {
         #expect(try SessionFile.decode(SessionFile.encode(Self.session)) == Self.session)
     }

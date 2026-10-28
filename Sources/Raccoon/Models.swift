@@ -474,8 +474,9 @@ final class WindowModel {
 
     private static let log = Logger(subsystem: "Raccoon", category: "Session")
 
-    /// Launch: the Tabs as the Session left them, in place of the fresh Draft `init` made.
-    /// Every failure keeps that Draft and is logged only (Open UI Q7).
+    /// Launch: the Tabs as the Session left them, in place of the fresh Draft `init` made, which
+    /// a Session of zero Tabs replaces with none. No Session file, and every failure, keeps that
+    /// Draft; a failure is logged only (Open UI Q7).
     func relaunch() {
         let session: Session
         do throws(StoreError) {
@@ -498,10 +499,10 @@ final class WindowModel {
             model.tab = restoredTab(snapshot)
             return model
         }
-        guard let first = restored.first else { return }
+        // A Session of zero Tabs restores zero: the empty state (tabs.md §relaunch).
         tabs = restored
         assertOneTabPerRequest()
-        selected = restored.contains { $0.tab.id == session.selected } ? session.selected : first.tab.id
+        selected = restored.contains { $0.tab.id == session.selected } ? session.selected : restored.first?.tab.id
     }
 
     /// A Request Tab checked against its file (tabs.md §relaunch). loadDataFolder ran first, so
@@ -1340,14 +1341,22 @@ final class WindowModel {
     }
 
     /// Removes the Tab after stopping its send. The selection moves to the Tab after it, else
-    /// the one before; the last Tab is replaced by an empty Draft (Open UI Q1).
+    /// the one before; after the last Tab there is none, and the window shows the empty state
+    /// (tabs.md §close, reversed 2026-10-28).
     func close(_ id: TabID) {
         guard let index = tabs.firstIndex(where: { $0.tab.id == id }) else { return }
         tabs[index].close()
         tabs.remove(at: index)
-        guard !tabs.isEmpty else { return newTab() }
-        if selected == id { selected = tabs[min(index, tabs.count - 1)].tab.id }
+        if tabs.isEmpty {
+            selected = nil
+        } else if selected == id {
+            selected = tabs[min(index, tabs.count - 1)].tab.id
+        }
     }
+
+    /// A Tab in no list, for the one editor to hold while no Tab is open. It is never shown:
+    /// the empty state covers the editor until a real Tab is bound.
+    func unlistedTab() -> TabModel { newTabModel() }
 
     /// ⌘1…⌘8 by position, ⌘9 the last Tab, as in Safari and Finder.
     func select(number: Int) {

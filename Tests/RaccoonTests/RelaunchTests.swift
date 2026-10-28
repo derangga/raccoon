@@ -52,13 +52,12 @@ struct RelaunchTests {
         #expect(window.selected == drafts[0].id)
     }
 
-    @Test func `a Session with no Tabs opens one empty Draft`() throws {
+    @Test func `a Session with no Tabs relaunches with no Tab and no selection`() throws {
         try store.write(SessionFile.encode(Session(tabs: [], selected: nil, activeEnvironment: nil)))
         let window = makeWindow()
         window.relaunch()
-        #expect(window.tabs.count == 1)
-        #expect(window.tabs[0].tab.definition == .empty)
-        #expect(window.selected == window.tabs[0].tab.id)
+        #expect(window.tabs.isEmpty)
+        #expect(window.selected == nil && window.selectedTab == nil)
     }
 
     @Test func `no Session is one empty Draft, and nothing is written`() throws {

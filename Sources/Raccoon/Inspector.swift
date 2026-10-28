@@ -160,8 +160,9 @@ final class InspectorViewController: NSViewController {
         editButton.removeConstraints(editButton.constraints.filter { $0.firstAttribute == .width })
         editButton.widthAnchor.constraint(equalToConstant: (editButton.attributedTitle.size().width + 20).rounded(.up)).isActive = true
         // Only while it is up: hidden, it would render a 20 KB body on every keystroke for nothing.
-        if !curl.isHidden, let tab = window.selectedTab {
-            curl.render(tab.curlPreview, kinds: tab.kinds, environment: active?.name)
+        if !curl.isHidden {
+            let tab = window.selectedTab
+            curl.render(tab?.curlPreview, kinds: tab?.kinds, environment: active?.name)
         }
     }
 

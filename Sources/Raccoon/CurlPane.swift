@@ -117,9 +117,12 @@ final class CurlPaneView: NSView {
     @objc private func copy(_ sender: Any?) { onCopy?(includeSecrets.state == .on) }
 
     /// `kinds` finds the secrets left as `{{name}}`; `environment` is the Active Environment's name.
-    func render(_ preview: CurlPreview, kinds: VariableKinds, environment: String?) {
+    /// A nil preview is no Tab open.
+    func render(_ preview: CurlPreview?, kinds: VariableKinds?, environment: String?) {
         let command: String? = if case .command(let text) = preview { text } else { nil }
         switch preview {
+        case nil:
+            (voidTitle, voidText) = (nil, "Open a Tab to see its curl command.")
         case .command:
             (voidTitle, voidText) = (nil, nil)
         case .noURL:
@@ -153,7 +156,7 @@ final class CurlPaneView: NSView {
             .font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text),
         ])
         renderCopy()
-        if let command { show(command, kinds: kinds) }
+        if let command, let kinds { show(command, kinds: kinds) }
     }
 
     /// Primary while there is a command; disabled, a plain button with `textDisabled` ink.
@@ -171,8 +174,9 @@ final class CurlPaneView: NSView {
         copyButton.widthAnchor.constraint(equalToConstant: (copyButton.attributedTitle.size().width + 24).rounded(.up)).isActive = true
     }
 
-    /// SF Mono 11 / 17, wrapped at any character. `curl` and the flags in `textSecondary`, the
-    /// rest in `text`, a secret's `{{name}}` in `variableSecret` with its dotted underline.
+    /// SF Mono 11 / 17, wrapped at any character, colored by `Highlighter.curl`. A secret's
+    /// `{{name}}` is drawn last, in `variableSecret` with its dotted underline. Attributes only:
+    /// the text stays what Copy puts on the pasteboard.
     private func show(_ command: String, kinds: VariableKinds) {
         let font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
         let paragraph = NSMutableParagraphStyle()
@@ -182,8 +186,8 @@ final class CurlPaneView: NSView {
         let text = NSMutableAttributedString(string: command, attributes: [
             .font: font, .foregroundColor: theme.color(.text), .paragraphStyle: paragraph,
         ])
-        for range in Self.flagRanges(command) {
-            text.addAttribute(.foregroundColor, value: theme.color(.textSecondary), range: range)
+        for range in Highlighter.curl(command) {
+            text.addAttribute(.foregroundColor, value: theme.color(range.token), range: range.range)
         }
         let secret = theme.color(.variableSecret)
         for range in kinds.ranges(in: command) where range.token == .variableSecret {
@@ -193,36 +197,5 @@ final class CurlPaneView: NSView {
         }
         textView.textStorage?.setAttributedString(text)
         textView.font = font
-    }
-
-    /// The leading `curl` and every word outside quotes that starts with `-`. CurlRenderer
-    /// single-quotes every value and writes a quote inside one as `'\''`.
-    private static func flagRanges(_ command: String) -> [NSRange] {
-        let units = Array(command.utf16)
-        let (quote, backslash, space, newline, dash): (UInt16, UInt16, UInt16, UInt16, UInt16) = (0x27, 0x5C, 0x20, 0x0A, 0x2D)
-        var ranges: [NSRange] = []
-        var quoted = false
-        var index = 0
-        while index < units.count {
-            let unit = units[index]
-            if quoted {
-                if unit == quote { quoted = false }
-                index += 1
-            } else if unit == quote {
-                quoted = true
-                index += 1
-            } else if unit == backslash {
-                index += 2
-            } else if unit == space || unit == newline {
-                index += 1
-            } else {
-                let start = index
-                while index < units.count, ![space, newline, quote].contains(units[index]) { index += 1 }
-                if unit == dash || (start == 0 && command.hasPrefix("curl")) {
-                    ranges.append(NSRange(location: start, length: index - start))
-                }
-            }
-        }
-        return ranges
     }
 }

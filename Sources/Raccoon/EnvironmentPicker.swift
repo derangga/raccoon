@@ -11,7 +11,8 @@ final class EnvironmentPicker: NSPopUpButton {
 
     init() {
         super.init(frame: .zero, pullsDown: false)
-        controlSize = .small
+        // 28 pt high with the text centered (design-system §6 Environment picker).
+        controlSize = .large
         font = .systemFont(ofSize: 12)
         setAccessibilityLabel("Environment")
         // Long names end-truncate at 200 pt; the menu shows them in full.

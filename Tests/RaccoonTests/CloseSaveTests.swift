@@ -12,7 +12,7 @@ struct CloseSaveTests {
 
     func closer(_ window: WindowModel, sheet: SaveDraftAnswer? = nil) -> TabCloser {
         TabCloser(window: window, saver: DraftSaver(window: window, ask: { _, _, reply in reply(sheet) }, focusURL: {}),
-                  ask: { _, reply in reply(.save) })
+                  memory: CloseMemory(), ask: { _, reply in reply(.save) })
     }
 
     @Test func `Save on a Dirty Request writes the file and closes the Tab`() throws {

@@ -13,8 +13,9 @@ let package = Package(
         .executableTarget(
             name: "Raccoon",
             dependencies: ["RaccoonDomain", "RaccoonData"],
-            // A symlink to design/ui/themes/catppuccin.json, which build.py writes: one copy.
-            resources: [.copy("Resources/catppuccin.json")],
+            // Symlinks to design/ui/themes/catppuccin.json and design/ui/assets/{icon,empty}/,
+            // which the two build.py scripts write: one copy each.
+            resources: [.copy("Resources/catppuccin.json"), .copy("Resources/AppIcon.png"), .copy("Resources/RaccoonFace@2x.png")],
             swiftSettings: [.defaultIsolation(MainActor.self)]
         ),
         .testTarget(name: "RaccoonDomainTests", dependencies: ["RaccoonDomain", "RaccoonTesting"]),

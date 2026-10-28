@@ -22,6 +22,8 @@ enum MainMenu {
             NSMenuItem(title: "Save", action: #selector(AppDelegate.save(_:)), keyEquivalent: "s"),
             .separator(),
             NSMenuItem(title: "Close Tab", action: #selector(AppDelegate.closeTab(_:)), keyEquivalent: "w"),
+            // Checked while on; AppDelegate's validation sets the check.
+            NSMenuItem(title: "Always Discard Unsaved Changes", action: #selector(AppDelegate.toggleAlwaysDiscard(_:)), keyEquivalent: ""),
         ]))
         let copyAsCurl = copyAsCurl()
         copyAsCurl.keyEquivalent = "c"

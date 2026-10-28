@@ -441,7 +441,7 @@ struct InspectorTests {
     }
 
     @Test(arguments: [false, true])
-    func `board 11: the command with flags dimmed, the secret as {{name}}, the note and the footer`(isDark: Bool) throws {
+    func `board 11: the command colored by token, the secret as {{name}}, the note and the footer`(isDark: Bool) throws {
         let (_, inspector) = try board11(isDark: isDark)
         let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: isDark)
         let pane = inspector.curl
@@ -451,10 +451,11 @@ struct InspectorTests {
         #expect(pane.voidTitle == nil && pane.voidText == nil)
         #expect(pane.includeSecrets.title == "Include secrets" && pane.includeSecrets.state == .off && !pane.includeSecrets.isHidden)
         #expect(pane.copyButton.title == "Copy" && pane.copyButton.isEnabled)
-        #expect(color(of: "curl", in: pane) == theme.color(.textSecondary))
-        #expect(color(of: "-H", in: pane) == theme.color(.textSecondary))
-        #expect(color(of: "--data-raw", in: pane) == theme.color(.textSecondary))
-        #expect(color(of: "'Content-Type", in: pane) == theme.color(.text))
+        #expect(color(of: "curl", in: pane) == theme.color(.curlFlag))
+        #expect(color(of: "-H", in: pane) == theme.color(.curlFlag))
+        #expect(color(of: "--data-raw", in: pane) == theme.color(.curlFlag))
+        #expect(color(of: "'Content-Type", in: pane) == theme.color(.jsonPunctuation))
+        #expect(color(of: "Content-Type", in: pane) == theme.color(.jsonKey))
         #expect(color(of: "{{api_key}}", in: pane) == theme.color(.variableSecret))
         let at = (pane.textView.string as NSString).range(of: "{{api_key}}").location
         #expect(pane.textView.textStorage?.attribute(.underlineStyle, at: at, effectiveRange: nil) as? Int

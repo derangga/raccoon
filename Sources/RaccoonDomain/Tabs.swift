@@ -85,3 +85,13 @@ public struct Session: Equatable, Sendable {
         self.activeEnvironment = activeEnvironment
     }
 }
+
+/// What ⌘W does with a Tab (tabs.md §close): ask first, or close at once. Always discarding
+/// skips the sheet even for losable content.
+public enum CloseStep: Equatable, Sendable {
+    case close, ask
+
+    public init(hasLosableContent: Bool, alwaysDiscards: Bool) {
+        self = hasLosableContent && !alwaysDiscards ? .ask : .close
+    }
+}
