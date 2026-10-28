@@ -163,9 +163,8 @@ Theme
                            app; a bad one is our bug, and a test over every bundled Flavor
                            fails before it can ship
   ⚠ stored ThemeChoice names an unknown Theme → escape: Catppuccin Latte / Mocha
-  ⚠ AppIcon.png missing from the bundle or not an image → escape: log, keep the default
-                           icon. Unlike the Theme file nothing depends on it, so the app
-                           still launches
+  ⚠ AppIcon.png missing or unreadable when packaging → make-app.sh stops: no Raccoon.app
+                           is written. The app itself never reads the icon
 Close (UserDefaults)
   ⚠ stored AlwaysDiscardOnClose not a Bool → escape: off, so closing asks. The safe side of
                            a preference that discards work is the prompt

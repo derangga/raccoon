@@ -827,9 +827,9 @@ anywhere. Not drawn on a board; these sizes are the spec.
 scaled into the 824 × 824 icon body with a 100 pt margin on each side, as every macOS app
 icon has, and continuous corners (a superellipse of exponent 5, which reads like a 185 pt
 radius at that size). No shadow is added: the Dock draws its own. `design/ui/assets/build.py`
-writes it from `Raccoon App Icon.png`, whose pixels are never edited. Set as
-`NSApp.applicationIconImage` at launch, so the Dock, ⌘Tab and every alert show it
-(theme.md).
+writes it from `Raccoon App Icon.png`, whose pixels are never edited. `scripts/make-app.sh`
+turns it into `AppIcon.icns`, named by Info.plist, so the Dock, ⌘Tab and every alert show it
+without Raccoon holding it in memory (theme.md).
 
 ### Postman Import sheet (native)
 

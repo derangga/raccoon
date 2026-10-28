@@ -30,6 +30,13 @@ The code is split into three modules that depend in one direction, enforced by `
    swift run Raccoon
    ```
 
+   `swift run` starts a bare executable, so the Dock shows a generic icon. To get the app with its icon, build `.build/Raccoon.app` and open it:
+
+   ```sh
+   scripts/make-app.sh
+   open .build/Raccoon.app
+   ```
+
 4. Run the tests:
 
    ```sh

@@ -13,9 +13,10 @@ let package = Package(
         .executableTarget(
             name: "Raccoon",
             dependencies: ["RaccoonDomain", "RaccoonData"],
-            // Symlinks to design/ui/themes/catppuccin.json and design/ui/assets/{icon,empty}/,
-            // which the two build.py scripts write: one copy each.
-            resources: [.copy("Resources/catppuccin.json"), .copy("Resources/AppIcon.png"), .copy("Resources/RaccoonFace@2x.png")],
+            // Symlinks to design/ui/themes/catppuccin.json and design/ui/assets/empty/, which the
+            // two build.py scripts write: one copy each. The app icon is not here: make-app.sh
+            // puts it in Raccoon.app as AppIcon.icns.
+            resources: [.copy("Resources/catppuccin.json"), .copy("Resources/RaccoonFace@2x.png")],
             swiftSettings: [.defaultIsolation(MainActor.self)]
         ),
         .testTarget(name: "RaccoonDomainTests", dependencies: ["RaccoonDomain", "RaccoonTesting"]),

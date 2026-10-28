@@ -11,16 +11,27 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
                                                  E: undecodable -> DIE, see §4
   -> ThemeChoice from UserDefaults               missing or unknown name ->
                                                  Catppuccin, Latte / Mocha
-  -> AppIcon.load(bundle)                        R: Bundle.module
-                                                 E: missing or unreadable -> escape: log,
-                                                 the default icon stays, see §4
-  -> NSApp.applicationIconImage = icon           the Dock, ⌘Tab and every alert
+```
+
+```
+-> package                                       scripts/make-app.sh
+  -> swift build -c release                      E: fails -> stop
+  -> iconutil AppIcon.png -> AppIcon.icns        E: PNG missing -> stop
+  -> Raccoon.app: binary, Raccoon_Raccoon.bundle, AppIcon.icns, Info.plist
+  -> codesign --sign -                           E: fails -> stop
+-> the Dock, ⌘Tab, Finder                        read CFBundleIconFile, in their own processes
+-> an alert                                      AppKit loads the icon from the bundle
 ```
 
 The icon is `design/ui/assets/icon/AppIcon.png`, built by `design/ui/assets/build.py` from the
-untouched source next to it and shipped as a resource of the `Raccoon` target through a
-symlink, as the Theme file is. `swift run Raccoon` runs a bare executable with no bundle and no
-Info.plist, so the icon is set at launch; there is no `.icns` until something builds a `.app`.
+untouched source next to it. Only `scripts/make-app.sh` reads it: it writes `AppIcon.icns` into
+`Raccoon.app/Contents/Resources` and names it in Info.plist. The app never loads the icon at
+launch, because an icon set through `NSApp.applicationIconImage` is decoded and kept in
+Raccoon's own memory (32 MB for the 1024 pt PNG, measured). `swift run Raccoon` runs a bare
+executable with no bundle, so it shows the generic executable icon.
+
+Info.plist's `CFBundleIdentifier` is `Raccoon`, the UserDefaults domain `swift run` already
+uses, so the `.app` and `swift run` share the Data Folder, the Workspaces and the ThemeChoice.
 
 ```
 -> pickTheme(name) · pickFlavor(light: name) · pickFlavor(dark: name)   View ▸ Theme menu

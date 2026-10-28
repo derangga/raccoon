@@ -1,6 +1,5 @@
 import AppKit
 import Observation
-import os
 import RaccoonDomain
 import UniformTypeIdentifiers
 
@@ -12,20 +11,6 @@ enum RaccoonApp {
         app.delegate = delegate
         app.setActivationPolicy(.regular)
         app.run()
-    }
-}
-
-/// The Dock and ⌘Tab icon (design-system §6 App icon). `swift run` has no bundle Info.plist to name it.
-enum AppIcon {
-    private static let log = Logger(subsystem: "Raccoon", category: "AppIcon")
-
-    /// nil keeps the default icon: nothing depends on this one, so the app still launches (§4).
-    static func load(from bundle: Bundle = .module) -> NSImage? {
-        guard let url = bundle.url(forResource: "AppIcon", withExtension: "png"), let image = NSImage(contentsOf: url) else {
-            log.error("AppIcon.png is missing from the bundle or not an image; keeping the default icon")
-            return nil
-        }
-        return image
     }
 }
 
@@ -47,7 +32,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Raccoon's Tabs are its own; system window tabs would add a second kind on ⌘T's menu.
         NSWindow.allowsAutomaticWindowTabbing = false
-        if let icon = AppIcon.load() { NSApp.applicationIconImage = icon }
         let windowModel = CompositionRoot.live(defaults: .standard)
         // Loading restores the Session too: a Request Tab is looked up in the index first.
         windowModel.loadDataFolder()

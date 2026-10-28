@@ -50,7 +50,7 @@ Every entry point as a call tree, one file per feature.
 | [postman](design/entry-points/postman.md) | Import Postman Collections, Environments and Globals | M7 |
 | [workspaces](design/entry-points/workspaces.md) | Switch Workspace · New Workspace · Open Workspace · Remove from List | M8 |
 | [folding](design/entry-points/folding.md) | The Gutter · Fold · Unfold · Fold All | — |
-| [theme](design/entry-points/theme.md) | Pick a Theme or Flavor · System appearance changes · Set the app icon | M6 |
+| [theme](design/entry-points/theme.md) | Pick a Theme or Flavor · System appearance changes · Package the app and its icon | M6 |
 
 A new entry point is a new row here and a tree in one of those files, plus its failures in
 §4 and its rules in §5. A tree that exists in neither place is drift.
