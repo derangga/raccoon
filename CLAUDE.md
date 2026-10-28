@@ -15,8 +15,7 @@ The design is approved and no code exists yet. The work is a graph of beads issu
   (`r-what-it-needs.md`), not the directory.
 - [CONTEXT.md](./CONTEXT.md) is the vocabulary. Type names, UI strings and issue text use
   its terms; its _Avoid_ lines are binding. A word not in it does not exist yet.
-- `design/ui/` holds the surfaces, the design system, the mockups (boards 01–12) and the
-  Theme file. UI work is checked against them.
+- `design/ui/` holds the surfaces, the design system and the Theme file. UI work is checked against them.
 - `design/environment-facts.md` is what was measured. Read it before assuming what the
   toolchain, URLSession or the reference apps do.
 - `bruno/` and `yaak/` are reference HTTP clients (MIT, TypeScript), untracked. They are the

@@ -1,7 +1,7 @@
 import AppKit
 import RaccoonDomain
 
-/// The Curl pane (design-system §6 Inspector, board 11): Copy as Curl of the selected Tab, live,
+/// The Curl pane (design-system §6 Inspector): Copy as Curl of the selected Tab, live,
 /// with secrets as `{{name}}`. The command wraps anywhere and scrolls, never truncated, because
 /// Copy gives exactly what is shown. Include secrets changes only what Copy puts on the pasteboard.
 final class CurlPaneView: NSView {

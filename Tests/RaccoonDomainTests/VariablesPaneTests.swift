@@ -18,7 +18,7 @@ struct VariablesPaneTests {
         return definition
     }
 
-    @Test func `board 04: missing names first with where the Tab uses them, then Staging, then Globals struck where overridden`() {
+    @Test func `missing names first with where the Tab uses them, then Staging, then Globals struck where overridden`() {
         let staging = Environment(name: "Staging", entries: [
             entry("region", .plain("eu-central-1")), entry("api_key", .secret), entry("host", .plain("https://api.staging")),
         ])

@@ -28,7 +28,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         toolbar.displayMode = .iconOnly
         window.toolbar = toolbar
         window.toolbarStyle = .unified
-        // Board 01: one title bar across the whole window, a line under it, the panes below.
+        // One title bar across the whole window, a line under it, the panes below.
         window.titlebarSeparatorStyle = .line
         // The title is a toolbar item after the sidebar toggle; the system one would come first.
         window.titleVisibility = .hidden
@@ -80,7 +80,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             return item
         }
         if identifier == Self.environmentID {
-            // Boards 01 and 07: an 11 pt secondary "Environment" before the pop-up.
+            // An 11 pt secondary "Environment" before the pop-up.
             let label = NSTextField(labelWithString: "Environment")
             label.font = .systemFont(ofSize: 11)
             label.textColor = .secondaryLabelColor
@@ -439,7 +439,7 @@ final class SidebarBackground: NSView {
     }
 }
 
-/// Board 01 has one line at each pane edge and nothing between panes. A divider of any width
+/// The window has one line at each pane edge and nothing between panes. A divider of any width
 /// shows the window background, so dividers take none: the sidebar draws its separator and the
 /// inspector its border token.
 final class MainSplitView: NSSplitView {

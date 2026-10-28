@@ -5,8 +5,7 @@ import RaccoonDomain
 import RaccoonTesting
 import Testing
 
-/// The inspector over a window loaded from a temp Data Folder: its header and the Variables pane
-/// (boards 04, 11, 14).
+/// The inspector over a window loaded from a temp Data Folder: its header and the Variables pane.
 @MainActor
 struct InspectorTests {
     let temp = FileManager.default.temporaryDirectory.appending(path: "raccoon-\(UUID())")
@@ -42,8 +41,8 @@ struct InspectorTests {
         return window
     }
 
-    /// Board 04's window: Staging active, a Tab using two names nothing defines.
-    func board04(theme: ThemeEnvironment? = nil) throws -> (WindowModel, InspectorViewController) {
+    /// Staging active, a Tab using two names nothing defines.
+    func undefinedNamesWindow(theme: ThemeEnvironment? = nil) throws -> (WindowModel, InspectorViewController) {
         let window = try makeWindow(
             environments: ["Staging": [entry("host", .plain("https://api.staging")), entry("access_token", .plain(jwt)), entry("api_key", .secret)]],
             globals: [entry("host", .plain("http://localhost:4000")), entry("user_agent", .plain("Raccoon/1.0"))]
@@ -59,7 +58,7 @@ struct InspectorTests {
     }
 
     @Test func `the header names the pane; Variables is selected and Curl can be picked`() throws {
-        let (_, inspector) = try board04()
+        let (_, inspector) = try undefinedNamesWindow()
         #expect(inspector.paneTitle.stringValue == "Variables")
         #expect(inspector.paneSwitch.selectedSegment == 0)
         #expect(inspector.paneSwitch.label(forSegment: 0) == "Variables" && inspector.paneSwitch.label(forSegment: 1) == "Curl")
@@ -67,7 +66,7 @@ struct InspectorTests {
     }
 
     @Test func `each segment's tooltip and accessibility label name its pane`() throws {
-        let (_, inspector) = try board04()
+        let (_, inspector) = try undefinedNamesWindow()
         let control = inspector.paneSwitch
         let tips = [15, 46].map { control.view(control, stringForToolTip: 0, point: NSPoint(x: $0, y: 12), userData: nil) }
         #expect(tips == ["Variables", "Curl"])
@@ -79,7 +78,7 @@ struct InspectorTests {
     }
 
     @Test func `the switch swaps the pane under the header and the title follows; a reveal comes back to Variables`() throws {
-        let (_, inspector) = try board04()
+        let (_, inspector) = try undefinedNamesWindow()
         let footer = try #require(inspector.editButton.superview)
 
         inspector.showPane(1)
@@ -91,8 +90,8 @@ struct InspectorTests {
         #expect(!inspector.variables.isHidden && !footer.isHidden && inspector.curl.isHidden)
     }
 
-    @Test func `board 04: missing names first, then Staging with the names the Tab uses, then Globals struck where overridden`() throws {
-        let (_, inspector) = try board04()
+    @Test func `missing names first, then Staging with the names the Tab uses, then Globals struck where overridden`() throws {
+        let (_, inspector) = try undefinedNamesWindow()
         let pane = inspector.variables
 
         #expect(pane.titles == ["Not defined · used by this Tab", "Staging · Active Environment", "Globals"])
@@ -104,7 +103,7 @@ struct InspectorTests {
     }
 
     @Test func `revealing a name highlights the row that resolves, and the table stays a table`() throws {
-        let (_, inspector) = try board04()
+        let (_, inspector) = try undefinedNamesWindow()
 
         inspector.reveal(VariableName("access_token")!)
         #expect(inspector.variables.rows.filter(\.isSelected).map(\.name) == ["access_token"])
@@ -150,7 +149,7 @@ struct InspectorTests {
     }
 
     @Test func `with the pane open from the link, a click on any row selects it, and a click on its value edits it`() async throws {
-        let (_, inspector) = try board04()
+        let (_, inspector) = try undefinedNamesWindow()
         let window = await shown(inspector)
         defer { window.orderOut(nil) }
         inspector.reveal(VariableName("access_token")!)
@@ -175,7 +174,7 @@ struct InspectorTests {
     }
 
     @Test func `a value edits in place and is written to its file; the pane follows`() async throws {
-        let (window, inspector) = try board04()
+        let (window, inspector) = try undefinedNamesWindow()
 
         inspector.variables.edit(row: try row("user_agent", in: inspector), to: "Raccoon/2.0")
         inspector.variables.edit(row: try row("host", in: inspector), to: "https://api.prod")
@@ -190,7 +189,7 @@ struct InspectorTests {
     }
 
     @Test func `a secret's new value goes to the Keychain only, and an empty one writes nothing`() throws {
-        let (window, inspector) = try board04()
+        let (window, inspector) = try undefinedNamesWindow()
         let before = try Data(contentsOf: root.appending(path: "environments/Staging.json"))
 
         inspector.variables.edit(row: try row("api_key", in: inspector), to: "")
@@ -205,7 +204,7 @@ struct InspectorTests {
     }
 
     @Test func `a value for a Not defined name defines it in the Active Environment, or in Globals without one`() async throws {
-        let (window, inspector) = try board04()
+        let (window, inspector) = try undefinedNamesWindow()
 
         inspector.variables.edit(row: try row("charge_id", in: inspector), to: "ch_3PqL8x2e")
 
@@ -221,7 +220,7 @@ struct InspectorTests {
     }
 
     @Test func `a refused Keychain write says so under the row`() throws {
-        let (_, inspector) = try board04()
+        let (_, inspector) = try undefinedNamesWindow()
         secrets.refuse(.set, with: .unavailable(-25308))
 
         inspector.variables.edit(row: try row("api_key", in: inspector), to: "sk_live_1")
@@ -231,7 +230,7 @@ struct InspectorTests {
     }
 
     @Test func `a file that cannot be written says so under the row, and the value goes back`() throws {
-        let (window, inspector) = try board04()
+        let (window, inspector) = try undefinedNamesWindow()
         let folder = root.appending(path: "environments")
         try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: folder.path)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path) }
@@ -254,7 +253,7 @@ struct InspectorTests {
     }
 
     @Test func `it follows the Active Environment and the Tab as they change`() async throws {
-        let (window, inspector) = try board04()
+        let (window, inspector) = try undefinedNamesWindow()
         inspector.reveal(VariableName("host")!)
 
         let noEnvironment = ["Not defined · used by this Tab", "No Environment · pick one in the toolbar", "Globals"]
@@ -270,14 +269,14 @@ struct InspectorTests {
     }
 
     @Test func `Edit Environments… asks for the sheet`() throws {
-        let (_, inspector) = try board04()
+        let (_, inspector) = try undefinedNamesWindow()
         var asked = 0
         inspector.onEditEnvironments = { asked += 1 }
         inspector.editButton.performClick(nil)
         #expect(asked == 1)
     }
 
-    // MARK: Boards 04 and 11 in Latte and Mocha, rendering without the Keychain, worst case
+    // MARK: Undefined names and the Curl pane in Latte and Mocha, rendering without the Keychain, worst case
 
     /// The pane's labels as drawn: names, "Secret", where an undefined name is used.
     func labels(_ text: String, in inspector: InspectorViewController) -> [NSTextField] {
@@ -295,10 +294,10 @@ struct InspectorTests {
     }
 
     @Test(arguments: [false, true])
-    func `board 04 in Latte and Mocha: Not defined red with a wavy underline, a secret locked, an overridden Global struck`(isDark: Bool) throws {
+    func `in Latte and Mocha: Not defined red with a wavy underline, a secret locked, an overridden Global struck`(isDark: Bool) throws {
         let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: isDark)
         #expect(theme.flavor.name == (isDark ? "Mocha" : "Latte"))
-        let (_, inspector) = try board04(theme: theme)
+        let (_, inspector) = try undefinedNamesWindow(theme: theme)
 
         #expect(inspector.variables.titles == ["Not defined · used by this Tab", "Staging · Active Environment", "Globals"])
         let chargeID = try #require(labels("charge_id", in: inspector).first)
@@ -313,7 +312,7 @@ struct InspectorTests {
         #expect(struck.toolTip == "Overridden by Staging")
     }
 
-    @Test func `board 11 in Mocha: No Environment points at the toolbar and Globals follow`() throws {
+    @Test func `in Mocha: No Environment points at the toolbar and Globals follow`() throws {
         let window = try makeWindow(environments: ["Staging": []], globals: [entry("host", .plain("http://localhost:4000")), entry("user_agent", .plain("Raccoon/1.0"))])
         let inspector = InspectorViewController(window: window, theme: ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: true), memory: InspectorMemory())
         inspector.view.frame = NSRect(x: 0, y: 0, width: 280, height: 600)
@@ -325,7 +324,7 @@ struct InspectorTests {
     }
 
     @Test func `switching to Mocha recolours the pane in place`() async throws {
-        let (_, inspector) = try board04()
+        let (_, inspector) = try undefinedNamesWindow()
         let mocha = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: true)
         #expect(mocha.color(.variableUndefined) != theme.color(.variableUndefined))
 
@@ -398,8 +397,8 @@ struct InspectorTests {
 
     // MARK: Curl pane
 
-    /// Board 11's window: Dev active with a secret api_key, and the refund POST.
-    func board11(isDark: Bool = false) throws -> (WindowModel, InspectorViewController) {
+    /// Dev active with a secret api_key, and the refund POST.
+    func refundWindow(isDark: Bool = false) throws -> (WindowModel, InspectorViewController) {
         let window = try makeWindow(
             environments: ["Dev": [entry("host", .plain("https://api.dev.payments.example.com")), entry("api_key", .secret)]],
             globals: []
@@ -420,7 +419,7 @@ struct InspectorTests {
         return (window, inspector)
     }
 
-    let board11Command = #"""
+    let refundCommand = #"""
         curl -X POST 'https://api.dev.payments.example.com/v1/refunds' \
           -H 'Content-Type: application/json' \
           -H 'Authorization: Bearer {{api_key}}' \
@@ -441,12 +440,12 @@ struct InspectorTests {
     }
 
     @Test(arguments: [false, true])
-    func `board 11: the command colored by token, the secret as {{name}}, the note and the footer`(isDark: Bool) throws {
-        let (_, inspector) = try board11(isDark: isDark)
+    func `the command colored by token, the secret as {{name}}, the note and the footer`(isDark: Bool) throws {
+        let (_, inspector) = try refundWindow(isDark: isDark)
         let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: isDark)
         let pane = inspector.curl
 
-        #expect(pane.textView.string == board11Command)
+        #expect(pane.textView.string == refundCommand)
         #expect(pane.note == "Resolved with Dev. Disabled Rows are left out.")
         #expect(pane.voidTitle == nil && pane.voidText == nil)
         #expect(pane.includeSecrets.title == "Include secrets" && pane.includeSecrets.state == .off && !pane.includeSecrets.isHidden)
@@ -467,20 +466,20 @@ struct InspectorTests {
 
     @Test(arguments: [false, true])
     func `the preview never shows a secret value; Include secrets fills it in the copied text only`(on: Bool) throws {
-        let (_, inspector) = try board11()
+        let (_, inspector) = try refundWindow()
         let pane = inspector.curl
 
         pane.includeSecrets.state = on ? .on : .off
         pane.copyButton.performClick(nil)
 
         #expect(!pane.textView.string.contains("sk_live_1"))
-        #expect(clipboard.string == (on ? board11Command.replacing("{{api_key}}", with: "sk_live_1") : board11Command))
+        #expect(clipboard.string == (on ? refundCommand.replacing("{{api_key}}", with: "sk_live_1") : refundCommand))
         // Only Copy with Include secrets reads the Keychain; rendering never does.
         #expect(secrets.gets == (on ? 1 : 0))
     }
 
     @Test func `Undefined Variables: no command, every name, Copy disabled`() throws {
-        let (_, inspector) = try board04()
+        let (_, inspector) = try undefinedNamesWindow()
         inspector.showPane(1)
         let pane = inspector.curl
 
@@ -491,7 +490,7 @@ struct InspectorTests {
     }
 
     @Test func `an empty Draft asks for a URL, and an invalid one is quoted`() async throws {
-        let (window, inspector) = try board11()
+        let (window, inspector) = try refundWindow()
         let tab = try #require(window.selectedTab)
         let pane = inspector.curl
 
@@ -507,7 +506,7 @@ struct InspectorTests {
     }
 
     @Test func `it follows edits, the Active Environment and the selected Tab`() async throws {
-        let (window, inspector) = try board11()
+        let (window, inspector) = try refundWindow()
         let pane = inspector.curl
         let tab = try #require(window.selectedTab)
 
@@ -534,7 +533,7 @@ struct InspectorTests {
     }
 
     @Test func `break-ui: a 2,000-character URL and a 20 KB body wrap, scroll, and Copy gives the exact text`() async throws {
-        let (window, inspector) = try board11()
+        let (window, inspector) = try refundWindow()
         let tab = try #require(window.selectedTab)
         let pane = inspector.curl
         let url = "https://h/" + String(repeating: "a", count: 1_990)

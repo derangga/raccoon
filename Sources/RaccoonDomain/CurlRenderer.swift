@@ -1,4 +1,4 @@
-/// Copy as Curl and the Curl pane: a ResolvedRequest as the command board 11 shows. What
+/// Copy as Curl and the Curl pane: a ResolvedRequest as the Curl pane shows it. What
 /// CurlImporter reads back is the same request (curl.md, the round trip).
 public enum CurlRenderer {
     public static func render(_ request: ResolvedRequest) -> String {

@@ -137,7 +137,7 @@ and every place they disagree is a command split inside a quote.
                                                  one-pass resolver leaves as written
   -> CurlRenderer.render(resolved)               pure
      -> the first line is `curl`, `-X METHOD` unless it is a GET with no body, and
-        the URL (board 11)
+        the URL
      -> then one flag per line, joined with ` \` + newline + two spaces
      -> every value single-quoted, `'` written as `'\''`; the method only when it
         is not all letters

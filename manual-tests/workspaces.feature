@@ -129,13 +129,12 @@ Feature: One Session file per Data Folder
 
 # ══════════════════════════════════════════════════════════════════════════════════════════
 # The Workspace pop-up and switching. Each Feature runs in Light and in Dark, and the
-# pop-up, its menu and the banner are compared with board 13:
-#   open design/ui/mockups/13-workspaces.html
+# pop-up, its menu and the banner are checked in both.
 # ══════════════════════════════════════════════════════════════════════════════════════════
 
 
 Feature: The Workspace pop-up
-  Board 13, in Light and in Dark
+  In Light and in Dark
 
   Background:
     Given I did "Before you start" above
@@ -175,7 +174,7 @@ Feature: The Workspace pop-up
 
 
 Feature: New Workspace… and Open Workspace…
-  Board 13, in Light and in Dark
+  In Light and in Dark
 
   Background:
     Given in Terminal A I ran: swift run Raccoon -DataFolder /tmp/raccoon-work/api
@@ -257,7 +256,7 @@ Feature: Switching Workspaces
 
 
 Feature: Remove from List
-  Board 13, in Light and in Dark
+  In Light and in Dark
 
   Background:
     Given both test folders are listed in the pop-up and "api — work" is open
@@ -273,7 +272,7 @@ Feature: Remove from List
 
 
 Feature: A Workspace that can't be read or written
-  Board 13, in Light and in Dark
+  In Light and in Dark
 
   Background:
     Given both test folders are listed in the pop-up and "api — work" is open

@@ -1,7 +1,7 @@
 import AppKit
 import RaccoonDomain
 
-/// How wide each Tab is (design-system.md §6 Tab, boards 05 and 10). Tabs start at 196 pt and
+/// How wide each Tab is (design-system.md §6 Tab). Tabs start at 196 pt and
 /// shrink together; the selected one stops at 168 pt and the others at 104 pt, and past that
 /// the strip scrolls with every Tab at its minimum.
 nonisolated struct TabStripLayout: Equatable {
@@ -373,7 +373,7 @@ final class TabItemView: NSView {
 }
 
 /// The content pane: the tab strip over the one TabViewController.
-/// The tab strip, the Breadcrumb (board 16), the selected Tab's banner (board 05), then the
+/// The tab strip, the Breadcrumb, the selected Tab's banner, then the
 /// selected Tab's editor.
 final class ContentViewController: NSViewController {
     let strip: TabStripView

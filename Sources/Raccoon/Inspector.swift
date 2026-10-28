@@ -183,7 +183,7 @@ final class InspectorViewController: NSViewController {
     }
 }
 
-/// The Variables pane (design-system §6 Inspector, boards 04, 11, 14): a table of group titles
+/// The Variables pane (design-system §6 Inspector): a table of group titles
 /// and 24 pt rows of name and value. One click on a value edits it in place; Return or clicking
 /// away saves it through `onEdit`, Esc puts it back.
 final class VariablesPaneView: NSView, NSTextFieldDelegate {

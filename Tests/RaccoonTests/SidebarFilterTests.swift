@@ -10,7 +10,7 @@ struct SidebarFilterTests {
     let base = SidebarTests()
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
 
-    /// Board 11's folder: Auth Service, and Payments API with Refund charge and Refunds/{List refunds, Cancel refund}.
+    /// The folder: Auth Service, and Payments API with Refund charge and Refunds/{List refunds, Cancel refund}.
     func sidebar() throws -> (WindowModel, SidebarViewController) {
         try base.put("Login", at: "Auth Service/Login.json")
         try base.put("Refund charge", method: "POST", at: "Payments API/Refund charge.json")

@@ -300,7 +300,7 @@ final class SectionButton: NSButton {
 /// 32 × 3 pt grip, and each pane keeping 160 pt (Open UI Q2).
 final class EditorSplitView: NSSplitView {
     static let minimumPane: CGFloat = 160
-    /// The editor's share of the height: 52 % as on board 02, then wherever the user drags it.
+    /// The editor's share of the height: 52 %, then wherever the user drags it.
     private(set) var editorFraction: CGFloat = 0.52
     var background = NSColor.clear
     var border = NSColor.separatorColor

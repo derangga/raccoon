@@ -1,7 +1,7 @@
 # Manual acceptance: Collections (M4)
 #
 # Run every Feature twice: macOS Appearance Light (Latte), then Dark (Mocha).
-# Compare against the Raccoon UI canvas boards named in each Feature.
+# Compare layout and colours with design/ui/design-system.md.
 #
 # The Data Folder is a copy of manual-tests/collections.datafolder in /tmp, passed as a launch
 # argument, so ~/Raccoon is never touched and nothing is remembered:
@@ -27,7 +27,7 @@
 
 
 Feature: The sidebar tree
-  Boards 01, 02, 09 and 10, in Latte and in Mocha
+  In Latte and in Mocha
 
   Background:
     Given a fresh copy of the fixture Data Folder and a fresh Session
@@ -56,13 +56,13 @@ Feature: The sidebar tree
     And every badge is SF Mono bold 9.5 pt, left-aligned in one 52 pt column, in its method's Theme colour, with no chip behind it
     And the sidebar is the plain window background (#f0f0f0 in Light, #2c2c2c in Dark), focused or not
 
-  Scenario: break-ui, board 10
+  Scenario: break-ui
     When I expand 決済API（本番環境・東京リージョン） and Legacy v1 (do not use after 2027-01-01)
     Then "PROPFIND" shows whole in its badge, and "🦝 Webhooks テスト 🚀" sits beside it
     And "CORS preflight for the merchant onboarding dashboard" ends in "…" at the sidebar's edge
     And the single-letter Request "x" still has its DELETE badge
 
-  Scenario: Every level starts the same step right of the last, boards 02 and 09
+  Scenario: Every level starts the same step right of the last
     Given I quit Raccoon and run, in the fixture Data Folder:
       mkdir -p "$D/Sociolla/Beauty Journal" "$D/Sociolla/Zalo Vietguy"
       for r in "Get Zalo:GET" "Send SMS:POST" "Template Detail:GET" "Lookup:PROPFIND"; do printf '{"version":1,"id":"%s","name":"%s","method":"%s","url":"x"}' $(uuidgen) "${r%%:*}" "${r##*:}" > "$D/Sociolla/Zalo Vietguy/${r%%:*}.json"; done
@@ -93,7 +93,7 @@ Feature: The sidebar tree
     When I expand Payments API and collapse Refunds, then quit with ⌘Q and relaunch with the same command
     Then Payments API is open and Refunds is closed
 
-  Scenario: No Collections, board 01
+  Scenario: No Collections
     Given Raccoon is launched with -DataFolder /tmp/raccoon-empty instead (it creates the folder)
     Then the sidebar shows "Collections" and below it, in 12 pt secondary text:
       "No Collections yet. Create one, or save a Draft into one with ⌘S."
@@ -103,7 +103,7 @@ Feature: The sidebar tree
 
 
 Feature: Unreadable rows and Reveal in Finder
-  Boards 09 and 10, in Latte and in Mocha
+  In Latte and in Mocha
 
   Background:
     Given a fresh copy of the fixture Data Folder and a fresh Session
@@ -133,7 +133,6 @@ Feature: Unreadable rows and Reveal in Finder
 
 
 Feature: Opening a Request
-  Board 02
 
   Background:
     Given a fresh copy of the fixture Data Folder and a fresh Session
@@ -159,7 +158,6 @@ Feature: Opening a Request
 
 
 Feature: Saving with ⌘S
-  Boards 05 and 09
 
   Background:
     Given a fresh copy of the fixture Data Folder and a fresh Session
@@ -213,7 +211,7 @@ Feature: Saving with ⌘S
 
 
 Feature: The Tab banners and the Data Folder banner
-  Boards 05 and 09, in Latte and in Mocha
+  In Latte and in Mocha
 
   Background:
     Given a fresh copy of the fixture Data Folder and a fresh Session
@@ -272,7 +270,6 @@ Feature: The Tab banners and the Data Folder banner
 
 
 Feature: Files changed by Terminal or git while open
-  Board 05
 
   Background:
     Given a fresh copy of the fixture Data Folder and a fresh Session
@@ -325,7 +322,7 @@ Feature: Files changed by Terminal or git while open
 
 
 Feature: Create, rename, move and Move to Trash
-  Board 12 (the + menu); the rest is not drawn
+  The + menu
 
   Background:
     Given a fresh copy of the fixture Data Folder and a fresh Session
@@ -386,7 +383,7 @@ Feature: Create, rename, move and Move to Trash
 
 
 Feature: The sidebar filter
-  Board 11, in Latte and in Mocha
+  In Latte and in Mocha
 
   Background:
     Given a fresh copy of the fixture Data Folder and a fresh Session
@@ -409,7 +406,7 @@ Feature: The sidebar filter
       "No Requests, Folders or Collections match “PROPFIND”."
       "Esc clears the filter."
 
-  Scenario: No matches, board 11
+  Scenario: No matches
     When I type "graphql"
     Then the sidebar reads "No Requests, Folders or Collections match “graphql”." and "Esc clears the filter." on the next line
 
@@ -465,7 +462,7 @@ Feature: The sidebar filter
 
 
 Feature: The Breadcrumb
-  Board 16, in Latte and in Mocha
+  In Latte and in Mocha
 
   Background:
     Given a fresh copy of the fixture Data Folder and a fresh Session
@@ -605,7 +602,6 @@ Feature: Save from the close prompt
 
 
 Feature: Relaunch with Request Tabs
-  Board 05
 
   Background:
     Given a fresh copy of the fixture Data Folder

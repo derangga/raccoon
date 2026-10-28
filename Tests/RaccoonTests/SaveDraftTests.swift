@@ -145,7 +145,7 @@ struct SaveDraftTests {
 
     // MARK: The sheet
 
-    @Test func `the sheet reads as board 09: Name, Location as a path, Cancel and Save`() throws {
+    @Test func `the sheet reads: Name, Location as a path, Cancel and Save`() throws {
         var reply: SaveDraftAnswer??
         let sheet = SaveDraftSheet(locations: ["Payments API", "Payments API/Webhooks"], default: "Payments API/Webhooks") { reply = $0 }
         sheet.loadView()

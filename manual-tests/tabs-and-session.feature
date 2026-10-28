@@ -1,7 +1,7 @@
 # Manual acceptance: Tabs and Session (M3)
 #
 # Run every Feature twice: macOS Appearance Light (Latte), then Dark (Mocha).
-# Compare against the Raccoon UI canvas boards named in each Feature.
+# Compare layout and colours with design/ui/design-system.md.
 #
 # The Session file is ~/Library/Application Support/Raccoon/session.json.
 #   S=~/Library/Application\ Support/Raccoon
@@ -18,7 +18,7 @@
 
 
 Feature: The tab strip
-  Board 05 "Several Tabs", in Latte and in Mocha
+  In Latte and in Mocha
 
   Background:
     Given Raccoon is quit and the fixture Session is copied to session.json
@@ -37,7 +37,7 @@ Feature: The tab strip
     And each Tab is 196 pt wide with a 1 pt border on its right
     And the third Tab is selected: background, name in text, a 2 pt accent rule on top, no border under it
     And the others have their names in textSecondary
-    And each badge is SF Mono bold 10 pt in its method's color, as on board 05
+    And each badge is SF Mono bold 10 pt in its method's color
     And the URL bar shows the selected Tab: POST and "https://httpbin.org/anything/v1/webhooks"
 
   Scenario: Hover
@@ -89,7 +89,7 @@ Feature: The tab strip
 
 
 Feature: Many Tabs and long names
-  Board 10 "break-ui: worst case", in Latte and in Mocha
+  In Latte and in Mocha
 
   Background:
     Given Raccoon is quit and session.json is deleted
@@ -224,7 +224,7 @@ Feature: A corrupt session.json
     Given Raccoon is quit
     When I run: printf '{ not json' > "$S/session.json"
     And I launch Raccoon
-    Then the window looks like board 01: one Tab, the accent dot, GET, the italic name "Draft", selected
+    Then the window shows one Tab, the accent dot, GET, the italic name "Draft", selected
     And no banner, alert or message says anything about the Session
     And ls "$S" shows a file named like "session.corrupt-2026-10-19T091500Z.json" holding "{ not json"
     And the log has "is undecodable" and "Session set aside as" with that path
@@ -233,7 +233,7 @@ Feature: A corrupt session.json
 
 
 Feature: No session.json
-  Board 01 "First launch", in Latte and in Mocha
+  In Latte and in Mocha
 
   Scenario: First launch
     Given Raccoon is quit and session.json is deleted
@@ -241,5 +241,4 @@ Feature: No session.json
     Then the strip shows one 196 pt Tab, selected: the accent dot, badge GET in the GET color, the italic name "Draft", empty slot
     And a + button sits right after it
     And the URL field is empty, the Response reads "Send a request to see the Response here." with ⌘↩
-    And the window matches board 01
     And no session.json exists until I change something

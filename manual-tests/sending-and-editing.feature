@@ -1,7 +1,7 @@
 # Manual acceptance: Sending and editing (M1)
 #
 # Run every Feature twice: macOS Appearance Light (Latte), then Dark (Mocha).
-# Compare against the Raccoon UI canvas boards named in each Feature.
+# Compare layout and colours with design/ui/design-system.md.
 #
 # Fixtures, in one terminal:
 #   mkdir -p /tmp/rc && cd /tmp/rc
@@ -20,7 +20,6 @@
 
 
 Feature: URL bar
-  Boards 01, 03, 04, 09, 10
 
   Scenario: The empty Draft
     Given a fresh window
@@ -108,7 +107,6 @@ Feature: URL bar
 
 
 Feature: URL bar and Params stay in sync
-  Board 02
 
   Scenario: Typing a query fills Params
     When I type "https://httpbin.org/get?a=1&b=2" in the URL field
@@ -138,7 +136,6 @@ Feature: URL bar and Params stay in sync
 
 
 Feature: Path Variables
-  Board 17
 
   Scenario: A :name in the URL makes a Path Variables table
     Given a new Draft, GET, URL empty
@@ -250,7 +247,7 @@ Feature: Path Variables
 
 
 Feature: Key/value table
-  Boards 02, 05, 10 (Params, Headers, Cookies, form-urlencoded, multipart)
+  Params, Headers, Cookies, form-urlencoded, multipart)
 
   Scenario: The trailing row
     Given the Params section
@@ -286,7 +283,6 @@ Feature: Key/value table
 
 
 Feature: Request sections
-  Boards 02, 03
 
   Scenario: Section bar
     Then the sections read Params · Headers · Body · Auth · Cookies · Settings, Params selected
@@ -344,7 +340,6 @@ Feature: Request Cookies
 
 
 Feature: Response viewer states
-  Boards 01, 02, 09, 10
 
   Scenario: Idle
     Then the Response pane reads "Send a request to see the Response here." with a "⌘↩" key cap
@@ -412,7 +407,6 @@ Feature: Response viewer states
 
 
 Feature: Response headers
-  Board 09
 
   Scenario: Body | Headers
     Given a received "http://localhost:8080/small.json"
@@ -438,7 +432,7 @@ Feature: Response headers
 
 
 Feature: Cancel an in-flight send
-  Board 09 "URL bar: sending, and Cancel"
+  The URL bar while sending, and Cancel
 
   Scenario: Send becomes Cancel
     Given "nc -l 9000" is running
@@ -466,7 +460,6 @@ Feature: Cancel an in-flight send
 
 
 Feature: Send failures in the Response pane
-  Boards 06, 09
 
   Scenario: Untrusted certificate
     When I send "https://self-signed.badssl.com/"
@@ -500,7 +493,6 @@ Feature: Send failures in the Response pane
 
 
 Feature: Request Settings
-  Board 06
 
   Scenario: Two checkboxes
     When I open Settings
@@ -518,7 +510,6 @@ Feature: Request Settings
 
 
 Feature: Auth
-  Boards 03, 05, 09, 11, 13, 15
 
   Scenario: None
     When I open Auth
@@ -609,7 +600,6 @@ Feature: Auth
 
 
 Feature: Body editor
-  Boards 03, 05, 09, 10
 
   Scenario: none
     When I open Body
@@ -663,7 +653,6 @@ Feature: Body editor
 
 
 Feature: Format the body
-  Board 03
 
   Scenario: The button
     Given a raw JSON body
@@ -709,7 +698,7 @@ Feature: Format the body
 
 
 Feature: Multipart parts
-  Board 09 "Body: multipart"
+  The Body pane in multipart
 
   Scenario: Text and file parts
     When I pick Body Type "multipart"

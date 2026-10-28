@@ -10,7 +10,7 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
   -> VariableScope(active, globals)              pure        R: none
   -> VariableResolver.resolve(definition, scope) pure        E: undefined -> escape: the
                                                              message line names them; the
-                                                             last Response stays (board 04)
+                                                             last Response stays
                                                              E: invalidURL -> escape:
                                                              .notSent, nothing is sent
   -> tab.response = .sending(now)                            R: InstantSource

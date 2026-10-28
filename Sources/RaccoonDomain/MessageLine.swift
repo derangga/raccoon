@@ -16,7 +16,7 @@ public enum MessageLine: Equatable, Sendable {
         return self
     }
 
-    /// Board 04: "Not sent. a and b are not defined in Staging or in Globals." Every name, in
+    /// "Not sent. a and b are not defined in Staging or in Globals." Every name, in
     /// the order the request uses them.
     public static func undefined(_ names: [VariableName], in environment: String?) -> MessageLine {
         .error("Not sent. " + VariableName.notDefined(names, in: environment))

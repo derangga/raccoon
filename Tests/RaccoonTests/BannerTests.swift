@@ -36,7 +36,7 @@ struct BannerViewTests {
 
     static let readOnly = DataFolderBanner.content(for: .unwritable(path: NSHomeDirectory() + "/Raccoon", reason: "x"))
 
-    @Test func `the Data Folder banner reads as board 09`() throws {
+    @Test func `the Data Folder banner reads as the read-only notice`() throws {
         let content = try #require(Self.readOnly)
         #expect(content.glyph == .error)
         #expect(content.lead == "Raccoon can't write to the Data Folder.")

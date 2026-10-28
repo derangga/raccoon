@@ -2,8 +2,7 @@
 
 The visual source of truth for the implementation milestones. Vocabulary is
 [CONTEXT.md](../../CONTEXT.md); the surface graph, void states and motion decisions are
-[surfaces.md](./surfaces.md); the Theme file is [themes/catppuccin.json](./themes/catppuccin.json);
-the mockups are [mockups/](./mockups/) (also on the Claude Design canvas "Raccoon UI").
+[surfaces.md](./surfaces.md); the Theme file is [themes/catppuccin.json](./themes/catppuccin.json).
 
 ```
 design/ui/
@@ -11,19 +10,16 @@ design/ui/
   design-system.md         this file
   themes/build.py          palette + mapping -> catppuccin.json, and the contrast test
   themes/catppuccin.json   generated; the file the app loads
-  mockups/src/*.dc.html    canvas sources (Claude Design artboards) + raccoon.css
-  mockups/build.py         src -> self-contained mockups/*.html, Latte and Mocha side by side
 ```
 
 `python3 -I design/ui/themes/build.py --table` regenerates the JSON and prints the contrast
-table below; it exits 1 if any pair fails, so it is the check. `python3 -I
-design/ui/mockups/build.py` regenerates the mockups after a source edit.
+table below; it exits 1 if any pair fails, so it is the check.
 
 ## 1. The split: native chrome, themed content
 
 | Area | Colors from | Why |
 |---|---|---|
-| Window, toolbar, sidebar, menus, sheets, alerts, Settings | the system: `NSColor` semantic colors and `NSVisualEffectView` materials. The sidebar is the opaque `windowBackgroundColor`, not a material (decided 2026-10-16): a vibrant material is translucent in a focused window and showed the wallpaper | HIG; follows light/dark and accent by itself. The mockups draw these with `--sys-*` stand-ins, which are not Theme tokens |
+| Window, toolbar, sidebar, menus, sheets, alerts, Settings | the system: `NSColor` semantic colors and `NSVisualEffectView` materials. The sidebar is the opaque `windowBackgroundColor`, not a material (decided 2026-10-16): a vibrant material is translucent in a focused window and showed the wallpaper | HIG; follows light/dark and accent by itself. |
 | Tab strip, Breadcrumb, banners in the content area, URL bar, message line, request editor, response viewer, the Variable popover | the Theme's tokens | the content areas named in theme.md |
 | Inspector (Variables, Curl) | the Theme's tokens, on `backgroundRecessed` like the Response pane | it shows request data: Variable names and values, a curl command with `{{name}}` highlighting |
 | Sidebar filter field, the toolbar toggles | the system: `NSSearchField`, toolbar buttons | native controls |
@@ -97,7 +93,7 @@ one by its underline as well as by hue.
 
 | Flavor | Token | Mapping instead | Why |
 |---|---|---|---|
-| Latte | `backgroundElevated` | base | Latte has nothing lighter than base, so an elevated surface cannot be lighter than the editor. It stays base and is lifted by `border` plus a 0.5 px + 1 px shadow (`--elevatedShadow` in the mockups) |
+| Latte | `backgroundElevated` | base | Latte has nothing lighter than base, so an elevated surface cannot be lighter than the editor. It stays base and is lifted by `border` plus a 0.5 px + 1 px shadow |
 | Latte | `rowHover` | mantle | surface0 is darker than the selected-segment fill and read as selection |
 | Latte | `selection` | surface0 | surface1 on base drops `text` to 3.9:1 |
 
@@ -231,7 +227,7 @@ the same frame, with no transition, because they are seen tens of times a minute
 
 ## 6. Components
 
-Tokens in `code`. "Seen on" names the mockup.
+Tokens in `code`.
 
 ### Tab
 
@@ -251,7 +247,7 @@ Anatomy: `[state glyph or Draft dot] [method badge] name [slot]`, slot 16 × 16 
 | 30 Tabs | Tabs keep 104 pt; the strip scrolls horizontally with 24 pt fade masks at each edge; the selected Tab is scrolled into view on select |
 
 Accessibility: each Tab is an `NSAccessibility` tab with title "<method> <name>", value
-"Edited", "Draft", "Sending", "Changed on Disk" as applicable. Seen on: 05, 10.
+"Edited", "Draft", "Sending", "Changed on Disk" as applicable.
 
 **Tab menu** (decided 2026-10-28, after Postman's): a native menu, system colors, no Theme
 token. The items act on the Tab the menu opened on, which need not be the selected one, and
@@ -308,8 +304,7 @@ is `rowHover`, which they are already checked on.
 
 Accessibility: the row is a group labelled "Location"; each segment is a button labelled with
 its name, the last one `selected`; `…` is static text labelled with the hidden names; a Draft's
-title is static text. Seen on: 16. Boards 01–14 were drawn before the Breadcrumb and do not
-show it.
+title is static text.
 
 ### URL bar
 
@@ -349,8 +344,6 @@ Anatomy: `[method pop-up] [URL field] [Send]`, then the message line.
   `@file`. The note has a ✕ and goes away on the next URL edit; errors go away on the next
   paste or send.
 
-Seen on: 01, 03, 04, 09, 10.
-
 ### Section bar
 
 Params · Headers · Body · Auth · Cookies · Settings over the RequestEditor's pane, 28 pt each,
@@ -361,7 +354,6 @@ Params only, never Path Variables); a section with no rows
 shows no count. Auth reads "Auth" whatever the scheme (the pop-up in its pane names it, and
 the section button's accessibility label is "Auth"). Body shows nothing more: the Body Type
 pop-ups in its pane already name it.
-Seen on: 01, 02, 05.
 
 ### Key/value table
 
@@ -380,15 +372,15 @@ one vertical rule between Name and Value, 6 pt radius outer border.
 | Disabled Row | checkbox **unchecked** and name/value in `textDisabled`. Both cues, never one |
 | trailing empty row | always present, last; "Name" / "Value" placeholders in `textTertiary` at 60 % opacity, SF Pro 13 (at full strength Latte's `textTertiary` reads as a value); typing in it creates a row and a new trailing row |
 | 60 rows | the table scrolls inside the pane; the header row stays put; an overlay scroller |
-| automatic row | Headers only, above the user's rows (the trailing empty row is always last): the headers sent that no row sets (`AutomaticHeaders`), name and value in `textTertiary`, a checked checkbox that is disabled (sent whatever the user does, so it cannot be unticked; tooltip "Always sent. Add a row with the same name to replace it."), no delete, not editable, not selectable. A value computed at send reads "calculated when sent". Typing a row with the same name replaces it; the section count leaves them out. Not drawn on a board yet |
+| automatic row | Headers only, above the user's rows (the trailing empty row is always last): the headers sent that no row sets (`AutomaticHeaders`), name and value in `textTertiary`, a checked checkbox that is disabled (sent whatever the user does, so it cannot be unticked; tooltip "Always sent. Add a row with the same name to replace it."), no delete, not editable, not selectable. A value computed at send reads "calculated when sent". Typing a row with the same name replaces it; the section count leaves them out. |
 
 The section label carries the count of rows ("Headers 60"), `textTertiary`, tabular. A count
 holding an Undefined Variable is drawn in `variableUndefined` semibold, so the reason a send
-is blocked is visible from another section. Seen on: 02, 04, 05, 10.
+is blocked is visible from another section.
 
 ### Params pane and the Path Variables table
 
-The Params pane is two labelled tables in one scroll view. Seen on: 17 (`design/ui/mockups/src/17-path-variables.dc.html`).
+The Params pane is two labelled tables in one scroll view.
 
 - **Labels.** "Query Params" always, over the Params table, which keeps its rows, trailing
   empty row and behaviour as above. "Path Variables" appears over a second table only while the
@@ -437,7 +429,7 @@ The Params pane is two labelled tables in one scroll view. Seen on: 17 (`design/
   (⇧⌥F)". It re-indents with 2 spaces in one undo step, keeps key order, number spelling and
   every `{{name}}` as typed (editing.md). If the body does not parse, the text is left alone
   and one 11 pt `error` line under the editor says where: "Couldn't format: not valid JSON
-  at line 3, column 14." The line goes away on the next edit. Seen on: 03.
+  at line 3, column 14." The line goes away on the next edit.
 - **form-urlencoded**: the key/value table.
 - **multipart**: the key/value table, where a value is text or a **file chip**: 20 pt,
   `backgroundRecessed`, `border`, a document glyph and the file name (full path in the
@@ -445,8 +437,6 @@ The Params pane is two labelled tables in one scroll view. Seen on: 17 (`design/
   glyph, and the message line "Not sent. `<path>` is missing." The Value placeholder reads
   "Value or file"; dropping a file onto a row or choosing "Choose File…" from the row's menu
   makes it a file part.
-
-Seen on: 03, 05, 09.
 
 ### Auth section
 
@@ -503,15 +493,14 @@ The domain Auth enum, its stored form, the header built at send and Curl Import'
 an `Authorization` header to Auth are unchanged. Switching the pop-up drops what was typed for
 the old scheme, as the domain Auth enum does: the pane keeps no values of its own, so another
 Tab, or the same Tab after a switch, shows empty fields. ⌘Z brings the old scheme back with its
-values. Seen on: 09 (stacked), 15 (every scheme and
-the narrow case); the section label on 03, 05, 11, 13.
+values.
 
 ### Request Settings
 
 Two checkboxes, each with a one-line hint in `textTertiary`:
 "Allow insecure TLS" (hint: "Accept certificates the system does not trust, for this Request
 only.") and "Follow redirects". There is no compression checkbox: URLSession always asks for
-and decodes gzip (environment-facts.md, Open UI question 10). Seen on: 06.
+and decodes gzip (environment-facts.md, Open UI question 10).
 
 ### Response viewer
 
@@ -567,8 +556,6 @@ Anatomy: status line (34 pt) over the body area, on `backgroundRecessed`.
   Set-Cookie headers are one row with the values joined by `, `. Under the last row, always:
   "macOS merges repeated headers and doesn't keep their order." in `textTertiary`, 11 pt.
 
-Seen on: 01, 02, 04, 06, 09, 10.
-
 ### Sidebar rows (native)
 
 NSOutlineView, source-list style, on the sidebar material. 24 pt rows, `sys` label colors.
@@ -617,8 +604,6 @@ and `warning` Theme tokens, secondary label). The cell reads `backgroundStyle ==
 - **Empty**: "No Collections yet. Create one, or save a Draft into one with ⌘S." plus the Data
   Folder path in SF Mono 11.
 
-Seen on: 01, 02, 09, 10.
-
 ### Workspace pop-up (native)
 
 An `NSPopUpButton` (pull-down off, borderless, `.small`) at the top of the sidebar, above the
@@ -637,8 +622,6 @@ below): under the control, not over it. Its items:
 New Workspace… is an `NSSavePanel` as a sheet: "Name" field, prompt "Create", default
 directory `~`. A name that exists gets an alert: "A folder named “<name>” already exists. Use
 Open Workspace… to add it." Open Workspace… is the open panel the banner uses.
-
-Seen on: 14.
 
 ### Banners
 
@@ -660,7 +643,7 @@ this Workspace and switches to the first other one by name; it is not shown when
 Workspace is listed. The Data Folder banner is
 the one global surface: it spans the whole window under the
 toolbar, above sidebar and content, because it is the only failure with no smaller place
-(e-where-it-breaks.md). Seen on: 05, 09, 13.
+(e-where-it-breaks.md).
 
 ### Environment picker
 
@@ -668,7 +651,7 @@ A native pop-up button in the toolbar, labelled "Environment", showing the Activ
 or "No Environment". Menu: No Environment, a separator, each Environment by name with a check
 on the active one, a separator, "Edit Environments…", which opens the sheet and leaves the Active Environment showing. ⌃E
 opens the menu (View ▸ Choose Environment); ⌥⌃E opens the sheet (View ▸ Edit Environments…;
-decided, Q5), so both are listed in the menu bar. Long names end-truncate at 200 pt; the menu shows them in full. The menu opens as a dropdown (Dropdown placement, below). Seen on: every screen.
+decided, Q5), so both are listed in the menu bar. Long names end-truncate at 200 pt; the menu shows them in full. The menu opens as a dropdown (Dropdown placement, below).
 
 **Dropdown placement.** The Workspace pop-up and the Environment picker share one placement
 (`DropdownPopUp`). AppKit's own pop-up menu slides so the selected item sits over the button,
@@ -702,7 +685,7 @@ fill, Disabled Rows in `textDisabled`, the trailing row's placeholders in SF Pro
 `textTertiary` at 60 %, and an edited cell outlined edge to edge in `focusRing` on
 `background`. The Secret column's lock is `textTertiary` when open and `text` on a `selection`
 pill when closed. The rest of the sheet (source list, name field, buttons) stays native. This
-replaces board 07's native table.
+replaces a native table.
 
 - **Writes.** Leaving a cell (Return, Tab, a click elsewhere) writes the whole file through the
   window; the enabled checkbox writes at once. Done only closes, and so does Esc; there is no
@@ -744,24 +727,22 @@ replaces board 07's native table.
   kept in the Keychain; only their names are written to the Data Folder." For Globals the
   first sentence is "Globals apply whichever Environment is active." Done closes.
 
-Seen on: 07, 09.
-
 ### Save Draft sheet (native)
 
 "Save Request", Name field (focused, prefilled with nothing), Location pop-up listing
 Collections and Folders as a path ("Payments API ▸ Webhooks", default: the last one used), and
 Cancel · **Save**. With no Collections the pop-up offers "New Collection…", and the sheet adds
 a "Collection" name field under it; Save creates that Collection, then the Request in it
-(decided 2026-10-19, the smallest reading of the board). Save is disabled until every field
+(decided 2026-10-19, the smallest reading). Save is disabled until every field
 shown has text. "The last one used" lasts while the app runs; it is not kept across relaunch.
-Cancel, Esc and Save all give focus back to the Tab's URL field. Seen on: 09.
+Cancel, Esc and Save all give focus back to the Tab's URL field.
 
 ### Name sheet (native)
 
 "New Collection", "New Folder" or "Rename", one Name field (focused, prefilled with the
 current name for Rename), Cancel · **Rename**, or Cancel · **Create** for the two New
 sheets. The button is disabled while the name is blank. A failed operation is an alert sheet:
-"Couldn't rename “Refunds”: permission denied." Not drawn on a board.
+"Couldn't rename “Refunds”: permission denied."
 
 ### Close confirmation (native)
 
@@ -770,7 +751,7 @@ Dirty Tab or a non-empty Draft) while File ▸ Always Discard Unsaved Changes is
 replaces the `NSAlert` (decided 2026-10-28): an alert has no room for the checkbox and its (i).
 The layout follows Postman's close card; the look is Raccoon's. §1 puts sheets in system
 colors, so it is built like the Save Request and Name sheets: system label colors, native
-buttons and checkbox, no Theme token and no accent of its own. Not drawn on a board; these
+buttons and checkbox, no Theme token and no accent of its own. These
 sizes are the spec.
 
 ```
@@ -865,7 +846,7 @@ centered both ways (12 pt higher than true center, so it reads centered under th
   exist in Raccoon.
 
 The rows reach the keyboard only through the menus they mirror: ⌘T and the others work as
-anywhere. Not drawn on a board; these sizes are the spec.
+anywhere. These sizes are the spec.
 
 ### App icon
 
@@ -909,8 +890,6 @@ the full mapping: [design/entry-points/postman.md](../entry-points/postman.md).
   Collection, selected, in the sidebar. If everything landed, the sheet closes straight away
   instead.
 
-Seen on: 12.
-
 ### Variable popover
 
 A popover on `backgroundElevated` with `border`, 6 pt radius, 8 pt padding, 320 pt wide,
@@ -935,8 +914,6 @@ is over it, and leaving it closes it. A key press closes it (⌘C and ⌘A insid
 select), as does a click or scroll outside it. It takes focus only when the value is clicked,
 so ⌘C reaches it; closing gives focus back to the window.
 
-Seen on: 14.
-
 ### Variable suggestions
 
 Typing `{{` in a field that takes Variables (URL field, table cells, raw body, Auth fields)
@@ -957,8 +934,6 @@ group by name. No match, or no Variables, shows no list.
   the field loses focus, or on a click outside it, a scroll or a ⌘ shortcut. The hover tooltip
   hides while it is open.
 
-Not drawn on a board yet.
-
 ### Toolbar toggles
 
 The sidebar toggle sits at the leading edge of the toolbar and the inspector toggle at the
@@ -967,7 +942,7 @@ trailing edge, as in Finder and Xcode: native toolbar buttons with SF Symbols
 Both have View-menu items, "Show Sidebar" (⌃⌘S) / "Show Inspector" (⌥⌘I) (decided, Q12), which
 read "Hide Sidebar" / "Hide Inspector" while the pane is open, docked or overlaid. The
 inspector toggle comes right after the Environment control, with that control's 12 pt
-trailing inset between them (§6 Environment picker). Seen on: every screen; pressed on 04 and 11.
+trailing inset between them (§6 Environment picker).
 
 ### Sidebar filter (native)
 
@@ -991,8 +966,6 @@ Collections". Hidden while there are no Collections (screen 1).
   sidebar opens first: docked, or as the overlay in a narrow window. ⌘F stays Edit ▸ Find ▸
   "Find…", the system find bar over the body editor or Response body that has focus.
 
-Seen on: every screen with Collections; active on 11.
-
 ### Inspector
 
 A right-hand pane, `NSSplitViewItem(inspectorWithViewController:)`, themed:
@@ -1003,7 +976,7 @@ Curl (SF Symbols), 30 × 22 pt each, the selected one on `selection`. Each segme
 tooltip and an accessibility label with the pane's name. The last choice is remembered
 in UserDefaults (decided, Q14).
 
-**Variables pane** (a table whose values edit in place; seen on 04, 11, 14):
+**Variables pane** (a table whose values edit in place):
 - Group titles 11 pt semibold `textTertiary`; rows 24 pt, name SF Mono 12 `text`, value SF
   Mono 12 `textSecondary`, end-truncated with the full value in a tooltip.
 - Order: **Not defined** first, only when the Tab uses a name nothing defines: a
@@ -1030,9 +1003,8 @@ in UserDefaults (decided, Q14).
     sheet; the value shown goes back to what the file holds.
 - Footer: **Edit Environments…** opens the Environments sheet on the active set: names,
   enabling, secrets, new and deleted Variables stay there.
-Seen on: 04, 11, 14.
 
-**Curl pane** (seen on 11):
+**Curl pane**:
 - The curl command for the selected Tab, as Copy as Curl renders it, in SF Mono 11 / 17 on
   `background` inside a 6 pt-radius `border` box, colored by `Highlighter.curl`
   ([curl.md](../entry-points/curl.md#the-curl-pane) has the table):
@@ -1062,7 +1034,7 @@ Seen on: 04, 11, 14.
 
 A submenu: a "Theme" header and the Themes (Catppuccin, checked); a "Light Appearance"
 header and the light Flavors (Latte); a "Dark Appearance" header and the dark Flavors (Frappé,
-Macchiato, Mocha). One check per section. Picking applies immediately. Seen on: 08.
+Macchiato, Mocha). One check per section. Picking applies immediately.
 
 ## 7. Every error and state, and its place
 
@@ -1115,10 +1087,10 @@ Every entry of [e-where-it-breaks.md](../e-where-it-breaks.md) with a visible pl
 
 ## 8. Worst case (break-ui)
 
-Run on every screen with the data in board 10 (and board 09 for 0 B, binary and missing
+Run on every screen with the worst-case data (including 0 B, binary and missing
 files): 30 Tabs, Japanese and emoji names, PROPFIND, a 2,048-character URL, 60 headers, a
 1.2 KB JWT with no spaces, a 20.4 MB body, an unreadable file with a long name. Checked
-visually by rendering the local mockups in headless Chrome at 2120 px.
+visually in headless Chrome at 2120 px.
 
 ### What broke, and the fix (all applied)
 
@@ -1157,7 +1129,7 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
    **Reversed 2026-10-28:** closing the last Tab leaves no Tab, and the content area shows
    the empty state (§6 Empty state). A Draft that appears by itself after ⌘W reads as the
    close not working, and it was written into every Session. A Session of zero Tabs relaunches
-   with zero; a first launch with no Session file still opens board 01's empty Draft, so a new
+   with zero; a first launch with no Session file still opens the empty Draft, so a new
    user sees the URL bar first (surfaces.md §4/§5, tabs.md §close and §relaunch).
 2. **Window minimum size** and narrow layouts. Decided 2026-10-16: 760 × 480 minimum, the
    Sidebar collapsing to an overlay below 960 pt, each Split pane keeping 160 pt. With the
@@ -1191,7 +1163,7 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
    empty. Should the empty window say so (a one-time banner with Reveal in Finder), or stay
    silent? Decided 2026-10-19: silent. The file is renamed and logged, and the window opens
    with one empty Draft, as on first launch.
-8. **Close confirmation** (Save · Don't Save · Cancel) is a native alert and is not drawn;
+8. **Close confirmation** (Save · Don't Save · Cancel) is a native alert;
    confirm that a sheet-style alert attached to the window is wanted over an app-modal one.
    Decided 2026-10-19: a sheet attached to the window (`NSAlert.beginSheetModal(for:)`).
 9. **Headers merged by the system.** There is no ordered-headers API (measured, see
@@ -1209,7 +1181,7 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
     (Edit ▸ Find ▸ Filter Collections) and ⌘F stays find-in-body (Edit ▸ Find ▸ Find…, the
     system find bar); ⌥⌘I shows or hides the inspector (View ▸ Show Inspector) and ⌃⌘S the
     sidebar (View ▸ Show Sidebar, the system default).
-13. **What the filter matches.** Decided 2026-10-19: names only, as drawn. Collection,
+13. **What the filter matches.** Decided 2026-10-19: names only. Collection,
     Folder and Request names, and an unreadable row's file name. Matching the method and URL
     too ("POST /refunds") was declined: it would find Requests named badly, at the cost of
     noisier results.
@@ -1229,7 +1201,7 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
     a small addition at the boundary. Decided 2026-10-25: v1 opens `.json` files only; the user
     unzips.
 18. **Drag and drop.** Dropping Postman `.json` files onto the sidebar could open the same
-    sheet. Not drawn. Decided 2026-10-25: not in v1. Import opens from File ▸ Import from
+    sheet. Decided 2026-10-25: not in v1. Import opens from File ▸ Import from
     Postman… (⇧⌘I) and the sidebar's + menu only.
 
 19. **Fuzzy matching in the sidebar filter.** A query that is not a substring of any name,

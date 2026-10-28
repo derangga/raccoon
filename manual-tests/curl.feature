@@ -1,7 +1,7 @@
 # Manual acceptance: Curl (M2)
 #
 # Run every Feature twice: macOS Appearance Light (Latte), then Dark (Mocha).
-# Compare against the Raccoon UI canvas boards named in each Feature.
+# Compare layout and colours with design/ui/design-system.md.
 #
 # Fixtures, in one terminal:
 #   mkdir -p /tmp/rc && cd /tmp/rc
@@ -17,9 +17,8 @@
 
 
 Feature: Curl Import fills the Tab
-  Board 03
 
-  Scenario: The board 03 command
+  Scenario: The Chrome-style command
     Given a fresh window
     When I paste into the URL field:
       curl --retry 3 -s -X POST 'https://api.payments.example.com/v1/charges' -H 'Authorization: Bearer sk_test_123' -H 'Content-Type: application/json' -b 'session=abc; theme=dark' --data-raw '{"amount":1200,"currency":"usd"}'
@@ -31,13 +30,12 @@ Feature: Curl Import fills the Tab
     And Auth is Bearer with the Token "sk_test_123"
     And Cookies holds "session = abc" and "theme = dark", both checked
     And Body is raw JSON reading {"amount":1200,"currency":"usd"}
-    And the whole window matches board 03
 
   Scenario: The note goes away
-    Given the board 03 note is showing
+    Given the import note is showing
     When I click its ✕
     Then the note is gone
-    When I paste the board 03 command again and type one character in the URL field
+    When I paste the command again and type one character in the URL field
     Then the note is gone
 
   Scenario: A Chrome "Copy as cURL" command
@@ -166,11 +164,11 @@ Feature: Undo of a Curl Import
 
   Scenario: One ⌘Z undoes the whole import
     Given a fresh window and the focus in the URL field
-    When I paste the board 03 command
+    When I paste the command
     And I press ⌘Z once
     Then the method is GET, the URL field is empty, every section is empty and the note is gone
     When I press ⇧⌘Z
-    Then the board 03 request and its note are back
+    Then the imported request and its note are back
 
   Scenario: Undo after a failed paste
     Given the URL field holds "https://httpbin.org/get" typed by hand
@@ -179,7 +177,7 @@ Feature: Undo of a Curl Import
 
 
 Feature: Copy as Curl
-  Board 11 (the command's layout); Edit menu and the URL bar's menus
+  The command's layout; Edit menu and the URL bar's menus
 
   Scenario: The menu item
     Given a fresh window with the focus in the URL field
@@ -194,8 +192,8 @@ Feature: Copy as Curl
     Then pasting into TextEdit gives exactly:
       curl 'https://httpbin.org/get?b=1'
 
-  Scenario: Copying the board 03 request
-    Given I pasted the board 03 command
+  Scenario: Copying the imported request
+    Given I pasted the command
     When I pick Edit ▸ Copy as Curl
     Then pasting into TextEdit gives exactly:
       curl -X POST 'https://api.payments.example.com/v1/charges' \
@@ -224,7 +222,7 @@ Feature: Copy as Curl
         -F 'doc=@/tmp/rc/small.json'
 
   Scenario: Disabled rows are left out
-    Given the board 03 request
+    Given the imported request
     When I uncheck the "theme" cookie and the Content-Type header, then press ⇧⌘C
     Then the copied text has "-b 'session=abc'" and no Content-Type line
 
@@ -234,7 +232,7 @@ Feature: Copy as Curl
     Then httpbin answers with "form": {"name": "Ada L", "token": "abc=="}
 
   Scenario: The round trip
-    Given the board 03 request and I pressed ⇧⌘C
+    Given the imported request and I pressed ⇧⌘C
     When I paste the copied text back into the URL field
     Then every section reads as it did before the copy, and there is no note
 
@@ -252,7 +250,7 @@ Feature: Copy as Curl
     Then it is still disabled
 
   Scenario: Copy as Curl never touches the request
-    Given the board 03 request
+    Given the imported request
     When I press ⇧⌘C
     Then no section changed, and ⌘Z takes back the import, not the copy
 

@@ -189,7 +189,7 @@ final class ResponseViewer: NSView {
             failureGlyph.widthAnchor.constraint(equalToConstant: 22),
             failureGlyph.heightAnchor.constraint(equalToConstant: 22),
         ])
-        // backgroundElevated is the Send/Cancel fill; board 06 draws this one on background.
+        // backgroundElevated is the Send/Cancel fill. This one sits on background.
         fixButton.isBordered = false
         fixButton.wantsLayer = true
         fixButton.layer?.cornerRadius = 6

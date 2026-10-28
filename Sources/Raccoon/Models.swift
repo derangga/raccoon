@@ -242,7 +242,7 @@ final class TabModel {
         } catch {
             switch error {
             case .undefined(let names):
-                // The red underlines are already on screen; the last Response stays (board 04).
+                // The red underlines are already on screen; the last Response stays.
                 message = .undefined(names, in: variables().active?.name)
             case .invalidURL:
                 tab.response = .notSent(error)

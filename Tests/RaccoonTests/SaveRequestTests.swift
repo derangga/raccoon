@@ -88,7 +88,7 @@ struct SaveRequestTests {
         #expect(try Data(contentsOf: file) == before)
     }
 
-    @Test func `the Tab banners read as board 05 and 09`() {
+    @Test func `the Tab banners read as written`() {
         #expect(TabBanner.content(notice: .notSaved(file: "Update charge.json", reason: "permission denied"), changedOnDisk: nil) == Banner(
             glyph: .error, lead: "Not saved.",
             detail: [.text(" Couldn't write Update charge.json: permission denied. The Tab keeps your edits.")],

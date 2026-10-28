@@ -174,7 +174,7 @@ punish the feature that makes it unnecessary.
                                                  that Workspace's Session. Skipped when its
                                                  Data Folder can't be read
   -> SessionStore.read()                         boundary    R: SessionStore
-                                                 nil -> the one empty Draft (board 01)
+                                                 nil -> the one empty Draft
                                                  E: unreadable -> escape: log, start empty
   -> SessionFile.decode(data)                    E: undecodable -> escape: start empty
     -> SessionStore.setAside()                   rename to <key>.corrupt-<date>.json, log;

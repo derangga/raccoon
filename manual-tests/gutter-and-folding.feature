@@ -1,7 +1,7 @@
 # Manual acceptance: the Gutter and folding
 #
 # Run every Feature twice: macOS Appearance Light (Latte), then Dark (Mocha).
-# Compare against board 02 (design/ui/mockups/02-get-200.html).
+# Compare against the running app.
 #
 # Fixtures, in one terminal:
 #   mkdir -p /tmp/rc && cd /tmp/rc
@@ -14,7 +14,6 @@
 
 
 Feature: The Response Gutter
-  Board 02
 
   Scenario: Pretty JSON is numbered, with a chevron on every line that opens a block
     Given a GET to "http://localhost:8080/rating.json" was sent
@@ -57,7 +56,6 @@ Feature: The Response Gutter
 
 
 Feature: Folding
-  Board 02
 
   Scenario: The chevron folds a block onto its line
     Given the rating.json Response is shown in Pretty

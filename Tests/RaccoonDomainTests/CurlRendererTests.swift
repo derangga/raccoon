@@ -30,7 +30,7 @@ struct CurlRendererTests {
             == "curl 'https://h/' \\\n  -H 'Authorization: Basic eHl6'")
     }
 
-    @Test func `the board's POST renders flag by flag`() throws {
+    @Test func `the refund POST renders flag by flag`() throws {
         let text = try render(
             "POST", "https://api.example.com/v1/refunds",
             headers: [Row(name: "Content-Type", value: "application/json")],

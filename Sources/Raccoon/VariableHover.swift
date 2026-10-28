@@ -228,7 +228,7 @@ private final class TooltipWindow: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
-/// The popover's content (board 14): the value in a box five lines tall at most, "Secret" or
+/// The popover's content: the value in a box five lines tall at most, "Secret" or
 /// why the name is undefined; then the source chip, the source and "Variables in request →".
 final class VariablePopoverView: NSView {
     private static let padding: CGFloat = 8

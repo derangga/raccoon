@@ -5,7 +5,7 @@ import RaccoonDomain
 import RaccoonTesting
 import Testing
 
-/// The Environments sheet over a window loaded from a temp Data Folder (board 07).
+/// The Environments sheet over a window loaded from a temp Data Folder.
 @MainActor
 struct EnvironmentsSheetTests {
     let temp = FileManager.default.temporaryDirectory.appending(path: "raccoon-\(UUID())")

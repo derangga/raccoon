@@ -59,7 +59,7 @@ struct VariableHoverTests {
         VariableTooltipPanel.content(kinds.tooltip(for: self.name(name)), theme: theme)
     }
 
-    @Test func `each kind reads as board 14 shows it, and a secret never shows a value`() {
+    @Test func `each kind reads as designed, and a secret never shows a value`() {
         let host = popover("host")
         #expect(host.valueText?.string == "h.example.com" && host.message == nil)
         #expect(host.chip?.stringValue == "G" && host.source?.stringValue == "Globals")

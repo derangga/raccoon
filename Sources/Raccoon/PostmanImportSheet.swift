@@ -346,7 +346,7 @@ struct PostmanImport {
     private static func plural(_ n: Int, _ word: String) -> String { "\(number(n)) \(word)\(n == 1 ? "" : "s")" }
 }
 
-/// The Postman Import sheet (design-system §6, board 12): native, 620 pt wide, so system colours.
+/// The Postman Import sheet (design-system §6): native, 620 pt wide, so system colours.
 /// It shows the plan; Import writes it and either closes or shows the result.
 final class PostmanImportSheet: NSViewController {
     static let width: CGFloat = 620
@@ -722,7 +722,7 @@ private final class NoteView: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 }
 
-/// `text` in the system font, with `code` in SF Mono, as board 12 sets a path and a `{{name}}`.
+/// `text` in the system font, with `code` in SF Mono, as the sheet sets a path and a `{{name}}`.
 private func mono(_ code: [Range<String.Index>], in text: String, size: CGFloat, color: NSColor) -> NSAttributedString {
     let styled = NSMutableAttributedString(string: text, attributes: [.font: NSFont.systemFont(ofSize: size), .foregroundColor: color])
     for range in code {

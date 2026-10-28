@@ -66,7 +66,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     private var expansionBeforeFilter: Set<String>?
     private var matches: [String: FilteredTree.Match] = [:]
     private var searchHeight: NSLayoutConstraint!
-    /// The footer's + menu (board 12).
+    /// The footer's + menu.
     let addMenu = NSMenu()
     let addButton = NSButton()
 

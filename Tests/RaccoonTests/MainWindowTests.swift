@@ -30,7 +30,7 @@ struct MainWindowTests {
         #expect(!split.inspectorItem.allowsFullHeightLayout)
         #expect(!window.styleMask.contains(.fullSizeContentView))
         #expect(window.titlebarSeparatorStyle == .line)
-        // Board 01 reads: traffic lights, sidebar toggle, the title, then the trailing items.
+        // Traffic lights, sidebar toggle, the title, then the trailing items.
         #expect(window.titleVisibility == .hidden)
         #expect(window.title == "Raccoon")
         let items = try #require(window.toolbar).items

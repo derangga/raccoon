@@ -7,8 +7,7 @@
 # line and what you saw instead.
 #
 # Run every Feature twice: once with macOS Appearance set to Light (System Settings ▸
-# Appearance ▸ Light), which is Latte, once with Dark, which is Mocha. Compare against board 12
-# "Postman Import" on the Raccoon UI canvas. The sheet is native: system colours in both, a
+# Appearance ▸ Light), which is Latte, once with Dark, which is Mocha. The sheet is native: system colours in both, a
 # white list box with a hairline border in Light and a dark grey one in Dark.
 #
 # ─── The sample files ─────────────────────────────────────────────────────────────────────
@@ -53,7 +52,7 @@
 
 
 Feature: Opening Postman Import
-  Board 12, the File menu and Sidebar + menu cards
+  The File menu and the Sidebar + menu
 
   Scenario: 1. File ▸ Import from Postman… on ⇧⌘I
     When I open the File menu
@@ -82,7 +81,7 @@ Feature: Opening Postman Import
 
 
 Feature: The plan
-  Board 12, the sheet
+  The sheet
 
   Background:
     Given I pressed ⇧⌘I, went to manual-tests/postman-import/files and selected all six files with ⌘A
@@ -137,7 +136,7 @@ Feature: The plan
 
 
 Feature: Import
-  Board 12, the result card
+  The result card
 
   Scenario: 9. Everything lands: the sheet closes at once
     Given the plan from scenario 5, everything ticked
@@ -242,6 +241,5 @@ Feature: What can't be imported
 # - A Keychain refusal is one line per secret, each reading "1 secret", rather than one line
 #   per Environment.
 # - Esc on the result does nothing: Done (or Return) closes it.
-# - The kind glyphs are SF Symbols: square.3.layers.3d, curlybraces, globe, doc. Board 12 draws
-#   the Environment glyph as square brackets; curlybraces is the nearest symbol.
-# - The notes body caps at 440 pt and scrolls; board 12 shows no scrolling case.
+# - The kind glyphs are SF Symbols: square.3.layers.3d, curlybraces, globe, doc.
+# - The notes body caps at 440 pt and scrolls.

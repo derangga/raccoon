@@ -15,9 +15,6 @@
 # Appearance ▸ Light), once with Dark. Between the two runs, do "When you are done": it also
 # clears the Keychain, which "Before you start" does not touch.
 #
-# Compare colours and layout with the boards named under each Feature:
-#   open design/ui/mockups/
-#
 # ─── Words used below ─────────────────────────────────────────────────────────────────────
 #
 # Variable              a name and a value. {{name}} in a request is replaced by the value
@@ -99,7 +96,6 @@
 
 
 Feature: The Environment picker
-  Boards 01 and 07
 
   Background:
     Given Raccoon is running on /tmp/raccoon-vars (see "How launching works")
@@ -169,7 +165,6 @@ Feature: The Environment picker
 
 
 Feature: {{name}} highlighting
-  Boards 02, 04, 09 and 10
 
   Background:
     Given Raccoon is running on /tmp/raccoon-vars (see "How launching works")
@@ -221,7 +216,6 @@ Feature: {{name}} highlighting
 
 
 Feature: The Variable tooltip
-  Boards 02 and 09
 
   Background:
     Given Raccoon is running on /tmp/raccoon-vars (see "How launching works")
@@ -279,7 +273,6 @@ Feature: The Variable tooltip
 
 
 Feature: Sending and Copy as Curl with Variables
-  Board 04
 
   Background:
     Given Raccoon is running on /tmp/raccoon-vars (see "How launching works")
@@ -356,7 +349,6 @@ Feature: Sending and Copy as Curl with Variables
 
 
 Feature: The Environments sheet
-  Board 07
 
   Background:
     Given Raccoon is running on /tmp/raccoon-vars (see "How launching works")
@@ -497,7 +489,6 @@ Feature: The Environments sheet
 
 
 Feature: Secret Variables
-  Boards 07 and 09
 
   Background:
     Given Raccoon is running on /tmp/raccoon-vars (see "How launching works")
@@ -584,7 +575,7 @@ Feature: Secret Variables
 
 
 Feature: Variable suggestions
-  Not drawn on a board yet: design-system.md §6 "Variable suggestions"
+  design-system.md §6 "Variable suggestions"
 
   Background:
     Given Raccoon is running on /tmp/raccoon-vars (see "How launching works")
@@ -655,7 +646,7 @@ Feature: Variable suggestions
 
 
 Feature: Variables in a Path Variable value
-  Board 17. A Path Variable is a `:name` segment, not a Variable: the table is "Path Variables"
+  A Path Variable is a `:name` segment, not a Variable: the table is "Path Variables"
   and never "Variables" (CONTEXT.md).
 
   Background:
@@ -705,23 +696,23 @@ Feature: Variables in a Path Variable value
 
 # ─── Known simplifications ────────────────────────────────────────────────────────────────
 #
-# These differ from the boards on purpose, or were not checked on screen. They are not
+# These differ from the design on purpose, or were not checked on screen. They are not
 # failures; note anything that looks wrong anyway.
 #
-# - The sheet has no ⊖ button on a row. Board 07 has none either: delete with ⌫ or the
+# - The sheet has no ⊖ button on a row. Delete with ⌫ or the
 #   row's right-click menu.
 # - A secret can't be cleared by emptying its value cell. Unlock it instead.
 # - "Include secrets" has no button yet. It comes with the inspector's Curl pane, so Copy as
 #   Curl always leaves a secret as {{name}}.
-# - The tooltip reads "Not defined in Staging or Globals" (board 09). The red line under the URL
-#   bar reads "… in Staging or in Globals" (board 04). Both match their boards.
+# - The tooltip reads "Not defined in Staging or Globals" The red line under the URL
+#   bar reads "… in Staging or in Globals" Both read as written.
 # - The tooltip shows the same delay again when the pointer moves to another field; it
 #   switches at once only between tokens in the same field.
 # - The tooltip looks at about 512 characters around the pointer, so a token in a very long
 #   single-line body is found the same way as anywhere else.
 # - Names in the red line under the URL bar are in the normal font, not monospaced.
 # - The red line under a sheet row sits over the top of the next row.
-# - The suggestion list has no board yet: its look follows the hover tooltip's (design-system
+# - The suggestion list has no design yet: its look follows the hover tooltip's (design-system
 #   §6). It shows names and sources only, never a value, so it can't show what a Variable holds.
 # - Positions were calculated, not checked on screen: the pressed fill behind a locked
 #   lock, the wave under a field not being edited, and which token counts as under the

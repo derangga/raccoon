@@ -60,7 +60,7 @@ enum MainMenu {
         editEnvironments.keyEquivalentModifierMask = [.control, .option]
         let showInspector = NSMenuItem(title: "Show Inspector", action: #selector(NSSplitViewController.toggleInspector(_:)), keyEquivalent: "i")
         showInspector.keyEquivalentModifierMask = [.option, .command]
-        // AppKit adds Enter Full Screen to a menu titled View, as on board 08.
+        // AppKit adds Enter Full Screen to a menu titled View.
         menu.addItem(submenu("View", [
             showSidebar,
             showInspector,

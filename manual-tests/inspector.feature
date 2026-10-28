@@ -1,8 +1,7 @@
 # Manual acceptance: the inspector's frame, header and pane switch (M5)
 #
 # Run every Feature twice: macOS Appearance Light (Latte), then Dark (Mocha).
-# Compare against board 11 "Inspector and sidebar filter" (design/ui/mockups/11-inspector-filter.html)
-# and board 04 "Blocked by Undefined Variables" (04-undefined.html), the right-hand inspector.
+# Compare layout and colours with design/ui/design-system.md §6 Inspector.
 #
 # The Data Folder is a copy of manual-tests/collections.datafolder in /tmp, passed as a launch
 # argument, so ~/Raccoon is never touched:
@@ -15,7 +14,7 @@
 
 
 Feature: The inspector's frame and header
-  Boards 04 and 11, in Latte and in Mocha
+  In Latte and in Mocha
 
   Background:
     Given Raccoon is running on /tmp/raccoon-inspector, the window at least 1,200 pt wide
@@ -64,7 +63,7 @@ Feature: The inspector's frame and header
 
 # Curl pane
 #
-# Board 11's left-hand window and its "Curl: blocked by Undefined Variables" card. Run every
+# Run every
 # Scenario in Latte, then again in Mocha. Same Data Folder and launch as above.
 #
 # Setup, once: Edit Environments… ▸ Dev, add "host" = "https://api.dev.payments.example.com"
@@ -72,19 +71,19 @@ Feature: The inspector's frame and header
 # the URL field, as one line:
 #   curl -X POST 'https://api.dev.payments.example.com/v1/refunds' -H 'Content-Type: application/json' -H 'Authorization: Bearer {{api_key}}' -b 'session=7f3a; locale=en' --data-raw '{"charge":"ch_3PqL8x2e","amount":500}'
 #
-# Known simplifications: with no command the footer holds only Copy (as on board 11's card);
+# Known simplifications: with no command the footer holds only Copy;
 # Include secrets is off again at every launch; a secret the Keychain cannot read makes Copy
 # with Include secrets copy nothing.
 
 
 Feature: The Curl pane
-  Board 11, in Latte and in Mocha
+  In Latte and in Mocha
 
   Background:
     Given Raccoon is running on /tmp/raccoon-inspector with the setup above
     And the pasted Tab is selected, the inspector open on its terminal segment
 
-  Scenario: 6. The command, as board 11 draws it
+  Scenario: 6. The command
     Then the header reads "Curl"
     And under it, in a box with 6 pt rounded corners, a 1 pt border and the editor's background, reads in 11 pt monospace:
       """
@@ -132,7 +131,6 @@ Feature: The Curl pane
     And under them, in tertiary text: "charge_id and tenant_id are not defined in Dev or in Globals."
     And the footer holds only "Copy", in faint text with no accent fill, and clicking it does nothing
     And "Include secrets" is not shown
-    And the pane matches board 11's "Curl: blocked by Undefined Variables" card
 
   Scenario: 11. An invalid URL is quoted
     When I change the URL to "localhost:4000/a"
@@ -156,11 +154,8 @@ Feature: The Curl pane
 
 # Variables pane
 #
-# Boards 04 ("Blocked by Undefined Variables") and 11 ("Inspector and sidebar filter"):
-#   open design/ui/mockups/04-undefined.html design/ui/mockups/11-inspector-filter.html
 # Run the whole section twice: once with macOS Appearance set to Light (System Settings ▸
-# Appearance ▸ Light), which is Latte, and once with Dark, which is Mocha. Compare with the
-# board's Latte column on the first run and its Mocha column on the second. Do "Before you
+# Appearance ▸ Light), which is Latte, and once with Dark, which is Mocha. Do "Before you
 # start" before each run.
 #
 # The colours, as the Theme names them:
@@ -195,12 +190,11 @@ Feature: The Curl pane
 #   rm -f ~/Library/Application\ Support/Raccoon/sessions/353066d416b9f07d*
 
 Feature: The Variables pane
-  Boards 04 and 11
 
   Background:
     Given Raccoon is running on /tmp/raccoon-inspector (see "How launching works")
 
-  Scenario: 1. Board 04: Not defined first, then Staging, then Globals with the overridden one struck out
+  Scenario: 1. Not defined first, then Staging, then Globals with the overridden one struck out
     Given I chose "Staging" from the Environment pop-up
     When I type in the URL field: {{host}}/v1/charges/{{charge_id}}
     And in the Headers table I add a row named X-Tenant with the value {{tenant_id}}
@@ -224,9 +218,9 @@ Feature: The Variables pane
     And the Globals row "host" is grey, with a line through both its name and its value
     And holding the pointer over that struck-out "host" name shows the tooltip "Overridden by Staging"
     And the footer holds one button, "Edit Environments…", at the right
-    And colours and layout match board 04's inspector in this run's column (Latte or Mocha)
+    And colours and layout match design-system.md §6 Inspector in this run's flavor (Latte or Mocha)
 
-  Scenario: 2. Board 11: No Environment points at the toolbar
+  Scenario: 2. No Environment points at the toolbar
     Given the pane from scenario 1 is open
     When I choose "No Environment" from the Environment pop-up
     Then the first title still reads "Not defined · used by this Tab" with charge_id and tenant_id
@@ -236,7 +230,7 @@ Feature: The Variables pane
     When I press ⌘T
     Then the pane shows the new, empty Tab: the "Not defined" group is gone
     And the pane reads "No Environment · pick one in the toolbar", then "Globals" with host and user_agent
-    And colours and layout match board 11's "Variables: No Environment" card in this run's column
+    And colours and layout match design-system.md §6 Inspector in this run's flavor
 
   Scenario: 3. "No Globals."
     Given the pane from scenario 2 is open, on the new Tab, with No Environment
@@ -274,7 +268,7 @@ Feature: The Variables pane
 # - The pane's values edit in place (one click on a value); those checks are not in this
 #   section. Names, enabling and secrets are edited in the Environments sheet only.
 # - The wavy line under a Not defined name was placed by calculation, not checked on screen.
-#   Look at it closely next to the board.
+#   Look at it closely.
 # - variables.feature has no Variables pane scenario to reuse: its scenario 32 scrolls 200
 #   Variables in the Environments sheet, not in this pane.
 

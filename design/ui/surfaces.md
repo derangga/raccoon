@@ -148,7 +148,7 @@ sidebar's + menu) · untick a file · Import.
   -> system appearance flips -> Flavor for that appearance
 ```
 
-Every node above appears on a screen in `mockups/` or in a component spec in
+Every node above appears on a screen or in a component spec in
 `design-system.md`. No screen exists that is not on this graph.
 
 ## §3 Cardinality
@@ -262,9 +262,9 @@ two cases are a binary body and a secret value, and both say why instead of show
 
 - **Day one** (screen 1): no Collections, one empty Draft, idle Response, No Environment.
   Every surface still says what it is for.
-- **Year three** (worst-case board): 30 Tabs, names in Japanese with emoji, 60 headers,
+- **Year three** (worst case): 30 Tabs, names in Japanese with emoji, 60 headers,
   a 2,000-character URL, a 20 MB body, an unreadable file. Findings in design-system.md.
-- **Least access**: a read-only Data Folder (WindowBanner, components board). Collections
+- **Least access**: a read-only Data Folder (WindowBanner). Collections
   vanish; Drafts and sending still work, so the window stays an HTTP client.
 - **Small and slow**: the 760 × 480 minimum (Q2), a send that times out after 60 s, Reduce
   Motion on. The graph re-routes (Sidebar collapses, banners cross-fade), it does not

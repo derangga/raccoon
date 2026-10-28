@@ -4,7 +4,7 @@ import RaccoonDomain
 import RaccoonTesting
 import Testing
 
-/// The Params pane's Path Variables table (design-system §6, board 17).
+/// The Params pane's Path Variables table (design-system §6).
 @MainActor
 struct PathVariablesTableTests {
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
@@ -194,7 +194,7 @@ struct PathVariablesClickToEditTests {
         #expect(field.stringValue == "689eba19be47b88f9d590367")
     }
 
-    /// Board 17: both labels start at the pane's leading edge, in line with the tables' border.
+    /// Both labels start at the pane's leading edge, in line with the tables' border.
     @Test func `Query Params and Path Variables are left-aligned over their tables`() {
         let pane = shownEditor().paramsPane
         defer { window.orderOut(nil) }

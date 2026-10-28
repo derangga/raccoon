@@ -5,7 +5,7 @@ import RaccoonDomain
 import RaccoonTesting
 import Testing
 
-/// The Postman Import sheet over a window loaded from a temp Data Folder (board 12): the rows,
+/// The Postman Import sheet over a window loaded from a temp Data Folder: the rows,
 /// the notes, the footer and the result, from picked files read in memory.
 @MainActor
 struct PostmanImportSheetTests {
@@ -39,8 +39,8 @@ struct PostmanImportSheetTests {
 
     func entry(_ name: String) -> VariableEntry { VariableEntry(name: VariableName(name)!, value: .plain("raccoon")) }
 
-    /// A Workspace with Prod and globals base_url, as on board 12.
-    func boardWindow() throws -> WindowModel {
+    /// A Workspace with Prod and globals base_url.
+    func prodWindow() throws -> WindowModel {
         try put(EnvironmentFile.encode([]), at: "environments/Prod.json")
         try put(EnvironmentFile.encode([entry("base_url")]), at: "globals.json")
         return makeWindow()
@@ -88,8 +88,8 @@ struct PostmanImportSheetTests {
 
     // MARK: Rows
 
-    @Test func `board 12: one row per file, a taken name renamed, Globals counted, a non-Postman file disabled`() throws {
-        let window = try boardWindow()
+    @Test func `one row per file, a taken name renamed, Globals counted, a non-Postman file disabled`() throws {
+        let window = try prodWindow()
         let model = PostmanImport(files: [
             payments,
             environment("Dev", [variable("host"), variable("token", secret: true), variable("key", secret: true)]),
@@ -130,7 +130,7 @@ struct PostmanImportSheetTests {
     }
 
     @Test func `a Collection variable Globals keeps is a note, the Globals file's are on its row`() throws {
-        let window = try boardWindow()
+        let window = try prodWindow()
         let collection = PickedFile(name: "c.json", content: .read(.collection(PostmanCollection(
             name: "C", items: [], variables: [variable("base_url"), variable("a")]
         ))))
@@ -167,7 +167,7 @@ struct PostmanImportSheetTests {
 
     // MARK: Notes
 
-    @Test func `notes read as board 12, one line each, dynamic variables on one line`() throws {
+    @Test func `notes take one line each, dynamic variables on one line`() throws {
         let oauth = PostmanAuth(type: "oauth2")
         let collection = PostmanCollection(
             name: "Payments API",
@@ -246,7 +246,7 @@ struct PostmanImportSheetTests {
     // MARK: Import and its result
 
     @Test func `Import writes the ticked files only, and everything landing says to reveal the first Collection`() throws {
-        let window = try boardWindow()
+        let window = try prodWindow()
         var model = PostmanImport(files: [payments, environment("Prod", []), insomnia], window: window)
         model.isTicked[1] = false
 
@@ -259,7 +259,7 @@ struct PostmanImportSheetTests {
     }
 
     @Test func `a failure and a refused secret are lines on the result, and the landed are named`() throws {
-        let window = try boardWindow()
+        let window = try prodWindow()
         secrets.refuse(.set, with: .unavailable(-25308))
         let model = PostmanImport(files: [payments, environment("Dev", [variable("api_key", "k", secret: true)])], window: window)
         var outcome = try model.importTicked()
@@ -320,7 +320,7 @@ struct PostmanImportSheetTests {
     }
 
     @Test func `the sheet is 620 pt wide, shows a row per file, and a problem keeps it open on the result`() throws {
-        let window = try boardWindow()
+        let window = try prodWindow()
         secrets.refuse(.set, with: .unavailable(-25308))
         var revealed: [String?] = []
         let sheet = PostmanImportSheet(model: PostmanImport(files: [payments, environment("Dev", [variable("k", "v", secret: true)]), insomnia], window: window)) {

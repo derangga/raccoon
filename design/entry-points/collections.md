@@ -151,7 +151,7 @@ next save silently overwrite the pulled change, which is the bug Changed on Disk
      Deleted on disk, as in filesChanged
 ```
 
-**Where they are** (decided 2026-10-19; board 12 draws only the + menu). The sidebar footer's
+**Where they are** (decided 2026-10-19). The sidebar footer's
 + menu and File ▸ New Collection make a Collection; the + menu's New Folder makes one in the
 selected row's Collection or Folder. A row's context menu has New Folder…, Rename…, Move To ▸
 (every Collection and Folder as a path), Move to Trash and Reveal in Finder; a Collection has
