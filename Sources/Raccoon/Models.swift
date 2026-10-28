@@ -1329,6 +1329,16 @@ final class WindowModel {
         insertAfterSelected(newTabModel())
     }
 
+    /// Duplicate Tab: a Draft holding the same definition, right after the Tab and selected. Never
+    /// a Request Tab, which would be a second Tab on one Request.
+    func duplicate(_ id: TabID) {
+        guard let index = tabs.firstIndex(where: { $0.tab.id == id }) else { return }
+        let copy = newTabModel()
+        copy.tab = Tab(id: copy.tab.id, source: .draft, definition: tabs[index].tab.definition, baseline: nil)
+        tabs.insert(copy, at: index + 1)
+        selected = copy.tab.id
+    }
+
     private func insertAfterSelected(_ tab: TabModel) {
         let index = tabs.firstIndex { $0.tab.id == selected }.map { $0 + 1 } ?? tabs.endIndex
         tabs.insert(tab, at: index)

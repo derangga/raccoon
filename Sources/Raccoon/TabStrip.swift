@@ -41,6 +41,8 @@ final class TabStripView: NSView {
     private let theme: ThemeEnvironment
     /// The ✕ on a Tab; whoever owns closing sets it.
     var onClose: ((TabModel) -> Void)?
+    /// The Tab menu's closes: how far, from which Tab, and whether to skip the sheet.
+    var onCloseMenu: ((CloseScope, TabModel, Bool) -> Void)?
     let scrollView = NSScrollView()
     private let document = FlippedView()
     let newTabButton: NSButton
@@ -107,7 +109,47 @@ final class TabStripView: NSView {
 
     private func item(for model: TabModel) -> TabItemView {
         TabItemView(model: model, theme: theme, title: { [weak self] in self?.windowModel.name(of: model.tab) ?? model.tab.title }, onSelect: { [weak self] in self?.windowModel.select(model.tab.id) },
-                    onClose: { [weak self] in self?.onClose?(model) })
+                    onClose: { [weak self] in self?.onClose?(model) }, menu: { [weak self] in self?.contextMenu(for: model) })
+    }
+
+    /// The Tab's menu on right-click and double-click, as Postman's: the items act on the Tab it
+    /// was opened on, which need not be the selected one.
+    private enum MenuAction: Int {
+        case newTab, duplicate, close, forceClose, closeOthers, closeAll, forceCloseAll
+    }
+
+    func contextMenu(for model: TabModel) -> NSMenu {
+        func item(_ title: String, _ action: MenuAction, key: String = "", modifiers: NSEvent.ModifierFlags = .command) -> NSMenuItem {
+            let item = NSMenuItem(title: title, action: #selector(chose(_:)), keyEquivalent: key)
+            item.keyEquivalentModifierMask = modifiers
+            item.tag = action.rawValue
+            item.target = self
+            item.representedObject = model
+            return item
+        }
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        let others = item("Close Other Tabs", .closeOthers)
+        others.isEnabled = windowModel.tabs.count > 1
+        for entry in [
+            item("New Tab", .newTab, key: "t"), item("Duplicate Tab", .duplicate), .separator(),
+            item("Close Tab", .close, key: "w"), item("Force Close Tab", .forceClose, key: "w", modifiers: [.option, .command]),
+            others, item("Close All Tabs", .closeAll), item("Force Close All Tabs", .forceCloseAll),
+        ] { menu.addItem(entry) }
+        return menu
+    }
+
+    @objc private func chose(_ item: NSMenuItem) {
+        guard let model = item.representedObject as? TabModel, let action = MenuAction(rawValue: item.tag) else { return }
+        switch action {
+        case .newTab: windowModel.newTab()
+        case .duplicate: windowModel.duplicate(model.tab.id)
+        case .close: onCloseMenu?(.tab, model, false)
+        case .forceClose: onCloseMenu?(.tab, model, true)
+        case .closeOthers: onCloseMenu?(.others, model, false)
+        case .closeAll: onCloseMenu?(.all, model, false)
+        case .forceCloseAll: onCloseMenu?(.all, model, true)
+        }
     }
 
     @objc private func newTab() { windowModel.newTab() }
@@ -150,6 +192,7 @@ final class TabItemView: NSView {
     private let theme: ThemeEnvironment
     private let onSelect: () -> Void
     private let onClose: () -> Void
+    private let menuFor: () -> NSMenu?
 
     let glyph = NSImageView()
     /// The Draft cue that reads in every script, italic or not (Open UI Q4).
@@ -172,8 +215,9 @@ final class TabItemView: NSView {
     /// The window's name for the Tab: a Request's comes from the index.
     private let title: () -> String
 
-    init(model: TabModel, theme: ThemeEnvironment, title: @escaping () -> String, onSelect: @escaping () -> Void, onClose: @escaping () -> Void) {
+    init(model: TabModel, theme: ThemeEnvironment, title: @escaping () -> String, onSelect: @escaping () -> Void, onClose: @escaping () -> Void, menu: @escaping () -> NSMenu?) {
         self.model = model
+        self.menuFor = menu
         self.title = title
         self.theme = theme
         self.onSelect = onSelect
@@ -310,7 +354,13 @@ final class TabItemView: NSView {
         dot.frame = NSRect(x: slot + 4, y: slotY + 4, width: 8, height: 8)
     }
 
-    override func mouseDown(with event: NSEvent) { onSelect() }
+    /// Click selects; a double-click also opens the Tab's menu, where the right-click opens it.
+    override func mouseDown(with event: NSEvent) {
+        onSelect()
+        if event.clickCount == 2, let menu = menuFor() { NSMenu.popUpContextMenu(menu, with: event, for: self) }
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? { menuFor() }
     override func mouseEntered(with event: NSEvent) { isHovered = true }
     override func mouseExited(with event: NSEvent) { isHovered = false }
 

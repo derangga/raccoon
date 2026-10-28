@@ -247,10 +247,35 @@ Anatomy: `[state glyph or Draft dot] [method badge] name [slot]`, slot 16 × 16 
 | sending | the method badge is replaced by the 12 pt system spinner after 150 ms. The method is still in the URL bar of the selected Tab |
 | Changed on Disk | a 12 pt `warning` triangle before the badge, and the Dirty dot (it is always Dirty) |
 | close | ✕ 16 pt, `textSecondary`; ⌘W |
+| menu | right-click, or a double-click, opens a native menu on that Tab (below) |
 | 30 Tabs | Tabs keep 104 pt; the strip scrolls horizontally with 24 pt fade masks at each edge; the selected Tab is scrolled into view on select |
 
 Accessibility: each Tab is an `NSAccessibility` tab with title "<method> <name>", value
 "Edited", "Draft", "Sending", "Changed on Disk" as applicable. Seen on: 05, 10.
+
+**Tab menu** (decided 2026-10-28, after Postman's): a native menu, system colors, no Theme
+token. The items act on the Tab the menu opened on, which need not be the selected one, and
+the menu opens without selecting it.
+
+```
+New Tab                  ⌘T     as File ▸ New Tab
+Duplicate Tab
+────────────────────────
+Close Tab                ⌘W
+Force Close Tab          ⌥⌘W
+Close Other Tabs                disabled while it is the only Tab
+Close All Tabs
+Force Close All Tabs
+```
+
+Duplicate Tab opens a Draft with the same definition right after the Tab, and selects it. It
+is a Draft even from a Request Tab, because a Request is open in at most one Tab. Force
+closes discard without the Close sheet. Force Close All Tabs first asks once, in the Force
+close confirmation below, when a Tab would lose something, and skips it while File ▸ Always
+Discard Unsaved Changes is on; Force Close Tab (⌥⌘W) never asks.
+Close Other Tabs and Close All Tabs go one Tab at a time, left to right, asking for each one
+with something to lose; Cancel, or a Save that did not land, stops there and the rest stay
+open. File ▸ Force Close Tab (⌥⌘W) is the shortcut the menu shows.
 
 ### Breadcrumb
 
@@ -750,7 +775,7 @@ sizes are the spec.
 
 ```
 ┌──────────────────────────────────────────────── 440 pt ─┐
-│ Save changes?                                       ✕   │  16 pt top, 20 pt sides
+│ Save changes?                                           │  16 pt top, 20 pt sides
 │                                                          │  12 pt
 │ **Create charge** has unsaved changes. Save these        │  13 pt, wraps, 400 pt
 │ changes to avoid losing your work.                       │
@@ -761,9 +786,8 @@ sizes are the spec.
 └──────────────────────────────────────────────────────────┘
 ```
 
-- **Title**: "Save changes?", 13 pt semibold `labelColor`. The ✕ is a borderless 20 × 20 pt
-  button at the top trailing corner, SF Symbol `xmark` at 11 pt medium in
-  `secondaryLabelColor`, tooltip and accessibility label "Cancel". It is Cancel.
+- **Title**: "Save changes?", 13 pt semibold `labelColor`. There is no ✕ (removed
+  2026-10-28): Cancel is already on the sheet.
 - **Body**: 13 pt `labelColor`, wrapping at 400 pt. The name is the one the Tab shows
   (`WindowModel.name(of:)`), in semibold. A Request Tab: "<name> has unsaved changes. Save
   these changes to avoid losing your work." A Draft: "<name> hasn't been saved. Save it to a
@@ -772,14 +796,40 @@ sizes are the spec.
   each time the sheet opens. 4 pt after it, SF Symbol `info.circle` at 12 pt in
   `secondaryLabelColor`, whose tooltip reads "Closing a Tab with unsaved changes will not ask
   first. Quitting still keeps your Session." It is remembered only when Don't Save is pressed
-  with it ticked; Save, Cancel, Esc and ✕ forget it (tabs.md §close).
+  with it ticked; Save, Cancel and Esc forget it (tabs.md §close).
 - **Buttons**: regular push buttons. Don't Save at the leading edge (destructive, ⌘D); Cancel
   (Esc) and **Save** (default, Return) at the trailing edge, 8 pt apart.
 
 Save saves and then closes: a Request Tab through the window, a Draft through the Save
 Request sheet; a failed write or Cancel in that sheet keeps the Tab open. Return saves, so no
 key a hand rests on discards work (decided 2026-10-19). A second ⌘W while the sheet is up asks
-nothing more. Cancel, Esc and ✕ keep the Tab and give focus back to where it was.
+nothing more. Cancel and Esc keep the Tab and give focus back to where it was.
+
+### Force close confirmation (native)
+
+A card sheet on the window, shown by Force Close All Tabs when at least one Tab is Dirty or a
+non-empty Draft (decided 2026-10-28, after Postman's). Built like the Close confirmation: 440 pt
+wide, 16 pt top and bottom, 20 pt sides, system label colors, native buttons. No ✕, no
+checkbox.
+
+```
+┌──────────────────────────────────────────────── 440 pt ─┐
+│ Confirm force close                                     │
+│                                                          │
+│ 2 Tabs have unsaved changes. Your changes will be lost   │
+│ if you force close these Tabs. Are you sure you want to  │
+│ force close?                                             │
+│                                          [Cancel] [Force Close] │
+└──────────────────────────────────────────────────────────┘
+```
+
+- **Body**: the count is Tabs with something to lose, not every Tab: "1 Tab has unsaved
+  changes. Your changes will be lost if you force close it. …" for one.
+- **Buttons**: Cancel (Esc) and Force Close, 8 pt apart at the trailing edge. Force Close is
+  filled `systemRed` with white 13 pt text and 6 pt corners, drawn by the button itself: the
+  system's destructive tint shows only on a default button, and Return is not this one.
+  Return confirms nothing, so no key a hand rests on discards work (as the Close
+  confirmation). Focus starts on Cancel and returns to where it was on Cancel.
 
 ### Empty state
 

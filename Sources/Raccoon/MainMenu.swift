@@ -12,6 +12,8 @@ enum MainMenu {
         ]))
         let importFromPostman = NSMenuItem(title: "Import from Postman…", action: #selector(AppDelegate.importFromPostman(_:)), keyEquivalent: "i")
         importFromPostman.keyEquivalentModifierMask = [.command, .shift]
+        let forceClose = NSMenuItem(title: "Force Close Tab", action: #selector(AppDelegate.forceCloseTab(_:)), keyEquivalent: "w")
+        forceClose.keyEquivalentModifierMask = [.option, .command]
         // No target: the AppDelegate, which owns the WindowModel, takes the Tab items.
         menu.addItem(submenu("File", [
             NSMenuItem(title: "New Tab", action: #selector(AppDelegate.newTab(_:)), keyEquivalent: "t"),
@@ -22,6 +24,7 @@ enum MainMenu {
             NSMenuItem(title: "Save", action: #selector(AppDelegate.save(_:)), keyEquivalent: "s"),
             .separator(),
             NSMenuItem(title: "Close Tab", action: #selector(AppDelegate.closeTab(_:)), keyEquivalent: "w"),
+            forceClose,
             // Checked while on; AppDelegate's validation sets the check.
             NSMenuItem(title: "Always Discard Unsaved Changes", action: #selector(AppDelegate.toggleAlwaysDiscard(_:)), keyEquivalent: ""),
         ]))

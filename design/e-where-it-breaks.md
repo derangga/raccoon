@@ -168,6 +168,10 @@ Theme
 Close (UserDefaults)
   ⚠ stored AlwaysDiscardOnClose not a Bool → escape: off, so closing asks. The safe side of
                            a preference that discards work is the prompt
+  ⚠ Close Other Tabs or Close All Tabs, one Tab answered Cancel or its Save did not land
+                           → escape: the batch stops there; the rest stay open
+  ⚠ Force Close All Tabs, Cancel in the confirmation → escape: nothing closes
+  ⚠ Duplicate Tab on a Tab that closed meanwhile → escape: nothing happens
   ⚠ always discarding is on → not an error: a Dirty Tab or a non-empty Draft closes with no
                            sheet and its edits are gone. File ▸ Always Discard Unsaved
                            Changes, checked, turns it off (tabs.md)

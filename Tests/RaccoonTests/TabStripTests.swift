@@ -203,6 +203,64 @@ struct TabStripViewTests {
         #expect(item.toolTip == name)
         #expect(item.name.frame.width < item.name.intrinsicContentSize.width)
     }
+
+    // MARK: The Tab's context menu
+
+    func rightClick() -> NSEvent {
+        NSEvent.mouseEvent(with: .rightMouseDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+    }
+
+    @Test func `right-clicking a Tab offers New Tab, Duplicate Tab and the five closes, with their shortcuts`() async throws {
+        let window = makeWindow()
+        window.newTab()
+        let strip = strip(window)
+        let menu = try #require(strip.items[0].menu(for: rightClick()))
+
+        #expect(menu.items.map(\.title) == ["New Tab", "Duplicate Tab", "", "Close Tab", "Force Close Tab", "Close Other Tabs", "Close All Tabs", "Force Close All Tabs"])
+        #expect(menu.items[2].isSeparatorItem)
+        #expect(menu.items.map(\.keyEquivalent) == ["t", "", "", "w", "w", "", "", ""])
+        #expect(menu.items[4].keyEquivalentModifierMask == [.option, .command])
+    }
+
+    @Test func `each close item acts on the Tab that was clicked, not the selected one`() throws {
+        let window = makeWindow()
+        window.newTab()
+        let strip = strip(window)
+        var chosen: [(CloseScope, TabID, Bool)] = []
+        strip.onCloseMenu = { scope, model, force in chosen.append((scope, model.tab.id, force)) }
+        let clicked = window.tabs[0]
+        let menu = try #require(strip.items[0].menu(for: rightClick()))
+
+        for index in [3, 4, 5, 6, 7] { menu.performActionForItem(at: index) }
+
+        #expect(chosen.map(\.0) == [.tab, .tab, .others, .all, .all])
+        #expect(chosen.map(\.2) == [false, true, false, false, true])
+        #expect(chosen.allSatisfy { $0.1 == clicked.tab.id })
+        #expect(window.selected != clicked.tab.id)
+    }
+
+    @Test func `New Tab opens a Draft like ⌘T, and Duplicate Tab copies the clicked Tab after it`() async throws {
+        let window = makeWindow()
+        window.newTab()
+        window.tabs[0].typeInURLBar("https://api.example.com/a")
+        let strip = strip(window)
+        let menu = try #require(strip.items[0].menu(for: rightClick()))
+
+        menu.performActionForItem(at: 1)
+        #expect(window.tabs.map(\.tab.definition.url) == ["https://api.example.com/a", "https://api.example.com/a", ""])
+        #expect(window.tabs[1].tab.source == .draft)
+
+        menu.performActionForItem(at: 0)
+        #expect(window.tabs.count == 4)
+    }
+
+    @Test func `Close Other Tabs is disabled when the Tab is the only one`() throws {
+        let window = makeWindow()
+        let strip = strip(window)
+        let menu = try #require(strip.items[0].menu(for: rightClick()))
+        #expect(!menu.items[5].isEnabled)
+        #expect(menu.items[3].isEnabled && menu.items[6].isEnabled)
+    }
 }
 
 @MainActor

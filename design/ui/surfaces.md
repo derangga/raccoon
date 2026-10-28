@@ -52,8 +52,10 @@ Overlays
   NewWorkspacePanel             native NSSavePanel: name + location
   OpenWorkspacePanel            native NSOpenPanel: one folder
   PostmanImportSheet            native sheet: the plan, the notes, then the result
-  CloseConfirm                  native card sheet: ✕ · body · Always discard checkbox (i) ·
+  CloseConfirm                  native card sheet: body · Always discard checkbox (i) ·
                                 Don't Save · Cancel · Save
+  ForceCloseConfirm             native card sheet: body · Cancel · Force Close
+  TabMenu                       native menu on a Tab: New Tab · Duplicate Tab · the five closes
   ThemeMenu                     native menu, View ▸ Theme
 ```
 
@@ -74,7 +76,7 @@ Overlays
 | Secret toggle | plain · secret · save failed |
 
 **Moves:** open a Request (sidebar click) · select a location (click a Breadcrumb segment) · new Tab (⌘T) · select Tab (click, ⌘1…9, ⌃⇥) ·
-close Tab (⌘W, ✕) · type in the URL bar · paste curl · edit a row · toggle a row ·
+close Tab (⌘W, ✕, the Tab menu) · duplicate Tab (the Tab menu) · type in the URL bar · paste curl · edit a row · toggle a row ·
 pick Body Type · send (⌘↩) · cancel (⌘., Cancel) · switch Pretty/Raw · switch Body/Headers ·
 save (⌘S) · save Draft (⌘S on a Draft, sheet) · Reload · Keep Mine · pick Environment (⌃E,
 pop-up) · open Environments sheet · edit / mark secret · pick Theme or Flavor · switch
@@ -248,10 +250,12 @@ two cases are a binary body and a secret value, and both say why instead of show
 | EnvironmentsSheet | window focus | Done, Esc | the field focused before ⌃E or the menu |
 | PostmanImportSheet | window focus | Import (then Done on the result), Cancel, Esc | the sidebar, on the first imported Collection; on Cancel, where it was |
 | SaveDraftSheet | window focus | Save, Cancel, Esc | the URL field of the same Tab |
-| CloseConfirm | window focus | Save (Return), Don't Save (⌘D), Cancel, Esc, ✕ (all three = Cancel) | the Tab, or its neighbour if closed; where it was on Cancel |
+| CloseConfirm | window focus | Save (Return), Don't Save (⌘D), Cancel, Esc (both = Cancel) | the Tab, or its neighbour if closed; where it was on Cancel |
 | SidebarFilter | keyboard focus | Esc clears the query; a second Esc, or Return on a match, gives focus back to the editor (Return also opens the match) | the editor of the selected Tab |
 | Inspector | nothing: it is a pane, not an overlay, except when it overlays a narrow window (Q2), where clicking the content or Esc closes it | | |
 | ThemeMenu | menu tracking | pick, Esc, click outside | where it was |
+| ForceCloseConfirm | window focus | Force Close, Cancel, Esc | the Tab, or none after Force Close All Tabs; where it was on Cancel |
+| TabMenu | menu tracking | pick, Esc, click outside | where it was; the new Tab's editor after New Tab or Duplicate Tab |
 | TabBanner | nothing, it is inline | its buttons; Changed on Disk has no Dismiss because ignoring it is Keep Mine | n/a |
 
 ## §9 Swap N: the four runs

@@ -48,7 +48,7 @@ no longer has falls back to `Tab.title` until filesChanged turns it into a Draft
 stack for the window and its actions read whichever Tab is bound, so a switch clears it.
 
 ```
--> close(tabID)                                  ⌘W, the ✕
+-> close(tabID)                                  ⌘W, the ✕, the Tab menu
   -> CloseMemory.alwaysDiscards()                R: UserDefaults "AlwaysDiscardOnClose",
                                                  read at every close so a change counts at
                                                  once. Not a Bool -> off, see §4
@@ -58,7 +58,7 @@ stack for the window and its actions read whichever Tab is bound, so a switch cl
     -> ask: Don't Save · Cancel · Save           the Close sheet on the window (Open UI Q8),
             + "Always discard unsaved changes    design-system §6 Close confirmation
               when closing a Tab"
-                                                 escape: Cancel, Esc or ✕ keeps the Tab;
+                                                 escape: Cancel or Esc keeps the Tab;
                                                  the checkbox is forgotten
     -> Don't Save, checkbox ticked
       -> CloseMemory.remember(true)              R: UserDefaults; nothing else writes true
@@ -72,6 +72,35 @@ stack for the window and its actions read whichever Tab is bound, so a switch cl
                                                  the empty state below (reversed 2026-10-28)
   -> SessionWriter.schedule()                    a Session of zero Tabs is written as such
 ```
+
+```
+-> open the Tab menu                             right-click or double-click a Tab. Opens on
+                                                 that Tab without selecting it
+  -> New Tab                                     newTab(), as ⌘T
+  -> Duplicate Tab -> duplicate(tabID)           a Draft holding the Tab's definition, inserted
+                                                 right after it and selected; no baseline, so
+                                                 never a second Tab on one Request
+                                                 E: tabID gone -> escape: nothing happens
+  -> Close Tab, Close Other Tabs, Close All Tabs close(scope, of: tab) below
+  -> Force Close Tab                             TabModel.close(), no sheet: the quick path
+  -> Force Close All Tabs                        losing = Tabs with hasLosableContent
+     losing == 0, or CloseMemory.alwaysDiscards() TabModel.close() for each, no sheet
+     else -> confirmForce(losing)                the Force close confirmation (design-system §6)
+        Force Close -> TabModel.close() for each
+        Cancel, Esc                              E: escape: nothing closes
+-> close(scope, of: tab)                         scope .others is every Tab but this one,
+                                                 .all every Tab
+  -> close(tab) for each, in strip order         the single-Tab path above, one sheet at a time
+     closed                                      -> the next Tab
+     Cancel, or a Save that did not land         E: escape: stop; this Tab and the ones after it
+                                                 stay, the ones already closed stay closed
+```
+
+**Close Other Tabs and Close All Tabs stop at the first "no"** (decided 2026-10-28). Cancel
+on one Tab's sheet is a "not this one", and carrying on to the next Tab's sheet would ask
+the user to answer for Tabs they just asked to be spared. Tabs closed before it stay closed:
+they were closed with the user's answer or had nothing to lose. A hop of one turn separates
+two sheets, because the first is still ending when the second is asked for.
 
 **Closing the last Tab leaves the window with no Tab** (decided 2026-10-28, reversing Open
 UI Q1, which opened an empty Draft so the editor always had one). `selectedTab` was already

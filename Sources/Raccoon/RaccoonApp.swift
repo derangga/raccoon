@@ -61,14 +61,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // A turn later: from the close prompt, its own sheet is still ending.
             Task { @MainActor in SaveDraftSheet.present(on: window, locations: locations, default: location, reply: reply) }
         }, focusURL: { [weak tabController] in
-            tabController.flatMap { $0.view.window?.makeFirstResponder($0.urlBar.urlField) }
+            guard let tabController else { return }
+            tabController.view.window?.makeFirstResponder(tabController.urlBar.urlField)
         })
         self.saver = saver
-        let closer = TabCloser(window: windowModel, saver: saver, memory: closeMemory) { [weak windowController] model, reply in
+        let closer = TabCloser(window: windowModel, saver: saver, memory: closeMemory, confirmForce: { [weak windowController] losing, reply in
             guard let window = windowController?.window else { return }
-            CloseConfirm.ask(model, name: windowModel.name(of: model.tab), in: window, reply: reply)
+            ForceCloseConfirm.ask(losing: losing, in: window, reply: reply)
+        }) { [weak windowController] model, reply in
+            guard let window = windowController?.window else { return }
+            // A turn later: from the previous Tab's question in a batch, its sheet is still ending.
+            Task { @MainActor in CloseConfirm.ask(model, name: windowModel.name(of: model.tab), in: window, reply: reply) }
         }
-        strip.onClose = closer.close
+        strip.onClose = { closer.close($0) }
+        strip.onCloseMenu = { scope, model, force in closer.close(scope, of: model, force: force) }
         self.closer = closer
         let sidebar = SidebarViewController(window: windowModel, theme: theme) { path in
             NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: path)])
@@ -143,6 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func newCollection(_ sender: Any?) { sidebar?.newCollection(sender) }
     @objc func save(_ sender: Any?) { if let tab = windowModel?.selectedTab { saver?.save(tab) } }
     @objc func closeTab(_ sender: Any?) { if let tab = windowModel?.selectedTab { closer?.close(tab) } }
+    @objc func forceCloseTab(_ sender: Any?) { if let tab = windowModel?.selectedTab { closer?.close(.tab, of: tab, force: true) } }
     /// File ▸ Always Discard Unsaved Changes: the way back from the close sheet's checkbox.
     @objc func toggleAlwaysDiscard(_ sender: Any?) { closeMemory.remember(!closeMemory.alwaysDiscards()) }
     @objc func showTab(_ sender: NSMenuItem) { windowModel?.select(number: sender.tag) }
@@ -159,7 +166,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Cancel in the panel opens no sheet.
     @objc func importFromPostman(_ sender: Any?) {
         guard let window = windowController?.window, window.attachedSheet == nil, let windowModel else { return }
-        Task { @MainActor [files] in
+        Task { @MainActor [weak self, files] in
             let panel = NSOpenPanel()
             panel.allowsMultipleSelection = true
             panel.allowedContentTypes = [.json]
@@ -189,7 +196,7 @@ extension AppDelegate: NSMenuItemValidation {
             item.state = closeMemory.alwaysDiscards() ? .on : .off
             return true
         // Disabled, not hidden, while no Tab is open (surfaces.md §5).
-        case #selector(save(_:)), #selector(closeTab(_:)), #selector(showNextTab(_:)), #selector(showPreviousTab(_:)):
+        case #selector(save(_:)), #selector(closeTab(_:)), #selector(forceCloseTab(_:)), #selector(showNextTab(_:)), #selector(showPreviousTab(_:)):
             return windowModel?.selectedTab != nil
         case #selector(showTab(_:)):
             return !(windowModel?.tabs.isEmpty ?? true)
