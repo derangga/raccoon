@@ -205,7 +205,7 @@ A 4 pt base. Sizes used: 2, 4, 6, 8, 10, 12, 16, 24.
 | Inspector width | 280 pt default, 240 min, 400 max; closed by default |
 | Inspector rows | 24 pt min, name column 46 %; group title 11 pt semibold |
 | Sidebar row | 24 pt, 6 pt radius selection, 16 pt indent per level, the same for every row kind (§6 Sidebar rows) |
-| Sidebar method badge | 52 pt text column, left-aligned, 4 pt before the name (§6 Sidebar rows) |
+| Sidebar method badge | its own text width (max 56 pt), left-aligned, 4 pt before the name (§6 Sidebar rows) |
 | Tab strip | 34 pt |
 | Breadcrumb | 28 pt, 12 pt sides; segments 22 pt high, 6 pt side padding, 4 pt radius, 2 pt apart; chevron 8 pt |
 | Tab | 104 pt min, 196 pt preferred, selected 168 pt min; 10 pt leading, 6 pt trailing |
@@ -578,15 +578,11 @@ and `warning` Theme tokens, secondary label). The cell reads `backgroundStyle ==
 
 - **Collection**: disclosure, a stacked-layers glyph, the name.
 - **Folder**: disclosure, folder glyph, name.
-- **Request**: the method badge (its method colour, white on an emphasized selection), then the name, end-truncated. The badge sits in a fixed
-  52 pt text column, **left-aligned**, then 4 pt, then the name. 52 pt is the width of
-  `PROPFIND` (48.5 pt at SF Mono bold 9.5 pt with +0.02 em) plus slack, so it fits and
-  nothing wider than 8 characters does: longer methods get an ellipsis. Left-aligned in a
-  fixed column, the names of Requests in one parent start at the same x, and a short method
-  (`GET`, `PUT`) starts at the same x as a long one instead of floating 28 pt right of where
-  the Folder glyph would sit. Sizing the column to the widest method among the visible
-  siblings was rejected: names would shift whenever a sibling was added, renamed or filtered
-  out, and the outline would need a reload for it.
+- **Request**: the method badge (its method colour, white on an emphasized selection), then the name, end-truncated. The name starts 4 pt
+  after the badge's own text, so `GET` leaves no gap and `PROPFIND` (48.5 pt at SF Mono bold
+  9.5 pt with +0.02 em) fits. The badge is capped at 56 pt: longer methods get an ellipsis.
+  Names of Requests in one parent are not aligned when their methods differ in length. A
+  fixed 52 pt column aligned them but left about 30 pt of empty space after `GET`.
 - **Unreadable**: a `warning` triangle at the leading edge, the **file name** (not a Request name: there isn't
   one) 20 pt after it, in secondary label color, and an icon-only Reveal in Finder button (20 × 18,
   `aria-label`/tooltip "Reveal in Finder"). Beneath, an 11 pt line with the reason, starting under the name (20 pt after the leading edge): "Not

@@ -355,13 +355,14 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         window.openRequest(id)
     }
 
-    /// Double-click or Return: a Request opens, an unreadable file is revealed in Finder.
+    /// Double-click or Return: a Request opens, a Collection or Folder expands or collapses, an unreadable file is revealed in Finder.
     func activate(row: Int) {
         guard let item = outline.item(atRow: row) as? SidebarItem else { return }
         switch item.kind {
         case .request: open(row: row)
         case .unreadable: revealInFinder(window.dataFolderRoot + "/" + item.path)
-        case .collection, .folder: break
+        case .collection, .folder:
+            if outline.isItemExpanded(item) { outline.collapseItem(item) } else { outline.expandItem(item) }
         }
     }
 
@@ -660,7 +661,7 @@ final class NodeCell: NSTableCellView {
     }
 }
 
-/// A Request: the 52 pt left-aligned method badge, then the name.
+/// A Request: the left-aligned method badge, then the name 4 pt after it.
 final class RequestCell: NSTableCellView, ThemedRow {
     static let identifier = NSUserInterfaceItemIdentifier("request")
     let badge = NSTextField(labelWithString: "")
@@ -688,6 +689,7 @@ final class RequestCell: NSTableCellView, ThemedRow {
         renderName()
         badge.setAccessibilityLabel(method)
         paint(theme)
+        needsLayout = true
     }
 
     private static let leftAligned: NSParagraphStyle = {
@@ -722,10 +724,12 @@ final class RequestCell: NSTableCellView, ThemedRow {
         super.layout()
         let badgeHeight = badge.cell?.cellSize.height ?? 12
         // The label keeps 2 pt of padding each side, so its frame starts 2 pt left of the cell's leading edge and the
-        // left-aligned text starts on it, where a Folder's glyph would. The 52 pt text column fits PROPFIND (48.5).
-        badge.frame = NSRect(x: -2, y: ((bounds.height - badgeHeight) / 2).rounded(), width: 56, height: badgeHeight)
+        // left-aligned text starts on it, where a Folder's glyph would. The name follows the badge's own width, capped
+        // at 56 pt (PROPFIND is 48.5), so a short method does not leave a gap before the name.
+        let badgeWidth = min(badge.cell?.cellSize.width ?? 56, 56)
+        badge.frame = NSRect(x: -2, y: ((bounds.height - badgeHeight) / 2).rounded(), width: badgeWidth, height: badgeHeight)
         let height = name.cell?.cellSize.height ?? 16
-        name.frame = NSRect(x: 54, y: ((bounds.height - height) / 2).rounded(), width: max(0, bounds.width - 54), height: height)
+        name.frame = NSRect(x: badgeWidth, y: ((bounds.height - height) / 2).rounded(), width: max(0, bounds.width - badgeWidth), height: height)
     }
 }
 

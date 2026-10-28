@@ -73,7 +73,10 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             let item = NSToolbarItem(itemIdentifier: identifier)
             let title = NSTextField(labelWithString: window?.title ?? "")
             title.font = .systemFont(ofSize: 13, weight: .semibold)
-            item.view = title
+            // Clear space after the sidebar toggle, whose hover and pressed background would otherwise touch it.
+            let row = NSStackView(views: [title])
+            row.edgeInsets.left = 8
+            item.view = row
             return item
         }
         if identifier == Self.environmentID {
