@@ -30,12 +30,7 @@ The code is split into three modules that depend in one direction, enforced by `
    swift run Raccoon
    ```
 
-   `swift run` starts a bare executable, so the Dock shows a generic icon. To get the app with its icon, build `.build/Raccoon.app` and open it:
-
-   ```sh
-   scripts/make-app.sh
-   open .build/Raccoon.app
-   ```
+   `swift run` starts a bare executable, so the Dock shows a generic icon. See [Release app](#release-app) for the app with its icon.
 
 4. Run the tests:
 
@@ -43,6 +38,29 @@ The code is split into three modules that depend in one direction, enforced by `
    swift test                              # every test target
    swift test --filter LayeringTests       # one suite
    ```
+
+## Release app
+
+1. Build `.build/Raccoon.app`. The script does a release build, adds the icon as `AppIcon.icns` and ad-hoc signs the app:
+
+   ```sh
+   scripts/make-app.sh
+   ```
+
+2. Quit Raccoon if it's running, then copy the app to `/Applications`:
+
+   ```sh
+   rm -rf /Applications/Raccoon.app
+   ditto .build/Raccoon.app /Applications/Raccoon.app
+   ```
+
+   `ditto` keeps the bundle's code signature, permissions and extended attributes. It merges into a folder that already exists, so remove the old copy first or files from it stay behind.
+
+3. Open it from Launchpad, Spotlight or `open /Applications/Raccoon.app`.
+
+The app is ad-hoc signed, so it runs on the Mac that built it. Another Mac needs a copy signed with a Developer ID and notarized.
+
+The app and `swift run` share one set of settings (the UserDefaults domain `Raccoon`), so both open the same Data Folder, Workspaces and Theme.
 
 ## Where to read next
 
