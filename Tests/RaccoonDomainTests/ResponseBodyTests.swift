@@ -31,6 +31,38 @@ struct ResponseBodyTests {
         #expect(ResponseBody.presentation(response(Data([0xFF, 0xFE, 0x00, 0x81]))) == .binary(byteCount: 4))
     }
 
+    @Test(arguments: [
+        ("image/webp", "image/webp"),
+        ("image/avif", "image/avif"),
+        ("IMAGE/PNG; charset=binary", "image/png"),
+        (" image/jpeg ", "image/jpeg"),
+    ])
+    func `an image Content-Type is an image, whatever the bytes are`(contentType: String, mediaType: String) {
+        let bytes = Data([0xFF, 0xD8, 0xFF, 0xE0])
+        #expect(ResponseBody.presentation(response(bytes, contentType: contentType)) == .image(mediaType: mediaType))
+        // UTF-8 bytes under an image type are still the image's to decode, not text.
+        #expect(ResponseBody.presentation(response(Data("GIF89a".utf8), contentType: contentType)) == .image(mediaType: mediaType))
+    }
+
+    @Test(arguments: [
+        ("image/avif", "image/avif"),
+        ("IMAGE/PNG; charset=binary", "image/png"),
+        (" image/jpeg ", "image/jpeg"),
+    ])
+    func `the image media type is read from the header alone, without the presentation`(contentType: String, mediaType: String) {
+        #expect(ResponseBody.imageMediaType(response(Data("not a picture".utf8), contentType: contentType)) == mediaType)
+    }
+
+    @Test(arguments: ["image/svg+xml", "text/plain", "application/octet-stream", "x-image/webp", "image"] as [String?] + [nil])
+    func `no image media type for other or missing Content-Types`(contentType: String?) {
+        #expect(ResponseBody.imageMediaType(response(Data([0xFF, 0xD8]), contentType: contentType)) == nil)
+    }
+
+    @Test(arguments: ["image/svg+xml", "text/plain", "application/json", "application/octet-stream", "x-image/webp"])
+    func `other Content-Types are not images`(contentType: String) {
+        #expect(ResponseBody.presentation(response(Data([0xFF, 0xD8]), contentType: contentType)) == .binary(byteCount: 2))
+    }
+
     @Test func `a body above the threshold is raw even when it parses`() {
         let atLimit = "[" + String(repeating: " ", count: ResponseBody.prettyThreshold - 2) + "]"
         let over = atLimit + " "

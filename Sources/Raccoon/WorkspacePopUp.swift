@@ -4,7 +4,7 @@ import RaccoonDomain
 /// The borderless pop-up at the top of the sidebar (design-system §6 Workspace pop-up): the open
 /// Workspace's title, and a menu of every Workspace, New Workspace…, Open Workspace… and Remove
 /// from List ▸. It only shows and reports; the window decides.
-final class WorkspacePopUp: NSPopUpButton {
+final class WorkspacePopUp: DropdownPopUp {
     var onSwitch: (String) -> Void = { _ in }
     var onNew: () -> Void = {}
     var onOpen: () -> Void = {}

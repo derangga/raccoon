@@ -6,6 +6,9 @@ public enum ResponseBody: Equatable, Sendable {
     case pretty(String, RawKind)
     case raw(String)
     case binary(byteCount: Int)
+    /// The `Content-Type` said `image/*` (lowercased, parameters dropped). Whether the bytes
+    /// decode is the viewer's to find out: an image that does not is shown as binary.
+    case image(mediaType: String)
 
     /// Above this many bytes the body is shown Raw. Measured: 5 MB coloured stays at or under
     /// 129 ms a step on TextKit 1 (environment-facts.md, "NSTextView with large bodies").
@@ -17,6 +20,7 @@ public enum ResponseBody: Equatable, Sendable {
     /// Pretty is decided by parsing, not by `Content-Type`, which only picks the parser tried
     /// first. A body that does not parse is Raw, never an error.
     public static func presentation(_ response: Response) -> ResponseBody {
+        if let mediaType = imageMediaType(response) { return .image(mediaType: mediaType) }
         guard let text = String(validating: response.body, as: UTF8.self) else {
             return .binary(byteCount: response.byteCount)
         }
@@ -29,6 +33,19 @@ public enum ResponseBody: Equatable, Sendable {
             if let formatted = try? BodyFormatter.format(text, kind: kind) { return .pretty(formatted, kind) }
         }
         return .raw(text)
+    }
+
+    /// The `image/*` type a viewer may draw as a picture, from the header alone, so it is known
+    /// at once and the presentation need not have landed. SVG is XML text, so it is not one.
+    public static func imageMediaType(_ response: Response) -> String? {
+        guard let type = mediaType(response), type.hasPrefix("image/"), type != "image/svg+xml" else { return nil }
+        return type
+    }
+
+    /// "image/webp" from "Image/WebP; charset=x".
+    private static func mediaType(_ response: Response) -> String? {
+        response.headers.first { $0.name.lowercased() == "content-type" }?.value
+            .split(separator: ";").first?.trimmingCharacters(in: .whitespaces).lowercased()
     }
 }
 

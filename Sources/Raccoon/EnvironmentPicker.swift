@@ -4,7 +4,7 @@ import Observation
 /// The toolbar pop-up (design-system §6 Environment picker): No Environment, each Environment,
 /// the active one checked, and Edit Environments…. It shows the window's choice and reports
 /// picks; the window decides.
-final class EnvironmentPicker: NSPopUpButton {
+final class EnvironmentPicker: DropdownPopUp {
     private var onPick: (String?) -> Void = { _ in }
     /// Edit Environments…, which opens the Environments sheet.
     var onEdit: () -> Void = {}

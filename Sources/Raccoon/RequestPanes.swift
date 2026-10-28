@@ -74,6 +74,11 @@ final class AuthPane: NSView, NSTextFieldDelegate {
     let leftColumn = NSStackView()
     let rightColumn = NSStackView()
     let rule = NSBox()
+    /// The right side while Auth is None: the symbol, "No Auth" and how to add one, centered in the
+    /// area right of the rule (under it when stacked).
+    let emptyArea = NSView()
+    let emptyTitle = NSTextField(labelWithString: "No Auth")
+    let emptyMessage = NSTextField(wrappingLabelWithString: "Pick Basic Auth or Bearer Token under Auth type to add one.")
     private(set) var isStacked = false
     private var wideConstraints: [NSLayoutConstraint] = []
     private var stackedConstraints: [NSLayoutConstraint] = []
@@ -88,11 +93,12 @@ final class AuthPane: NSView, NSTextFieldDelegate {
         super.init(frame: .zero)
         buildLeft()
         buildRight()
+        buildEmpty()
         rule.boxType = .custom
         rule.borderWidth = 0
         rule.contentViewMargins = .zero
         theme.paint(rule) { $0.fillColor = $1.color(.border) }
-        for view in [leftColumn, rule, rightColumn] {
+        for view in [emptyArea, leftColumn, rule, rightColumn] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
         }
@@ -182,6 +188,29 @@ final class AuthPane: NSView, NSTextFieldDelegate {
         ])
     }
 
+    private func buildEmpty() {
+        let glyph = NSImageView(image: NSImage(systemSymbolName: "lock.open", accessibilityDescription: nil)!)
+        glyph.symbolConfiguration = .init(pointSize: 20, weight: .regular)
+        emptyTitle.font = .systemFont(ofSize: 13, weight: .semibold)
+        emptyMessage.font = .systemFont(ofSize: 12)
+        emptyMessage.alignment = .center
+        emptyMessage.preferredMaxLayoutWidth = 260
+        theme.paint(glyph) { $0.contentTintColor = $1.color(.textTertiary) }
+        theme.paint(emptyTitle) { $0.textColor = $1.color(.textSecondary) }
+        theme.paint(emptyMessage) { $0.textColor = $1.color(.textTertiary) }
+        let stack = NSStackView(views: [glyph, emptyTitle, emptyMessage])
+        stack.orientation = .vertical
+        stack.alignment = .centerX
+        stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        emptyArea.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.centerXAnchor.constraint(equalTo: emptyArea.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: emptyArea.centerYAnchor),
+            stack.widthAnchor.constraint(lessThanOrEqualTo: emptyArea.widthAnchor),
+        ])
+    }
+
     /// Both layouts are built once and one set is active, so crossing 600 pt moves views and
     /// touches no value.
     private func constrain() {
@@ -190,17 +219,17 @@ final class AuthPane: NSView, NSTextFieldDelegate {
             leftColumn.topAnchor.constraint(equalTo: topAnchor, constant: pad),
             leftColumn.leadingAnchor.constraint(equalTo: leadingAnchor, constant: pad),
             rightColumn.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -pad),
+            emptyArea.trailingAnchor.constraint(equalTo: trailingAnchor),
+            emptyArea.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
-        // The rule is as tall as the taller column and no taller.
-        let flush = rule.bottomAnchor.constraint(equalTo: rule.topAnchor)
-        flush.priority = .init(1)
+        // The rule spans the pane's whole height, which the editor fixes.
         wideConstraints = [
-            rule.topAnchor.constraint(equalTo: topAnchor, constant: pad),
+            rule.topAnchor.constraint(equalTo: topAnchor),
+            rule.bottomAnchor.constraint(equalTo: bottomAnchor),
             rule.leadingAnchor.constraint(equalTo: leftColumn.trailingAnchor, constant: pad),
             rule.widthAnchor.constraint(equalToConstant: 1),
-            rule.bottomAnchor.constraint(greaterThanOrEqualTo: leftColumn.bottomAnchor),
-            rule.bottomAnchor.constraint(greaterThanOrEqualTo: rightColumn.bottomAnchor),
-            flush,
+            emptyArea.topAnchor.constraint(equalTo: topAnchor),
+            emptyArea.leadingAnchor.constraint(equalTo: rule.trailingAnchor),
             rightColumn.topAnchor.constraint(equalTo: topAnchor, constant: pad),
             rightColumn.leadingAnchor.constraint(equalTo: rule.trailingAnchor, constant: pad),
         ]
@@ -209,6 +238,8 @@ final class AuthPane: NSView, NSTextFieldDelegate {
             rule.leadingAnchor.constraint(equalTo: leadingAnchor, constant: pad),
             rule.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -pad),
             rule.heightAnchor.constraint(equalToConstant: 1),
+            emptyArea.topAnchor.constraint(equalTo: rule.bottomAnchor),
+            emptyArea.leadingAnchor.constraint(equalTo: leadingAnchor),
             rightColumn.topAnchor.constraint(equalTo: rule.bottomAnchor, constant: pad),
             rightColumn.leadingAnchor.constraint(equalTo: leadingAnchor, constant: pad),
         ]
@@ -349,6 +380,7 @@ final class AuthPane: NSView, NSTextFieldDelegate {
         note.stringValue = AuthNote.text(auth, headers: self.headers)
         heading.stringValue = Self.schemes[Self.index(of: auth)].title
         heading.isHidden = auth == .none
+        emptyArea.isHidden = auth != .none
         basicFields.isHidden = Self.index(of: auth) != 1
         bearerFields.isHidden = Self.index(of: auth) != 2
         // Never rewrite a field under the user's typing: the cursor would jump.

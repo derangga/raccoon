@@ -14,11 +14,15 @@ final class ResponseViewer: NSView {
     let sizeLabel = NSTextField(labelWithString: "")
     private let dot = NSTextField(labelWithString: "·")
     let prettyNote = NSTextField(labelWithString: ResponseBody.prettyOffNote)
+    /// "900 × 900 · image/webp", where an image body is shown.
+    let imageNote = NSTextField(labelWithString: "")
     let mode: SegmentedControl
     let section: SegmentedControl
 
     let textView: ResponseTextView
     let gutter: Gutter
+    /// An image body, in the body's place: scaled down to fit, never up, centered.
+    let imageView = NSImageView()
     private let layoutManager = NSLayoutManager()
     /// The layout manager does not retain its storage, so the view must.
     private var storage = NSTextStorage()
@@ -40,6 +44,8 @@ final class ResponseViewer: NSView {
 
     /// Which text the view holds, so a render that changes nothing never swaps the storage.
     private var shown: (send: Int, presented: Bool, pretty: Bool)?
+    /// The bound Tab's decoded image (nil inside: it did not decode), for the send that produced it.
+    private var imageCache: (send: Int, image: NSImage?)?
     private var ticking: Task<Void, Never>?
     /// The user's Pretty | Raw choice, kept apart from whether Pretty is possible right now.
     private var wantsPretty = true
@@ -94,7 +100,7 @@ final class ResponseViewer: NSView {
         reasonLabel.lineBreakMode = .byTruncatingTail
         // Only the reason truncates; the code, time and size never do.
         reasonLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        for label in [codeLabel, elapsedLabel, dot, sizeLabel, prettyNote] {
+        for label in [codeLabel, elapsedLabel, dot, sizeLabel, prettyNote, imageNote] {
             label.setContentCompressionResistancePriority(.required, for: .horizontal)
         }
         for label in [elapsedLabel, sizeLabel] {
@@ -104,6 +110,8 @@ final class ResponseViewer: NSView {
         theme.paint(dot) { $0.textColor = $1.color(.textTertiary) }
         prettyNote.font = .systemFont(ofSize: 11)
         theme.paint(prettyNote) { $0.textColor = $1.color(.textDisabled) }
+        imageNote.font = .systemFont(ofSize: 11)
+        theme.paint(imageNote) { $0.textColor = $1.color(.textDisabled) }
         mode.selectedSegment = 0
         mode.target = self
         mode.action = #selector(modeChanged)
@@ -115,7 +123,7 @@ final class ResponseViewer: NSView {
 
         let spacer = NSView()
         spacer.setContentHuggingPriority(.init(1), for: .horizontal)
-        let row = NSStackView(views: [spinner, codeLabel, reasonLabel, elapsedLabel, dot, sizeLabel, spacer, prettyNote, mode, section])
+        let row = NSStackView(views: [spinner, codeLabel, reasonLabel, elapsedLabel, dot, sizeLabel, spacer, prettyNote, imageNote, mode, section])
         row.spacing = 10
         row.setCustomSpacing(6, after: codeLabel)
         row.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
@@ -205,7 +213,14 @@ final class ResponseViewer: NSView {
         voidStack.orientation = .vertical
         voidStack.spacing = 8
 
-        for view in [scroll, voidStack] {
+        imageView.imageScaling = .scaleProportionallyDown
+        imageView.imageAlignment = .alignCenter
+        imageView.setContentCompressionResistancePriority(.init(1), for: .horizontal)
+        imageView.setContentCompressionResistancePriority(.init(1), for: .vertical)
+        imageView.setContentHuggingPriority(.init(1), for: .horizontal)
+        imageView.setContentHuggingPriority(.init(1), for: .vertical)
+        imageView.setAccessibilityLabel("Response image")
+        for view in [scroll, imageView, voidStack] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
         }
@@ -214,6 +229,10 @@ final class ResponseViewer: NSView {
             scroll.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
             scroll.trailingAnchor.constraint(equalTo: trailingAnchor),
             scroll.bottomAnchor.constraint(equalTo: bottomAnchor),
+            imageView.topAnchor.constraint(equalTo: scroll.topAnchor, constant: 8),
+            imageView.leadingAnchor.constraint(equalTo: scroll.leadingAnchor, constant: 8),
+            imageView.trailingAnchor.constraint(equalTo: scroll.trailingAnchor, constant: -8),
+            imageView.bottomAnchor.constraint(equalTo: scroll.bottomAnchor, constant: -8),
             voidStack.centerXAnchor.constraint(equalTo: centerXAnchor),
             voidStack.centerYAnchor.constraint(equalTo: scroll.centerYAnchor),
             voidStack.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 16),
@@ -273,6 +292,7 @@ final class ResponseViewer: NSView {
     func bind(_ model: TabModel) {
         self.model = model
         shown = nil
+        imageCache = nil
         render()
     }
 
@@ -292,6 +312,8 @@ final class ResponseViewer: NSView {
         spinner.stopAnimation(nil)
         spinner.isHidden = true
         prettyNote.isHidden = true
+        imageNote.isHidden = true
+        imageView.isHidden = true
         mode.isHidden = true
         section.isHidden = true
         headerList.isHidden = true
@@ -342,9 +364,15 @@ final class ResponseViewer: NSView {
     private func drawBody(_ response: Response) {
         let presented = model.presented
         if response.byteCount == 0 { return showVoid(title: nil, text: "Empty body.", keycap: false) }
-        if case .binary(let count) = presented?.body {
-            let size = StatusLine(status: 0, elapsed: .zero, byteCount: count).size
-            return showVoid(title: "Binary body", text: "\(size) that is not UTF-8 text. Raccoon shows text bodies only.", keycap: false)
+        if case .binary(let count) = presented?.body { return showBinary(count) }
+        // From the header, so an image never waits for the presentation behind a flash of its bytes as text.
+        if let mediaType = ResponseBody.imageMediaType(response) {
+            guard let image = decodedImage(response) else { return showBinary(response.byteCount) }
+            return showImage(image, mediaType: mediaType)
+        }
+        // Not UTF-8 and not yet known to be: the bytes as text would be garbage, so nothing until it lands.
+        if presented == nil, String(validating: response.body, as: UTF8.self) == nil {
+            return showVoid(title: nil, text: "", keycap: false)
         }
         voidStack.isHidden = true
         scroll.isHidden = false
@@ -368,6 +396,33 @@ final class ResponseViewer: NSView {
         folds = FoldSet()
         refold(keeping: nil)
         textView.scrollToBeginningOfDocument(nil)
+    }
+
+    /// Decoded once per send: Body | Headers, resizing and a Theme change redraw without decoding again.
+    private func decodedImage(_ response: Response) -> NSImage? {
+        if let imageCache, imageCache.send == model.sends { return imageCache.image }
+        let image = NSImage(data: response.body)
+        imageCache = (model.sends, image)
+        return image
+    }
+
+    private func showBinary(_ byteCount: Int) {
+        let size = StatusLine(status: 0, elapsed: .zero, byteCount: byteCount).size
+        showVoid(title: "Binary body", text: "\(size) that is not UTF-8 text. Raccoon shows text bodies only.", keycap: false)
+    }
+
+    private func showImage(_ image: NSImage, mediaType: String) {
+        shown = nil
+        scroll.isHidden = true
+        voidStack.isHidden = true
+        imageView.image = image
+        imageView.isHidden = false
+        // The bitmap's pixels, not `image.size`, which is points and follows the file's DPI.
+        let rep = image.representations.first
+        let pixels = (rep?.pixelsWide ?? 0) > 0 && (rep?.pixelsHigh ?? 0) > 0
+            ? (rep?.pixelsWide ?? 0, rep?.pixelsHigh ?? 0) : (Int(image.size.width), Int(image.size.height))
+        imageNote.stringValue = "\(pixels.0) × \(pixels.1) · \(mediaType)"
+        imageNote.isHidden = false
     }
 
     /// The body in the current Flavor, keeping its folds, scroll and selection. The indent
