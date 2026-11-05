@@ -93,8 +93,16 @@ final class TabViewController: NSViewController, NSMenuItemValidation {
 }
 
 extension NSTextView {
+    /// A showing ruler sits left of the text by moving the clip view's origin to -thickness. A place
+    /// is kept from that edge, so a Tab never shown (origin zero) does not slide under the Gutter.
+    private var rulerInset: CGFloat {
+        guard let scroll = enclosingScrollView, scroll.rulersVisible else { return 0 }
+        return scroll.verticalRulerView?.requiredThickness ?? 0
+    }
+
     var place: TabModel.TextPlace {
-        TabModel.TextPlace(origin: enclosingScrollView?.contentView.bounds.origin ?? .zero, selection: selectedRange())
+        let origin = enclosingScrollView?.contentView.bounds.origin ?? .zero
+        return TabModel.TextPlace(origin: NSPoint(x: origin.x + rulerInset, y: origin.y), selection: selectedRange())
     }
 
     /// A new storage is laid out from the top only, so the text is laid out down to the place
@@ -108,7 +116,7 @@ extension NSTextView {
                                                            height: place.origin.y + scroll.contentView.bounds.height),
                                    in: textContainer)
         sizeToFit()
-        scroll.contentView.scroll(to: place.origin)
+        scroll.contentView.scroll(to: NSPoint(x: place.origin.x - rulerInset, y: place.origin.y))
         scroll.reflectScrolledClipView(scroll.contentView)
     }
 }
