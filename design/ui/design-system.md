@@ -846,6 +846,37 @@ checkbox.
   Return confirms nothing, so no key a hand rests on discards work (as the Close
   confirmation). Focus starts on Cancel and returns to where it was on Cancel.
 
+### Leave confirmation (native)
+
+A card sheet shown when switching Workspace (a row of the pop-up, Open Workspace…, New
+Workspace…, or removing the open one) while at least one Tab is Dirty or a non-empty Draft
+(decided 2026-11-05). Built like the Close confirmation: 440 pt wide, 16 pt top and bottom,
+20 pt sides, system label colors, native buttons. No ✕, and no checkbox: File ▸ Always
+Discard Unsaved Changes does not apply here. It is shown on the window's top sheet, so it
+also works from the Workspaces sheet.
+
+```
+┌──────────────────────────────────────────────── 440 pt ─┐
+│ Save changes?                                           │
+│                                                          │
+│ 2 Tabs have unsaved changes. Save them before switching  │
+│ Workspaces, or they will be lost.                        │
+│                                                          │
+│ [Don't Save]                    [Cancel]  [ Save All ]   │
+└──────────────────────────────────────────────────────────┘
+```
+
+- **Body**: the count is Tabs with something to lose, not every Tab. For one: "1 Tab has
+  unsaved changes. Save it before switching Workspaces, or it will be lost." The button reads
+  **Save** for one Tab and **Save All** for more.
+- **Buttons**: Don't Save at the leading edge (destructive, ⌘D); Cancel (Esc) and **Save**
+  or **Save All** (default, Return) at the trailing edge, 8 pt apart. Return saves, so no key
+  a hand rests on discards work.
+
+Save All saves each Tab in strip order: a Request through the window, a Draft through the Save
+Request sheet. A failed write or Cancel in that sheet stops there and the switch does not
+happen; Tabs saved so far stay saved. Cancel and Esc give focus back to where it was.
+
 ### Empty state
 
 The content area when no Tab is open (§9 Q1, reversed 2026-10-28). The tab strip stays, with

@@ -81,7 +81,7 @@ The state of a Dirty Tab whose Request file was modified outside Raccoon, which 
 _Avoid_: Conflict, out of sync, stale
 
 **Session**:
-The set of open Tabs of one Workspace, including Drafts and Dirty edits, that is restored when Raccoon relaunches or the user switches back to that Workspace.
+The set of open Tabs of one Workspace, including Drafts and Dirty edits, that is restored when Raccoon relaunches. Switching away asks about Drafts and Dirty edits first, so switching back restores only Tabs with nothing to lose.
 _Avoid_: State, snapshot
 
 **Breadcrumb**:

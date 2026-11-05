@@ -66,10 +66,28 @@ exists under the old keys.
 ```
 
 ```
--> switchWorkspace(root)                         a row of the Workspace pop-up, or Open
-                                                 Workspace… on a folder already listed
-  -> root == the open root?                      -> nothing, end
-  -> SessionWriter.writeNow(session)             §7's coalescing is skipped, as on quit
+-> switchWorkspace(root) -> Bool                 a row of the Workspace pop-up, or Open
+                                                 Workspace… on a folder already listed;
+                                                 false when the user stayed
+  -> root == the open root?                      -> true, nothing else
+  -> losing = Tabs with hasLosableContent        pure: a Dirty Tab or a non-empty Draft
+  -> losing is empty?                            skip the next two steps
+  -> confirmLeave(losing) -> Bool                R: WindowModel.confirmLeave, set at the
+                                                 composition root; unset it refuses, so a
+                                                 window nobody wired never discards work
+    -> the Leave sheet, on the window's top sheet  design-system §6 Leave confirmation;
+                                                 no window -> Cancel
+       Cancel, Esc                               E: escape: false, the switch ends and
+                                                 every Tab stays as it was
+       Don't Save                                -> true
+       Save All                                  DraftSaver.save(tab) per Tab, strip order:
+                                                 a Request writes, a Draft asks where
+                                                 E: a write that did not land, or Cancel in
+                                                 the Save Request sheet -> escape: false,
+                                                 stop; Tabs saved so far stay saved
+  -> window.close(tab) for each Tab still losable  what was not saved is discarded
+  -> SessionWriter.writeNow(session)             §7's coalescing is skipped, as on quit;
+                                                 what is left is Tabs with nothing to lose
   -> the withDataFolder scope ends               §8: every withTab scope inside it ends
                                                  first, so in-flight sends are cancelled,
                                                  as Close cancels them; then FolderWatch
@@ -79,9 +97,17 @@ exists under the old keys.
                                                  chose, and shows the same banner
 ```
 
-**Switching never prompts.** The Session keeps Drafts and Dirty edits, so the Tabs left
-behind are exactly where they were when the user switches back, for the same reason quit
-does not prompt (tabs.md).
+**Switching asks, and what is not saved is gone** (decided 2026-11-05, reversing "switching
+never prompts"). A Workspace left with Drafts and Dirty edits in its Session was easy to
+forget: the user came back to Tabs they had stopped thinking about. Now a Workspace is left
+with nothing to lose, so the Session holds only Tabs that match their files. Quit is
+unchanged and still keeps everything (tabs.md): quitting returns to the same Workspace,
+switching does not. File ▸ Always Discard Unsaved Changes does not apply, since it is a
+preference about closing a Tab and would turn this prompt into a silent loss.
+
+The prompt is in `switchWorkspace`, so New Workspace…, Open Workspace… and removing the open
+Workspace all ask. The folder New Workspace… created and listed stays even when the user
+cancels the prompt that follows; it is only not opened.
 
 ```
 -> newWorkspace()                                New Workspace… in the pop-up
@@ -129,6 +155,8 @@ every clone shares the id.
   -> root == the open root?                      any other row can be removed, the open one
                                                  included
      -> switchWorkspace(first other Workspace by name)
+        false -> end                             E: escape: the user stayed, so nothing
+                                                 is removed
   -> WorkspaceList.remove(root)
   -> SessionStore(root).delete()                 E: StoreError -> escape: log; a stale
                                                  Session file costs nothing
@@ -140,7 +168,7 @@ banner when it is the unreadable one; a launch with `-DataFolder` elsewhere has 
 
 **Remove from List forgets, it does not delete.** The folder stays, and so do its Keychain
 items, so Open Workspace… on the same folder brings its secrets back. Its Tabs do not come
-back.
+back, and neither does anything unsaved: leaving it asked first.
 
 ## An unreadable Workspace
 
@@ -152,7 +180,7 @@ Draft, so it is still an HTTP client (§4, Data Folder).
 **Its Session is neither read nor written while it cannot be read.** Restoring it against an
 empty index would turn every Request Tab into a Draft, and the next write would make that
 permanent. So `relaunch()` is skipped and the SessionWriter has no store: Tabs made while the
-banner shows are lost on switch or quit. When the drive comes back, switching to it again
+banner shows are lost on quit, and on switch unless saved: the Leave sheet asks as usual. When the drive comes back, switching to it again
 restores the Tabs it had. This applies at launch too, which changes what tabs.md did for an
 unreadable root.
 

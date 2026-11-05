@@ -38,24 +38,89 @@ struct WorkspaceSwitchTests {
         DiskSessionStore(directory: temp.appending(path: "Support"), root: root.path)
     }
 
-    @Test func `switching A to B to A restores A's Tabs, Drafts, Dirty edits and Active Environment`() async throws {
+    @Test func `switching A to B to A restores A's Active Environment, and Tabs with nothing to lose`() async throws {
         let window = makeWindow(open: a, listed: [a, b])
+        window.confirmLeave = { _ in true }
         window.loadDataFolder()
         window.selectedTab?.typeInURLBar("https://a.example/draft")
-        window.newTab()
-        window.selectedTab?.typeInURLBar("https://a.example/second")
         let environment = try window.newEnvironment()
         window.pickActiveEnvironment(environment)
-        let before = window.tabs.map(\.tab.snapshot)
 
-        await window.switchWorkspace(b.path)
+        let left = await window.switchWorkspace(b.path)
+        #expect(left)
         #expect(window.tabs.count == 1)
         #expect(window.tabs[0].tab.definition == .empty)
         #expect(window.activeEnvironment == nil)
 
         await window.switchWorkspace(a.path)
-        #expect(window.tabs.map(\.tab.snapshot) == before)
         #expect(window.activeEnvironment == environment)
+    }
+
+    @Test func `a Draft or Dirty edit asks before switching, with exactly the Tabs that would be lost`() async throws {
+        let window = makeWindow(open: a, listed: [a, b])
+        var asked: [[TabID]] = []
+        window.confirmLeave = { losing in asked.append(losing.map(\.tab.id)); return false }
+        window.loadDataFolder()
+        window.selectedTab?.typeInURLBar("https://a.example/draft")
+        window.newTab()
+        let losing = window.tabs[0].tab.id
+
+        await window.switchWorkspace(b.path)
+
+        #expect(asked == [[losing]])
+    }
+
+    @Test func `Cancel keeps the Workspace and every Tab as it was`() async throws {
+        let window = makeWindow(open: a, listed: [a, b])
+        window.confirmLeave = { _ in false }
+        window.loadDataFolder()
+        window.selectedTab?.typeInURLBar("https://a.example/draft")
+        let before = window.tabs.map(\.tab.snapshot)
+
+        let left = await window.switchWorkspace(b.path)
+
+        #expect(!left)
+        #expect(window.dataFolderRoot == a.path)
+        #expect(window.tabs.map(\.tab.snapshot) == before)
+        #expect(watch.log == ["start \(a.path)"])
+    }
+
+    @Test func `leaving discards what was not saved, so switching back does not bring it back`() async throws {
+        let window = makeWindow(open: a, listed: [a, b])
+        window.confirmLeave = { _ in true }
+        window.loadDataFolder()
+        window.selectedTab?.typeInURLBar("https://a.example/draft")
+        window.newTab()
+
+        await window.switchWorkspace(b.path)
+        await window.switchWorkspace(a.path)
+
+        #expect(!window.tabs.contains { $0.tab.hasLosableContent })
+        #expect(!window.tabs.contains { $0.tab.definition.url == "https://a.example/draft" })
+    }
+
+    @Test func `nothing to lose, nothing asked`() async throws {
+        let window = makeWindow(open: a, listed: [a, b])
+        var asked = 0
+        window.confirmLeave = { _ in asked += 1; return true }
+        window.loadDataFolder()
+        window.newTab()
+
+        let left = await window.switchWorkspace(b.path)
+
+        #expect(left && asked == 0)
+    }
+
+    @Test func `a window nobody wired refuses rather than discarding`() async throws {
+        let window = makeWindow(open: a, listed: [a, b])
+        window.loadDataFolder()
+        window.selectedTab?.typeInURLBar("https://a.example/draft")
+
+        let left = await window.switchWorkspace(b.path)
+
+        #expect(!left)
+        #expect(window.dataFolderRoot == a.path)
+        #expect(window.selectedTab?.tab.definition.url == "https://a.example/draft")
     }
 
     @Test func `switching to the open Workspace does nothing`() async throws {
@@ -84,6 +149,7 @@ struct WorkspaceSwitchTests {
 
     @Test func `a send in flight on switch is cancelled`() async throws {
         let window = makeWindow(open: a, listed: [a, b])
+        window.confirmLeave = { _ in true }
         window.loadDataFolder()
         let tab = try #require(window.selectedTab)
         tab.typeInURLBar("https://example.com")
@@ -148,6 +214,19 @@ struct WorkspaceSwitchTests {
 
         #expect(window.dataFolderRoot == a.path)
         #expect(window.workspaces == [a.path, c.path])
+    }
+
+    @Test func `removing the open Workspace removes nothing when the user stays`() async throws {
+        let window = makeWindow(open: b, listed: [a, b])
+        window.confirmLeave = { _ in false }
+        window.loadDataFolder()
+        window.selectedTab?.typeInURLBar("https://b.example/draft")
+
+        await window.removeWorkspace(b.path)
+
+        #expect(window.dataFolderRoot == b.path)
+        #expect(window.workspaces == [a.path, b.path])
+        #expect(window.selectedTab?.tab.definition.url == "https://b.example/draft")
     }
 
     @Test func `a lone Workspace cannot be removed`() async throws {

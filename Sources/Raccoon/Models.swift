@@ -527,8 +527,9 @@ final class WindowModel {
         return tab
     }
 
-    /// ⌘Q, logout, restart. Never asks: the Session keeps Dirty Tabs and Drafts. The snapshot
-    /// is written before any Tab is released (§8), and an unwritable Session does not stop quit.
+    /// ⌘Q, logout, restart. Never asks: the Session keeps Dirty Tabs and Drafts (switching
+    /// Workspace asks). The snapshot is written before any Tab is released (§8), and an
+    /// unwritable Session does not stop quit.
     func quit() {
         writeSession(when: "on quit")
         tabs.forEach { $0.close() }
@@ -677,7 +678,7 @@ final class WindowModel {
         let path = Self.standard(root)
         if path == Self.standard(location.root) {
             guard let other = WorkspaceList.titles(location.workspaces).first(where: { Self.standard($0.path) != path }) else { return }
-            await switchWorkspace(other.path)
+            guard await switchWorkspace(other.path) else { return }
         }
         location.workspaces.removeAll { Self.standard($0) == path }
         location.rememberWorkspaces(location.workspaces)
@@ -703,17 +704,30 @@ final class WindowModel {
         store = nil
     }
 
-    /// A row of the Workspace pop-up, or Open Workspace… on a folder already listed. The open
-    /// Workspace's Session is written first, as on quit, and nothing asks about Dirty Tabs or
-    /// Drafts: the Session keeps them. The root is remembered even when it failed to load, so a
-    /// relaunch shows the same banner.
-    func switchWorkspace(_ root: String) async {
-        guard Self.standard(root) != Self.standard(location.root) else { return }
+    /// Asked before a switch leaves Tabs with something to lose; true lets the switch go on, false
+    /// keeps everything. Set at the composition root. Unset it refuses, so a window nobody wired
+    /// never discards work (workspaces.md §switchWorkspace).
+    var confirmLeave: (_ losing: [TabModel]) async -> Bool = { _ in false }
+
+    /// A row of the Workspace pop-up, or Open Workspace… on a folder already listed. A Dirty Tab or
+    /// a non-empty Draft asks first, and what is still unsaved when the user lets go is closed,
+    /// so the Session written holds only Tabs with nothing to lose. False when the user stayed.
+    /// The root is remembered even when it failed to load, so a relaunch shows the same banner.
+    @discardableResult
+    func switchWorkspace(_ root: String) async -> Bool {
+        guard Self.standard(root) != Self.standard(location.root) else { return true }
+        let losing = tabs.filter { $0.tab.hasLosableContent }
+        if !losing.isEmpty {
+            guard await confirmLeave(losing) else { return false }
+            // Saved Tabs are clean by now; the rest were given up.
+            for model in tabs where model.tab.hasLosableContent { close(model.tab.id) }
+        }
         writeSession(when: "on switch")
         await endDataFolderScope()
         location.root = root
         loadDataFolder()
         location.remember(root)
+        return true
     }
 
     /// Scans of the Data Folder so far: a watch batch is one, whatever its size.

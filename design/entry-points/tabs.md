@@ -166,7 +166,9 @@ changed value makes a Request Dirty, Changed on Disk compares it, and the Sessio
 
 **Quit does not prompt for Dirty Tabs.** The Session keeps Dirty edits and Drafts (decision
 Q4 in the design session), so nothing is lost by quitting, and a prompt per Tab on ⌘Q would
-punish the feature that makes it unnecessary.
+punish the feature that makes it unnecessary. Switching Workspace is the exception
+(workspaces.md, 2026-11-05): it asks, and what is not saved is discarded, because the Tabs
+left behind were easy to forget.
 
 ```
 -> relaunch()                                    applicationDidFinishLaunching, and after

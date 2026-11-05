@@ -157,6 +157,15 @@ Workspaces
   ⚠ New Workspace… names a folder that exists → escape: alert, nothing written
   ⚠ New Workspace… can't create the folder → escape: alert sheet with the reason
   ⚠ a send in flight on switch → not an error: cancelled, as Close cancels it
+  ⚠ switching with a Dirty Tab or a non-empty Draft, Cancel or Esc in the Leave sheet
+                           → escape: the switch ends, every Tab stays as it was; removing
+                           the open Workspace removes nothing
+  ⚠ Save All, a write did not land or Cancel in the Save Request sheet → escape: the
+                           switch ends there; Tabs saved so far stay saved, the rest stay open
+  ⚠ Don't Save → not an error: the Tabs with something to lose are closed, and the Session
+                           written for the Workspace holds none of it
+  ⚠ confirmLeave never set → escape: refuses, so the switch never happens. The safe side of
+                           a closure that can discard work
   ⚠ Session file of a removed Workspace can't be deleted → escape: log only
 Theme
   ⚠ bundled theme JSON undecodable or missing a token → DIE. The file ships inside the

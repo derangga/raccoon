@@ -58,13 +58,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let strip = TabStripView(window: windowModel, theme: theme)
         let saver = DraftSaver(window: windowModel, ask: { [weak windowController] locations, location, reply in
             guard let window = windowController?.window else { return reply(nil) }
-            // A turn later: from the close prompt, its own sheet is still ending.
-            Task { @MainActor in SaveDraftSheet.present(on: window, locations: locations, default: location, reply: reply) }
+            // A turn later: from the close prompt, its own sheet is still ending. On the top sheet,
+            // so Save All from the Workspaces sheet's Remove is not queued behind it.
+            Task { @MainActor in SaveDraftSheet.present(on: window.topSheet, locations: locations, default: location, reply: reply) }
         }, focusURL: { [weak tabController] in
             guard let tabController else { return }
             tabController.view.window?.makeFirstResponder(tabController.urlBar.urlField)
         })
         self.saver = saver
+        // Switching Workspace asks once for every Tab it would lose (workspaces.md §switchWorkspace).
+        let leaver = LeaveConfirmer(saver: saver) { [weak windowController] count, reply in
+            guard let window = windowController?.window else { return reply(.cancel) }
+            // A turn later: from the pop-up's menu or a sheet, the last one is still ending.
+            Task { @MainActor in LeaveConfirm.ask(count: count, in: window, reply: reply) }
+        }
+        windowModel.confirmLeave = { await leaver.confirm($0) }
         let closer = TabCloser(window: windowModel, saver: saver, memory: closeMemory, confirmForce: { [weak windowController] losing, reply in
             guard let window = windowController?.window else { return }
             ForceCloseConfirm.ask(losing: losing, in: window, reply: reply)

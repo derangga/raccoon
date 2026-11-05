@@ -29,6 +29,11 @@ ResponseBody.presentation, Highlighter.ranges                     bytes -> what 
                                                                   decode is NSImage's, in Raccoon.app)
 Highlighter.curl                                                  curl command -> its token ranges
 CloseStep(hasLosableContent:alwaysDiscards:)                      closing a Tab -> ask, or close
+LeaveConfirm.message(count:)                                      Tabs with something to lose -> the
+                                                                  Leave sheet's sentence
+WindowModel.confirmLeave                                          losing Tabs -> may the switch go on;
+                                                                  set at the composition root, refuses
+                                                                  until then
 LineIndex, FoldRegion.find                                        text -> line starts, Fold Regions
 FoldSet.toggle, .innermost(at:), FoldedText                       what is folded -> what is shown,
                                                                   and offsets mapped both ways
