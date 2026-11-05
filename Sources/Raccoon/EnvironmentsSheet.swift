@@ -868,7 +868,7 @@ final class TitleFieldCell: NSTextFieldCell {
 }
 
 /// The Variables table: ⌫ deletes the selected row, as does the row's context menu.
-final class VariableTableView: NSTableView {
+final class VariableTableView: CellTableView {
     var onDelete: (Int) -> Void = { _ in }
 
     override func keyDown(with event: NSEvent) {

@@ -366,9 +366,9 @@ one vertical rule between Name and Value, 6 pt radius outer border.
 | State | Treatment |
 |---|---|
 | rest | cells SF Mono 12 `text`, single line, end-truncated with the full value in the field editor and a tooltip |
-| hover | `rowHover`; the delete button (⊖, `textTertiary`) appears |
+| hover | `rowHover`; the delete button (⊖, `textTertiary`) appears and stays while the pointer is anywhere in the row, over a cell's field included |
 | selected | `selection` fill, not the system accent; name and value keep their own colors. An automatic row is never selected |
-| editing | the whole cell, edge to edge, becomes the input as in Postman: a square 2 pt `focusRing` outline drawn inside the cell's bounds, on `background`. The text does not move between rest and editing. A click anywhere in the cell edits it, not only on the text |
+| editing | the whole cell, edge to edge, becomes the input as in Postman: a square 2 pt `focusRing` outline drawn inside the cell's bounds, on `background`. The text does not move between rest and editing. A click anywhere in the cell edits it, not only on the text. One click, in any row, selected or not (the row is selected as the cell takes focus, where rows can be selected); at most one cell shows the outline. This holds for every table with editable cells (key/value, Path Variables, the Environments sheet's Variables) |
 | Disabled Row | checkbox **unchecked** and name/value in `textDisabled`. Both cues, never one |
 | trailing empty row | always present, last; "Name" / "Value" placeholders in `textTertiary` at 60 % opacity, SF Pro 13 (at full strength Latte's `textTertiary` reads as a value); typing in it creates a row and a new trailing row |
 | 60 rows | the table scrolls inside the pane; the header row stays put; an overlay scroller |

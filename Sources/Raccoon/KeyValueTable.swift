@@ -482,16 +482,27 @@ final class FileChip: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 }
 
-/// Space toggles the selected row, Delete removes it, Return edits its name.
-final class KeyTableView: NSTableView {
-    weak var keys: KeyValueTable?
-
-    /// AppKit asks the table whether a click may go straight to a field, and says no unless the row can
-    /// be selected: a click then selects the row and edits. A table with no `keys` (Path Variables) never
-    /// selects, so its Value cells would never take a click; say yes.
+/// A table whose cells are fields that one click edits, as in Postman. AppKit asks the table whether a
+/// click may go straight to a field and, for a row that is not selected, says no: the click selects the
+/// row and a second one edits. Say yes, and select the row here, before the field takes focus.
+class CellTableView: NSTableView {
     override func validateProposedFirstResponder(_ responder: NSResponder, for event: NSEvent?) -> Bool {
-        keys == nil && responder is NSTextField ? true : super.validateProposedFirstResponder(responder, for: event)
+        guard let field = responder as? NSTextField, field.isEditable, event?.type == .leftMouseDown else {
+            return super.validateProposedFirstResponder(responder, for: event)
+        }
+        let row = row(for: field)
+        if row >= 0, selectedRow != row, delegate?.tableView?(self, shouldSelectRow: row) ?? true {
+            // End the edit in another cell the usual way (its commit runs) before the selection moves.
+            guard window?.makeFirstResponder(self) ?? true else { return false }
+            selectRowIndexes([row], byExtendingSelection: false)
+        }
+        return true
     }
+}
+
+/// Space toggles the selected row, Delete removes it, Return edits its name.
+final class KeyTableView: CellTableView {
+    weak var keys: KeyValueTable?
 
     /// Grid lines stop at the last row instead of filling the empty space below it. The vertical
     /// rule between Name and Value is drawn by each row view: a row view paints over the table.
@@ -549,8 +560,9 @@ final class KeyRowView: NSTableRowView {
         addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect], owner: self))
     }
 
-    override func mouseEntered(with event: NSEvent) { isHovered = true }
-    override func mouseExited(with event: NSEvent) { isHovered = false }
+    // A cell's field has its own tracking area, and NSResponder passes its events up to here: only the row's own count.
+    override func mouseEntered(with event: NSEvent) { if event.trackingArea?.owner === self { isHovered = true } }
+    override func mouseExited(with event: NSEvent) { if event.trackingArea?.owner === self { isHovered = false } }
 
     /// The `selection` fill, not the system accent: the row's text keeps its own colors on it.
     override func drawSelection(in dirtyRect: NSRect) {

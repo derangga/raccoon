@@ -73,9 +73,17 @@ private final class CellFocus: NSObject {
         NotificationCenter.default.addObserver(self, selector: #selector(editingEnded), name: NSControl.textDidEndEditingNotification, object: nil)
     }
 
+    /// The one cell per window showing the outline. A table can end an edit without saying so (a click
+    /// on another row), so the cell that takes focus is what clears the last one.
+    private let current = NSMapTable<NSWindow, EditableCellView>.weakToWeakObjects()
+
     @objc private func selectionChanged(_ note: Notification) {
         guard let editor = note.object as? NSTextView, editor.isFieldEditor,
               let cell = (editor.delegate as? NSView)?.superview as? EditableCellView else { return }
+        if let window = cell.window {
+            if let last = current.object(forKey: window), last !== cell { last.isEditing = false }
+            current.setObject(cell, forKey: window)
+        }
         cell.isEditing = true
     }
 
