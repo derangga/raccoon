@@ -1,5 +1,9 @@
 # Raccoon
 
+<p align="center">
+  <img src="happy-raccoon.gif" alt="A happy raccoon" width="160">
+</p>
+
 Raccoon is a native macOS HTTP client written in Swift and AppKit, in the style of Postman. It turns what you type or paste (a URL, a curl command, a Postman export) into exactly one HTTP request, sends it, and shows the response. It does not add or hide anything from the request.
 
 The code is split into three modules that depend in one direction, enforced by `Package.swift`:
