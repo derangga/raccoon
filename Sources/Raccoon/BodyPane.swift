@@ -322,30 +322,28 @@ final class BodyPane: NSView, NSTextViewDelegate {
         partsTable.setKinds(kinds)
         typeButton.attributedTitle = popTitle(Self.title(body.type))
         typeButton.setAccessibilityValue(Self.title(body.type))
+        // Each view gets its final state once. Hiding the editor box and showing it again on every
+        // keystroke takes first responder away from the text view inside it.
+        let rawKind: RawKind? = if case .raw(let kind, _) = body { kind } else { nil }
         noneNote.isHidden = body != .none
-        kindButton.isHidden = true
-        formatButton.isHidden = true
-        textBox.isHidden = true
-        formTable.isHidden = true
-        partsTable.isHidden = true
+        kindButton.isHidden = rawKind == nil
+        formatButton.isHidden = rawKind == nil || rawKind == .text
+        textBox.isHidden = rawKind == nil
+        formTable.isHidden = body.type != .formURLEncoded
+        partsTable.isHidden = body.type != .multipart
         switch body {
         case .none:
             coloredKind = nil
         case .multipart(let parts):
             coloredKind = nil
-            partsTable.isHidden = false
             partsTable.setParts(parts)
             partsTable.missingFile = model.missingFile
         case .raw(let kind, let text):
-            kindButton.isHidden = false
             kindButton.attributedTitle = popTitle(Self.title(kind))
-            formatButton.isHidden = kind == .text
             formatButton.toolTip = "Format \(Self.title(kind)) (⇧⌥F)"
-            textBox.isHidden = false
             show(text, kind: kind)
         case .formURLEncoded(let rows):
             coloredKind = nil
-            formTable.isHidden = false
             formTable.setRows(rows)
         }
     }
