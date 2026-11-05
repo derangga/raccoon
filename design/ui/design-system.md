@@ -206,7 +206,7 @@ A 4 pt base. Sizes used: 2, 4, 6, 8, 10, 12, 16, 24.
 | Breadcrumb | 28 pt, 12 pt sides; segments 22 pt high, 6 pt side padding, 4 pt radius, 2 pt apart; chevron 8 pt |
 | Tab | 104 pt min, 196 pt preferred, selected 168 pt min; 10 pt leading, 6 pt trailing |
 | URL bar row | 30 pt controls, 10 pt top / 6 pt bottom, 8 pt gaps, 12 pt sides |
-| Method pop-up | 84–128 pt wide |
+| Method pop-up | 96–128 pt wide; the method left-aligned with a 10 pt inset, a 9 pt `chevron.down` 10 pt from the trailing edge |
 | Send button | 76 pt min |
 | Message line | 16 pt line height, indented to the URL field's leading edge (104 pt) |
 | Section bar | 28 pt, 2 pt accent underline |
@@ -661,11 +661,13 @@ window position. Click, Space on the focused control and ⌃E all open it there.
 
 Sizes (decided 2026-10-28; the small control at 20 pt left "No Environment" almost no room
 above and below). The label is 11 pt `secondaryLabelColor`, then an 8 pt gap, then the pop-up
-at the large control size, which AppKit draws 28 pt high with the 12 pt text centered (small
-is 20 pt and regular 24 pt; environment-facts.md). The item's own trailing inset is 12 pt, so at
+borderless like the Workspace pop-up, so it shows the same plain up/down chevrons instead of the
+bezel's blue capsule. Raccoon draws the 28 pt height, a 6 pt radius `quaternaryLabelColor` fill
+and an 8 pt leading text inset, with the 12 pt text. The item's own trailing inset is 12 pt, so at
 least 12 pt of toolbar stays clear between the pop-up and the inspector toggle's background
-whatever spacing the toolbar adds. The pop-up gives up width before the window title does: it
-has low horizontal compression resistance and a 200 pt maximum.
+whatever spacing the toolbar adds. The pop-up's width is the selected title's width plus the
+8 pt inset, an 8 pt gap before the chevrons and 18 pt for them, to a 200 pt maximum; the
+toolbar fixes the view's size once, so the picker resets the width each time the title changes.
 
 ### Environments sheet (native)
 

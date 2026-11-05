@@ -67,9 +67,17 @@ final class URLBar: NSView, NSTextFieldDelegate {
         methodButton.setAccessibilityRole(.popUpButton)
         methodButton.setAccessibilityLabel("Method")
         methodButton.translatesAutoresizingMaskIntoConstraints = false
+        methodButton.alignment = .left
+        let chevron = NSImageView(image: NSImage(systemSymbolName: "chevron.down", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 9, weight: .semibold)) ?? NSImage())
+        theme.paint(chevron) { $0.contentTintColor = $1.color(.textTertiary) }
+        chevron.translatesAutoresizingMaskIntoConstraints = false
+        methodButton.addSubview(chevron)
         NSLayoutConstraint.activate([
+            chevron.trailingAnchor.constraint(equalTo: methodButton.trailingAnchor, constant: -10),
+            chevron.centerYAnchor.constraint(equalTo: methodButton.centerYAnchor),
             methodButton.heightAnchor.constraint(equalToConstant: 30),
-            methodButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 84),
+            methodButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 96),
             methodButton.widthAnchor.constraint(lessThanOrEqualToConstant: 128),
         ])
     }
@@ -95,13 +103,14 @@ final class URLBar: NSView, NSTextFieldDelegate {
     @objc func pickMethod(_ item: NSMenuItem) { model.setMethod(item.title) }
 
     private func methodTitle(_ method: String) -> NSAttributedString {
-        let title = NSMutableAttributedString(string: method, attributes: [
+        // Left-aligned with a 10 pt inset; the chevron is its own view on the trailing edge.
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .left
+        paragraph.firstLineHeadIndent = 10
+        return NSAttributedString(string: method, attributes: [
             .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .bold), .foregroundColor: theme.color(.method(method)),
+            .paragraphStyle: paragraph,
         ])
-        title.append(NSAttributedString(string: "  ⌄", attributes: [
-            .font: NSFont.systemFont(ofSize: 10), .foregroundColor: theme.color(.textTertiary), .baselineOffset: 2,
-        ]))
-        return title
     }
 
     // MARK: URL field
