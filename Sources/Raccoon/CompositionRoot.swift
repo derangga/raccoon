@@ -11,11 +11,13 @@ enum CompositionRoot {
         let transport = URLSessionTransport(files: files)
         let instants = ContinuousInstantSource()
         let clipboard = SystemClipboardWriter(name: .general)
-        let root = defaults.string(forKey: "DataFolder") ?? URL.homeDirectory.appending(path: "Raccoon").path
+        let defaultRoot = URL.homeDirectory.appending(path: "Raccoon").path
+        let root = defaults.string(forKey: "DataFolder") ?? defaultRoot
         return WindowModel(
             dataFolder: DataFolderLocation(
                 root: root,
                 workspaces: defaults.stringArray(forKey: "Workspaces") ?? [],
+                defaultRoot: defaultRoot,
                 open: { DiskDataFolderStore(root: URL(filePath: $0)) },
                 remember: { defaults.set($0, forKey: "DataFolder") },
                 rememberWorkspaces: { defaults.set($0, forKey: "Workspaces") }

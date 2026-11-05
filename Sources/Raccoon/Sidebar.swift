@@ -80,6 +80,8 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     var showError: (String) -> Void = { _ in }
     /// The + menu's Import from Postman…: the app's open panel, then the Import sheet.
     var importFromPostman: () -> Void = {}
+    /// The pop-up's Manage Workspaces…: the Workspaces sheet.
+    var manageWorkspaces: () -> Void = {}
     let outline = NSOutlineView()
     let empty = NSStackView()
     let emptyText = NSTextField(wrappingLabelWithString: "No Collections yet. Create one, or save a Draft into one with ⌘S.")
@@ -166,7 +168,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         empty.addArrangedSubview(emptyPath)
 
         workspacePopUp.onSwitch = { [window] root in Task { await window.switchWorkspace(root) } }
-        workspacePopUp.onRemove = { [window] root in Task { await window.removeWorkspace(root) } }
+        workspacePopUp.onManage = { [weak self] in self?.manageWorkspaces() }
         workspacePopUp.onOpen = { [weak self] in
             Task {
                 guard let self, let root = await self.chooseWorkspaceFolder() else { return }

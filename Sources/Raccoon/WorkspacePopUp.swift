@@ -2,13 +2,13 @@ import AppKit
 import RaccoonDomain
 
 /// The borderless pop-up at the top of the sidebar (design-system §6 Workspace pop-up): the open
-/// Workspace's title, and a menu of every Workspace, New Workspace…, Open Workspace… and Remove
-/// from List ▸. It only shows and reports; the window decides.
+/// Workspace's title, and a menu of every Workspace, New Workspace…, Open Workspace… and Manage
+/// Workspaces…. It only shows and reports; the window decides.
 final class WorkspacePopUp: DropdownPopUp {
     var onSwitch: (String) -> Void = { _ in }
     var onNew: () -> Void = {}
     var onOpen: () -> Void = {}
-    var onRemove: (String) -> Void = { _ in }
+    var onManage: () -> Void = {}
 
     private var openIndex = 0
 
@@ -35,12 +35,7 @@ final class WorkspacePopUp: DropdownPopUp {
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "New Workspace…", action: #selector(newWorkspace), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Open Workspace…", action: #selector(openWorkspace), keyEquivalent: ""))
-        let remove = NSMenuItem(title: "Remove from List", action: nil, keyEquivalent: "")
-        let submenu = NSMenu()
-        for row in titles where row.path != open { submenu.addItem(item(row, action: #selector(removeFromList(_:)))) }
-        remove.submenu = submenu
-        remove.isEnabled = !submenu.items.isEmpty
-        menu.addItem(remove)
+        menu.addItem(NSMenuItem(title: "Manage Workspaces…", action: #selector(manageWorkspaces), keyEquivalent: ""))
         menu.items.forEach { $0.target = self }
         menu.autoenablesItems = false
         self.menu = menu
@@ -63,7 +58,7 @@ final class WorkspacePopUp: DropdownPopUp {
     }
 
     @objc private func switchTo(_ sender: NSMenuItem) { reselect { onSwitch(sender.representedObject as? String ?? "") } }
-    @objc private func removeFromList(_ sender: NSMenuItem) { reselect { onRemove(sender.representedObject as? String ?? "") } }
     @objc private func newWorkspace() { reselect(onNew) }
     @objc private func openWorkspace() { reselect(onOpen) }
+    @objc private func manageWorkspaces() { reselect(onManage) }
 }

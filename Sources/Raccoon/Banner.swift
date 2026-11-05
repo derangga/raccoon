@@ -262,7 +262,7 @@ final class DataFolderBannerBinding {
 
     private func update() {
         let content = withObservationTracking {
-            DataFolderBanner.content(for: window.dataFolderError, canRemove: window.workspaces.count > 1)
+            DataFolderBanner.content(for: window.dataFolderError, canRemove: window.canRemoveWorkspace(window.dataFolderRoot))
         } onChange: { [weak self] in
             Task { @MainActor in self?.update() }
         }

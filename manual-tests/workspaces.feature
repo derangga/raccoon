@@ -152,9 +152,7 @@ Feature: The Workspace pop-up
       | (a separator line) |                               |
       | New Workspace…     |                               |
       | Open Workspace…    |                               |
-      | Remove from List   | has an arrow ▸: a submenu     |
-    When I point at "Remove from List"
-    Then its submenu holds one row, "api — side", and not "api — work"
+      | Manage Workspaces… |                               |
     When I press Escape
     Then the menu closes and nothing changed
 
@@ -162,7 +160,7 @@ Feature: The Workspace pop-up
     Given Raccoon remembers only /tmp/raccoon-work/api
     When I click the pop-up
     Then the pop-up and its only row read "api", with no " — work" after it
-    And "Remove from List" has no Workspace to offer
+    And the last row of the menu reads "Manage Workspaces…" and is enabled
 
   Scenario: A very long folder name (break-ui)
     Given in Terminal B I made a folder with a 120-character name:
@@ -255,20 +253,58 @@ Feature: Switching Workspaces
     Then the pop-up reads "api — side"
 
 
-Feature: Remove from List
+Feature: Manage Workspaces
   In Light and in Dark
 
   Background:
     Given both test folders are listed in the pop-up and "api — work" is open
     And "api — side" has an open Draft reading "https://side.example"
 
-  Scenario: Remove from List forgets the Workspace and keeps its folder
-    When I click the pop-up and point at "Remove from List", then click "api — side"
-    Then the menu no longer lists it, and the remaining row reads "api" (no " — work" any more)
+  Scenario: The sheet lists every Workspace
+    When I click the pop-up and choose "Manage Workspaces…"
+    Then a sheet slides down from the title bar, as tall as its content, headed "Workspaces"
+    And a line under the heading reads: Remove forgets a Workspace. Its folder and secrets stay.
+    And a rounded list holds two rows, "api — side" and "api — work", with a hairline between them
+    And each row shows its path under the title, "/tmp/raccoon-side/api" and "/tmp/raccoon-work/api"
+    And "api — work" has a small grey "Open" pill beside its title and "api — side" has none
+    And both rows end in a grey "Remove" in the same column, with no button border
+    When I point at "Remove" on a row
+    Then it turns red, and goes grey again when the pointer leaves
+    When I press Escape
+    Then the sheet closes and nothing changed
+
+  Scenario: Remove forgets a Workspace and keeps its folder
+    When I open the sheet and click "Remove" on "api — side"
+    Then its row fades and slides up while the sheet gets shorter, with nothing left over below the list
+    And the remaining row reads "api" (no " — work" any more) and its "Remove" is a lighter grey that does not turn red
+    And no dialog asked anything
+    When I click "Done"
+    Then the sheet closes and the pop-up still reads "api"
     And in Terminal B "ls /tmp/raccoon-side/api" still lists raccoon.json
     And in Terminal B "ls ~/Library/Application\ Support/Raccoon/sessions/" no longer lists 77b241eff6ff9fb5.json
     When I choose "Open Workspace…" and pick /tmp/raccoon-side/api again
     Then it opens with one empty Draft: "https://side.example" does not come back
+
+  Scenario: Remove on the open Workspace switches to the other one
+    When I open the sheet and click "Remove" on "api — work"
+    Then its row leaves and the remaining row reads "api", now with the "Open" pill, and a lighter grey "Remove"
+    When I click "Done"
+    Then the pop-up reads "api" and the window shows the Tabs of that folder
+    And in Terminal B "ls /tmp/raccoon-work/api" still lists raccoon.json
+
+  Scenario: The default ~/Raccoon cannot be removed
+    Given ~/Raccoon is listed, and so is another Workspace, with the other one open
+    When I open the sheet
+    Then the "Raccoon" row has a small grey "Default" pill beside its title and no "Remove" at all
+    And the other row has its "Remove"
+    When I click "Done", switch to "Raccoon" in the pop-up and open the sheet again
+    Then the "Raccoon" row has "Default" and "Open" pills and still no "Remove"
+    And the other row's "Remove" works: its row leaves, "Raccoon" stays open
+
+  Scenario: An unreadable default offers no Remove from List
+    Given ~/Raccoon is listed and open, another Workspace is listed, and ~/Raccoon was renamed
+    When I quit and run plain: swift run Raccoon
+    Then the banner shows "Open Workspace…" and no "Remove from List"
 
 
 Feature: A Workspace that can't be read or written

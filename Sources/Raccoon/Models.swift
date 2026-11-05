@@ -316,10 +316,12 @@ enum SaveLocation: Equatable {
 
 /// Where the open Workspace's Data Folder is, every remembered Workspace, how to open a store at
 /// a root, and how to remember the open root and the list. The composition root backs it with
-/// UserDefaults; tests with a temp dir.
+/// UserDefaults; tests with a temp dir. `defaultRoot` is the Workspace that is never removed
+/// (workspaces.md); nil when there is none.
 struct DataFolderLocation {
     var root: String
     var workspaces: [String] = []
+    var defaultRoot: String?
     let open: (String) -> any DataFolderStore
     let remember: (String) -> Void
     var rememberWorkspaces: ([String]) -> Void = { _ in }
@@ -657,9 +659,21 @@ final class WindowModel {
         return nil
     }
 
+    /// The Workspace that cannot be removed, ~/Raccoon in the app.
+    func isDefaultWorkspace(_ root: String) -> Bool {
+        location.defaultRoot.map { Self.standard($0) == Self.standard(root) } ?? false
+    }
+
+    /// False for the default Workspace, open or not, and for the last one.
+    func canRemoveWorkspace(_ root: String) -> Bool {
+        !isDefaultWorkspace(root) && location.workspaces.count > 1
+    }
+
     /// Remove from List forgets a Workspace; its folder and Keychain items stay, its Session file
-    /// goes. The open one switches to the first other by title first. The last one stays.
+    /// goes. The open one switches to the first other by title first. The default and the last
+    /// one stay.
     func removeWorkspace(_ root: String) async {
+        guard canRemoveWorkspace(root) else { return }
         let path = Self.standard(root)
         if path == Self.standard(location.root) {
             guard let other = WorkspaceList.titles(location.workspaces).first(where: { Self.standard($0.path) != path }) else { return }

@@ -19,11 +19,11 @@ struct WorkspaceSwitchTests {
         var list: [[String]] = []
     }
 
-    func makeWindow(open: URL, listed: [URL], remembered: Remembered = Remembered()) -> WindowModel {
+    func makeWindow(open: URL, listed: [URL], defaultRoot: URL? = nil, remembered: Remembered = Remembered()) -> WindowModel {
         for folder in listed { try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
         return WindowModel(
             dataFolder: DataFolderLocation(
-                root: open.path, workspaces: listed.map(\.path), open: { DiskDataFolderStore(root: URL(filePath: $0)) },
+                root: open.path, workspaces: listed.map(\.path), defaultRoot: defaultRoot?.path, open: { DiskDataFolderStore(root: URL(filePath: $0)) },
                 remember: { remembered.root.append($0) }, rememberWorkspaces: { remembered.list.append($0) }),
             folderWatch: watch, sessionStore: { [temp] in DiskSessionStore(directory: temp.appending(path: "Support"), root: $0) },
             secrets: { _ in InMemorySecretStore() }, instants: FixedInstantSource(.now),
@@ -158,6 +158,37 @@ struct WorkspaceSwitchTests {
 
         #expect(window.workspaces == [a.path])
         #expect(window.dataFolderRoot == a.path)
+    }
+
+    @Test func `the default Workspace cannot be removed, open or not`() async throws {
+        let notOpen = makeWindow(open: b, listed: [a, b], defaultRoot: a)
+        notOpen.loadDataFolder()
+        await notOpen.removeWorkspace(a.path)
+        #expect(notOpen.workspaces == [a.path, b.path])
+
+        let open = makeWindow(open: a, listed: [a, b], defaultRoot: a)
+        open.loadDataFolder()
+        await open.removeWorkspace(a.path + "/")
+        #expect(open.workspaces == [a.path, b.path])
+        #expect(open.dataFolderRoot == a.path)
+    }
+
+    @Test func `a Workspace can be removed unless it is the default or the last one`() async throws {
+        let two = makeWindow(open: a, listed: [a, b], defaultRoot: a)
+        two.loadDataFolder()
+        #expect(two.isDefaultWorkspace(a.path + "/"))
+        #expect(!two.isDefaultWorkspace(b.path))
+        #expect(!two.canRemoveWorkspace(a.path))
+        #expect(two.canRemoveWorkspace(b.path))
+
+        let lone = makeWindow(open: b, listed: [b], defaultRoot: a)
+        lone.loadDataFolder()
+        #expect(!lone.canRemoveWorkspace(b.path))
+
+        let noDefault = makeWindow(open: a, listed: [a, b])
+        noDefault.loadDataFolder()
+        #expect(!noDefault.isDefaultWorkspace(a.path))
+        #expect(noDefault.canRemoveWorkspace(a.path))
     }
 
     @Test func `New Workspace… creates the folder, lists it and opens it with a raccoon.json`() async throws {

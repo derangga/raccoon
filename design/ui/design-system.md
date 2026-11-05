@@ -615,13 +615,45 @@ below): under the control, not over it. Its items:
   the folder name; two Workspaces with the same folder name read "api — work" and
   "api — side", the parent folder added for those two only. The menu item's tooltip is the
   full path, abbreviated with `~`.
-- a separator, then **New Workspace…**, **Open Workspace…**, **Remove from List ▸**, a submenu
-  of every Workspace but the open one, which cannot be removed here. With one Workspace the
-  submenu is empty and the item disabled.
+- a separator, then **New Workspace…**, **Open Workspace…** and **Manage Workspaces…**, which
+  opens the Workspaces sheet below. Removing is not in this menu: a menu that switches and a
+  menu that forgets side by side read as one thing.
 
 New Workspace… is an `NSSavePanel` as a sheet: "Name" field, prompt "Create", default
 directory `~`. A name that exists gets an alert: "A folder named “<name>” already exists. Use
 Open Workspace… to add it." Open Workspace… is the open panel the banner uses.
+
+### Workspaces sheet (native)
+
+A 440 pt wide sheet opened by Manage Workspaces…, as tall as its content: 20 pt margins, the
+heading "Workspaces" (15 pt semibold), under it the hint "Remove forgets a Workspace. Its folder
+and secrets stay." (12 pt secondary), a 14 pt gap, the list, a 16 pt gap, **Done** (default,
+Return) at the list's trailing edge. Done and Esc close; there is no Cancel, because nothing is
+held back.
+
+The list is a grouped box: 8 pt radius, a 1 pt `separatorColor` border, `controlBackgroundColor`
+fill, 48 pt rows, a hairline between rows inset 14 pt from the leading edge and none under the
+last. It shows six rows and scrolls past that; the sheet shrinks and grows with the row count,
+anchored at its top edge. A row, 14 pt in from both sides:
+
+- the title in 13 pt medium, end-truncated; beside it, pills (10 pt semibold secondary on a
+  4 pt `quaternaryLabelColor` fill): "Default" on ~/Raccoon, "Open" on the open Workspace, both
+  on a row that is both;
+- under it the path in SF Mono 11 secondary, abbreviated with `~`, middle-truncated;
+- trailing, a **Remove** text button in a 56 × 24 column, right-aligned so the column's edge is
+  one line down the list. The default Workspace's row has none; its "Default" pill says why.
+  The button is 12 pt `secondaryLabelColor`, `systemRed` under the pointer, 60 % while
+  pressed, `tertiaryLabelColor` when disabled. A bordered button on every row would shout over
+  the one thing the row is for, and would sit a bright control beside a destructive one.
+
+- **Remove.** No prompt, as − in the Environments sheet: it forgets the Workspace and deletes
+  its Session, and Open Workspace… brings it back with its secrets. The open one can be
+  removed too: the window switches to the first other one by name. The default ~/Raccoon
+  cannot be removed, open or not. The row fades and slides up and the sheet shrinks with it (an opacity fade only
+  under Reduce Motion); the rows below keep the same order, and a title that lost its parent
+  folder ("api — work" → "api") updates in place.
+- **One Workspace.** Its Remove is disabled; the last one stays.
+- **Focus.** Opens on the list; closing returns focus to the field that had it (surfaces.md §8).
 
 ### Banners
 

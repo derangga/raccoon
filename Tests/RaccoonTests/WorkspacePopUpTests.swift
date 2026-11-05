@@ -15,7 +15,7 @@ struct WorkspacePopUpTests {
 
         #expect(popUp.title == "beta")
         let items = popUp.menu?.items ?? []
-        #expect(items.map(\.title) == ["Alpha", "beta", "zeta", "", "New Workspace…", "Open Workspace…", "Remove from List"])
+        #expect(items.map(\.title) == ["Alpha", "beta", "zeta", "", "New Workspace…", "Open Workspace…", "Manage Workspaces…"])
         #expect(items.map(\.state) == [.off, .on, .off, .off, .off, .off, .off])
         #expect(items[3].isSeparatorItem)
         #expect(items.prefix(3).map(\.toolTip) == ["/w/Alpha", "/w/beta", "/w/zeta"])
@@ -33,19 +33,10 @@ struct WorkspacePopUpTests {
         #expect(popUp.menu?.items.prefix(3).map(\.title) == ["api — side", "api — work", "web"])
     }
 
-    @Test func `Remove from List holds every Workspace but the open one`() throws {
-        let popUp = popUp(["/w/a", "/w/b", "/w/c"], open: "/w/b")
-        let remove = try #require(popUp.menu?.items.last)
-        #expect(remove.submenu?.items.map(\.title) == ["a", "c"])
-        #expect(remove.isEnabled)
-    }
-
-    @Test func `with one Workspace the menu has its row and Remove from List is disabled`() throws {
+    @Test func `with one Workspace the menu has its row and Manage Workspaces… stays`() throws {
         let popUp = popUp(["/w/Raccoon"], open: "/w/Raccoon")
-        let remove = try #require(popUp.menu?.items.last)
-        #expect(popUp.menu?.items.map(\.title) == ["Raccoon", "", "New Workspace…", "Open Workspace…", "Remove from List"])
-        #expect(!remove.isEnabled)
-        #expect(remove.submenu?.items.isEmpty == true)
+        #expect(popUp.menu?.items.map(\.title) == ["Raccoon", "", "New Workspace…", "Open Workspace…", "Manage Workspaces…"])
+        #expect(popUp.menu?.items.last?.isEnabled == true)
     }
 
     @Test func `the items call back, and the pop-up keeps showing the open Workspace`() throws {
@@ -54,16 +45,15 @@ struct WorkspacePopUpTests {
         popUp.onSwitch = { calls.append("switch \($0)") }
         popUp.onNew = { calls.append("new") }
         popUp.onOpen = { calls.append("open") }
-        popUp.onRemove = { calls.append("remove \($0)") }
+        popUp.onManage = { calls.append("manage") }
         let menu = try #require(popUp.menu)
 
         menu.performActionForItem(at: 1)
         menu.performActionForItem(at: 3)
         menu.performActionForItem(at: 4)
-        let submenu = try #require(menu.items[5].submenu)
-        submenu.performActionForItem(at: 0)
+        menu.performActionForItem(at: 5)
 
-        #expect(calls == ["switch /w/b", "new", "open", "remove /w/b"])
+        #expect(calls == ["switch /w/b", "new", "open", "manage"])
         #expect(popUp.title == "a")
     }
 

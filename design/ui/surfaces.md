@@ -48,6 +48,7 @@ Window                          one, native chrome
 Overlays
   VariableTooltip               hover on {{name}}
   EnvironmentsSheet             native sheet
+  WorkspacesSheet               native sheet: every Workspace, a Remove button on each
   SaveDraftSheet                native sheet
   NewWorkspacePanel             native NSSavePanel: name + location
   OpenWorkspacePanel            native NSOpenPanel: one folder
@@ -80,7 +81,7 @@ close Tab (⌘W, ✕, the Tab menu) · duplicate Tab (the Tab menu) · type in t
 pick Body Type · send (⌘↩) · cancel (⌘., Cancel) · switch Pretty/Raw · switch Body/Headers ·
 save (⌘S) · save Draft (⌘S on a Draft, sheet) · Reload · Keep Mine · pick Environment (⌃E,
 pop-up) · open Environments sheet · edit / mark secret · pick Theme or Flavor · switch
-Workspace (pop-up) · New Workspace… · Open Workspace… · Remove from List · Reveal in Finder · Allow insecure TLS for this request · filter the sidebar (type, ⌥⌘F focuses,
+Workspace (pop-up) · New Workspace… · Open Workspace… · Manage Workspaces… · Remove from List (in the sheet) · Reveal in Finder · Allow insecure TLS for this request · filter the sidebar (type, ⌥⌘F focuses,
 Esc clears) · toggle the sidebar (⌃⌘S) · toggle the inspector (⌥⌘I) · find in a body (⌘F) · switch Variables / Curl · Copy · Include secrets ·
 Edit Environments… (from the Variables pane) · Import from Postman… (File menu, ⇧⌘I, the
 sidebar's + menu) · untick a file · Import.
@@ -117,7 +118,7 @@ sidebar's + menu) · untick a file · Import.
   -> New Workspace… -> NewWorkspacePanel -> created, switched to
                                                  V: exists -> alert; can't create -> alert
   -> Open Workspace… -> OpenWorkspacePanel -> listed, switched to
-  -> Remove from List -> forgotten; folder and secrets kept
+  -> Manage Workspaces… -> WorkspacesSheet -> Remove -> forgotten; folder and secrets kept
 -> find
   -> SidebarFilter: type -> the tree narrows to matches, parents open
                                                  V: no matches -> one sentence + Esc hint
@@ -167,6 +168,7 @@ Every node above appears on a screen or in a component spec in
 | URLBar, RequestEditor | one record, the selected Tab | a 2,000-character URL on one line |
 | ResponseViewer | one record, **live while sending** | 0 B, 20 MB (Raw only above 5 MB), binary, an image |
 | StatusLine elapsed time | live while sending | ticks every 100 ms, tabular figures so it does not jitter |
+| WorkspacesSheet | many, sorted by title | 1 Workspace, 30; a path of 120 characters (end-truncated) |
 | EnvironmentsSheet | list + detail | no Environments (Globals only), secrets the Keychain cannot read |
 
 ## §4 V: void states and where each is shown
@@ -177,7 +179,7 @@ Each row is a designed state. "Place" is the surface the user is already looking
 | Surface | Empty | Loading | Partial | Error | Denied |
 |---|---|---|---|---|---|
 | Sidebar | "No Collections yet." + Data Folder path + New Collection | none: the scan is synchronous at launch (§7 of design/) | unreadable rows inline among good ones, with the reason and Reveal in Finder | Data Folder not writable: WindowBanner, sidebar shows the empty text | n/a |
-| WorkspacePopUp | one Workspace: its row, checked, and Remove from List ▸ disabled | n/a: the switch is as synchronous as launch | n/a | the open one can't be read: the pop-up still shows it; the WindowBanner says why | n/a |
+| WorkspacePopUp | one Workspace: its row, checked | n/a: the switch is as synchronous as launch | n/a | the open one can't be read: the pop-up still shows it; the WindowBanner says why | n/a |
 | SidebarFilter | placeholder "Filter Collections"; hidden while there are no Collections | n/a: synchronous | n/a | n/a | no matches: "No Requests, Folders or Collections match “q”. Esc clears the filter." |
 | VariablesPane | No Environment: the group says so and points at the toolbar; Globals still listed; no Globals: "No Globals." | n/a | disabled Variables are not listed; overridden Globals struck out | undefined names the Tab uses, first, in `variableUndefined`, with where each is used; an edit not saved: "Not saved. <reason>." under its row | secret: "Secret", never the value; its field starts empty |
 | CurlPane | empty Draft: `curl ''` is not shown; the pane says "Type a URL to see the curl command." | n/a | secrets stay `{{name}}` | undefined: "No curl command yet" + the names; invalidURL: the same + the URL after substitution; Copy disabled | n/a |
@@ -224,7 +226,8 @@ two cases are a binary body and a secret value, and both say why instead of show
 | Cancel | `.sending`; the Send button becomes Cancel only then |
 | Pretty | a parsed body ≤ 5 MB; above it the control is shown disabled with its reason, because hiding it would hide why the body looks raw |
 | VariableTooltip | pointer over a `{{name}}` range in a field that takes Variables |
-| WorkspacePopUp | always shown; Remove from List needs a row that is not the open Workspace |
+| WorkspacePopUp | always shown |
+| WorkspacesSheet | Manage Workspaces…; Remove is off on the only Workspace |
 | SidebarFilter | at least one Collection; with none it is hidden, not disabled |
 | Inspector | the Curl pane needs a selected Tab; the Variables pane does not. Width for 280 pt beside an editor of at least 480 pt, otherwise it overlays the content edge (decided, Q2) |
 | Include secrets | the Curl pane; it changes only the copied text |
@@ -248,6 +251,7 @@ two cases are a binary body and a secret value, and both say why instead of show
 |---|---|---|---|
 | VariableTooltip | nothing until its value is clicked; then the panel, so ⌘C copies | pointer leaves the token and the popover, any other key, a click or scroll outside it, the link | n/a |
 | EnvironmentsSheet | window focus | Done, Esc | the field focused before ⌃E or the menu |
+| WorkspacesSheet | the list | Done, Esc | the field focused before Manage Workspaces… |
 | PostmanImportSheet | window focus | Import (then Done on the result), Cancel, Esc | the sidebar, on the first imported Collection; on Cancel, where it was |
 | SaveDraftSheet | window focus | Save, Cancel, Esc | the URL field of the same Tab |
 | CloseConfirm | window focus | Save (Return), Don't Save (⌘D), Cancel, Esc (both = Cancel) | the Tab, or its neighbour if closed; where it was on Cancel |

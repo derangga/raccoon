@@ -100,6 +100,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.beginSheetModal(for: window)
         }
         sidebar.importFromPostman = { [weak self] in self?.importFromPostman(nil) }
+        sidebar.manageWorkspaces = { [weak windowController, windowModel] in
+            guard let window = windowController?.window else { return }
+            WorkspacesSheet.present(on: window, model: windowModel)
+        }
         sidebar.focusEditor = { [weak tabController] in
             tabController?.view.window?.makeFirstResponder(tabController?.urlBar.urlField)
         }

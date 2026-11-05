@@ -108,16 +108,35 @@ Any folder can be opened. Its top-level folders become Collections, as in collec
 every clone shares the id.
 
 ```
--> removeWorkspace(root)                         Remove from List ▸ <Workspace> in the
-                                                 pop-up, or Remove from List in the Data
-                                                 Folder banner
-  -> root == the open root?                      the pop-up's submenu leaves it out; only
-                                                 the banner reaches here with it
-     -> switchWorkspace(first other Workspace by name); none -> the banner doesn't offer it
+-> manageWorkspaces()                            Manage Workspaces… in the pop-up
+  -> a sheet is attached already?                -> nothing
+  -> WorkspacesSheet.present(on:model:)          R: WindowModel
+  -> WorkspaceList.titles(window.workspaces)     pure: a row per Workspace, its path under
+                                                 the title; the open one badged "Open"
+  -> a row's Remove                              no prompt, as the Environments sheet's −
+    -> removeWorkspace(root)                     below; the row leaves when the list changes
+  -> Done, Esc                                   closes; focus goes back
+```
+
+```
+-> removeWorkspace(root)                         a row's Remove in the Workspaces sheet, or
+                                                 Remove from List in the Data Folder banner
+  -> canRemoveWorkspace(root)?                   pure. false for the default Workspace,
+                                                 ~/Raccoon (DataFolderLocation.defaultRoot,
+                                                 from the composition root), open or not,
+                                                 and for the last one. false -> nothing,
+                                                 end; neither surface offers it
+  -> root == the open root?                      any other row can be removed, the open one
+                                                 included
+     -> switchWorkspace(first other Workspace by name)
   -> WorkspaceList.remove(root)
   -> SessionStore(root).delete()                 E: StoreError -> escape: log; a stale
                                                  Session file costs nothing
 ```
+
+**The default Workspace stays.** `~/Raccoon` is where a first launch starts, so the list always
+has a Workspace the user did not have to choose. It has no Remove in the sheet and none in the
+banner when it is the unreadable one; a launch with `-DataFolder` elsewhere has no default.
 
 **Remove from List forgets, it does not delete.** The folder stays, and so do its Keychain
 items, so Open Workspace… on the same folder brings its secrets back. Its Tabs do not come
@@ -151,7 +170,7 @@ whole, only saving fails.
                                                  those two only
   -> rows sorted by title                        localizedStandardCompare, as the sidebar;
                                                  the open one checked
-  -> separator, New Workspace…, Open Workspace…, Remove from List ▸ (every other one)
+  -> separator, New Workspace…, Open Workspace…, Manage Workspaces…
 ```
 
 The list is not checked against the disk when the menu opens. A missing folder is found the
