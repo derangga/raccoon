@@ -16,6 +16,21 @@ public indirect enum ExportNode: Equatable, Sendable {
     case request(Request)
 }
 
+/// What Include secret values read from the SecretStore, held from the save panel's return to the
+/// write. Not Codable: a secret's value goes from memory to the one file and is dropped.
+public struct EnvironmentSecrets: Equatable, Sendable {
+    public var values: [VariableName: String]
+    /// Secrets whose Keychain read failed: written as "" like the rest, and named to the user.
+    public var unreadable: [VariableName]
+
+    public init(values: [VariableName: String], unreadable: [VariableName]) {
+        self.values = values
+        self.unreadable = unreadable
+    }
+
+    public static let none = EnvironmentSecrets(values: [:], unreadable: [])
+}
+
 /// Postman Export's writing half: Postman Import's table read backwards. Pure: the id is passed
 /// in, and the order is the one given. Where Raccoon has less than Postman, the key is not written.
 public enum PostmanExporter {
@@ -26,6 +41,31 @@ public enum PostmanExporter {
             info: Info(name: collection.name, id: id.uuidString.lowercased(), schema: schema),
             item: collection.nodes.map(item)
         )
+        return encode(file)
+    }
+
+    /// Postman Environment JSON, encoded as `collection` is. A Secret Variable's value is the one in
+    /// `secrets`, or "" when it has none: the file says it was never typed.
+    public static func environment(
+        _ environment: Environment, secrets: EnvironmentSecrets, id: UUID, exportedAt: Date, version: String
+    ) -> Data {
+        let file = EnvFile(
+            id: id.uuidString.lowercased(), name: environment.name,
+            exportedAt: exportedAt.ISO8601Format(.init(includingFractionalSeconds: true)),
+            using: "Raccoon/\(version)",
+            values: environment.entries.map { entry in
+                switch entry.value {
+                case .plain(let value): EnvValue(key: entry.name.rawValue, value: value, type: "default", enabled: entry.isEnabled)
+                case .secret:
+                    EnvValue(key: entry.name.rawValue, value: secrets.values[entry.name] ?? "", type: "secret", enabled: entry.isEnabled)
+                }
+            }
+        )
+        return encode(file)
+    }
+
+    /// Sorted keys, two-space indent, a final newline, as Request files are.
+    private static func encode<T: Encodable>(_ file: T) -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted, .withoutEscapingSlashes]
         // Encoding Strings, Bools and arrays of them cannot fail.
@@ -133,6 +173,37 @@ public enum PostmanExporter {
     }
 
     // The wire shapes: Postman's keys, which a synthesized Encodable writes (nil is not written).
+
+    private struct EnvFile: Encodable {
+        var id: String
+        var name: String
+        var exportedAt: String
+        var using: String
+        var values: [EnvValue]
+
+        enum CodingKeys: String, CodingKey {
+            case id, name, values, color
+            case scope = "_postman_variable_scope", exportedAt = "_postman_exported_at", using = "_postman_exported_using"
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(id, forKey: .id)
+            try container.encode(name, forKey: .name)
+            try container.encode(values, forKey: .values)
+            try container.encodeNil(forKey: .color)  // Postman writes the key; a synthesized Encodable would not
+            try container.encode("environment", forKey: .scope)
+            try container.encode(exportedAt, forKey: .exportedAt)
+            try container.encode(using, forKey: .using)
+        }
+    }
+
+    private struct EnvValue: Encodable {
+        var key: String
+        var value: String
+        var type: String
+        var enabled: Bool
+    }
 
     private struct Root: Encodable {
         var info: Info

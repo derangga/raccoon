@@ -346,3 +346,133 @@ extension PostmanExporterTests {
         }
     }
 }
+
+// Environment export
+
+extension PostmanExporterTests {
+    static let exportedAt = Date(timeIntervalSince1970: 1_793_948_987.5)
+
+    static func name(_ text: String) -> VariableName { VariableName(text)! }
+
+    static func exportEnvironment(
+        _ entries: [VariableEntry], secrets: EnvironmentSecrets = .none, name: String = "E"
+    ) -> Data {
+        PostmanExporter.environment(
+            Environment(name: name, entries: entries), secrets: secrets, id: exportID, exportedAt: exportedAt, version: "1.2.3"
+        )
+    }
+
+    struct EnvironmentRow: Sendable, CustomTestStringConvertible {
+        let label: String
+        let entry: VariableEntry
+        let secrets: [String: String]
+        let expected: String
+        var testDescription: String { label }
+    }
+
+    static let environmentRows = [
+        EnvironmentRow(
+            label: "a plain entry is type default with its value",
+            entry: VariableEntry(name: name("host"), value: .plain("https://x.io")), secrets: [:],
+            expected: #"{"key":"host","value":"https://x.io","type":"default","enabled":true}"#
+        ),
+        EnvironmentRow(
+            label: "a disabled entry keeps enabled false",
+            entry: VariableEntry(name: name("off"), isEnabled: false, value: .plain("1")), secrets: [:],
+            expected: #"{"key":"off","value":"1","type":"default","enabled":false}"#
+        ),
+        EnvironmentRow(
+            label: "a secret with a value in the map is type secret with that value",
+            entry: VariableEntry(name: name("token"), value: .secret), secrets: ["token": "s3cret"],
+            expected: #"{"key":"token","value":"s3cret","type":"secret","enabled":true}"#
+        ),
+        EnvironmentRow(
+            label: "a secret absent from the map is written as an empty string",
+            entry: VariableEntry(name: name("token"), value: .secret), secrets: [:],
+            expected: #"{"key":"token","value":"","type":"secret","enabled":true}"#
+        ),
+        EnvironmentRow(
+            label: "a disabled secret keeps its value and enabled false",
+            entry: VariableEntry(name: name("token"), isEnabled: false, value: .secret), secrets: ["token": "s3cret"],
+            expected: #"{"key":"token","value":"s3cret","type":"secret","enabled":false}"#
+        ),
+    ]
+
+    @Test(arguments: environmentRows)
+    func `an Environment entry is one values item`(row: EnvironmentRow) throws {
+        let secrets = EnvironmentSecrets(values: Dictionary(uniqueKeysWithValues: row.secrets.map { (Self.name($0.key), $0.value) }), unreadable: [])
+        let values = try #require(try Self.json(Self.exportEnvironment([row.entry], secrets: secrets))["values"] as? [Any])
+        #expect(values.count == 1)
+        #expect(try Self.same(values[0], row.expected))
+    }
+
+    @Test func `an Environment file has the id, name, scope, date and Raccoon version, and a null color`() throws {
+        let file = try Self.json(Self.exportEnvironment([], name: "Staging"))
+        #expect(Set(file.allKeys.map { "\($0)" }) == Self.environmentKeys)
+        #expect(file["id"] as? String == "11111111-2222-3333-4444-555555555555")
+        #expect(file["name"] as? String == "Staging")
+        #expect(file["color"] is NSNull)
+        #expect(file["_postman_variable_scope"] as? String == "environment")
+        #expect(file["_postman_exported_at"] as? String == "2026-11-06T07:09:47.500Z")
+        #expect(file["_postman_exported_using"] as? String == "Raccoon/1.2.3")
+        #expect(file["values"] as? [Any] != nil)
+    }
+
+    /// The keys of `example/Sociolla Beauty Journal.postman_environment.json`, at the top and in each value.
+    static let environmentKeys: Set<String> = ["id", "name", "values", "color", "_postman_variable_scope", "_postman_exported_at", "_postman_exported_using"]
+    static let environmentValueKeys: Set<String> = ["key", "value", "type", "enabled"]
+
+    /// Like `sample`, `example/` is untracked: a clone without the file skips the test that reads it.
+    static let sampleEnvironment = sample.deletingLastPathComponent().appending(path: "Sociolla Beauty Journal.postman_environment.json")
+    static let hasSampleEnvironment = FileManager.default.fileExists(atPath: sampleEnvironment.path)
+
+    @Test(.enabled(if: PostmanExporterTests.hasSampleEnvironment))
+    func `the example Environment and its export have the same keys at the top and in each value`() throws {
+        let example = try Self.json(try Data(contentsOf: Self.sampleEnvironment))
+        let entries = [
+            VariableEntry(name: Self.name("a"), value: .plain("1")),
+            VariableEntry(name: Self.name("b"), isEnabled: false, value: .secret),
+        ]
+        let ours = try Self.json(Self.exportEnvironment(entries, secrets: EnvironmentSecrets(values: [Self.name("b"): "x"], unreadable: [])))
+        #expect(Set(ours.allKeys.map { "\($0)" }) == Set(example.allKeys.map { "\($0)" }))
+        let exampleValues = try #require(example["values"] as? [NSDictionary])
+        for value in try #require(ours["values"] as? [NSDictionary]) + exampleValues {
+            #expect(Set(value.allKeys.map { "\($0)" }) == Self.environmentValueKeys)
+        }
+    }
+
+    @Test func `an Environment is read again as the same entries, with secrets still secrets`() throws {
+        let entries = [
+            VariableEntry(name: Self.name("host"), value: .plain("https://x.io")),
+            VariableEntry(name: Self.name("off"), isEnabled: false, value: .plain("")),
+            VariableEntry(name: Self.name("token"), value: .secret),
+            VariableEntry(name: Self.name("empty"), isEnabled: false, value: .secret),
+            VariableEntry(name: Self.name("a.b-c_d"), value: .plain("é \"q\" \\ 日本語 😀\nline {{x}}")),
+        ]
+        let data = Self.exportEnvironment(entries, secrets: EnvironmentSecrets(values: [Self.name("token"): "s3cret"], unreadable: []), name: "Staging")
+        let plan = Self.plan(data)
+        let environment = try #require(plan.environments.first)
+        #expect(plan.environments.count == 1)
+        #expect(plan.collections.isEmpty && plan.globals.isEmpty && plan.notes == [])
+        #expect(environment.name == "Staging")
+        #expect(environment.variables.map(\.entry) == entries)
+        #expect(environment.variables[2].value == .secret("s3cret"))
+        #expect(environment.variables[3].value == .secret(""))
+    }
+
+    @Test func `two Environment exports with the same arguments are byte-equal and end in a newline`() {
+        let entries = [VariableEntry(name: Self.name("a"), value: .plain("1"))]
+        let data = Self.exportEnvironment(entries)
+        #expect(data == Self.exportEnvironment(entries))
+        #expect(data.last == UInt8(ascii: "\n"))
+    }
+
+    @Test(.enabled(if: PostmanExporterTests.hasSampleEnvironment))
+    func `the example Environment exports and reads back to the same 14 Variables`() throws {
+        let first = try #require(Self.plan(try Data(contentsOf: Self.sampleEnvironment)).environments.first)
+        let entries = first.variables.map(\.entry)
+        let again = try #require(Self.plan(Self.exportEnvironment(entries, secrets: .none, name: first.name)).environments.first)
+        #expect(first.variables.count == 14)
+        #expect(again.variables.map(\.entry) == entries)
+    }
+}
