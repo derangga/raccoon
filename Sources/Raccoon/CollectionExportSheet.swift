@@ -228,7 +228,7 @@ final class CollectionExportSheet: NSViewController {
         }
     }
 
-    /// `.json`, named for the Collection, in the folder the panel last used.
+    /// `.json`, with the name the caller offers, in the folder the panel last used. Both Export sheets use it.
     static func savePanel(on sheet: NSWindow, name: String) async -> URL? {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]

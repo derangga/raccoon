@@ -26,7 +26,7 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
     private static let missingText = "Not in the Keychain"
 
     private let window: WindowModel
-    let sourceTable = NSTableView()
+    let sourceTable = SourceTableView()
     let addButton = NSButton(image: NSImage(systemSymbolName: "plus", accessibilityDescription: "New Environment")!, target: nil, action: nil)
     let removeButton = NSButton(image: NSImage(systemSymbolName: "minus", accessibilityDescription: "Delete Environment")!, target: nil, action: nil)
     let nameField = NSTextField()
@@ -42,6 +42,10 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
     let listFooter = NSView()
     let footerRule = NSBox()
     let footerDivider = NSBox()
+
+    /// An Environment row's Export…: the Environment Export sheet. Set by `present`, which has the
+    /// writer and the clock; nothing happens until it is.
+    var exportEnvironment: (Environment) -> Void = { _ in }
 
     private var rows: [SourceRow] = []
     private var brokenNames: Set<String> = []
@@ -72,9 +76,20 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
     /// Shown as a sheet on `window`; the field focused before is focused again when it closes.
-    static func present(on parent: NSWindow, model: WindowModel, theme: ThemeEnvironment) {
+    static func present(
+        on parent: NSWindow, model: WindowModel, theme: ThemeEnvironment, writer: any FileWriting, version: String,
+        id: @escaping () -> UUID = { UUID() }, now: @escaping () -> Date = { Date() }
+    ) {
         guard parent.attachedSheet == nil else { return }
         let sheet = EnvironmentsSheet(window: model, theme: theme)
+        // A sheet on this one: it stays on the window, and focus comes back to it.
+        sheet.exportEnvironment = { [weak sheet, unowned model] environment in
+            guard let panel = sheet?.view.window, panel.attachedSheet == nil else { return }
+            EnvironmentExportSheet.present(
+                on: panel, environment: environment, readSecrets: { model.readSecrets(of: environment) }, writer: writer,
+                id: id, now: now, version: version
+            )
+        }
         let restore = rememberFocus(in: parent)
         parent.beginSheet(sheetPanel(sheet, focus: sheet.sourceTable)) { _ in restore() }
     }
@@ -110,6 +125,7 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
         sourceTable.dataSource = self
         sourceTable.delegate = self
         sourceTable.setAccessibilityLabel("Environments")
+        sourceTable.menuForRow = { [unowned self] in exportMenu(row: $0) }
         let sourceScroll = EnvironmentsSheet.scroll(sourceTable)
         sourceScroll.drawsBackground = false
 
@@ -395,6 +411,24 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
     func valueShown(row: Int) -> String? {
         guard let field = (table.view(atColumn: 2, row: row, makeIfNecessary: true) as? NSTableCellView)?.textField else { return nil }
         return field.stringValue.isEmpty ? field.placeholderAttributedString?.string ?? field.placeholderString : field.stringValue
+    }
+
+    // MARK: Export…
+
+    /// An Environment that decodes has Export…; Globals, the heading and an unreadable one have no menu.
+    private func exportMenu(row: Int) -> NSMenu? {
+        guard rows.indices.contains(row), case .environment(let name) = rows[row], !brokenNames.contains(name) else { return nil }
+        let item = NSMenuItem(title: "Export…", action: #selector(exportItem), keyEquivalent: "")
+        item.target = self
+        item.representedObject = name
+        let menu = NSMenu()
+        menu.addItem(item)
+        return menu
+    }
+
+    @objc private func exportItem(_ sender: NSMenuItem) {
+        guard let name = sender.representedObject as? String, let environment = window.environments.first(where: { $0.name == name }) else { return }
+        exportEnvironment(environment)
     }
 
     // MARK: Data sources
@@ -860,6 +894,15 @@ final class TitleFieldCell: NSTextFieldCell {
 
     override func select(withFrame rect: NSRect, in controlView: NSView, editor: NSText, delegate: Any?, start selStart: Int, length selLength: Int) {
         super.select(withFrame: drawingRect(forBounds: rect), in: controlView, editor: editor, delegate: delegate, start: selStart, length: selLength)
+    }
+}
+
+/// The source list: a right-click asks the sheet for the row's menu, and a row with none shows none.
+final class SourceTableView: NSTableView {
+    var menuForRow: (Int) -> NSMenu? = { _ in nil }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        menuForRow(row(at: convert(event.locationInWindow, from: nil)))
     }
 }
 

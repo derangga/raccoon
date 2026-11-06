@@ -225,7 +225,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// ⌥⌃E and the picker's Edit Environments….
     @objc func editEnvironments(_ sender: Any?) {
         guard let window = windowController?.window, let windowModel, let theme = themeController?.theme else { return }
-        EnvironmentsSheet.present(on: window, model: windowModel, theme: theme)
+        EnvironmentsSheet.present(on: window, model: windowModel, theme: theme, writer: fileWriting, version: CompositionRoot.appVersion())
     }
 }
 

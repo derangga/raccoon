@@ -79,17 +79,30 @@ public final class ManualFolderWatch: FolderWatch {
 }
 
 public final class InMemorySecretStore: SecretStore {
-    private struct Key: Hashable {
-        var environment: String?
-        var name: VariableName
+    /// An Environment (nil: Globals) and a Variable name, as `get` is asked for them.
+    public struct Key: Hashable, Sendable {
+        public var environment: String?
+        public var name: VariableName
+
+        public init(environment: String?, name: VariableName) {
+            self.environment = environment
+            self.name = name
+        }
     }
 
     private let values = Mutex<[Key: String]>([:])
+    private let asked = Mutex<[Key]>([])
 
     public init() {}
 
+    /// Every `get`, in order, found or not: what a test of Export Environment asks "was the
+    /// Keychain read?" of.
+    public var gets: [Key] { asked.withLock { $0 } }
+
     public func get(environment: String?, name: VariableName) throws(SecretError) -> String? {
-        values.withLock { $0[Key(environment: environment, name: name)] }
+        let key = Key(environment: environment, name: name)
+        asked.withLock { $0.append(key) }
+        return values.withLock { $0[key] }
     }
 
     public func set(_ value: String, environment: String?, name: VariableName) throws(SecretError) {

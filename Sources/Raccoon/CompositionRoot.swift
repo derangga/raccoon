@@ -37,6 +37,12 @@ enum CompositionRoot {
     /// The file the user picked in Postman Export's save panel.
     static func fileWriting() -> any FileWriting { DiskFileWriting() }
 
+    /// The bundle's short version, written in an exported Environment as "Raccoon/<version>". A
+    /// `swift run` binary has no Info.plist, so it reads "dev".
+    static func appVersion(bundle: Bundle = .main) -> String {
+        bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+    }
+
     /// Not a Bool reads as off, so closing asks (§4).
     static func closeMemory(defaults: UserDefaults) -> CloseMemory {
         CloseMemory(

@@ -217,6 +217,8 @@ the key is not written.
 | Disabled entry | `enabled: false`, in the same place |
 | order | the file's |
 
+`<version>` is `CompositionRoot.appVersion()`: the bundle's `CFBundleShortVersionString`, or `"dev"` when there is none, as under `swift run`.
+
 **What does not come back by round trip.** Export, then `PostmanImporter.read` and
 `PostmanMapping.plan`, gives equal `RequestDefinition`s and no `ImportNote`, with these
 exceptions, each from `PostmanMapping`:

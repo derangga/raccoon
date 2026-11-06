@@ -9,9 +9,15 @@ final class FlakySecretStore: SecretStore {
     let inner = InMemorySecretStore()
     private let refusals = Mutex<[Operation: SecretError]>([:])
     private let getCount = Mutex(0)
+    private let refusedNames = Mutex<[VariableName: SecretError]>([:])
 
     func refuse(_ operation: Operation, with error: SecretError?) {
         refusals.withLock { $0[operation] = error }
+    }
+
+    /// Refuses `get` for these names only; the others are still answered.
+    func refuseGets(of names: [VariableName], with error: SecretError) {
+        refusedNames.withLock { for name in names { $0[name] = error } }
     }
 
     var gets: Int { getCount.withLock { $0 } }
@@ -23,6 +29,7 @@ final class FlakySecretStore: SecretStore {
     func get(environment: String?, name: VariableName) throws(SecretError) -> String? {
         getCount.withLock { $0 += 1 }
         try check(.get)
+        if let error = refusedNames.withLock({ $0[name] }) { throw error }
         return try inner.get(environment: environment, name: name)
     }
 

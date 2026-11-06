@@ -959,6 +959,21 @@ final class WindowModel {
         Set((entries(of: set) ?? []).filter { $0.value == .secret && (try? secrets.get(environment: set, name: $0.name)) == nil }.map(\.name))
     }
 
+    /// Include secret values: each Secret Variable of `environment`, enabled or not, read once. Called
+    /// only after the save panel has returned. No item (nil) is "" and not named; a refused read
+    /// is named and the others are still read (postman-export.md).
+    func readSecrets(of environment: Environment) -> EnvironmentSecrets {
+        var result = EnvironmentSecrets.none
+        for entry in environment.entries where entry.value == .secret {
+            do throws(SecretError) {
+                if let value = try secrets.get(environment: environment.name, name: entry.name) { result.values[entry.name] = value }
+            } catch {
+                result.unreadable.append(entry.name)
+            }
+        }
+        return result
+    }
+
     /// environments/New Environment.json, empty; " 2", " 3"… when taken. Returns its name.
     func newEnvironment() throws(StoreError) -> String {
         let name = newEnvironmentName()

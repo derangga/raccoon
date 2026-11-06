@@ -78,6 +78,19 @@ struct TestPortsTests {
         #expect(try secrets.get(environment: "Prod", name: token) == nil)
     }
 
+    @Test func `in-memory secret store records the Environment and name of every get, found or not`() throws {
+        let secrets = InMemorySecretStore()
+        let token = try #require(VariableName("token"))
+        let key = try #require(VariableName("key"))
+        try secrets.set("prod-1", environment: "Prod", name: token)
+        #expect(secrets.gets.isEmpty)
+
+        _ = try secrets.get(environment: "Prod", name: token)
+        _ = try secrets.get(environment: nil, name: key)
+
+        #expect(secrets.gets == [.init(environment: "Prod", name: token), .init(environment: nil, name: key)])
+    }
+
     @Test func `recording clipboard writer keeps the last string`() {
         let clipboard = RecordingClipboardWriter()
 

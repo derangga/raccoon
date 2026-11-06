@@ -583,4 +583,87 @@ struct EnvironmentsSheetTests {
         #expect(opened == 1)
         #expect(picker.titleOfSelectedItem == "Staging")
     }
+
+    // MARK: Export…
+
+    /// What a right-click on source row `row` shows: nil is no menu.
+    func exportMenu(_ sheet: EnvironmentsSheet, row: Int) throws -> NSMenu? {
+        try #require(sheet.sourceTable as? SourceTableView).menuForRow(row)
+    }
+
+    @Test func `an Environment row has one item, Export…; Globals, the heading and a broken row have no menu`() throws {
+        try put("{ not json", at: "environments/Broken.json")
+        try put([], at: "environments/Dev.json")
+        let sheet = sheet(makeWindow())
+        #expect(sheet.sourceTitles == ["Globals", "Environments", "Broken", "Dev"])
+
+        #expect(try exportMenu(sheet, row: 0) == nil)
+        #expect(try exportMenu(sheet, row: 1) == nil)
+        #expect(try exportMenu(sheet, row: 2) == nil)
+        #expect(try exportMenu(sheet, row: 5) == nil)
+        #expect(try #require(try exportMenu(sheet, row: 3)).items.map(\.title) == ["Export…"])
+    }
+
+    @Test func `Export… hands the row's Environment as the window holds it, and changes the selection and the files nowhere`() throws {
+        let sheet = sheet(try staging())
+        var exported: [Environment] = []
+        sheet.exportEnvironment = { exported.append($0) }
+        let before = sheet.selectedName
+        let menu = try #require(try exportMenu(sheet, row: 3))
+        #expect(sheet.sourceTitles[3] == "Staging")
+
+        let item = try #require(menu.items.first)
+        _ = item.target?.perform(item.action, with: item)
+
+        #expect(exported.map(\.name) == ["Staging"])
+        #expect(exported.first?.entries.count == 3)
+        #expect(sheet.selectedName == before)
+    }
+
+    @Test func `an Environment gone from the window since the menu opened exports nothing`() throws {
+        let window = try staging()
+        let sheet = sheet(window)
+        var exported = 0
+        sheet.exportEnvironment = { _ in exported += 1 }
+        let menu = try #require(try exportMenu(sheet, row: 3))
+        try window.deleteEnvironment("Staging")
+
+        let item = try #require(menu.items.first)
+        _ = item.target?.perform(item.action, with: item)
+
+        #expect(exported == 0)
+    }
+
+    @Test func `Export… puts its sheet on the Environments sheet, which stays on the window and gets focus back`() async throws {
+        let window = try staging()
+        let parent = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+        let field = NSTextField()
+        parent.contentView?.addSubview(field)
+        parent.makeFirstResponder(field)
+
+        EnvironmentsSheet.present(on: parent, model: window, theme: theme, writer: RecordingFileWriting(), version: "1.2.3")
+        let environments = try #require(parent.attachedSheet)
+        let sheet = try #require(environments.contentViewController as? EnvironmentsSheet)
+        _ = sheet.view
+        let row = try #require(sheet.sourceTitles.firstIndex(of: "Staging"))
+        let menu = try #require(try exportMenu(sheet, row: row))
+        let item = try #require(menu.items.first)
+        _ = item.target?.perform(item.action, with: item)
+
+        let export = try #require(environments.attachedSheet)
+        #expect((export.contentViewController as? EnvironmentExportSheet)?.titleLabel.stringValue == "Export “Staging”")
+        #expect(parent.attachedSheet === environments)
+
+        // A second Export… while one is up opens nothing more.
+        _ = item.target?.perform(item.action, with: item)
+        #expect(environments.attachedSheet === export)
+
+        (export.contentViewController as? EnvironmentExportSheet)?.cancelButton.performClick(nil)
+        for _ in 0..<50 { await Task.yield() }
+        #expect(environments.attachedSheet == nil)
+        #expect(parent.attachedSheet === environments)
+        // The Environments sheet is as it was: its list, and the focus it had.
+        #expect(sheet.sourceTitles == ["Globals", "Environments", "Dev", "Staging"])
+        #expect(environments.firstResponder === sheet.sourceTable)
+    }
 }
