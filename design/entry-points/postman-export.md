@@ -209,9 +209,15 @@ exceptions, each from `PostmanMapping`:
 - **A Content-Type row.** A Request with a body and no Content-Type row gets one on re-import,
   from `Headers.contentType`, which Import runs on every Request, so the definition is not equal.
   A Request that has the row, as one the user switched Body Type on does, comes back unchanged.
-- **A file Part with a relative path.** A path that does not start with `/` re-imports with an
-  `.fileOnlyName` note, because Import cannot tell it from the file name Postman often stores
-  alone. An absolute path is unchanged.
+- **A file Part with a relative path, or none.** A path that does not start with `/` re-imports
+  with an `.fileOnlyName` note, because Import cannot tell it from the file name Postman often
+  stores alone. That includes the empty path of a Part whose file is not picked yet: it comes back
+  equal, with `.fileOnlyName("")`. An absolute path is unchanged.
+- **A `#fragment` in `url`.** It is written as typed and dropped on re-import: `PostmanMapping.url`
+  cuts the text at `#`. With enabled Params, `raw` reads `…#frag?a=1`, which is the URL bar's text.
+- **A Request Cookie value with `;` or edge spaces.** One containing `;`, or with a leading or
+  trailing space, does not come back as typed: `CurlImporter.cookieRows` splits on `;` and trims.
+  Import has the same limit.
 - **Dynamic variables.** A `{{$guid}}`-style text anywhere in a Request re-imports with a
   `.dynamicVariable` note: the text is unchanged, and Raccoon already treats it as an Undefined
   Variable.

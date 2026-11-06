@@ -30,7 +30,7 @@ public enum URLText {
     }
 
     /// Applies `transform` to every stretch of `text` that is not a `{{…}}` reference.
-    private static func outsideVariables(_ text: some StringProtocol, _ transform: (Substring) -> String) -> String {
+    static func outsideVariables(_ text: some StringProtocol, _ transform: (Substring) -> String) -> String {
         let text = Substring(text)
         var result = ""
         var rest = text.startIndex
