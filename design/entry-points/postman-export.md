@@ -30,20 +30,28 @@ unreadable row (collections.md); Raccoon does not stop it, because the choice is
 ## Entry points
 
 ```
--> exportCollection(collection)                  File ▸ Export Collection… (enabled when the
-                                                 sidebar selection is in a Collection), and Export…
+-> exportCollection(collection)                  File ▸ Export Collection… (right after Import from
+                                                 Postman…, no shortcut; enabled when the sidebar
+                                                 selection is in a Collection and no sheet is up: a rule
+                                                 of Export's own, so the item is disabled and the
+                                                 action also returns early with a sheet up), and Export…
                                                  in a Collection row's context menu (not on a
                                                  Folder, Request or unreadable row)
   -> the Collection Export sheet opens           R: none. Cancel or Esc -> nothing written
-  -> WindowModel.prepareExport(collection)       R: the window's DataFolderStore, its index and its
-                                                 Tabs. Yields an ExportStep as each one finishes,
-                                                 the last one carrying the ExportPlan and its bytes.
-                                                 Runs off the main actor; the sheet draws each step
-                                                 as it arrives
+  -> WindowModel.prepareExport(collection, id)   R: the window's DataFolderStore, its index and its
+                                                 Tabs. Returns an AsyncStream<ExportStep>? that
+                                                 yields an ExportStep as each one finishes, the last
+                                                 one carrying the ExportPlan and its bytes. Runs off
+                                                 the main actor; the sheet draws each step as it
+                                                 arrives. Stopping iteration stops the work (cancel
+                                                 propagates): checked before each file is read and
+                                                 before the format and the scan. The main actor reads
+                                                 only the index and the Tabs; the sort and the reads
+                                                 are the stream's, off it. `id` is the UUID below
                                                  E: the Collection is no longer in the index
                                                  (renamed or trashed outside Raccoon) -> escape:
-                                                 nothing opens
-    -> sort the Collection's nodes               pure, R: none: Folders first, then Requests and
+                                                 nil, nothing opens
+    -> CollectionExport.sorted(nodes)            pure (RaccoonDomain), R: none: Folders first, then Requests and
                                                  unreadable rows together, each by the name shown
                                                  (`localizedStandardCompare`), as TreeDecoder sorts.
                                                  The exporter keeps the order it is given; this is
@@ -63,8 +71,12 @@ unreadable row (collections.md); Raccoon does not stop it, because the choice is
     -> yield .formatted                          R: none
     -> CredentialScan.find(requests)             pure, R: none: [CredentialFinding], on the same
                                                  RequestDefinitions the exporter wrote
-    -> Tabs that are Dirty and show a Request    R: the window's Tabs and index, matched by
-       of this Collection                        RequestID (a Tab's `.request(id)` against the
+    -> Tabs that are Dirty and show a Request    (the Dirty Tabs' names are read when prepareExport is
+       of this Collection                        called, on the main actor, and handed to the stream,
+                                                 which picks this Collection's in tree order: the
+                                                 sheet is modal, so the Tabs do not change meanwhile)
+                                                 R: the window's Tabs and index, matched by
+                                                 RequestID (a Tab's `.request(id)` against the
                                                  tree's ids), never by name: two Requests may
                                                  share one. The names come from the index. The file
                                                  holds what is saved
@@ -74,7 +86,13 @@ unreadable row (collections.md); Raccoon does not stop it, because the choice is
      the Dirty Requests, and Export… enabled     R: none. Nothing is clickable before the warning
                                                  is on screen
   -> Export…: NSSavePanel as a sheet             boundary (AppKit), R: none, .json, default name
-                                                 above. Cancel -> back on the Export sheet, nothing
+                                                 above. `beginSheetModal(for:)` is called on the Export
+                                                 sheet's own window, a sheet on a sheet: checked in a
+                                                 running AppKit app, the panel attaches to the Export
+                                                 sheet, which stays on the window, and Cancel returns
+                                                 .cancel. A unit test host cannot show a save panel
+                                                 (the runner exits), so that is a manual scenario.
+                                                 Cancel -> back on the Export sheet, nothing
                                                  written
   -> FileWriting.write(plan.data, to: url)       boundary, atomic    R: FileWriting
                                                  E: StoreError -> escape: the sheet stays, a red
@@ -89,7 +107,7 @@ sheet is open is not picked up, so the credential warning, the counts and the fi
 disagree. The sheet is modal, so the window is not editing meanwhile.
 
 **Export reads files, not Tabs.** A Dirty Tab's edits are not in the file. The sheet says so
-("2 Requests have unsaved edits in Tabs. Export uses what is saved.") rather than exporting what
+("2 Requests have edits in Tabs. Export uses what is saved.") rather than exporting what
 the user did not save or saving for them.
 
 ```
@@ -295,8 +313,9 @@ Opened by the first tree above. One sheet, one run; the layout and strings are
      counts "41 Requests · 11 Folders"; the credentials if any; the skipped files if any; the
      Dirty Requests if any; and Export… enabled. All of it at once, so nothing is clickable before
      the credential warning is on screen
-  -> a read that takes over 150 ms               the system small spinner under the title, until
-                                                 the first check (behavior.md, as the Response pane)
+  -> a read that takes over 150 ms               the system small spinner in the first row's check
+                                                 position, until that check appears (behavior.md, as
+                                                 the Response pane)
 ```
 
 **The steps are the real ones.** "Read N Requests" is the count that decoded, so with a skipped

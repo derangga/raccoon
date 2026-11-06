@@ -1,0 +1,18 @@
+{
+  "headers": [
+    {
+      "isEnabled": true,
+      "name": "Authorization",
+      "value": "Bearer eyJ0b2tlbi06"
+    }
+  ],
+  "id": "0C0FFEE0-0000-4000-8000-000000057359",
+  "method": "GET",
+  "name": "Request number 6",
+  "settings": {
+    "allowsInsecureTLS": false,
+    "followsRedirects": false
+  },
+  "url": "https://httpbin.org/anything/request-number-6",
+  "version": 1
+}

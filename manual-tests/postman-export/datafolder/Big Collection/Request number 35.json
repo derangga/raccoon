@@ -1,0 +1,18 @@
+{
+  "headers": [
+    {
+      "isEnabled": true,
+      "name": "Authorization",
+      "value": "Bearer eyJ0b2tlbi35"
+    }
+  ],
+  "id": "0C0FFEE0-0000-4000-8000-000000057388",
+  "method": "GET",
+  "name": "Request number 35",
+  "settings": {
+    "allowsInsecureTLS": false,
+    "followsRedirects": false
+  },
+  "url": "https://httpbin.org/anything/request-number-35",
+  "version": 1
+}

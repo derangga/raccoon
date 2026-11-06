@@ -350,6 +350,7 @@ Feature: Create, rename, move and Move to Trash
     And Move To lists every Collection and Folder as a path, except Payments API where it already is
     When I right-click "Payments API"
     Then there is no Move To
+    And the menu reads New Folder… · Rename… · Export… · separator · Move to Trash · Reveal in Finder
     When I right-click "Old refund.json"
     Then there is no Rename…
 

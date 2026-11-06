@@ -1031,6 +1031,94 @@ final class WindowModel {
         try trash(Self.path(of: name))
     }
 
+    // MARK: Postman Export
+
+    /// The Collection Export sheet's steps (postman-export.md): the Collection's Request files
+    /// read and sorted, the bytes, the credential scan. Each step arrives as it finishes, off the
+    /// main actor; the last carries the plan. nil when the Collection is no longer in the index:
+    /// nothing opens. Nothing in the Data Folder is written, and the Tabs are not read for their
+    /// edits: the file holds what is saved. Stopping iteration stops the work.
+    func prepareExport(_ collection: String, id: UUID) -> AsyncStream<ExportStep>? {
+        guard let store, let found = index.collections.first(where: { $0.name == collection }) else { return nil }
+        // The main actor reads only the index and the Tabs; sorting and reading are the stream's.
+        return Self.exportSteps(name: found.name, nodes: found.nodes, store: store, dirty: dirtyTabNames(), id: id)
+    }
+
+    /// The names, from the index, of the Requests that are Dirty in a Tab. Matched by RequestID:
+    /// two Requests may share a name.
+    private func dirtyTabNames() -> [RequestID: String] {
+        var names: [RequestID: String] = [:]
+        for model in tabs {
+            if case .request(let id) = model.tab.source, model.tab.isDirty, let name = index.name(of: id) { names[id] = name }
+        }
+        return names
+    }
+
+    /// Cancelling the task stops the work between two files, and before the format and the scan.
+    private nonisolated static func exportSteps(
+        name: String, nodes: [TreeNode], store: any DataFolderStore, dirty: [RequestID: String], id: UUID
+    ) -> AsyncStream<ExportStep> {
+        let (stream, steps) = AsyncStream<ExportStep>.makeStream()
+        let work = Task {
+            let nodes = CollectionExport.sorted(nodes)
+            var skipped: [ExportSkip] = []
+            func read(_ nodes: [TreeNode]) -> [ExportNode] {
+                var exported: [ExportNode] = []
+                for node in nodes {
+                    if Task.isCancelled { break }
+                    switch node {
+                    case .folder(let name, let children): exported.append(.folder(name: name, children: read(children)))
+                    case .unreadable(let path, let reason): skipped.append(ExportSkip(path: path, reason: reason))
+                    case .request(_, _, _, let path):
+                        if let request = load(path, from: store, skipped: &skipped) { exported.append(.request(request)) }
+                    }
+                }
+                return exported
+            }
+            func dirtyNames(_ nodes: [TreeNode]) -> [String] {
+                nodes.flatMap { node -> [String] in
+                    switch node {
+                    case .folder(_, let children): dirtyNames(children)
+                    case .request(let id, _, _, _): dirty[id].map { [$0] } ?? []
+                    case .unreadable: []
+                    }
+                }
+            }
+            let collection = ExportCollection(name: name, nodes: read(nodes))
+            guard !Task.isCancelled else { return steps.finish() }
+            steps.yield(.read(count: collection.requests.count))
+            let data = PostmanExporter.collection(collection, id: id)
+            guard !Task.isCancelled else { return steps.finish() }
+            steps.yield(.formatted)
+            let findings = CredentialScan.find(collection.requests)
+            guard !Task.isCancelled else { return steps.finish() }
+            steps.yield(.scanned(ExportPlan(
+                collection: collection, requests: collection.requests.count, folders: collection.folderCount,
+                findings: findings, skipped: skipped, dirtyRequests: dirtyNames(nodes), data: data
+            )))
+            steps.finish()
+        }
+        steps.onTermination = { _ in work.cancel() }
+        return stream
+    }
+
+    /// One Request file; nil, with the reason added to `skipped`, when it is left out.
+    private nonisolated static func load(_ path: String, from store: any DataFolderStore, skipped: inout [ExportSkip]) -> Request? {
+        let data: Data
+        do throws(StoreError) {
+            data = try store.read(path)
+        } catch {
+            skipped.append(ExportSkip(path: path, reason: error.reason))
+            return nil
+        }
+        do throws(RequestFileError) {
+            return try RequestFile.decode(data)
+        } catch {
+            skipped.append(ExportSkip(path: path, reason: error.reason))
+            return nil
+        }
+    }
+
     // MARK: Postman Import
 
     /// Whether Import can write. The Import sheet disables Import while this throws (§4).

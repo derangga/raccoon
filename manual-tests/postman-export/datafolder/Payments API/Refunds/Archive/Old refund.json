@@ -1,0 +1,16 @@
+{
+  "auth": {
+    "password": "hunter2",
+    "type": "basic",
+    "user": "merchant"
+  },
+  "id": "0C0FFEE0-0000-4000-8000-000000057350",
+  "method": "GET",
+  "name": "Old refund",
+  "settings": {
+    "allowsInsecureTLS": false,
+    "followsRedirects": false
+  },
+  "url": "https://httpbin.org/anything/old-refund",
+  "version": 1
+}

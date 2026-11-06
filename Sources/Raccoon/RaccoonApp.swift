@@ -16,16 +16,18 @@ enum RaccoonApp {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowModel: WindowModel?
-    private var windowController: MainWindowController?
+    var windowController: MainWindowController?
     private var tabController: TabViewController?
     private var content: ContentViewController?
     private var themeController: ThemeController?
     private var closer: TabCloser?
     private var saver: DraftSaver?
-    private var sidebar: SidebarViewController?
+    var sidebar: SidebarViewController?
     private var dataFolderBanner: DataFolderBannerBinding?
     /// Reads the files picked for Postman Import.
     private let files = CompositionRoot.fileReading()
+    /// Writes the file picked in Postman Export's save panel.
+    private let fileWriting = CompositionRoot.fileWriting()
     /// The app's preference, never a Session's (tabs.md §close).
     private let closeMemory = CompositionRoot.closeMemory(defaults: .standard)
 
@@ -108,6 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.beginSheetModal(for: window)
         }
         sidebar.importFromPostman = { [weak self] in self?.importFromPostman(nil) }
+        sidebar.exportCollection = { [weak self] name in self?.exportCollection(named: name) }
         sidebar.manageWorkspaces = { [weak windowController, windowModel] in
             guard let window = windowController?.window else { return }
             WorkspacesSheet.present(on: window, model: windowModel)
@@ -194,6 +197,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// File ▸ Export Collection…: the Collection the sidebar selection is in.
+    @objc func exportCollection(_ sender: Any?) {
+        guard let name = sidebar?.selectedCollection else { return }
+        exportCollection(named: name)
+    }
+
+    /// The Collection Export sheet, on the window. Nothing opens while another sheet is up, or when
+    /// the Collection has gone from the index.
+    private func exportCollection(named name: String) {
+        guard let window = windowController?.window, window.attachedSheet == nil, let windowModel,
+              let steps = windowModel.prepareExport(name, id: UUID())
+        else { return }
+        CollectionExportSheet.present(
+            on: window,
+            model: CollectionExportModel(name: name, folder: (windowModel.dataFolderRoot as NSString).abbreviatingWithTildeInPath),
+            steps: steps, writer: fileWriting,
+            reduceMotion: { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+        )
+    }
+
+    /// Enabled with a Collection selected, and no sheet up: a second sheet would be refused anyway.
+    static func canExportCollection(selected: String?, sheetUp: Bool) -> Bool {
+        selected != nil && !sheetUp
+    }
+
     /// ⌥⌃E and the picker's Edit Environments….
     @objc func editEnvironments(_ sender: Any?) {
         guard let window = windowController?.window, let windowModel, let theme = themeController?.theme else { return }
@@ -210,6 +238,8 @@ extension AppDelegate: NSMenuItemValidation {
         // Disabled, not hidden, while no Tab is open (surfaces.md §5).
         case #selector(save(_:)), #selector(closeTab(_:)), #selector(forceCloseTab(_:)), #selector(showNextTab(_:)), #selector(showPreviousTab(_:)):
             return windowModel?.selectedTab != nil
+        case #selector(exportCollection(_:)):
+            return Self.canExportCollection(selected: sidebar?.selectedCollection, sheetUp: windowController?.window?.attachedSheet != nil)
         case #selector(showTab(_:)):
             return !(windowModel?.tabs.isEmpty ?? true)
         default:

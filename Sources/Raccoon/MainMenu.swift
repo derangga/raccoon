@@ -20,6 +20,8 @@ enum MainMenu {
             NSMenuItem(title: "New Collection", action: #selector(AppDelegate.newCollection(_:)), keyEquivalent: ""),
             .separator(),
             importFromPostman,
+            // Disabled unless the sidebar selection is in a Collection; AppDelegate's validation.
+            NSMenuItem(title: "Export Collection…", action: #selector(AppDelegate.exportCollection(_:)), keyEquivalent: ""),
             .separator(),
             NSMenuItem(title: "Save", action: #selector(AppDelegate.save(_:)), keyEquivalent: "s"),
             .separator(),

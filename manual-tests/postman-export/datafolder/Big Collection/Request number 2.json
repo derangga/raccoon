@@ -1,0 +1,18 @@
+{
+  "headers": [
+    {
+      "isEnabled": true,
+      "name": "Authorization",
+      "value": "Bearer eyJ0b2tlbi02"
+    }
+  ],
+  "id": "0C0FFEE0-0000-4000-8000-000000057355",
+  "method": "GET",
+  "name": "Request number 2",
+  "settings": {
+    "allowsInsecureTLS": false,
+    "followsRedirects": false
+  },
+  "url": "https://httpbin.org/anything/request-number-2",
+  "version": 1
+}

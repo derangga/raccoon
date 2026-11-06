@@ -1,0 +1,22 @@
+{
+  "auth": {
+    "token": "tokey_example_0000000000000000",
+    "type": "bearer"
+  },
+  "headers": [
+    {
+      "isEnabled": true,
+      "name": "X-Api-Key",
+      "value": "key_example_0000000000000000"
+    }
+  ],
+  "id": "0C0FFEE0-0000-4000-8000-000000057346",
+  "method": "POST",
+  "name": "Capture charge",
+  "settings": {
+    "allowsInsecureTLS": false,
+    "followsRedirects": false
+  },
+  "url": "https://httpbin.org/anything/capture-charge",
+  "version": 1
+}

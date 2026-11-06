@@ -25,6 +25,13 @@ public enum StoreError: Error, Equatable, Sendable {
     case unreadable(path: String, reason: String)
     case undecodable(path: String, reason: String)
     case unwritable(path: String, reason: String)
+
+    /// What went wrong, as the sheets say it.
+    public var reason: String {
+        switch self {
+        case .unreadable(_, let reason), .undecodable(_, let reason), .unwritable(_, let reason): reason
+        }
+    }
 }
 
 public enum SecretError: Error, Equatable, Sendable {

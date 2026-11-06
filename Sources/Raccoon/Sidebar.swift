@@ -80,6 +80,8 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     var showError: (String) -> Void = { _ in }
     /// The + menu's Import from Postman…: the app's open panel, then the Import sheet.
     var importFromPostman: () -> Void = {}
+    /// A Collection row's Export…: the app's Collection Export sheet, for the Collection named.
+    var exportCollection: (String) -> Void = { _ in }
     /// The pop-up's Manage Workspaces…: the Workspaces sheet.
     var manageWorkspaces: () -> Void = {}
     let outline = NSOutlineView()
@@ -467,6 +469,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         }
         add("New Folder…", #selector(newFolderHere), folder(of: item))
         if case .unreadable = item.kind {} else { add("Rename…", #selector(renameItem), item) }
+        if item.kind == .collection { add("Export…", #selector(exportItem), item) }
         if item.kind != .collection {
             let parent = String(item.path[..<(item.path.range(of: "/", options: .backwards)?.lowerBound ?? item.path.startIndex)])
             let targets = window.index.folders.filter { $0 != parent && $0 != item.path && !$0.hasPrefix(item.path + "/") }
@@ -509,6 +512,16 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         perform({ "Couldn't move “\(target.item.name)”: \($0)." }) { () throws(StoreError) in
             try self.window.move(target.item.path, to: target.folder)
         }
+    }
+
+    @objc private func exportItem(_ sender: NSMenuItem) {
+        guard let item = sender.representedObject as? SidebarItem else { return }
+        exportCollection(item.name)
+    }
+
+    /// The Collection the selected row is, or is in: File ▸ Export Collection… exports it.
+    var selectedCollection: String? {
+        (outline.item(atRow: outline.selectedRow) as? SidebarItem).flatMap { $0.path.split(separator: "/").first.map(String.init) }
     }
 
     @objc private func trashItem(_ sender: NSMenuItem) {

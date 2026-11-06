@@ -56,7 +56,7 @@ Feature: Opening Postman Import
 
   Scenario: 1. File ▸ Import from Postman… on ⇧⌘I
     When I open the File menu
-    Then it reads, top to bottom: New Tab ⌘T · New Collection · a separator · Import from Postman… ⇧⌘I · a separator · Save ⌘S · a separator · Close Tab ⌘W
+    Then it reads, top to bottom: New Tab ⌘T · New Collection · a separator · Import from Postman… ⇧⌘I · Export Collection… · a separator · Save ⌘S · a separator · Close Tab ⌘W
     When I press Escape, then ⇧⌘I
     Then an open panel slides down from the window's title bar, with Open and Cancel buttons
     And ⌥⌘I still shows and hides the inspector, and does not open the panel

@@ -341,9 +341,9 @@ struct PostmanImport {
         return reason.prefix(1).lowercased() + reason.dropFirst()
     }
 
-    private static func number(_ n: Int) -> String { n.formatted(.number.locale(Locale(identifier: "en"))) }
+    static func number(_ n: Int) -> String { n.formatted(.number.locale(Locale(identifier: "en"))) }
 
-    private static func plural(_ n: Int, _ word: String) -> String { "\(number(n)) \(word)\(n == 1 ? "" : "s")" }
+    static func plural(_ n: Int, _ word: String) -> String { "\(number(n)) \(word)\(n == 1 ? "" : "s")" }
 }
 
 /// The Postman Import sheet (design-system §6): native, 620 pt wide, so system colours.

@@ -735,11 +735,7 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
         renameError.isHidden = text == nil
     }
 
-    static func reason(_ error: StoreError) -> String {
-        switch error {
-        case .unreadable(_, let reason), .undecodable(_, let reason), .unwritable(_, let reason): reason
-        }
-    }
+    static func reason(_ error: StoreError) -> String { error.reason }
 
     /// The line under a row whose secret the Keychain refused (design-system §6).
     static func message(_ error: SecretError) -> String {

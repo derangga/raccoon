@@ -1,0 +1,23 @@
+{
+  "id": "0C0FFEE0-0000-4000-8000-000000057348",
+  "method": "POST",
+  "name": "Create refund",
+  "params": [
+    {
+      "isEnabled": false,
+      "name": "api_key",
+      "value": "abc123"
+    },
+    {
+      "isEnabled": true,
+      "name": "limit",
+      "value": "10"
+    }
+  ],
+  "settings": {
+    "allowsInsecureTLS": false,
+    "followsRedirects": false
+  },
+  "url": "https://httpbin.org/anything/create-refund",
+  "version": 1
+}

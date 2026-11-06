@@ -96,14 +96,15 @@ Postman Export
                            is as it was, and nothing half-written is left. Any secret values
                            already read are dropped. NEVER retried: the user picks again
   ⚠ a Request file that does not decode (an .unreadable node, or a file that no longer decodes
-                           when read) → escape: skipped, counted and named on the sheet, and never
-                           blocks the export. The file on disk is untouched
+                           when read) → escape: skipped, counted on the sheet and its file name listed (names
+                           only, the reason is the tooltip of that line), and never blocks the
+                           export. The file on disk is untouched
   ⚠ a Request file can't be read, or the Data Folder fails mid-read → escape: the same row: that
-                           file is skipped and named with the reason
+                           file is skipped, counted and listed by file name like the rest
   ⚠ the Collection gone from the index when the sheet should open (renamed or trashed outside
                            Raccoon) → escape: nothing opens
-  ⚠ a Request that is Dirty in a Tab → not an error: an info line, "Export uses what is
-                           saved"; the file holds the saved Request
+  ⚠ a Request that is Dirty in a Tab → not an error: an info line, "N Requests have edits
+                           in a Tab. Export uses what is saved."; the file holds the saved Request
   ⚠ a Request changed on disk while the Export sheet is open → not an error: the file holds
                            what the sheet counted and scanned (the plan is computed once)
   ⚠ credentials found     → not an error: a warning with the count and the Request names;

@@ -968,7 +968,8 @@ the full mapping: [design/entry-points/postman.md](../entry-points/postman.md).
 ### Collection Export sheet (native)
 
 Opened by File ▸ Export Collection… (enabled when the sidebar selection is in a Collection; no
-shortcut) or Export… in a Collection row's context menu, on that Collection. 440 pt wide, as tall
+shortcut; the item follows Import from Postman… and is disabled while a sheet is up) or Export… in a
+Collection row's context menu, on that Collection. 440 pt wide, as tall
 as its content: 20 pt margins, the title, a 12 pt gap, the steps, a 12 pt gap, the counts, the
 notices, a 16 pt gap, **Cancel** · **Export…** (default, Return) at the trailing edge. Cancel and
 Esc close; nothing has been written. Behaviour and the mapping:
@@ -988,7 +989,8 @@ Postman's export card, and the steps copy its checked steps, but only for work t
   and no sooner than 60 ms after the previous row's start. No artificial delay: a slow step is
   shown when it finishes. The counts, the credential warning and Export… all appear and enable in
   the third row's frame, together, so nothing is clickable before the warning shows. Reduce Motion: every row is drawn at its finish, with no fade. A read over
-  150 ms shows the system small spinner under the title until the first row. The three rows'
+  150 ms shows the system small spinner, in the first row's check position, until that row's check
+  appears (the rows' height is reserved, so nothing moves). The three rows'
   height is kept from the first frame, so rows appearing move nothing.
 - **Counts**, drawn in the same frame as the third row, 13 pt, no motion of their own:
   “41 Requests · 11 Folders” (“1 Request · 1 Folder”, “0 Requests · 0 Folders”). The numbers are
@@ -996,16 +998,20 @@ Postman's export card, and the steps copy its checked steps, but only for work t
 - **Credentials** (only when the scan found some), under the counts: an orange
   `exclamationmark.triangle.fill` 14 pt, “18 credentials in plain text” in 13 pt semibold
   (“1 credential in plain text”); under it, 12 pt secondary, “The file keeps them exactly as
-  typed.”; under that, 11 pt secondary, the Requests' names once each in tree order, joined by
+  typed.”; under that, 11 pt secondary, the Requests' names in tree order, one per Request (the repeats of one Request's several
+  findings are dropped; two Requests that share a name both show, unless they sit next to each
+  other), joined by
   “ · ”, as many as fit one line, then “and 12 more”; a single name too long is cut in the middle
   so “and N more” stays readable (the Import sheet's rule). The sheet gives no way to remove
   them: Export never changes what a Request holds.
 - **Not exported** (only when a Request file was skipped): an orange triangle and “1 file is not
   exported” (“3 files are not exported”), 13 pt semibold; under it, 12 pt secondary, “Raccoon
-  can't read it as a Request, and won't change it.”; then the file names on one line, the same
-  rule.
+  can't read it as a Request, and won't change it.” (the same words for any number: “it” is the
+  file as a kind); then the file names on one line, the same rule; its tooltip lists each file
+  with the reason the unreadable row shows.
 - **Dirty Requests** (only when a Dirty Tab holds one of the Collection's Requests): an ⓘ and “2
-  Requests have unsaved edits in Tabs. Export uses what is saved.”, 12 pt secondary.
+  Requests have edits in Tabs. Export uses what is saved.”, 12 pt secondary; for one,
+  “1 Request has edits in a Tab. Export uses what is saved.” (Dirty's Avoid line bans “unsaved”)
 - **Failure**: an 11 pt system-red line above the buttons, “Not exported. <reason>.”, the reason
   being the StoreError's (“Not exported. The folder “Archive” is not writable.”). The sheet stays
   and Export… works for another place.

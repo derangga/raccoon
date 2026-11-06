@@ -124,4 +124,69 @@ struct SidebarActionsTests {
             .item(withTitle: "File")?.submenu)
         #expect(file.item(withTitle: "New Collection")?.action == #selector(AppDelegate.newCollection(_:)))
     }
+
+    @Test func `only a Collection's menu has Export…, after Rename… and before Move to Trash`() throws {
+        let (_, sidebar) = try sidebar()
+        let titles = { (name: String) in try sidebar.contextMenu(row: row(sidebar, name)).items.filter { !$0.isSeparatorItem }.map(\.title) }
+
+        #expect(try titles("Payments API") == ["New Folder…", "Rename…", "Export…", "Move to Trash", "Reveal in Finder"])
+        #expect(try !titles("Refunds").contains("Export…"))
+        #expect(try !titles("Create charge").contains("Export…"))
+        #expect(try !titles("Broken.json").contains("Export…"))
+    }
+
+    @Test func `Export… in a Collection's menu asks the app to export that Collection`() throws {
+        let (_, sidebar) = try sidebar()
+        var asked: [String] = []
+        sidebar.exportCollection = { asked.append($0) }
+        let item = try #require(sidebar.contextMenu(row: try row(sidebar, "Orders")).item(withTitle: "Export…"))
+
+        _ = (item.target as? NSObject)?.perform(item.action, with: item)
+
+        #expect(asked == ["Orders"])
+    }
+
+    @Test func `the selection is in a Collection when a Collection, a Folder or a Request in it is selected`() throws {
+        let (_, sidebar) = try sidebar()
+        #expect(sidebar.selectedCollection == nil)
+        for (name, collection) in [("Orders", "Orders"), ("Refunds", "Payments API"), ("Create charge", "Payments API"), ("Broken.json", "Orders")] {
+            sidebar.outline.selectRowIndexes([try row(sidebar, name)], byExtendingSelection: false)
+            #expect(sidebar.selectedCollection == collection, "\(name)")
+        }
+    }
+
+    @Test func `File ▸ Export Collection… follows Import from Postman…, with no shortcut`() throws {
+        let file = try #require(MainMenu.make(theme: ThemeController(defaults: .standard, catalog: ThemeCatalog.load(), appearanceSource: NSView()))
+            .item(withTitle: "File")?.submenu)
+        let titles = file.items.map(\.title)
+        let item = try #require(file.item(withTitle: "Export Collection…"))
+
+        #expect(item.action == #selector(AppDelegate.exportCollection(_:)))
+        #expect(item.keyEquivalent == "")
+        #expect(titles.firstIndex(of: "Export Collection…") == titles.firstIndex(of: "Import from Postman…")! + 1)
+    }
+
+    @Test(arguments: [("Orders", false, true), (nil, false, false), ("Orders", true, false), (nil, true, false)] as [(String?, Bool, Bool)])
+    func `Export Collection… is enabled with a Collection selected and no sheet up`(selected: String?, sheetUp: Bool, enabled: Bool) {
+        #expect(AppDelegate.canExportCollection(selected: selected, sheetUp: sheetUp) == enabled)
+    }
+
+    @Test func `the app's validation disables Export Collection… while a sheet is attached to the window`() throws {
+        let (_, sidebar) = try sidebar()
+        let controller = MainWindowController(theme: theme, inspector: InspectorMemory(), reduceMotion: { true })
+        let delegate = AppDelegate()
+        delegate.sidebar = sidebar
+        delegate.windowController = controller
+        let item = NSMenuItem(title: "Export Collection…", action: #selector(AppDelegate.exportCollection(_:)), keyEquivalent: "")
+        let window = try #require(controller.window)
+
+        #expect(!delegate.validateMenuItem(item))
+        sidebar.outline.selectRowIndexes([try row(sidebar, "Orders")], byExtendingSelection: false)
+        #expect(delegate.validateMenuItem(item))
+
+        let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100), styleMask: [.titled], backing: .buffered, defer: false)
+        window.beginSheet(sheet, completionHandler: nil)
+        #expect(!delegate.validateMenuItem(item))
+        window.endSheet(sheet)
+    }
 }

@@ -1,0 +1,18 @@
+{
+  "headers": [
+    {
+      "isEnabled": true,
+      "name": "Authorization",
+      "value": "Bearer {{token}}"
+    }
+  ],
+  "id": "0C0FFEE0-0000-4000-8000-000000057347",
+  "method": "GET",
+  "name": "List charges",
+  "settings": {
+    "allowsInsecureTLS": false,
+    "followsRedirects": false
+  },
+  "url": "https://httpbin.org/anything/list-charges",
+  "version": 1
+}

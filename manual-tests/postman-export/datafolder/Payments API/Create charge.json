@@ -1,0 +1,18 @@
+{
+  "headers": [
+    {
+      "isEnabled": true,
+      "name": "Authorization",
+      "value": "Bearer tok_example_0000000000000000"
+    }
+  ],
+  "id": "0C0FFEE0-0000-4000-8000-000000057345",
+  "method": "POST",
+  "name": "Create charge",
+  "settings": {
+    "allowsInsecureTLS": false,
+    "followsRedirects": false
+  },
+  "url": "https://httpbin.org/anything/create-charge",
+  "version": 1
+}
