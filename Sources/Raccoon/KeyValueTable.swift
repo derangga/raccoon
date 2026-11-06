@@ -591,6 +591,7 @@ final class KeyRowView: NSTableRowView {
 
 /// "Name" / "Value" in `textTertiary` 11 semibold on `backgroundRecessed`.
 final class KeyHeaderCell: NSTableHeaderCell {
+    // NSCell copies bitwise: every stored reference below must be retained again in `copy(with:)`.
     private let theme: ThemeEnvironment
     private let ruleBefore: Bool
 
@@ -602,6 +603,14 @@ final class KeyHeaderCell: NSTableHeaderCell {
 
     @available(*, unavailable)
     required init(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    /// NSCell's copy duplicates the object's storage without retaining its references, so the
+    /// copy would release `theme` once more than it holds it when it goes.
+    override func copy(with zone: NSZone? = nil) -> Any {
+        let copy = super.copy(with: zone)
+        _ = Unmanaged.passUnretained(theme).retain()
+        return copy
+    }
 
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView) {
         theme.color(.backgroundRecessed).setFill()

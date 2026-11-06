@@ -429,6 +429,7 @@ final class FocusTextField: VariableField {
 /// editor turns the newlines of a multi-line paste into spaces, so a curl command has to be
 /// read before it is inserted.
 final class PasteFieldCell: VariableFieldCell {
+    // NSCell copies bitwise: a stored reference must be retained again in `copy(with:)`; nothing copies this cell today.
     private let editor = VariableStyle.fieldEditor(PasteFieldEditor.self)
 
     override func fieldEditor(for controlView: NSView) -> NSTextView? {
