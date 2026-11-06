@@ -70,6 +70,13 @@ struct CollectionExportSheetTests {
 
     func texts(_ sheet: CollectionExportSheet) -> [String] { sheet.stepRows.map(\.label.stringValue) }
 
+    @Test func `the buttons sit on the trailing edge, before and after the steps`() async {
+        let h = harness()
+        expectTrailingButtons([h.sheet.cancelButton, h.sheet.exportButton], in: h.sheet.view)
+        await h.sheet.run()
+        expectTrailingButtons([h.sheet.cancelButton, h.sheet.exportButton], in: h.sheet.view)
+    }
+
     @Test func `before the first step: the title, three undrawn rows, no counts, Export… disabled`() {
         let h = harness()
         #expect(h.sheet.titleLabel.stringValue == "Export “Sociolla”")

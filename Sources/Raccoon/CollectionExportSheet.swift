@@ -274,8 +274,9 @@ final class CollectionExportSheet: NSViewController {
         exportButton.target = self
         exportButton.action = #selector(exportPressed)
         exportButton.isEnabled = false
-        let buttons = NSStackView(views: [cancelButton, exportButton])
+        let buttons = NSStackView()
         buttons.spacing = 8
+        for button in [cancelButton, exportButton] { buttons.addView(button, in: .trailing) }
 
         let column = NSStackView(views: [titleLabel, stepsStack, details, failureLabel, buttons])
         column.orientation = .vertical
@@ -301,11 +302,6 @@ final class CollectionExportSheet: NSViewController {
             spinner.leadingAnchor.constraint(equalTo: stepsStack.leadingAnchor),
             spinner.centerYAnchor.constraint(equalTo: stepRows[0].centerYAnchor),
         ])
-        buttons.setHuggingPriority(.defaultLow, for: .horizontal)
-        cancelButton.setContentHuggingPriority(.required, for: .horizontal)
-        buttons.alignment = .centerY
-        buttons.distribution = .gravityAreas
-        buttons.setViews([cancelButton, exportButton], in: .trailing)
         self.view = view
     }
 

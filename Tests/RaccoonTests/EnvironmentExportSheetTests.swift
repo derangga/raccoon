@@ -132,6 +132,16 @@ struct EnvironmentExportSheetTests {
         #expect(h.sheet.view.fittingSize.width == 380)
     }
 
+    @Test func `the buttons sit on the trailing edge, on the form and on the result`() async {
+        store.refuseGets(of: [token], with: .unavailable(-128))
+        let h = harness(answers: [target])
+        expectTrailingButtons([h.sheet.cancelButton, h.sheet.exportButton], in: h.sheet.view)
+        h.sheet.includeBox.performClick(nil)
+        await h.sheet.export()
+        #expect(h.sheet.doneButton.isHidden == false)
+        expectTrailingButtons([h.sheet.doneButton], in: h.sheet.view)
+    }
+
     // MARK: Cancel
 
     @Test func `Cancel on the sheet writes nothing, reads no secret and opens no save panel`() async throws {

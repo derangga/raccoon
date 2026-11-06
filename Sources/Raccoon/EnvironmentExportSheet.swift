@@ -141,8 +141,9 @@ final class EnvironmentExportSheet: NSViewController {
         doneButton.target = self
         doneButton.action = #selector(close)
         doneButton.isHidden = true
-        let buttons = NSStackView(views: [cancelButton, exportButton, doneButton])
+        let buttons = NSStackView()
         buttons.spacing = 8
+        for button in [cancelButton, exportButton, doneButton] { buttons.addView(button, in: .trailing) }
 
         let check = NSImageView(image: NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)!)
         check.symbolConfiguration = .init(pointSize: 12, weight: .regular)
@@ -202,11 +203,6 @@ final class EnvironmentExportSheet: NSViewController {
             failureLabel.widthAnchor.constraint(lessThanOrEqualTo: column.widthAnchor),
             buttons.widthAnchor.constraint(equalTo: column.widthAnchor),
         ])
-        buttons.setHuggingPriority(.defaultLow, for: .horizontal)
-        cancelButton.setContentHuggingPriority(.required, for: .horizontal)
-        buttons.alignment = .centerY
-        buttons.distribution = .gravityAreas
-        buttons.setViews([cancelButton, exportButton, doneButton], in: .trailing)
         self.view = view
     }
 
