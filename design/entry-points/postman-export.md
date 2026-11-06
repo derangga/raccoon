@@ -234,15 +234,18 @@ reference. The scan is pure and runs on the `RequestDefinition`s the exporter wr
 warning describes the file as written, and a Disabled Row counts because the file holds it
 (`disabled: true`).
 
-A **field counts** when both hold:
+A **field counts** when these hold:
 
 1. **Its place is scanned**: a Headers row (a header named `Cookie` is not), a Params row, the
    `.bearer` token, or the `.basic` password. The `.basic` user name is not a credential.
 2. **Its value is not a reference**: `VariableTokens.ranges` finds no `{{name}}` in it. `Bearer
-   {{token}}` is a reference, `Bearer eyJ…` is not, and an empty value is not one. A
-   `{{$name}}` is not a reference either: `$` is not a VariableName character, so
-   `VariableTokens.ranges` reads it as text, and a header like `authorization: {{$token}}`
-   counts as a credential.
+   {{token}}` is a reference, `Bearer eyJ…` is not. A `{{$name}}` is not a reference either: `$`
+   is not a VariableName character, so `VariableTokens.ranges` reads it as text, and a header
+   like `authorization: {{$token}}` counts as a credential.
+3. **It holds something**, for the Auth fields only: an empty `.bearer` token or `.basic` password,
+   or one that is only whitespace, is nothing typed, so it is not a finding. An empty or
+   whitespace Headers or Params value still counts: the row is a field the file carries, and
+   Postman counts it.
 
 A Headers or Params row also needs a **credential name**: trimmed and compared without case,
 exactly `authorization`, `proxy-authorization` or `key`, or containing `token`, `secret`,

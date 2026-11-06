@@ -41,7 +41,8 @@ no setup. That is where most of the tests are:
   plan order, 41 Requests, 11 Folders, and `CredentialScan.find` gives 18. Two exports with the same
   arguments are byte-equal. The Environment export is checked key for key against `example/Sociolla
   Beauty Journal.postman_environment.json`. `CredentialScan` is a table, one row per rule: the name
-  list, a `{{name}}` value, an empty value, a Disabled Row, a Cookie header, Bearer and Basic.
+  list, a `{{name}}` value, an empty Headers or Params value (counted) and an empty or whitespace Auth
+  value (not), a Disabled Row, a Cookie header, Bearer and Basic.
 - **Export steps**: `ExportStepReveal.starts` as finish times and `reduceMotion` in, start times
   out: three steps finishing together start 60 ms apart, a late one starts when it finishes, and
   Reduce Motion returns the finish times unchanged.

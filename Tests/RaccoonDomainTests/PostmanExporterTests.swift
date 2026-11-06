@@ -308,10 +308,14 @@ extension PostmanExporterTests {
         #expect(again == Self.definition(cookies: [Row(name: "a", value: "1")]))
     }
 
-    @Test func `the example Collection exports and reads back to the same plan, in plan order`() throws {
-        let sample = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appending(path: "example/Sociolla.postman_collection.json")
-        let first = Self.plan(try Data(contentsOf: sample))
+    /// `example/` is untracked (it holds real tokens), so a clone without it skips the tests that read it.
+    static let sample = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        .appending(path: "example/Sociolla.postman_collection.json")
+    static let hasSample = FileManager.default.fileExists(atPath: sample.path)
+
+    @Test(.enabled(if: PostmanExporterTests.hasSample))
+    func `the example Collection exports and reads back to the same plan, in plan order`() throws {
+        let first = Self.plan(try Data(contentsOf: Self.sample))
         let collection = try #require(first.collections.first)
         let exported = PostmanExporter.collection(ExportCollection(name: collection.name, nodes: collection.nodes.map(Self.node)), id: Self.exportID)
         let second = Self.plan(exported)
