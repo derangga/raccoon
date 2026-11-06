@@ -131,6 +131,103 @@ struct URLSessionTransportTests {
         }
     }
 
+    /// The method and path of each request the server saw, in arrival order.
+    func lines(_ server: EchoServer) -> [String] {
+        server.requests.map {
+            String(decoding: $0.prefix { $0 != UInt8(ascii: "\r") }, as: UTF8.self)
+                .split(separator: " ").prefix(2).joined(separator: " ")
+        }
+    }
+
+    /// One header's value as sent, or nil when the request carried none by that name.
+    func value(_ name: String, in request: Data) -> String? {
+        String(decoding: request, as: UTF8.self).components(separatedBy: "\r\n\r\n")[0]
+            .components(separatedBy: "\r\n").dropFirst()
+            .first { $0.hasPrefix("\(name):") }
+            .map { $0.dropFirst(name.count + 1).trimmingCharacters(in: .whitespaces) }
+    }
+
+    func settings(redirects: Bool = true, originalMethod: Bool = false, authorization: Bool = false,
+                  maxRedirects: Int = 20, timeoutSeconds: Int? = nil) -> RequestSettings {
+        RequestSettings(allowsInsecureTLS: false, followsRedirects: redirects, followsOriginalMethod: originalMethod,
+                        followsAuthorizationHeader: authorization, maxRedirects: maxRedirects, timeoutSeconds: timeoutSeconds)
+    }
+
+    @Test func `a redirect switches a POST to GET unless Follow original HTTP method is on`() async throws {
+        try await withEchoServer { server in
+            let body = Body.raw(.text, "a=1")
+            _ = try await transport().send(resolved(server, "/redirect/302", method: "POST", body: body, settings: settings()))
+            #expect(lines(server) == ["POST /redirect/302", "GET /echo"])
+        }
+        try await withEchoServer { server in
+            let body = Body.raw(.text, "a=1")
+            let settings = settings(originalMethod: true)
+            _ = try await transport().send(resolved(server, "/redirect/302", method: "POST", body: body, settings: settings))
+
+            #expect(lines(server) == ["POST /redirect/302", "POST /echo"])
+            #expect(String(decoding: try #require(server.requests.last), as: UTF8.self).hasSuffix("a=1"))
+        }
+    }
+
+    /// 307 and 308 keep the method themselves, so nothing is rebuilt (environment-facts.md).
+    @Test func `a 307 keeps the POST with the setting off`() async throws {
+        try await withEchoServer { server in
+            let body = Body.raw(.text, "a=1")
+            _ = try await transport().send(resolved(server, "/redirect/307", method: "POST", body: body, settings: settings()))
+
+            #expect(lines(server) == ["POST /redirect/307", "POST /echo"])
+            #expect(String(decoding: try #require(server.requests.last), as: UTF8.self).hasSuffix("a=1"))
+        }
+    }
+
+    @Test func `Authorization survives a redirect only when Follow Authorization header is on`() async throws {
+        let header = [Row(name: "Authorization", value: "Bearer secret")]
+        try await withEchoServer { server in
+            _ = try await transport().send(resolved(server, "/redirect", headers: header, settings: settings()))
+            #expect(value("Authorization", in: try #require(server.requests.last)) == nil)
+        }
+        try await withEchoServer { server in
+            let settings = settings(authorization: true)
+            _ = try await transport().send(resolved(server, "/redirect", headers: header, settings: settings))
+            #expect(value("Authorization", in: try #require(server.requests.last)) == "Bearer secret")
+        }
+    }
+
+    @Test func `the Redirect Limit stops the send and names how many were followed`() async throws {
+        try await withEchoServer { server in
+            let request = resolved(server, "/loop", settings: settings(maxRedirects: 3))
+
+            await #expect(throws: SendError.tooManyRedirects(followed: 3)) { try await transport().send(request) }
+            #expect(server.requests.count == 4)
+        }
+    }
+
+    @Test func `a Redirect Limit of 0 refuses the first redirect`() async throws {
+        try await withEchoServer { server in
+            let request = resolved(server, "/redirect", settings: settings(maxRedirects: 0))
+
+            await #expect(throws: SendError.tooManyRedirects(followed: 0)) { try await transport().send(request) }
+        }
+    }
+
+    @Test func `the Request Timeout overrides the transport's own and is named in the error`() async throws {
+        try await withEchoServer { server in
+            let request = resolved(server, "/delay/3000", settings: settings(timeoutSeconds: 1))
+            let start = ContinuousClock.now
+
+            await #expect(throws: SendError.timedOut(seconds: 1)) { try await transport(timeout: .seconds(60)).send(request) }
+            #expect(ContinuousClock.now - start < .seconds(2))
+        }
+    }
+
+    @Test func `with no Request Timeout the transport's own is used and named`() async throws {
+        try await withEchoServer { server in
+            let request = resolved(server, "/delay/3000", settings: settings())
+
+            await #expect(throws: SendError.timedOut(seconds: 1)) { try await transport(timeout: .seconds(1)).send(request) }
+        }
+    }
+
     @Test func `a self-signed host fails unless insecure TLS is allowed`() async throws {
         try await withEchoServer(tls: true) { server in
             var settings = RequestDefinition.empty.settings
@@ -161,7 +258,7 @@ struct URLSessionTransportTests {
 
     @Test func `a reply past the timeout fails with timedOut and is never retried`() async throws {
         try await withEchoServer { server in
-            await #expect(throws: SendError.timedOut) {
+            await #expect(throws: SendError.timedOut(seconds: 1)) {
                 try await transport(timeout: .milliseconds(200)).send(resolved(server, "/delay/1000"))
             }
             #expect(server.requests.count == 1)

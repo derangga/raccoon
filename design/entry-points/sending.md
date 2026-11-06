@@ -19,10 +19,50 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
                                                              the transport's init
                                                              E: fileMissing -> escape,
                                                              before any byte goes out
+    -> urlRequest.timeoutInterval                            the Request Timeout, or 60 with
+                                                             none. It overrides the session's
+                                                             own (environment-facts.md)
     -> URLSession data(for:delegate:)                        E: SendError -> escape
                                                              never retried, see §4
+      -> SendDelegate, per redirect                          the Request Settings answer it
+    -> the delegate refused at the Redirect Limit?           E: tooManyRedirects -> escape
   -> tab.response = .received(response)
 ```
+
+**A redirect is answered by the send's own delegate, and three Request Settings shape the
+answer.** URLSession rewrites the request before the delegate ever sees it, so following a
+redirect faithfully means putting back what it took (environment-facts.md).
+
+```
+-> SendDelegate.willPerformHTTPRedirection(offered)
+  -> followsRedirects is off                     nil: the 3xx is the Response, unchanged
+  -> followed + 1 > maxRedirects                 nil, and the refusal is recorded. The send
+                                                 then fails with tooManyRedirects(followed),
+                                                 because nil alone reads as a 302 on screen
+                                                 and would look like Follow redirects being off
+  -> followsOriginalMethod, and the offered
+     method differs from the one sent            put the method AND the body back. 301, 302
+                                                 and 303 arrive as a GET with no body; 307 and
+                                                 308 already match, so nothing is rebuilt and
+                                                 URLSession's own body stream is left alone
+  -> followsAuthorizationHeader                  put the Authorization header back. URLSession
+                                                 strips it on EVERY redirect, the same host
+                                                 included, so without this a redirect to an
+                                                 authenticated endpoint answers 401 and the
+                                                 Headers table would be lying about what was sent
+```
+
+**The three redirect settings do nothing while Follow redirects is off**, because no redirect
+is ever followed. They are still stored, so turning Follow redirects back on restores them.
+
+**The Redirect Limit stops at 20 because URLSession does.** Its 21st redirect throws
+`-1007` whatever the delegate says, so a larger number would be a promise Raccoon cannot
+keep. `RequestSettings.init` clamps rather than validating at each edge: a Postman file
+carries `maxRedirects: 9007199254740991`, and one clamp covers the file, the import and the pane.
+
+**The Request Timeout is idle time, not total time.** It is the gap URLSession allows between
+bytes, so a server that trickles one byte a second outlives any value set here. The hint under
+the field says so, and the failure reads "No response after 30 s" with the request's own number.
 
 **Path Variables are substituted inside `VariableResolver.resolve`, once, before the URL is
 built.** The same tree runs for Copy as Curl and the Curl pane, so they show what is sent.

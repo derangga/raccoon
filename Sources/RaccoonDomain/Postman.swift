@@ -72,6 +72,13 @@ public struct PostmanRequest: Equatable, Sendable {
     public var followRedirects: Bool?
     /// `protocolProfileBehavior.strictSSL`.
     public var strictSSL: Bool?
+    /// `protocolProfileBehavior.maxRedirects`. Postman writes numbers no client can honour, so
+    /// `RequestSettings.init` clamps it (postman.md).
+    public var maxRedirects: Int?
+    /// `protocolProfileBehavior.followOriginalHttpMethod`.
+    public var followOriginalHttpMethod: Bool?
+    /// `protocolProfileBehavior.followAuthorizationHeader`.
+    public var followAuthorizationHeader: Bool?
     public var events: [PostmanEvent]
     /// The saved examples in `response`. Raccoon keeps none, so only their count is read.
     public var responseCount: Int
@@ -79,8 +86,13 @@ public struct PostmanRequest: Equatable, Sendable {
     public init(
         name: String, description: String? = nil, method: String = "GET", url: PostmanURL = PostmanURL(),
         headers: [PostmanKeyValue] = [], body: PostmanBody? = nil, auth: PostmanAuth? = nil,
-        followRedirects: Bool? = nil, strictSSL: Bool? = nil, events: [PostmanEvent] = [], responseCount: Int = 0
+        followRedirects: Bool? = nil, strictSSL: Bool? = nil, maxRedirects: Int? = nil,
+        followOriginalHttpMethod: Bool? = nil, followAuthorizationHeader: Bool? = nil,
+        events: [PostmanEvent] = [], responseCount: Int = 0
     ) {
+        self.maxRedirects = maxRedirects
+        self.followOriginalHttpMethod = followOriginalHttpMethod
+        self.followAuthorizationHeader = followAuthorizationHeader
         self.name = name
         self.description = description
         self.method = method

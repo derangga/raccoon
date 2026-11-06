@@ -118,7 +118,10 @@ struct StatusLineTests {
 
 struct FailureTextTests {
     @Test(arguments: [
-        (SendError.timedOut, "No response after 60 s", "The server did not answer in time. Raccoon does not send again by itself.", false),
+        (SendError.timedOut(seconds: 60), "No response after 60 s", "The server did not answer in time. Raccoon does not send again by itself.", false),
+        (.timedOut(seconds: 5), "No response after 5 s", "The server did not answer in time. Raccoon does not send again by itself.", false),
+        (.tooManyRedirects(followed: 20), "Too many redirects", "The send followed 20 redirects and stopped at the Redirect Limit.", false),
+        (.tooManyRedirects(followed: 1), "Too many redirects", "The send followed 1 redirect and stopped at the Redirect Limit.", false),
         (.untrustedCertificate(host: "grafana.staging.internal.example.com"), "Untrusted certificate",
          "The certificate for grafana.staging.internal.example.com is not trusted by this Mac. It may be self-signed or expired.", true),
         (.transport(.cannotConnectToHost, "Could not connect to the server.", host: "localhost:8080"), "Could not connect to the server",

@@ -9,7 +9,7 @@ import Testing
 struct CloseTabTests {
     let temp = FileManager.default.temporaryDirectory.appending(path: "raccoon-\(UUID())")
 
-    func makeWindow(transport: ScriptedTransport = ScriptedTransport(.failure(.timedOut))) -> WindowModel {
+    func makeWindow(transport: ScriptedTransport = ScriptedTransport(.failure(.timedOut(seconds: 60)))) -> WindowModel {
         WindowModel(
             dataFolder: .test(temp.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
             sessionStore: DiskSessionStore(directory: temp.appending(path: "Support"), root: temp.appending(path: "Raccoon").path), secrets: InMemorySecretStore(),

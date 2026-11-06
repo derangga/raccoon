@@ -1,5 +1,6 @@
 import Foundation
 import RaccoonDomain
+import Synchronization
 
 /// The live HTTPTransport: one URLSession for the app, and a delegate per send that answers
 /// redirects and server trust from that request's Request Settings. It sends exactly once and
@@ -9,9 +10,13 @@ import RaccoonDomain
 public final class URLSessionTransport: HTTPTransport {
     let session: URLSession
     private let files: any FileReading
+    /// Used by a Request that sets no Request Timeout of its own. Not rounded to whole seconds:
+    /// `timeoutInterval` reads 0 as "no timeout", so a sub-second value must survive.
+    private let fallbackTimeout: TimeInterval
 
     /// No cookie storage, URL cache or credential storage: each is state the user cannot see.
     public init(files: any FileReading, timeout: Duration = .seconds(60)) {
+        fallbackTimeout = Double(timeout.components.seconds) + Double(timeout.components.attoseconds) / 1e18
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpCookieStorage = nil
         configuration.httpShouldSetCookies = false
@@ -28,11 +33,16 @@ public final class URLSessionTransport: HTTPTransport {
 
     public func send(_ request: ResolvedRequest) async throws(SendError) -> Response {
         let urlRequest = try urlRequest(for: request)
-        let delegate = SendDelegate(settings: request.definition.settings)
+        let delegate = SendDelegate(settings: request.definition.settings, original: urlRequest)
         let start = ContinuousClock.now
-        let (body, response) = try await lifting(request.url) {
+        // Never 0: the Request Timeout is whole seconds, and only a test sets a shorter fallback.
+        let seconds = max(1, Int(urlRequest.timeoutInterval.rounded()))
+        let (body, response) = try await lifting(request.url, seconds: seconds) {
             try await session.data(for: urlRequest, delegate: delegate)
         }
+        // Refusing a redirect makes data(for:) succeed with the 3xx (environment-facts.md), so
+        // the Redirect Limit can only be reported once the call has returned.
+        if let followed = delegate.refusedAfter { throw .tooManyRedirects(followed: followed) }
         guard let http = response as? HTTPURLResponse else {
             throw .transport(.badServerResponse, "The server's reply was not HTTP.", host: Self.authority(request.url))
         }
@@ -48,6 +58,9 @@ public final class URLSessionTransport: HTTPTransport {
         let definition = request.definition
         var urlRequest = URLRequest(url: request.url)
         urlRequest.httpMethod = definition.method
+        // Always set, because URLRequest's own default is 60 whatever the session says, and the
+        // failure has to name the number that actually applied (environment-facts.md).
+        urlRequest.timeoutInterval = definition.settings.timeoutSeconds.map(Double.init) ?? fallbackTimeout
         var headers = definition.headers
 
         switch definition.body {
@@ -117,13 +130,13 @@ public final class URLSessionTransport: HTTPTransport {
 
     /// URLSession's errors, lifted into SendError. Cancellation stays `.transport(.cancelled)`;
     /// the Tab treats it as `.idle`, not as a failure.
-    private func lifting<A>(_ url: URL, _ body: () async throws -> A) async throws(SendError) -> A {
+    private func lifting<A>(_ url: URL, seconds: Int, _ body: () async throws -> A) async throws(SendError) -> A {
         do {
             return try await body()
         } catch let error as URLError {
             switch error.code {
             case .timedOut:
-                throw .timedOut
+                throw .timedOut(seconds: seconds)
             case .serverCertificateUntrusted, .serverCertificateHasUnknownRoot, .serverCertificateHasBadDate,
                  .serverCertificateNotYetValid:
                 throw .untrustedCertificate(host: url.host() ?? "")
@@ -142,16 +155,49 @@ public final class URLSessionTransport: HTTPTransport {
 }
 
 /// Answers one send's redirect and server-trust questions from its Request Settings.
+///
+/// URLSession rewrites a redirect before the delegate sees it: 301, 302 and 303 arrive as a GET
+/// with no body, and `Authorization` is gone from all five, the same host included
+/// (environment-facts.md). Following a redirect faithfully means putting those back.
 private final class SendDelegate: NSObject, URLSessionTaskDelegate, Sendable {
     let settings: RequestSettings
+    /// What was sent first: the source of the method, body and Authorization put back below.
+    let original: URLRequest
+    private let followed = Mutex(0)
+    /// How many redirects had been followed when the Redirect Limit refused the next one.
+    private let refused = Mutex<Int?>(nil)
 
-    init(settings: RequestSettings) {
+    var refusedAfter: Int? { refused.withLock { $0 } }
+
+    init(settings: RequestSettings, original: URLRequest) {
         self.settings = settings
+        self.original = original
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest) async -> URLRequest? {
-        settings.followsRedirects ? request : nil
+        guard settings.followsRedirects else { return nil }
+        let soFar = followed.withLock { $0 }
+        guard soFar < settings.maxRedirects else {
+            refused.withLock { $0 = soFar }
+            return nil
+        }
+        followed.withLock { $0 += 1 }
+
+        var next = request
+        // 307 and 308 already carry the method, and URLSession carries their body itself:
+        // re-attaching it there would duplicate what it is already streaming.
+        if settings.followsOriginalMethod, next.httpMethod != original.httpMethod {
+            next.httpMethod = original.httpMethod
+            next.httpBody = original.httpBody
+            if let type = original.value(forHTTPHeaderField: "Content-Type") {
+                next.setValue(type, forHTTPHeaderField: "Content-Type")
+            }
+        }
+        if settings.followsAuthorizationHeader, let authorization = original.value(forHTTPHeaderField: "Authorization") {
+            next.setValue(authorization, forHTTPHeaderField: "Authorization")
+        }
+        return next
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge) async

@@ -498,10 +498,29 @@ values.
 
 ### Request Settings
 
-Two checkboxes, each with a one-line hint in `textTertiary`:
-"Allow insecure TLS" (hint: "Accept certificates the system does not trust, for this Request
-only.") and "Follow redirects". There is no compression checkbox: URLSession always asks for
-and decodes gzip (environment-facts.md, Open UI question 10).
+Six rows, each one label in `text` over a wrapping hint in `textTertiary`, with the row's
+control right-aligned on the label's baseline and 16 pt between rows. A row grows to at most
+600 pt, the measure the Auth pane stacks at, and the column stays on the leading edge: pinned
+to the pane's own trailing edge instead, a control sits a window's width from its hint. The four switches are
+`NSSwitch` at `.mini`; the two numbers are `NSTextField`s 64 pt wide with a number formatter,
+right-aligned text. There is no compression row: URLSession always asks for and decodes gzip
+(environment-facts.md, Open UI question 10).
+
+| Label | Hint | Control |
+|---|---|---|
+| Allow insecure TLS | Accept certificates the system does not trust, for this Request only. | switch, off |
+| Follow redirects | Send the request again to the Location a 3xx reply names. | switch, off |
+| Follow original HTTP method | Redirect with the method that was sent, instead of switching to GET. | switch, off |
+| Follow Authorization header | Keep the Authorization header when a redirect goes to another host. | switch, off |
+| Maximum number of redirects | Between 0 and 20. The system stops at 20 whatever is set here. | field, 20 |
+| Request timeout (seconds) | Time allowed to pass with no new bytes, not a cap on the whole send. Empty is 60. | field, empty |
+
+The last three rows are `textDisabled` and their controls disabled while Follow redirects is
+off, because nothing then follows a redirect for them to shape. Their values are kept, so
+turning Follow redirects back on shows them again. A number typed outside its range is clamped
+on commit and the field redraws with the clamped value; an empty timeout field is 60 and is not
+drawn as `0`. Return and a click elsewhere commit; **Esc gives focus up and leaves the setting
+as it was**, redrawing the field at the committed number, as a value field in the Inspector does.
 
 ### Response viewer
 
@@ -539,7 +558,8 @@ Anatomy: status line (34 pt) over the body area, on `backgroundRecessed`.
   title in `statusFailed` 13 semibold, one sentence of detail in `textTertiary`, and the
   single fix as a button when one exists. Titles: "Untrusted certificate" (names the host;
   button "Allow insecure TLS for this request", which flips the Request Setting and does not
-  send), "No response after 60 s", URLError's description plus the code and host for
+  send), "No response after 60 s" (or the Request Timeout the send used), "Too many
+  redirects" naming how many were followed, URLError's description plus the code and host for
   transport errors, "Invalid URL" quoting the URL after substitution (status line "Not sent").
 - **binary**: "Binary body", then "48.2 KB that is not UTF-8 text. Raccoon shows text bodies
   only." Until the off-main presentation lands the body area is empty, not the bytes as text.
@@ -1199,7 +1219,8 @@ Every entry of [e-where-it-breaks.md](../e-where-it-breaks.md) with a visible pl
 |---|---|---|
 | send: any SendError | Response pane | Response viewer, failed |
 | cancelled | Response pane returns to idle | Response viewer, idle |
-| timedOut | Response pane: "No response after 60 s" | failed |
+| timedOut(seconds) | Response pane: "No response after 60 s", or the Request Timeout that was set | failed |
+| tooManyRedirects(followed) | Response pane: "Too many redirects", naming how many were followed | failed |
 | untrustedCertificate | Response pane, host named, "Allow insecure TLS for this request" | failed |
 | invalidURL | URL field outlined in `error`; Response pane quotes the substituted URL | URL bar, failed |
 | fileMissing(path) | the multipart chip marked; message line names the path | Body editor |

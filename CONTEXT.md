@@ -39,8 +39,16 @@ The request's authentication scheme: none, Basic, or Bearer.
 _Avoid_: authorization header
 
 **Request Settings**:
-Per-request transport options: allow insecure TLS and follow redirects.
+Per-request transport options: allow insecure TLS, follow redirects, follow the original HTTP method, follow the Authorization header, the Redirect Limit and the Request Timeout.
 _Avoid_: Options, flags
+
+**Redirect Limit**:
+How many redirects one send follows before it fails. 0 to 20, because URLSession stops at 20 itself.
+_Avoid_: Max redirects, hops
+
+**Request Timeout**:
+The seconds one send allows to pass with no new bytes arriving, before it fails. Unset is 60.
+_Avoid_: Deadline, TTL, total time
 
 **Response**:
 The result of the last send from a Tab, kept in memory only and lost when the Tab closes or Raccoon quits.

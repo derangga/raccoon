@@ -1,51 +1,205 @@
 import AppKit
 import RaccoonDomain
 
-/// The Settings section: two checkboxes, each with its hint (design-system.md §6 Request Settings).
-/// No compression row: URLSession always asks for and decodes gzip (Open UI question 10).
-final class SettingsPane: NSView {
-    let checkboxes: [NSButton]
-    let insecureTLSHint = NSTextField(wrappingLabelWithString: "Accept certificates the system does not trust, for this Request only.")
-    var onChange: (RequestSettings) -> Void = { _ in }
+/// One Request Settings row: the label over its hint on the leading edge, the control on the
+/// trailing edge (design-system.md §6 Request Settings).
+final class SettingsRow<Control: NSControl>: NSStackView {
+    let label: String
+    let title = NSTextField(labelWithString: "")
+    let hint = NSTextField(wrappingLabelWithString: "")
+    let control: Control
 
-    init(theme: ThemeEnvironment) {
-        checkboxes = ["Allow insecure TLS", "Follow redirects"].map { NSButton(checkboxWithTitle: $0, target: nil, action: nil) }
+    init(label: String, hint text: String, control: Control, theme: ThemeEnvironment) {
+        self.label = label
+        self.control = control
         super.init(frame: .zero)
-        for box in checkboxes {
-            box.target = self
-            box.action = #selector(toggled)
-        }
-        insecureTLSHint.font = .systemFont(ofSize: 11)
-        theme.paint(insecureTLSHint) { $0.textColor = $1.color(.textTertiary) }
-        let insecure = NSStackView(views: [checkboxes[0], insecureTLSHint])
-        insecure.orientation = .vertical
-        insecure.alignment = .leading
-        insecure.spacing = 2
-        let column = NSStackView(views: [insecure, checkboxes[1]])
-        column.orientation = .vertical
-        column.alignment = .leading
-        column.spacing = 10
-        column.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(column)
-        NSLayoutConstraint.activate([
-            column.topAnchor.constraint(equalTo: topAnchor),
-            column.leadingAnchor.constraint(equalTo: leadingAnchor),
-            column.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
-            // The hint lines up with the checkbox title, not the box.
-            insecureTLSHint.leadingAnchor.constraint(equalTo: insecure.leadingAnchor, constant: 20),
-        ])
+        title.stringValue = label
+        title.font = .systemFont(ofSize: 13)
+        hint.stringValue = text
+        hint.font = .systemFont(ofSize: 11)
+        theme.paint(title) { $0.textColor = $1.color(.text) }
+        theme.paint(hint) { $0.textColor = $1.color(.textTertiary) }
+
+        let caption = NSStackView(views: [title, hint])
+        caption.orientation = .vertical
+        caption.alignment = .leading
+        caption.spacing = 2
+        orientation = .horizontal
+        alignment = .top
+        spacing = 16
+        addView(caption, in: .leading)
+        addView(control, in: .trailing)
+        // The caption takes the slack so the control stays pinned to the trailing edge.
+        caption.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        control.setContentHuggingPriority(.required, for: .horizontal)
+        control.setContentCompressionResistancePriority(.required, for: .horizontal)
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
+    /// Greyed out together with its control, for a row that cannot do anything yet.
+    func setEnabled(_ isEnabled: Bool, theme: ThemeEnvironment) {
+        control.isEnabled = isEnabled
+        theme.paint(title) { $0.textColor = $1.color(isEnabled ? .text : .textDisabled) }
+        theme.paint(hint) { $0.textColor = $1.color(isEnabled ? .textTertiary : .textDisabled) }
+    }
+}
+
+/// The Settings section: four switches and two number fields, each with its hint
+/// (design-system.md §6 Request Settings). No compression row: URLSession always asks for and
+/// decodes gzip (Open UI question 10).
+final class SettingsPane: NSView {
+    let switches: [SettingsRow<NSSwitch>]
+    let fields: [SettingsRow<NSTextField>]
+    var onChange: (RequestSettings) -> Void = { _ in }
+    private let theme: ThemeEnvironment
+    /// What the pane last drew, so a commit changes one setting and keeps the rest.
+    private var settings = RequestDefinition.empty.settings
+    /// Esc ended the edit, so the value that was typed is thrown away.
+    private var cancelled = false
+
+    init(theme: ThemeEnvironment) {
+        self.theme = theme
+        let labels = [
+            ("Allow insecure TLS", "Accept certificates the system does not trust, for this Request only."),
+            ("Follow redirects", "Send the request again to the Location a 3xx reply names."),
+            ("Follow original HTTP method", "Redirect with the method that was sent, instead of switching to GET."),
+            ("Follow Authorization header", "Keep the Authorization header when a redirect goes to another host."),
+        ]
+        switches = labels.map { label, hint in
+            let control = NSSwitch()
+            control.controlSize = .mini
+            return SettingsRow(label: label, hint: hint, control: control, theme: theme)
+        }
+        fields = [
+            ("Maximum number of redirects", "Between 0 and 20. The system stops at 20 whatever is set here."),
+            ("Request timeout (seconds)", "Time allowed to pass with no new bytes, not a cap on the whole send. Empty is 60."),
+        ].map { label, hint in
+            let control = NSTextField()
+            control.alignment = .right
+            control.formatter = Self.wholeNumbers
+            control.widthAnchor.constraint(equalToConstant: 64).isActive = true
+            return SettingsRow(label: label, hint: hint, control: control, theme: theme)
+        }
+        super.init(frame: .zero)
+        for row in switches {
+            row.control.target = self
+            row.control.action = #selector(toggled)
+        }
+        for row in fields {
+            row.control.target = self
+            row.control.action = #selector(commit)
+            row.control.delegate = self
+        }
+
+        let column = NSStackView(views: switches + fields)
+        column.orientation = .vertical
+        column.alignment = .leading
+        column.distribution = .fill
+        column.spacing = 16
+        column.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(column)
+        // Capped at the Auth pane's 600 pt measure: pinned to the pane's own trailing edge, a
+        // control sits a window's width from the hint it belongs to.
+        let width = column.widthAnchor.constraint(equalToConstant: Self.maximumWidth)
+        width.priority = .defaultHigh
+        NSLayoutConstraint.activate([
+            column.topAnchor.constraint(equalTo: topAnchor),
+            column.leadingAnchor.constraint(equalTo: leadingAnchor),
+            column.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
+            column.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor),
+            width,
+        ])
+        for row in switches + fields.map({ $0 as NSStackView }) {
+            row.widthAnchor.constraint(equalTo: column.widthAnchor).isActive = true
+        }
+        // Drawn before the first render, so the pane never shows an empty limit field.
+        setSettings(settings)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    /// How wide a row grows before the control stops following the pane's edge, the same
+    /// measure the Auth pane stacks at (design-system.md §6).
+    static let maximumWidth: CGFloat = 600
+
+    /// Digits only: a formatter rejects the rest, and the range is enforced on commit so a
+    /// clamp shows the number that was kept rather than refusing the edit.
+    private static let wholeNumbers: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .none
+        formatter.allowsFloats = false
+        formatter.minimum = 0
+        return formatter
+    }()
+
     func setSettings(_ settings: RequestSettings) {
-        checkboxes[0].state = settings.allowsInsecureTLS ? .on : .off
-        checkboxes[1].state = settings.followsRedirects ? .on : .off
+        self.settings = settings
+        switches[0].control.state = settings.allowsInsecureTLS ? .on : .off
+        switches[1].control.state = settings.followsRedirects ? .on : .off
+        switches[2].control.state = settings.followsOriginalMethod ? .on : .off
+        switches[3].control.state = settings.followsAuthorizationHeader ? .on : .off
+        // currentEditor() is non-nil only while the field is being typed in; leave that text
+        // alone so a redraw does not fight the cursor.
+        if fields[0].control.currentEditor() == nil {
+            fields[0].control.stringValue = "\(settings.maxRedirects)"
+        }
+        if fields[1].control.currentEditor() == nil {
+            fields[1].control.stringValue = settings.timeoutSeconds.map { "\($0)" } ?? ""
+        }
+        // Nothing follows a redirect, so the three rows that shape one have nothing to do.
+        for row in [switches[2], switches[3]] { row.setEnabled(settings.followsRedirects, theme: theme) }
+        fields[0].setEnabled(settings.followsRedirects, theme: theme)
     }
 
     @objc private func toggled() {
-        onChange(RequestSettings(allowsInsecureTLS: checkboxes[0].state == .on, followsRedirects: checkboxes[1].state == .on))
+        var settings = settings
+        settings.allowsInsecureTLS = switches[0].control.state == .on
+        settings.followsRedirects = switches[1].control.state == .on
+        settings.followsOriginalMethod = switches[2].control.state == .on
+        settings.followsAuthorizationHeader = switches[3].control.state == .on
+        onChange(settings)
+    }
+
+    /// Internal, not private: the tests commit a typed value the way Return and focus loss do.
+    @objc func commit(_ sender: NSTextField) {
+        var settings = settings
+        if sender === fields[0].control {
+            settings.maxRedirects = Int(sender.stringValue) ?? RequestDefinition.empty.settings.maxRedirects
+        } else {
+            // Empty is the transport's default, which is not the same as 0.
+            settings.timeoutSeconds = sender.stringValue.isEmpty ? nil : Int(sender.stringValue)
+        }
+        onChange(settings)
+        // Assigning clamped, so the field redraws at the number that was actually kept.
+        setSettings(settings)
+    }
+}
+
+extension SettingsPane: NSTextFieldDelegate {
+    /// Esc gives focus up and leaves the Request Setting as it was, the way a value field in
+    /// the Inspector behaves. Return and a click elsewhere commit instead.
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+        guard selector == #selector(NSResponder.cancelOperation(_:)) else { return false }
+        cancelled = true
+        window?.makeFirstResponder(nil)
+        return true
+    }
+
+    func controlTextDidEndEditing(_ notification: Notification) {
+        guard let field = notification.object as? NSTextField else { return }
+        guard !cancelled else {
+            cancelled = false
+            // Written straight to the field: the editor may outlive this call, and setSettings
+            // leaves a field that still has one alone.
+            field.stringValue = field === fields[0].control
+                ? "\(settings.maxRedirects)"
+                : settings.timeoutSeconds.map { "\($0)" } ?? ""
+            return
+        }
+        commit(field)
     }
 }
 

@@ -73,7 +73,9 @@ without crashing, and none of them needs a socket, a file or a window to test.
 ```
 HTTPTransport     send(ResolvedRequest) async throws(SendError) -> Response
                   the Request Settings ride inside the ResolvedRequest. The live one
-                  reads multipart file parts through the FileReading given to its init
+                  reads multipart file parts through the FileReading given to its init,
+                  and its init's `timeout` is only the fallback for a Request that
+                  sets no Request Timeout of its own
 FileReading       read(path) throws(StoreError) -> Data       @file and multipart parts
 FileWriting       write(Data, to: URL) throws(StoreError)     Postman Export: a path the user
                   picked, outside the Data Folder. Atomic: a temp file in the target's

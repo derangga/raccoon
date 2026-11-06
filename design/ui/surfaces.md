@@ -38,7 +38,7 @@ Window                          one, native chrome
                                 Auth · Bearer Token) and AuthNote on the left, the fields on the right;
                                 the rule between them runs the pane's full height. None: the right
                                 side is an empty state ("No Auth")
-      RequestSettings           two checkboxes
+      RequestSettings           four switches and two number fields
     Split                       draggable divider
     ResponseViewer              StatusLine · Body (Pretty | Raw) · Headers
   Inspector                     themed, right of the content, closed by default
@@ -301,6 +301,7 @@ two cases are a binary body and a secret value, and both say why instead of show
   a 2,000-character URL, a 20 MB body, an unreadable file. Findings in design-system.md.
 - **Least access**: a read-only Data Folder (WindowBanner). Collections
   vanish; Drafts and sending still work, so the window stays an HTTP client.
-- **Small and slow**: the 760 × 480 minimum (Q2), a send that times out after 60 s, Reduce
+- **Small and slow**: the 760 × 480 minimum (Q2), a send that times out after its Request
+  Timeout (60 s with none set), Reduce
   Motion on. The graph re-routes (Sidebar collapses, banners cross-fade), it does not
   degrade.

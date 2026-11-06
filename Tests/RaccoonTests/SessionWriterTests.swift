@@ -60,7 +60,7 @@ final class SessionWriterTests {
             dataFolder: .test(directory.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
             sessionStore: store, secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
             makeTab: {
-                TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+                TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                          instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
             }
         )

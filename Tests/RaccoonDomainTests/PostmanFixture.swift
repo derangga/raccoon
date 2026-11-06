@@ -26,12 +26,14 @@ func imported(_ name: String, _ nodes: [ImportNode], globals: [ImportVariable] =
 /// A planned Request whose RequestID is the nth: Postman's default follows redirects.
 func planned(
     _ n: Int, _ name: String, _ method: String = "GET", _ url: String = "", params: [Row] = [], pathVariables: [String: String] = [:], headers: [Row] = [],
-    cookies: [Row] = [], body: Body = .none, auth: Auth = .none, insecure: Bool = false, redirects: Bool = true
+    cookies: [Row] = [], body: Body = .none, auth: Auth = .none, insecure: Bool = false, redirects: Bool = true,
+    originalMethod: Bool = false, authorization: Bool = false, maxRedirects: Int = 20
 ) -> ImportNode {
     .request(Request(id: PostmanMappingTests.id(n), name: name, definition: RequestDefinition(
         method: method, url: url, params: params, pathVariables: pathVariables, headers: headers, cookies: cookies,
         body: body, auth: auth,
-        settings: RequestSettings(allowsInsecureTLS: insecure, followsRedirects: redirects)
+        settings: RequestSettings(allowsInsecureTLS: insecure, followsRedirects: redirects, followsOriginalMethod: originalMethod,
+                                  followsAuthorizationHeader: authorization, maxRedirects: maxRedirects)
     )))
 }
 

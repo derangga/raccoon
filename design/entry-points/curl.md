@@ -46,7 +46,10 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
       -> body       see the body table below
       -> method     -X / --request, else HEAD with -I / --head, else POST if there
                     is a body, else GET
-      -> settings   -k / --insecure, -L / --location
+      -> settings   -k / --insecure, -L / --location, --location-trusted (which is
+                    -L and Follow Authorization header together, as in curl),
+                    --post301 / --post302 / --post303 (any one sets Follow original
+                    HTTP method), --max-redirs <n>, --max-time <s>
   -> PasteTarget.for(tab)                        pure
      .currentTab   tab is a Draft, its definition equals the empty Draft, no Response
      .newDraftTab  anything else
@@ -118,6 +121,18 @@ and every place they disagree is a command split inside a quote.
   adds as an automatic row (AutomaticHeaders), which is what curl sends too.
 - **Headers keep command order across `-H` and `--header`.** Yaak lists `--header` first.
 - **`-L` sets Follow redirects and `-k` Allow insecure TLS.** Yaak ignores both.
+- **`--max-time` is curl's whole-send cap, and the Request Timeout is idle time between
+  bytes.** They are not the same clock, and URLSession offers nothing closer
+  (environment-facts.md). The two are mapped to each other anyway, because a command that
+  carried no limit at all would be further from the truth than one that carries this one.
+- **`--max-redirs` is always written while Follow redirects is on**, because curl's own
+  default is 50 and the command would otherwise follow further than the Request does.
+  `--max-redirs` and `--post301/302/303` are written without `-L` too: curl ignores them
+  there, exactly as Raccoon does, and writing them keeps the round trip exact.
+- **`--location-trusted` is the one flag that needs `-L`**, since in curl it means `-L` plus
+  the header. A Request with Follow redirects off and Follow Authorization header on therefore
+  renders neither, and comes back with that switch off. The pair changes nothing on the wire in
+  that state, so the command still shows what is sent, which is what Copy as Curl promises.
 - **No GraphQL detection.** GraphQL is not a Body Type in v1, so a GraphQL body imports as
   `.raw(.json)`, which is what it is on the wire.
 

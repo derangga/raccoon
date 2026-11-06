@@ -50,12 +50,13 @@ public struct CurlFlags: Equatable, Sendable {
     static let read: Set<String> = [
         "url", "url-query", "request", "header", "cookie", "user", "form", "get", "insecure", "location",
         "data", "data-ascii", "data-binary", "data-raw", "data-urlencode", "json", "head", "user-agent",
+        "location-trusted", "post301", "post302", "post303", "max-redirs", "max-time",
     ]
 
     /// The short names of the options in `read`.
     static let longNames = [
         "X": "request", "H": "header", "b": "cookie", "u": "user", "F": "form", "G": "get", "k": "insecure",
-        "L": "location", "d": "data", "I": "head", "A": "user-agent",
+        "L": "location", "d": "data", "I": "head", "A": "user-agent", "m": "max-time",
     ]
 
     /// Every curl option that takes a value, short and long, without dashes: the options with an

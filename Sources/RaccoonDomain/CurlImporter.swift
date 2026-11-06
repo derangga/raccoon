@@ -61,7 +61,16 @@ public enum CurlMapping {
                 cookies: cookies,
                 body: body,
                 auth: auth,
-                settings: RequestSettings(allowsInsecureTLS: flags.has("insecure"), followsRedirects: flags.has("location"))
+                settings: RequestSettings(
+                    allowsInsecureTLS: flags.has("insecure"),
+                    // --location-trusted is -L with the Authorization header kept.
+                    followsRedirects: flags.has("location") || flags.has("location-trusted"),
+                    followsOriginalMethod: ["post301", "post302", "post303"].contains(where: flags.has),
+                    followsAuthorizationHeader: flags.has("location-trusted"),
+                    maxRedirects: flags.values("max-redirs").first.flatMap { Int($0) } ?? RequestDefinition.empty.settings.maxRedirects,
+                    // A fraction or a word is not a number of seconds, so the Request keeps none.
+                    timeoutSeconds: flags.values("max-time").first.flatMap { Int($0) }
+                )
             ),
             ignoredFlags: ignoredFlags,
             fileReferences: fileReferences,

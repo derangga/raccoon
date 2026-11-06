@@ -34,7 +34,7 @@ struct ResponseViewerTests {
     }
 
     @Test func `idle says how to send, with the key cap`() {
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
         let viewer = viewer(model)
         #expect(viewer.voidText.stringValue == "Send a request to see the Response here.")
         #expect(!viewer.keycap.isHidden && viewer.keycap.stringValue == "⌘↩")
@@ -42,7 +42,7 @@ struct ResponseViewerTests {
     }
 
     @Test func `sending shows nothing for 150 ms, then the spinner and the live time`() {
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
         model.tab.response = .sending(since: now - .milliseconds(100))
         let early = viewer(model)
         #expect(early.codeLabel.stringValue == "" && early.voidText.stringValue == "")
@@ -267,7 +267,7 @@ struct ResponseViewerTests {
     }
 
     @Test(arguments: [
-        (SendError.timedOut, Duration.seconds(60), "after 60.0 s", "No response after 60 s",
+        (SendError.timedOut(seconds: 60), Duration.seconds(60), "after 60.0 s", "No response after 60 s",
          "The server did not answer in time. Raccoon does not send again by itself."),
         (.transport(.cannotConnectToHost, "Could not connect to the server.", host: "localhost:8080"), .milliseconds(3), "after 3 ms",
          "Could not connect to the server", "NSURLErrorCannotConnectToHost (−1004) · localhost:8080"),
@@ -282,7 +282,7 @@ struct ResponseViewerTests {
     }
 
     @Test func `an invalid URL is Not sent and quotes the URL after substitution`() {
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
         model.tab.definition.url = "https//api.dev.example.com/v1"
         model.send()
         let viewer = viewer(model)
@@ -293,7 +293,7 @@ struct ResponseViewerTests {
     }
 
     @Test func `idle shows no failure glyph`() {
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(now), clipboard: RecordingClipboardWriter())
         #expect(viewer(model).failureGlyph.isHidden)
     }
 

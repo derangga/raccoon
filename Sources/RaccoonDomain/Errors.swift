@@ -15,7 +15,10 @@ public enum ResolveError: Error, Equatable, Sendable {
 public enum SendError: Error, Equatable, Sendable {
     /// A multipart file part, read by the transport before any byte goes out.
     case fileMissing(path: String)
-    case timedOut
+    /// The Request Timeout that elapsed: the Request's own, or the transport's default.
+    case timedOut(seconds: Int)
+    /// The Redirect Limit was reached. `followed` is how many redirects were followed first.
+    case tooManyRedirects(followed: Int)
     case untrustedCertificate(host: String)
     /// URLError's description, and host[:port] the send went to.
     case transport(URLError.Code, String, host: String)

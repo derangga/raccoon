@@ -879,8 +879,9 @@ enum BrunoPostmanFixtures {
     ]
 
     // bruno/packages/bruno-converters/tests/postman/postman-to-bruno/max-redirects.spec.js
-    // Differs from Bruno throughout: `maxRedirects` is dropped without a note (any other
-    // `protocolProfileBehavior` key), so no value is kept and none is warned about.
+    // `maxRedirects` is the Redirect Limit, clamped to 0...20 (postman.md), so Bruno's large
+    // values all land on 20, which is also the default. Nonsense (negative, a string, a
+    // boolean, an array) leaves the default in place without a note, where Bruno warns.
     static let maxRedirects: [PostmanFixture] = [
         PostmanFixture("should preserve a maxRedirects of 0", #"""
             {
@@ -901,7 +902,7 @@ enum BrunoPostmanFixtures {
                 }
               ]
             }
-            """#, plan: imported("Test Collection", [planned(1, "Req", "GET", "https://example.com")])),
+            """#, plan: imported("Test Collection", [planned(1, "Req", "GET", "https://example.com", maxRedirects: 0)])),
         PostmanFixture("should preserve a maxRedirects of 50", #"""
             {
               "info": {
@@ -1080,7 +1081,7 @@ enum BrunoPostmanFixtures {
                 }
               ]
             }
-            """#, plan: imported("Test Collection", [planned(1, "Req", "GET", "https://example.com")])),
+            """#, plan: imported("Test Collection", [planned(1, "Req", "GET", "https://example.com", maxRedirects: 3)])),
         PostmanFixture("should truncate a fractional maxRedirects of 0.9 to 0", #"""
             {
               "info": {
@@ -1100,7 +1101,7 @@ enum BrunoPostmanFixtures {
                 }
               ]
             }
-            """#, plan: imported("Test Collection", [planned(1, "Req", "GET", "https://example.com")])),
+            """#, plan: imported("Test Collection", [planned(1, "Req", "GET", "https://example.com", maxRedirects: 0)])),
         PostmanFixture("should drop a maxRedirects of -1 and warn instead of failing the import", #"""
             {
               "info": {
@@ -1381,7 +1382,7 @@ enum BrunoPostmanFixtures {
                 }
               ]
             }
-            """#, plan: imported("Test Collection", [planned(1, "First Offender", "GET", "https://example.com"), planned(2, "Fine", "GET", "https://example.com"), planned(3, "Second Offender", "GET", "https://example.com")])),
+            """#, plan: imported("Test Collection", [planned(1, "First Offender", "GET", "https://example.com"), planned(2, "Fine", "GET", "https://example.com", maxRedirects: 10), planned(3, "Second Offender", "GET", "https://example.com")])),
     ]
 
     // bruno/packages/bruno-converters/tests/postman/postman-to-bruno/partial-import.spec.js
@@ -1687,7 +1688,7 @@ enum BrunoPostmanFixtures {
                 }
               ]
             }
-            """#, plan: imported("collection with falsy vars", [planned(1, "Request with all settings", "GET", "https://httpbin.org/api/v1/resource", redirects: false)])),
+            """#, plan: imported("collection with falsy vars", [planned(1, "Request with all settings", "GET", "https://httpbin.org/api/v1/resource", redirects: false, maxRedirects: 10)])),
         PostmanFixture("should not mutate a URL path with an empty element representing a trailing slash", #"""
             {
               "info": {
@@ -1713,7 +1714,7 @@ enum BrunoPostmanFixtures {
                 }
               ]
             }
-            """#, plan: imported("collection with falsy vars", [planned(1, "Request with all settings", "GET", "https://httpbin.org/api/v1/resource/", redirects: false)])),
+            """#, plan: imported("collection with falsy vars", [planned(1, "Request with all settings", "GET", "https://httpbin.org/api/v1/resource/", redirects: false, maxRedirects: 10)])),
         PostmanFixture("should not mutate a URL path with an empty element representing a trailing slash (2)", #"""
             {
               "info": {
@@ -1739,7 +1740,7 @@ enum BrunoPostmanFixtures {
                 }
               ]
             }
-            """#, plan: imported("collection with falsy vars", [planned(1, "Request with all settings", "GET", "https://httpbin.org/api//resource", redirects: false)])),
+            """#, plan: imported("collection with falsy vars", [planned(1, "Request with all settings", "GET", "https://httpbin.org/api//resource", redirects: false, maxRedirects: 10)])),
         PostmanFixture("should convert non-string variable values to strings", #"""
             {
               "info": {
@@ -1852,7 +1853,7 @@ enum BrunoPostmanFixtures {
                 }
               ]
             }
-            """#, plan: imported("Collection with Settings", [planned(1, "Request with all settings", "GET", "https://echo.usebruno.com/get", redirects: false), planned(2, "Request with partial settings", "POST", "https://echo.usebruno.com/post"), planned(3, "Request without settings", "PUT", "https://echo.usebruno.com/put")])),
+            """#, plan: imported("Collection with Settings", [planned(1, "Request with all settings", "GET", "https://echo.usebruno.com/get", redirects: false, authorization: true, maxRedirects: 10), planned(2, "Request with partial settings", "POST", "https://echo.usebruno.com/post"), planned(3, "Request without settings", "PUT", "https://echo.usebruno.com/put")])),
         PostmanFixture("should handle collection with auth object having undefined type", #"""
             {
               "info": {

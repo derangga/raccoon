@@ -126,9 +126,12 @@ public struct FailureText: Equatable, Sendable {
 
     public init(_ error: SendError) {
         switch error {
-        case .timedOut:
-            title = "No response after 60 s"
+        case .timedOut(let seconds):
+            title = "No response after \(seconds) s"
             detail = "The server did not answer in time. Raccoon does not send again by itself."
+        case .tooManyRedirects(let followed):
+            title = "Too many redirects"
+            detail = "The send followed \(followed) redirect\(followed == 1 ? "" : "s") and stopped at the Redirect Limit."
         case .untrustedCertificate(let host):
             title = "Untrusted certificate"
             detail = "The certificate for \(host) is not trusted by this Mac. It may be self-signed or expired."

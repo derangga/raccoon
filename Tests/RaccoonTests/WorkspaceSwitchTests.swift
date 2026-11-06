@@ -10,7 +10,7 @@ import Testing
 struct WorkspaceSwitchTests {
     let temp = FileManager.default.temporaryDirectory.appending(path: "raccoon-\(UUID())")
     let watch = ManualFolderWatch()
-    let transport = ScriptedTransport(.failure(.timedOut))
+    let transport = ScriptedTransport(.failure(.timedOut(seconds: 60)))
     var a: URL { temp.appending(path: "a") }
     var b: URL { temp.appending(path: "b") }
 

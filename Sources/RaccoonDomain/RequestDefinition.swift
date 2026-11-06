@@ -91,10 +91,44 @@ public enum Auth: Equatable, Sendable {
 public struct RequestSettings: Equatable, Sendable {
     public var allowsInsecureTLS: Bool
     public var followsRedirects: Bool
+    /// The three below change nothing while `followsRedirects` is off (sending.md).
+    public var followsOriginalMethod: Bool
+    public var followsAuthorizationHeader: Bool
+    /// The Redirect Limit. Assigning out of range clamps instead of failing, so no caller has
+    /// to range-check: the file, Postman Import, Curl Import and the pane all land in range.
+    public var maxRedirects: Int {
+        didSet { maxRedirects = Self.maxRedirectsRange.clamped(maxRedirects) }
+    }
 
-    public init(allowsInsecureTLS: Bool, followsRedirects: Bool) {
+    /// The Request Timeout in seconds, nil for the transport's default. Clamped like the above.
+    public var timeoutSeconds: Int? {
+        didSet { timeoutSeconds = timeoutSeconds.map(Self.timeoutRange.clamped) }
+    }
+
+    /// URLSession stops at 20 itself (environment-facts.md), so a larger limit is a promise
+    /// Raccoon cannot keep.
+    public static let maxRedirectsRange = 0...20
+    public static let timeoutRange = 1...3600
+
+    public init(
+        allowsInsecureTLS: Bool, followsRedirects: Bool,
+        followsOriginalMethod: Bool = false, followsAuthorizationHeader: Bool = false,
+        maxRedirects: Int = maxRedirectsRange.upperBound, timeoutSeconds: Int? = nil
+    ) {
         self.allowsInsecureTLS = allowsInsecureTLS
         self.followsRedirects = followsRedirects
+        self.followsOriginalMethod = followsOriginalMethod
+        self.followsAuthorizationHeader = followsAuthorizationHeader
+        // Clamped here as well as in didSet: a didSet does not run on an init's own assignment.
+        self.maxRedirects = Self.maxRedirectsRange.clamped(maxRedirects)
+        self.timeoutSeconds = timeoutSeconds.map(Self.timeoutRange.clamped)
+    }
+}
+
+extension ClosedRange where Bound == Int {
+    /// `value` pulled into the range, which is never empty.
+    public func clamped(_ value: Int) -> Int {
+        Swift.min(Swift.max(value, lowerBound), upperBound)
     }
 }
 

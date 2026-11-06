@@ -28,7 +28,7 @@ struct EnvironmentExportSheetTests {
             sessionStore: DiskSessionStore(directory: temp.appending(path: "Support"), root: root.path),
             secrets: store, instants: FixedInstantSource(.now),
             makeTab: { [store] in
-                TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: store, files: DictionaryFileReading([:]),
+                TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: store, files: DictionaryFileReading([:]),
                          instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
             }
         )

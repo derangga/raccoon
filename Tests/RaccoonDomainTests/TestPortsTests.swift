@@ -18,9 +18,9 @@ struct TestPortsTests {
     }
 
     @Test func `scripted transport throws its SendError and still records the request`() async {
-        let transport = ScriptedTransport(.failure(.timedOut))
+        let transport = ScriptedTransport(.failure(.timedOut(seconds: 60)))
 
-        await #expect(throws: SendError.timedOut) { try await transport.send(resolved) }
+        await #expect(throws: SendError.timedOut(seconds: 60)) { try await transport.send(resolved) }
         #expect(transport.requests == [resolved])
     }
 

@@ -172,7 +172,7 @@ struct ThemeControllerTests {
             dataFolder: .test(temp.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
             sessionStore: DiskSessionStore(directory: temp, root: temp.appending(path: "Raccoon").path), secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
             makeTab: {
-                TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+                TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                          instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
             }
         )
@@ -248,7 +248,7 @@ struct ThemeControllerTests {
             dataFolder: .test(root), folderWatch: ManualFolderWatch(),
             sessionStore: DiskSessionStore(directory: temp, root: root.path), secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
             makeTab: {
-                TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+                TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                          instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
             }
         )

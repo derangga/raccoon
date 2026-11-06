@@ -30,12 +30,12 @@ struct TabModelSendTests {
     }
 
     @Test func `a send error lands in the Response state`() async {
-        let model = makeTab(ScriptedTransport(.failure(.timedOut)), url: "http://localhost:8080/")
+        let model = makeTab(ScriptedTransport(.failure(.timedOut(seconds: 60))), url: "http://localhost:8080/")
 
         model.send()
         await model.inFlight?.value
 
-        #expect(model.tab.response == .failed(.timedOut, after: .zero))
+        #expect(model.tab.response == .failed(.timedOut(seconds: 60), after: .zero))
     }
 
     @Test func `a URL that cannot be built sends nothing and never shows sending`() {
@@ -61,7 +61,7 @@ struct TabModelSendTests {
     }
 
     @Test(arguments: [
-        SendError.fileMissing(path: "/tmp/gone.pdf"), .timedOut, .untrustedCertificate(host: "localhost"),
+        SendError.fileMissing(path: "/tmp/gone.pdf"), .timedOut(seconds: 60), .untrustedCertificate(host: "localhost"),
         .transport(.cannotConnectToHost, "Could not connect to the server.", host: "localhost:8080"),
     ])
     func `a send error is shown as it came and never retried`(error: SendError) async {

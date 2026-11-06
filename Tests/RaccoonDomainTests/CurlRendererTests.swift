@@ -4,11 +4,13 @@ import Testing
 struct CurlRendererTests {
     func render(
         _ method: String = "GET", _ url: String = "https://h/", params: [Row] = [], headers: [Row] = [], cookies: [Row] = [],
-        body: Body = .none, auth: Auth = .none, insecure: Bool = false, redirects: Bool = false
+        body: Body = .none, auth: Auth = .none, insecure: Bool = false, redirects: Bool = false,
+        originalMethod: Bool = false, authorization: Bool = false, maxRedirects: Int = 20, timeoutSeconds: Int? = nil
     ) throws -> String {
         let definition = RequestDefinition(
             method: method, url: url, params: params, headers: headers, cookies: cookies, body: body, auth: auth,
-            settings: RequestSettings(allowsInsecureTLS: insecure, followsRedirects: redirects)
+            settings: RequestSettings(allowsInsecureTLS: insecure, followsRedirects: redirects, followsOriginalMethod: originalMethod,
+                                      followsAuthorizationHeader: authorization, maxRedirects: maxRedirects, timeoutSeconds: timeoutSeconds)
         )
         return CurlRenderer.render(try VariableResolver.resolve(definition))
     }
@@ -23,6 +25,26 @@ struct CurlRendererTests {
 
     @Test func `a GET with no body is the URL alone`() throws {
         #expect(try render() == "curl 'https://h/'")
+    }
+
+    @Test func `the Request Timeout is --max-time, and nothing without one`() throws {
+        #expect(try render(timeoutSeconds: 30) == "curl 'https://h/' \\\n  --max-time 30")
+        #expect(try render() == "curl 'https://h/'")
+    }
+
+    /// curl ignores these without -L, exactly as Raccoon does, so they are written either way
+    /// and the round trip keeps them (curl.md).
+    @Test func `the Redirect Limit and Follow original HTTP method render whether or not -L is on`() throws {
+        #expect(try render(maxRedirects: 5) == "curl 'https://h/' \\\n  --max-redirs 5")
+        #expect(try render(originalMethod: true) == "curl 'https://h/' \\\n  --post301 \\\n  --post302 \\\n  --post303")
+        #expect(try render(redirects: true) == "curl 'https://h/' \\\n  -L \\\n  --max-redirs 20")
+    }
+
+    /// --location-trusted is curl's -L plus the Authorization header, so it replaces -L.
+    @Test func `Follow Authorization header makes -L into --location-trusted`() throws {
+        #expect(try render(redirects: true, authorization: true) == "curl 'https://h/' \\\n  --location-trusted \\\n  --max-redirs 20")
+        // Nothing follows a redirect, so curl is told nothing about the header either.
+        #expect(try render(redirects: false, authorization: true) == "curl 'https://h/'")
     }
 
     @Test func `an enabled Authorization row and Auth write one Authorization header`() throws {
@@ -67,7 +89,7 @@ struct CurlRendererTests {
 
     @Test func `settings are -k and -L, and an empty header is Name;`() throws {
         #expect(try render(headers: [Row(name: "X-Empty", value: "")], insecure: true, redirects: true)
-            == "curl 'https://h/' \\\n  -H 'X-Empty;' \\\n  -k \\\n  -L")
+            == "curl 'https://h/' \\\n  -H 'X-Empty;' \\\n  -k \\\n  -L \\\n  --max-redirs 20")
     }
 
     @Test func `a GET with a body says -X, and an odd method is quoted`() throws {

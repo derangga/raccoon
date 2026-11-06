@@ -106,6 +106,23 @@ struct CurlMappingTests {
         #expect(definition.cookies == [row("a", "1"), row("path", "/")])
     }
 
+    @Test func `the redirect and timeout flags become Request Settings`() throws {
+        let settings = try CurlImporter.import(
+            "curl http://h/ --location-trusted --max-redirs 5 --post302 --max-time 30"
+        ).definition.settings
+        #expect(settings.followsRedirects)
+        #expect(settings.followsAuthorizationHeader)
+        #expect(settings.followsOriginalMethod)
+        #expect(settings.maxRedirects == 5)
+        #expect(settings.timeoutSeconds == 30)
+    }
+
+    @Test func `-m is --max-time and an out-of-range limit is clamped`() throws {
+        #expect(try CurlImporter.import("curl http://h/ -m 90").definition.settings.timeoutSeconds == 90)
+        #expect(try CurlImporter.import("curl http://h/ --max-redirs 500").definition.settings.maxRedirects == 20)
+        #expect(try CurlImporter.import("curl http://h/ --max-time nope").definition.settings.timeoutSeconds == nil)
+    }
+
     @Test func `a :id in the URL stays in url with no value, and renders back as typed`() throws {
         let imported = try CurlImporter.import("curl http://x/:id")
         #expect(imported.definition.url == "http://x/:id")

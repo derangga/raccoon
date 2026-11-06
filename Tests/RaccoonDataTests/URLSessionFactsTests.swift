@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 @testable import RaccoonData
 @testable import RaccoonDomain
 import RaccoonTesting
@@ -188,6 +189,110 @@ struct URLSessionFactsTests {
             let closedAt = try #require(server.closes.first)
             #expect(closedAt - cancelledAt < .milliseconds(200))
             #expect(server.requests.count == 1)
+        }
+    }
+
+    // MARK: Redirects
+
+    /// Records every redirect URLSession offers, and follows up to `limit` of them.
+    final class RedirectWatcher: NSObject, URLSessionTaskDelegate {
+        let offered = Mutex<[URLRequest]>([])
+        let limit: Int
+
+        init(limit: Int = 50) {
+            self.limit = limit
+        }
+
+        func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                        newRequest request: URLRequest) async -> URLRequest? {
+            let count = offered.withLock { $0.append(request); return $0.count }
+            return count <= limit ? request : nil
+        }
+    }
+
+    /// A POST whose Authorization and body are on the wire, sent to a redirect of the given status.
+    func redirected(_ server: EchoServer, status: Int, watcher: RedirectWatcher) async throws -> URLRequest {
+        var request = URLRequest(url: server.url("/redirect/\(status)"))
+        request.httpMethod = "POST"
+        request.httpBody = Data("a=1".utf8)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer secret", forHTTPHeaderField: "Authorization")
+        request.setValue("keep", forHTTPHeaderField: "X-Custom")
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.finishTasksAndInvalidate() }
+        _ = try await session.data(for: request, delegate: watcher)
+        return try #require(watcher.offered.withLock { $0.first })
+    }
+
+    @Test(arguments: [301, 302, 303])
+    func `a 301 302 or 303 is offered as a GET with no body`(status: Int) async throws {
+        try await withEchoServer { server in
+            let watcher = RedirectWatcher()
+            let offered = try await redirected(server, status: status, watcher: watcher)
+
+            #expect(offered.httpMethod == "GET")
+            #expect(offered.httpBody == nil)
+            #expect(offered.value(forHTTPHeaderField: "Content-Type") == nil)
+            #expect(offered.value(forHTTPHeaderField: "X-Custom") == "keep")
+            #expect(value("Authorization", in: try #require(server.requests.last)) == nil)
+        }
+    }
+
+    @Test(arguments: [307, 308])
+    func `a 307 or 308 keeps the method and sends the body again, though the delegate sees no body`(status: Int) async throws {
+        try await withEchoServer { server in
+            let watcher = RedirectWatcher()
+            let offered = try await redirected(server, status: status, watcher: watcher)
+
+            #expect(offered.httpMethod == "POST")
+            #expect(offered.value(forHTTPHeaderField: "Content-Type") == "application/json")
+            // URLSession carries the body itself: it is on the wire but not on the offered request.
+            #expect(offered.httpBody == nil)
+            let sent = try #require(server.requests.last)
+            #expect(String(decoding: sent, as: UTF8.self).hasSuffix("a=1"))
+            #expect(value("Content-Length", in: sent) == "3")
+        }
+    }
+
+    /// The reason Request Settings cannot offer a redirect limit above 20.
+    @Test func `URLSession stops after 20 redirects of its own accord`() async throws {
+        try await withEchoServer { server in
+            let watcher = RedirectWatcher()
+            let session = URLSession(configuration: .ephemeral)
+            defer { session.finishTasksAndInvalidate() }
+
+            await #expect {
+                _ = try await session.data(from: server.url("/loop"), delegate: watcher)
+            } throws: { ($0 as? URLError)?.code == .httpTooManyRedirects }
+            #expect(watcher.offered.withLock { $0.count } == 20)
+        }
+    }
+
+    /// The reason the cap cannot throw from inside the delegate: refusing one succeeds.
+    @Test func `returning nil from the delegate answers with the 3xx, not an error`() async throws {
+        try await withEchoServer { server in
+            let watcher = RedirectWatcher(limit: 3)
+            let session = URLSession(configuration: .ephemeral)
+            defer { session.finishTasksAndInvalidate() }
+
+            let (_, response) = try await session.data(from: server.url("/loop"), delegate: watcher)
+            #expect((response as? HTTPURLResponse)?.statusCode == 302)
+            #expect(watcher.offered.withLock { $0.count } == 4)
+        }
+    }
+
+    @Test func `a request's own timeout overrides the session configuration`() async throws {
+        try await withEchoServer { server in
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.timeoutIntervalForRequest = 60
+            let session = URLSession(configuration: configuration)
+            defer { session.finishTasksAndInvalidate() }
+            var request = URLRequest(url: server.url("/delay/3000"))
+            request.timeoutInterval = 1
+
+            let start = ContinuousClock.now
+            await #expect { _ = try await session.data(for: request) } throws: { ($0 as? URLError)?.code == .timedOut }
+            #expect(ContinuousClock.now - start < .seconds(2))
         }
     }
 }

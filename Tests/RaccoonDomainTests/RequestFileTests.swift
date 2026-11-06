@@ -151,6 +151,33 @@ struct RequestFileTests {
         #expect(throws: RequestFileError.unknownVersion(3)) { try RequestFile.decode(Data(json.utf8)) }
     }
 
+    // MARK: Request Settings
+
+    @Test func `the four newer Request Settings round-trip, and a file without them has the defaults`() throws {
+        var request = try RequestFile.decode(Data(Self.fixtures[0].utf8))
+        request.definition.settings = RequestSettings(
+            allowsInsecureTLS: false, followsRedirects: true, followsOriginalMethod: true,
+            followsAuthorizationHeader: true, maxRedirects: 5, timeoutSeconds: 30
+        )
+        #expect(try RequestFile.decode(RequestFile.encode(request)) == request)
+
+        let bare = try RequestFile.decode(Data(Self.fixtures[0].utf8)).definition.settings
+        #expect(bare == RequestSettings(allowsInsecureTLS: false, followsRedirects: false))
+    }
+
+    /// A default is absent, so no existing Request file gains a line.
+    @Test func `settings at their defaults write no key`() throws {
+        let text = String(decoding: RequestFile.encode(try RequestFile.decode(Data(Self.fixtures[0].utf8))), as: UTF8.self)
+        for key in ["followsOriginalMethod", "followsAuthorizationHeader", "maxRedirects", "timeoutSeconds"] {
+            #expect(!text.contains(key))
+        }
+    }
+
+    @Test func `a Redirect Limit out of range is clamped when the file is read`() throws {
+        let json = #"{"version": 1, "id": "6F1C2B3A-0000-4000-8000-000000000001", "name": "A", "method": "GET", "url": "x", "settings": {"maxRedirects": 9007199254740991}}"#
+        #expect(try RequestFile.decode(Data(json.utf8)).definition.settings.maxRedirects == 20)
+    }
+
     // MARK: pathVariables
 
     @Test func `Path Variable values round-trip, and a file without the key has none`() throws {

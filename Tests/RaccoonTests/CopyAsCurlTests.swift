@@ -11,7 +11,7 @@ struct CopyAsCurlTests {
     let model: TabModel
 
     init() {
-        model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+        model = TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                          instants: FixedInstantSource(.now), clipboard: clipboard)
     }
 
@@ -52,7 +52,7 @@ struct CopyAsCurlTests {
         let secrets = FlakySecretStore()
         let key = VariableName("api_key")!
         try secrets.set("sk_live_1", environment: "Dev", name: key)
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: secrets, files: DictionaryFileReading([:]),
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: secrets, files: DictionaryFileReading([:]),
                              instants: FixedInstantSource(.now), clipboard: clipboard)
         model.variables = { (Environment(name: "Dev", entries: [VariableEntry(name: key, value: .secret)]), Globals(entries: [])) }
         model.tab.definition.url = "https://h/a"

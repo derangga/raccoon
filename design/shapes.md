@@ -51,8 +51,16 @@ Auth                     .none · .basic(user, password) · .bearer(token)
 AutomaticHeader          name, value: String?          a header sent that no row sets;
                          nil is computed at send (Content-Length)
 RequestSettings          allowsInsecureTLS, followsRedirects
-                         both false in RequestDefinition.empty, as in curl: -k and -L
-                         are what turn them on
+                         followsOriginalMethod, followsAuthorizationHeader
+                         all four false in RequestDefinition.empty, as in curl: -k, -L,
+                         --post301/302/303 and --location-trusted turn them on. The last
+                         three change nothing while followsRedirects is off
+                         maxRedirects: Int                 the Redirect Limit, 20 by default
+                         timeoutSeconds: Int?              the Request Timeout, nil is 60
+                         The init clamps both, so every path in (JSON, Postman, curl, the
+                         pane) lands in range by construction: maxRedirects 0...20 because
+                         URLSession stops at 20 itself (environment-facts.md) and a Postman
+                         file carries 9007199254740991; timeoutSeconds 1...3600
 
 Request                  id: RequestID, name, definition         one file in the Data Folder
 TreeNode                 .folder(name, [TreeNode]) · .request(RequestID, name, method, path)
@@ -256,7 +264,9 @@ ResolveError             .undefined([VariableName])       every missing one, not
                          .invalidURL(String)              the URL text after substitution
 SendError                .fileMissing(path)               a multipart file part, read by
                                                           the transport before sending
-                         .timedOut
+                         .timedOut(seconds)               the Request Timeout that elapsed
+                         .tooManyRedirects(followed)      the Redirect Limit was reached; the
+                                                          delegate refused the next one
                          .untrustedCertificate(host)
                          .transport(URLError.Code, String, host)  host[:port] the send went to
 StoreError               .unreadable(path, reason) · .undecodable(path, reason)

@@ -63,8 +63,25 @@ public enum PostmanImporter {
             headers: headers(request["header"]),
             body: body(request["body"]), auth: auth(request["auth"]),
             followRedirects: behavior["followRedirects"] as? Bool, strictSSL: behavior["strictSSL"] as? Bool,
+            maxRedirects: maxRedirects(behavior["maxRedirects"]),
+            followOriginalHttpMethod: behavior["followOriginalHttpMethod"] as? Bool,
+            followAuthorizationHeader: behavior["followAuthorizationHeader"] as? Bool,
             events: events(json["event"]), responseCount: (json["response"] as? [Any])?.count ?? 0
         ))
+    }
+
+    /// `protocolProfileBehavior.maxRedirects`, or nil to leave the default in place. A fraction
+    /// truncates toward zero as Bruno's importer does; a string, an array, a boolean, a negative
+    /// and a value too large to be finite are all nonsense, so the Request keeps the default.
+    /// A huge but real number (Postman writes 9007199254740991) is not nonsense, only
+    /// unreachable, and comes back as the ceiling for `RequestSettings.init` to clamp.
+    private static func maxRedirects(_ value: Any?) -> Int? {
+        // Not `value is Bool`: a JSON 0 or 1 arrives as NSNumber, and casting one to Bool
+        // succeeds, so that test would drop the two real values Postman most often writes.
+        guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
+        let truncated = number.doubleValue.rounded(.towardZero)
+        guard truncated.isFinite, truncated >= 0 else { return nil }
+        return Int(min(truncated, Double(RequestSettings.maxRedirectsRange.upperBound)))
     }
 
     private static func url(_ json: Any?) -> PostmanURL {

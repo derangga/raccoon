@@ -7,7 +7,7 @@ import Testing
 @MainActor
 struct RequestEditorTests {
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
-    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400), styleMask: [], backing: .buffered, defer: false)
 
     func editor() -> RequestEditor {
@@ -86,21 +86,26 @@ struct RequestEditorTests {
         #expect(headers.numberOfRows == 7)  // one row, the trailing row, five automatic
     }
 
-    @Test func `Settings has two checkboxes with their hints, and no compression row`() {
+    @Test func `Settings has six rows with their hints, and no compression row`() {
         let editor = editor()
         editor.select(.settings)
         let pane = editor.settingsPane
         #expect(!pane.isHidden)
-        #expect(pane.checkboxes.map(\.title) == ["Allow insecure TLS", "Follow redirects"])
-        #expect(pane.insecureTLSHint.stringValue == "Accept certificates the system does not trust, for this Request only.")
-        #expect(pane.insecureTLSHint.textColor == theme.color(.textTertiary))
+        #expect(pane.switches.map(\.label) == [
+            "Allow insecure TLS", "Follow redirects", "Follow original HTTP method", "Follow Authorization header",
+        ])
+        #expect(pane.fields.map(\.label) == ["Maximum number of redirects", "Request timeout (seconds)"])
+        #expect(pane.switches[0].hint.stringValue == "Accept certificates the system does not trust, for this Request only.")
+        #expect(pane.switches[0].hint.textColor == theme.color(.textTertiary))
+        #expect(pane.fields[1].hint.stringValue == "Time allowed to pass with no new bytes, not a cap on the whole send. Empty is 60.")
     }
 
-    @Test func `each Settings checkbox writes the Tab's Request Settings and follows them`() {
+    @Test func `each Settings switch writes the Tab's Request Settings and follows them`() {
         let editor = editor()
-        let (insecure, redirects) = (editor.settingsPane.checkboxes[0], editor.settingsPane.checkboxes[1])
+        let (insecure, redirects) = (editor.settingsPane.switches[0].control, editor.settingsPane.switches[1].control)
         #expect(insecure.state == .off && redirects.state == .off)
 
+        // performClick toggles an NSSwitch, as a click on screen does.
         insecure.performClick(nil)
         #expect(model.tab.definition.settings == RequestSettings(allowsInsecureTLS: true, followsRedirects: false))
         redirects.performClick(nil)
@@ -110,6 +115,77 @@ struct RequestEditorTests {
         model.tab.definition.settings.allowsInsecureTLS = false
         editor.render()
         #expect(insecure.state == .off)
+    }
+
+    @Test func `the two number fields write the Redirect Limit and the Request Timeout`() {
+        let editor = editor()
+        let (limit, timeout) = (editor.settingsPane.fields[0].control, editor.settingsPane.fields[1].control)
+        #expect(limit.stringValue == "20")
+        #expect(timeout.stringValue.isEmpty)
+
+        limit.stringValue = "5"
+        editor.settingsPane.commit(limit)
+        #expect(model.tab.definition.settings.maxRedirects == 5)
+
+        timeout.stringValue = "30"
+        editor.settingsPane.commit(timeout)
+        #expect(model.tab.definition.settings.timeoutSeconds == 30)
+    }
+
+    @Test func `a number out of range is clamped and redrawn at the clamped value`() {
+        let editor = editor()
+        let limit = editor.settingsPane.fields[0].control
+
+        limit.stringValue = "500"
+        editor.settingsPane.commit(limit)
+        #expect(model.tab.definition.settings.maxRedirects == 20)
+        #expect(limit.stringValue == "20")
+    }
+
+    /// As a value field in the Inspector does: Esc ends the edit and keeps what was committed.
+    @Test func `Esc in a number field gives up focus and discards what was typed`() {
+        let editor = editor()
+        let pane = editor.settingsPane
+        let limit = pane.fields[0].control
+        limit.stringValue = "7"
+
+        let took = pane.control(limit, textView: NSTextView(), doCommandBy: #selector(NSResponder.cancelOperation(_:)))
+        pane.controlTextDidEndEditing(Notification(name: NSControl.textDidEndEditingNotification, object: limit))
+
+        #expect(took)
+        #expect(model.tab.definition.settings.maxRedirects == 20)
+        #expect(limit.stringValue == "20")
+    }
+
+    @Test func `an empty timeout field means the default, not zero`() {
+        let editor = editor()
+        let timeout = editor.settingsPane.fields[1].control
+        model.tab.definition.settings = RequestSettings(allowsInsecureTLS: false, followsRedirects: false, timeoutSeconds: 30)
+        editor.render()
+        #expect(timeout.stringValue == "30")
+
+        timeout.stringValue = ""
+        editor.settingsPane.commit(timeout)
+        #expect(model.tab.definition.settings.timeoutSeconds == nil)
+    }
+
+    /// Nothing follows a redirect, so the three rows that shape one have nothing to do.
+    @Test func `the three redirect rows are disabled while Follow redirects is off`() {
+        let editor = editor()
+        let pane = editor.settingsPane
+        editor.render()
+        #expect(pane.switches[2].control.isEnabled == false)
+        #expect(pane.switches[3].control.isEnabled == false)
+        #expect(pane.fields[0].control.isEnabled == false)
+        // The timeout has nothing to do with redirects.
+        #expect(pane.fields[1].control.isEnabled)
+        #expect(pane.switches[0].control.isEnabled)
+
+        model.tab.definition.settings.followsRedirects = true
+        editor.render()
+        #expect(pane.switches[2].control.isEnabled)
+        #expect(pane.switches[3].control.isEnabled)
+        #expect(pane.fields[0].control.isEnabled)
     }
 
     func pick(_ title: String, in pane: AuthPane) {
@@ -287,7 +363,7 @@ struct RequestEditorTests {
 @MainActor
 struct BodyPaneTests {
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
-    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400), styleMask: [], backing: .buffered, defer: false)
 
     func pane() -> (RequestEditor, BodyPane) {
@@ -573,7 +649,7 @@ struct EditorSplitTests {
 @MainActor
 struct ImportedRowsTests {
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
-    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400), styleMask: [], backing: .buffered, defer: false)
 
     @Test func `rows from a pasted curl are checked, and a click on the box disables the row and dims its text`() async throws {
@@ -616,7 +692,7 @@ struct ImportedRowsTests {
 @MainActor
 struct TypingTests {
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
-    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
+    let model = TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]), instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400), styleMask: [.titled], backing: .buffered, defer: false)
 
     @Test(arguments: [EditorSection.params, .headers])

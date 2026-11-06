@@ -163,7 +163,7 @@ struct ShortcutTests {
     @Test func `⌘F finds in the body editor and the Response body`() throws {
         let find = try item("Edit", "Find", "Find…")
         let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                              instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
         #expect(BodyPane(model: model, theme: theme).textView.validateMenuItem(find))
         #expect(ResponseViewer(model: model, theme: theme).textView.validateMenuItem(find))

@@ -88,7 +88,7 @@ struct InspectorMemoryTests {
             dataFolder: .test(temp.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
             sessionStore: sessionStore, secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
             makeTab: {
-                TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+                TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                          instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
             }
         )

@@ -13,7 +13,13 @@ send
                            and an HTTP client that retries a payment request on its own is
                            the one thing the user cannot undo. Send again is one key
   ⚠ cancelled            → not an error: .idle. The user asked for it
-  ⚠ timedOut             → escape: "No response after 60 s"
+  ⚠ timedOut(seconds)    → escape: "No response after <n> s", the Request Timeout the send
+                           used: the request's own, or 60 when it has none
+  ⚠ tooManyRedirects(n)  → escape: "Too many redirects". The Redirect Limit was reached, so
+                           the delegate refused the next one. It cannot throw from inside the
+                           delegate: refusing makes data(for:) SUCCEED with the 3xx
+                           (environment-facts.md), so the transport records the refusal and
+                           throws once the call returns
   ⚠ untrustedCertificate → escape: the message names the host and offers "Allow insecure
                            TLS for this request", which flips the Request Setting. It is
                            never flipped automatically

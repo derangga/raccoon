@@ -247,7 +247,12 @@ public enum PostmanMapping {
         headers = Headers.contentType(headers, from: .none, to: body.type)
         return RequestDefinition(
             method: request.method.uppercased(), url: url, params: params, pathVariables: pathVariables, headers: headers, cookies: cookies, body: body, auth: auth,
-            settings: RequestSettings(allowsInsecureTLS: request.strictSSL == false, followsRedirects: request.followRedirects ?? true)
+            settings: RequestSettings(
+                allowsInsecureTLS: request.strictSSL == false, followsRedirects: request.followRedirects ?? true,
+                followsOriginalMethod: request.followOriginalHttpMethod ?? false,
+                followsAuthorizationHeader: request.followAuthorizationHeader ?? false,
+                maxRedirects: request.maxRedirects ?? RequestDefinition.empty.settings.maxRedirects
+            )
         )
     }
 

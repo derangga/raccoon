@@ -67,11 +67,13 @@ struct PostmanExporterTests {
 extension PostmanExporterTests {
     static func definition(
         method: String = "GET", url: String = "", params: [Row] = [], pathVariables: [String: String] = [:], headers: [Row] = [],
-        cookies: [Row] = [], body: Body = .none, auth: Auth = .none, insecure: Bool = false, redirects: Bool = false
+        cookies: [Row] = [], body: Body = .none, auth: Auth = .none, insecure: Bool = false, redirects: Bool = false,
+        originalMethod: Bool = false, authorization: Bool = false, maxRedirects: Int = 20, timeoutSeconds: Int? = nil
     ) -> RequestDefinition {
         RequestDefinition(
             method: method, url: url, params: params, pathVariables: pathVariables, headers: headers, cookies: cookies, body: body, auth: auth,
-            settings: RequestSettings(allowsInsecureTLS: insecure, followsRedirects: redirects)
+            settings: RequestSettings(allowsInsecureTLS: insecure, followsRedirects: redirects, followsOriginalMethod: originalMethod,
+                                      followsAuthorizationHeader: authorization, maxRedirects: maxRedirects, timeoutSeconds: timeoutSeconds)
         )
     }
 
@@ -171,11 +173,11 @@ extension PostmanExporterTests {
     }
 
     @Test(arguments: [
-        ("GET", Body.none, false, false, #"{"followRedirects": false}"#),
-        ("POST", .none, true, true, #"{"followRedirects": true, "strictSSL": false}"#),
-        ("GET", .raw(.text, "x"), false, false, #"{"followRedirects": false, "disableBodyPruning": true}"#),
-        ("HEAD", .formURLEncoded([Row(name: "a", value: "1")]), false, true, #"{"followRedirects": true, "disableBodyPruning": true}"#),
-        ("POST", .raw(.text, "x"), false, true, #"{"followRedirects": true}"#),
+        ("GET", Body.none, false, false, #"{"followRedirects": false, "maxRedirects": 20, "followOriginalHttpMethod": false, "followAuthorizationHeader": false}"#),
+        ("POST", .none, true, true, #"{"followRedirects": true, "strictSSL": false, "maxRedirects": 20, "followOriginalHttpMethod": false, "followAuthorizationHeader": false}"#),
+        ("GET", .raw(.text, "x"), false, false, #"{"followRedirects": false, "disableBodyPruning": true, "maxRedirects": 20, "followOriginalHttpMethod": false, "followAuthorizationHeader": false}"#),
+        ("HEAD", .formURLEncoded([Row(name: "a", value: "1")]), false, true, #"{"followRedirects": true, "disableBodyPruning": true, "maxRedirects": 20, "followOriginalHttpMethod": false, "followAuthorizationHeader": false}"#),
+        ("POST", .raw(.text, "x"), false, true, #"{"followRedirects": true, "maxRedirects": 20, "followOriginalHttpMethod": false, "followAuthorizationHeader": false}"#),
     ])
     func `Request Settings are protocolProfileBehavior`(method: String, body: Body, insecure: Bool, redirects: Bool, expected: String) throws {
         let definition = Self.definition(method: method, body: body, insecure: insecure, redirects: redirects)
@@ -267,6 +269,8 @@ extension PostmanExporterTests {
         definition(auth: .basic(user: "u", password: "p")),
         definition(auth: .bearer(token: "{{t}}")),
         definition(insecure: true, redirects: true),
+        definition(redirects: true, originalMethod: true, authorization: true, maxRedirects: 5),
+        definition(redirects: false, maxRedirects: 0),
         definition(method: "GET", headers: [json], body: .raw(.json, "{}")),
     ]
 

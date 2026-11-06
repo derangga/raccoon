@@ -209,7 +209,7 @@ the key is not written.
 | Auth `.none` | `auth: {type: "noauth"}`, written on every Request. An item with no `auth` inherits in Postman, so leaving it out would change what the Request sends |
 | Auth `.basic` | `auth: {type: "basic", basic: [{key: "username", value, type: "string"}, {key: "password", value, type: "string"}]}` |
 | Auth `.bearer` | `auth: {type: "bearer", bearer: [{key: "token", value, type: "string"}]}` |
-| Request Settings | `protocolProfileBehavior` on the item: `followRedirects` always, true or false, because Raccoon's default is off and an absent key means follow in Postman; `strictSSL: false` only when `allowsInsecureTLS` is on; `disableBodyPruning: true` when the method is GET or HEAD and the Body is not `.none`, so Postman keeps the body Raccoon holds. Import drops it without a note |
+| Request Settings | `protocolProfileBehavior` on the item: `followRedirects` always, true or false, because Raccoon's default is off and an absent key means follow in Postman; `strictSSL: false` only when `allowsInsecureTLS` is on; `disableBodyPruning: true` when the method is GET or HEAD and the Body is not `.none`, so Postman keeps the body Raccoon holds. Import drops it without a note. Also `maxRedirects`, `followOriginalHttpMethod` and `followAuthorizationHeader`, always, because Postman's defaults differ from Raccoon's and an absent key would change what the Request does. The Request Timeout is not written: Postman keeps its timeout in app settings, not on the item, so it would have nowhere to land |
 | `{{name}}` | unchanged: Postman uses the same syntax. A Collection file holds names only; the values are in Environments, which are exported on their own |
 | `description`, `event`, `response` | not written: Raccoon has none |
 

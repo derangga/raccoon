@@ -17,7 +17,7 @@ struct OpenRequestTests {
             sessionStore: DiskSessionStore(directory: temp.appending(path: "Support"), root: root.path), secrets: InMemorySecretStore(),
             instants: FixedInstantSource(.now),
             makeTab: {
-                TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+                TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                          instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
             }
         )
@@ -135,7 +135,7 @@ struct OpenRequestTests {
                     dataFolder: .test(temp.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(), sessionStore: store,
                     secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),
                     makeTab: {
-                        TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+                        TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                                  instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
                     }
                 )

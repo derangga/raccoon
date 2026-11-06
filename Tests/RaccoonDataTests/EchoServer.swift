@@ -15,7 +15,8 @@ func withEchoServer<T>(tls: Bool = false, _ body: (EchoServer) async throws -> T
 /// exactly what URLSession put on the wire. Every reply closes the connection.
 ///
 ///     /delay/<ms>   waits, then echoes
-///     /redirect     302 to /echo
+///     /redirect     302 to /echo; /redirect/<status> uses that status instead
+///     /loop         302 to /loop, forever
 ///     /bytes/<n>    a body of n bytes
 ///     /headers      two Set-Cookie headers and two others out of alphabetical order
 ///     /gzip         "compressed hello", gzip-encoded with Content-Encoding: gzip, whatever was asked
@@ -136,8 +137,10 @@ final class EchoServer: Sendable {
             queue.asyncAfter(deadline: .now() + .milliseconds(milliseconds)) { [weak self] in
                 self?.send(status: "200 OK", headers: [], body: request, on: connection)
             }
-        case ("redirect", _):
-            send(status: "302 Found", headers: ["Location: /echo"], body: Data(), on: connection)
+        case ("redirect", let status):
+            send(status: Self.reason(status ?? 302), headers: ["Location: /echo"], body: Data(), on: connection)
+        case ("loop", _):
+            send(status: "302 Found", headers: ["Location: /loop"], body: Data(), on: connection)
         case ("headers", _):
             send(status: "200 OK", headers: Self.replyHeaders, body: Data(), on: connection)
         case ("gzip", _):
@@ -148,6 +151,13 @@ final class EchoServer: Sendable {
         default:
             send(status: "200 OK", headers: [], body: request, on: connection)
         }
+    }
+
+    /// The status line for a redirect code, so /redirect/303 answers "303 See Other".
+    private static func reason(_ status: Int) -> String {
+        let reasons = [301: "Moved Permanently", 302: "Found", 303: "See Other",
+                       307: "Temporary Redirect", 308: "Permanent Redirect"]
+        return "\(status) \(reasons[status] ?? "Found")"
     }
 
     /// What /headers adds after the fixed head, in this order.

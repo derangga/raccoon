@@ -45,9 +45,38 @@ struct DefinitionJSON: Codable {
         var token: String?
     }
 
+    /// The first two are always written; the rest only when they differ from the default, so no
+    /// Request file written before they existed gains a line.
     struct SettingsJSON: Codable {
         var allowsInsecureTLS: Bool?
         var followsRedirects: Bool?
+        var followsOriginalMethod: Bool?
+        var followsAuthorizationHeader: Bool?
+        var maxRedirects: Int?
+        var timeoutSeconds: Int?
+
+        init(_ settings: RequestSettings) {
+            let empty = RequestDefinition.empty.settings
+            allowsInsecureTLS = settings.allowsInsecureTLS
+            followsRedirects = settings.followsRedirects
+            followsOriginalMethod = settings.followsOriginalMethod ? true : nil
+            followsAuthorizationHeader = settings.followsAuthorizationHeader ? true : nil
+            maxRedirects = settings.maxRedirects == empty.maxRedirects ? nil : settings.maxRedirects
+            timeoutSeconds = settings.timeoutSeconds
+        }
+
+        var settings: RequestSettings {
+            let empty = RequestDefinition.empty.settings
+            // The init clamps, so a hand-edited or Postman-sized number lands in range (shapes.md).
+            return RequestSettings(
+                allowsInsecureTLS: allowsInsecureTLS ?? empty.allowsInsecureTLS,
+                followsRedirects: followsRedirects ?? empty.followsRedirects,
+                followsOriginalMethod: followsOriginalMethod ?? empty.followsOriginalMethod,
+                followsAuthorizationHeader: followsAuthorizationHeader ?? empty.followsAuthorizationHeader,
+                maxRedirects: maxRedirects ?? empty.maxRedirects,
+                timeoutSeconds: timeoutSeconds
+            )
+        }
     }
 
     init(_ definition: RequestDefinition) {
@@ -73,8 +102,7 @@ struct DefinitionJSON: Codable {
             pathVariables: definition.pathVariables.isEmpty ? nil : definition.pathVariables, headers: Self.rows(definition.headers),
             cookies: Self.rows(definition.cookies),
             body: body, auth: auth,
-            settings: SettingsJSON(allowsInsecureTLS: definition.settings.allowsInsecureTLS,
-                                   followsRedirects: definition.settings.followsRedirects)
+            settings: SettingsJSON(definition.settings)
         )
     }
 
@@ -100,10 +128,7 @@ struct DefinitionJSON: Codable {
             headers: (headers ?? []).map(\.row), cookies: (cookies ?? []).map(\.row),
             body: try body.map { json throws(Malformed) in try json.body() } ?? .none,
             auth: try auth.map { json throws(Malformed) in try json.auth() } ?? .none,
-            settings: RequestSettings(
-                allowsInsecureTLS: settings?.allowsInsecureTLS ?? empty.settings.allowsInsecureTLS,
-                followsRedirects: settings?.followsRedirects ?? empty.settings.followsRedirects
-            )
+            settings: (settings ?? SettingsJSON(empty.settings)).settings
         )
     }
 

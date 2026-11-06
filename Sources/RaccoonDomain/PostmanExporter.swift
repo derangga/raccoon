@@ -86,7 +86,12 @@ public enum PostmanExporter {
                     followRedirects: definition.settings.followsRedirects,
                     strictSSL: definition.settings.allowsInsecureTLS ? false : nil,
                     // Postman drops a GET or HEAD body unless told to keep it.
-                    disableBodyPruning: ["GET", "HEAD"].contains(definition.method) && definition.body != .none ? true : nil
+                    disableBodyPruning: ["GET", "HEAD"].contains(definition.method) && definition.body != .none ? true : nil,
+                    // Always written: Postman's defaults differ from Raccoon's, so an absent key
+                    // would change what the Request does over there (postman-export.md).
+                    maxRedirects: definition.settings.maxRedirects,
+                    followOriginalHttpMethod: definition.settings.followsOriginalMethod,
+                    followAuthorizationHeader: definition.settings.followsAuthorizationHeader
                 )
             )
         }
@@ -229,6 +234,9 @@ public enum PostmanExporter {
         var followRedirects: Bool
         var strictSSL: Bool?
         var disableBodyPruning: Bool?
+        var maxRedirects: Int
+        var followOriginalHttpMethod: Bool
+        var followAuthorizationHeader: Bool
     }
 
     private struct Req: Encodable {

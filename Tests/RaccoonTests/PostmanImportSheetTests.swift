@@ -19,7 +19,7 @@ struct PostmanImportSheetTests {
             sessionStore: DiskSessionStore(directory: temp.appending(path: "Support"), root: root.path),
             secrets: secrets, instants: FixedInstantSource(.now),
             makeTab: { [secrets] in
-                TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: secrets, files: DictionaryFileReading([:]),
+                TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: secrets, files: DictionaryFileReading([:]),
                          instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
             }
         )

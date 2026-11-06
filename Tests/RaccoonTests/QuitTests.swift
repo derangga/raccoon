@@ -10,7 +10,7 @@ import Testing
 struct QuitTests {
     let directory = FileManager.default.temporaryDirectory.appending(path: "raccoon-\(UUID())")
 
-    func makeWindow(store: any SessionStore, transport: ScriptedTransport = ScriptedTransport(.failure(.timedOut))) -> WindowModel {
+    func makeWindow(store: any SessionStore, transport: ScriptedTransport = ScriptedTransport(.failure(.timedOut(seconds: 60)))) -> WindowModel {
         WindowModel(
             dataFolder: .test(directory.appending(path: "Raccoon")), folderWatch: ManualFolderWatch(),
             sessionStore: store, secrets: InMemorySecretStore(), instants: FixedInstantSource(.now),

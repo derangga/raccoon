@@ -167,7 +167,7 @@ struct VariableSuggestionTests {
         let urlField = FocusTextField()
         urlField.theme = theme
         urlField.kinds = kinds
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                              instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
         let body = BodyPane(model: model, theme: theme)
         body.setBody(.raw(.json, ""), kinds: kinds)

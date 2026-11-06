@@ -11,7 +11,7 @@ struct TabSwitchTests {
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [], backing: .buffered, defer: false)
 
     func tab(url: String, body: String) -> TabModel {
-        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut)), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                              instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
         model.tab.definition.url = url
         model.tab.definition.body = .raw(.text, body)

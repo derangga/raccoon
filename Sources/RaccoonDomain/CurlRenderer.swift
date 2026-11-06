@@ -28,8 +28,21 @@ public enum CurlRenderer {
                 }
             }
         }
-        if definition.settings.allowsInsecureTLS { flags.append("-k") }
-        if definition.settings.followsRedirects { flags.append("-L") }
+        let settings = definition.settings
+        if settings.allowsInsecureTLS { flags.append("-k") }
+        // --location-trusted is -L plus the Authorization header, so it stands in for -L. With
+        // no -L nothing follows a redirect, so the header switch has nothing to say either.
+        if settings.followsRedirects {
+            flags.append(settings.followsAuthorizationHeader ? "--location-trusted" : "-L")
+            // curl's own default is 50, so the limit is always written: without it the command
+            // would follow further than the Request does.
+            flags.append("--max-redirs \(settings.maxRedirects)")
+        } else if settings.maxRedirects != RequestDefinition.empty.settings.maxRedirects {
+            flags.append("--max-redirs \(settings.maxRedirects)")
+        }
+        // curl spells one switch as three, one per status that would otherwise become a GET.
+        if settings.followsOriginalMethod { flags += ["--post301", "--post302", "--post303"] }
+        if let seconds = settings.timeoutSeconds { flags.append("--max-time \(seconds)") }
         return ([first.joined(separator: " ")] + flags).joined(separator: " \\\n  ")
     }
 
