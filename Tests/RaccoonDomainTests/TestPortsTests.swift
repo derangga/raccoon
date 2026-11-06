@@ -31,6 +31,28 @@ struct TestPortsTests {
         #expect(throws: StoreError.unreadable(path: "/tmp/b", reason: "No such file")) { try files.read("/tmp/b") }
     }
 
+    @Test func `recording file writing keeps every write in order`() throws {
+        let files = RecordingFileWriting()
+        let a = URL(filePath: "/tmp/a.json"), b = URL(filePath: "/tmp/b.json")
+
+        try files.write(Data("1".utf8), to: a)
+        try files.write(Data("2".utf8), to: b)
+        try files.write(Data("3".utf8), to: a)
+
+        #expect(files.writes.map(\.url) == [a, b, a])
+        #expect(files.writes.map(\.data) == [Data("1".utf8), Data("2".utf8), Data("3".utf8)])
+    }
+
+    @Test func `recording file writing throws the StoreError set for a URL and records nothing`() {
+        let a = URL(filePath: "/tmp/a.json"), b = URL(filePath: "/tmp/b.json")
+        let failure = StoreError.unwritable(path: a.path, reason: "permission denied")
+        let files = RecordingFileWriting(failing: [a: failure])
+
+        #expect(throws: failure) { try files.write(Data("1".utf8), to: a) }
+        #expect(throws: Never.self) { try files.write(Data("2".utf8), to: b) }
+        #expect(files.writes.map(\.url) == [b])
+    }
+
     @Test func `manual folder watch delivers what the test emits`() async {
         let watch = ManualFolderWatch()
         var events = watch.events(root: "/root").makeAsyncIterator()

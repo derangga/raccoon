@@ -34,6 +34,9 @@ enum CompositionRoot {
     /// The files picked for Postman Import.
     static func fileReading() -> any FileReading { DiskFileReading() }
 
+    /// The file the user picked in Postman Export's save panel.
+    static func fileWriting() -> any FileWriting { DiskFileWriting() }
+
     /// Not a Bool reads as off, so closing asks (§4).
     static func closeMemory(defaults: UserDefaults) -> CloseMemory {
         CloseMemory(

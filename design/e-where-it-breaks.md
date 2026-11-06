@@ -111,6 +111,9 @@ Postman Export
   ⚠ Include secret values, SecretStore.get throws → escape: that one Secret Variable is exported
                            empty, the others are still read, and the result names it after the
                            write. Never a failed export: the file is on disk
+  ⚠ the target is a symlink → not an error: the atomic replace writes a regular file where the link
+                           was, and the file it pointed to is unchanged. The save panel named the
+                           link, so the link's path is what holds the export
   ⚠ Include secret values, a Secret Variable has no Keychain item → not an error: exported empty,
                            not named. It was never typed, and Raccoon resolves it as undefined too
   ⚠ Include secret values off → not an error: every Secret Variable is written `type: "secret"`

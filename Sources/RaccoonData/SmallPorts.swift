@@ -10,6 +10,14 @@ public struct DiskFileReading: FileReading {
     }
 }
 
+public struct DiskFileWriting: FileWriting {
+    public init() {}
+
+    public func write(_ data: Data, to url: URL) throws(StoreError) {
+        try lifting({ .unwritable(path: url.path, reason: $0) }) { try data.write(to: url, options: .atomic) }
+    }
+}
+
 /// The app passes `.general`; tests pass a private name so they never touch the user's clipboard.
 public struct SystemClipboardWriter: ClipboardWriter {
     private let name: NSPasteboard.Name

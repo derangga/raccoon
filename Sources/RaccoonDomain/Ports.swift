@@ -13,6 +13,13 @@ public protocol FileReading: Sendable {
     func read(_ path: String) throws(StoreError) -> Data
 }
 
+/// A file the user picked, outside the Data Folder (Postman Export). Never recorded in the
+/// WriteLedger: DataFolderStore's paths are relative to its root, so it cannot do this.
+public protocol FileWriting: Sendable {
+    /// Atomic: the file at `url` is whole or untouched. `StoreError.unwritable` carries `url.path`.
+    func write(_ data: Data, to url: URL) throws(StoreError)
+}
+
 /// The Data Folder. The root is given to init; every path is relative to it.
 public protocol DataFolderStore: Sendable {
     func ensureExists() throws(StoreError)

@@ -32,6 +32,23 @@ public struct DictionaryFileReading: FileReading {
     }
 }
 
+/// Keeps every write in order, and throws the StoreError a test set for a URL, recording nothing.
+public final class RecordingFileWriting: FileWriting {
+    private let failures: [URL: StoreError]
+    private let recorded = Mutex<[(url: URL, data: Data)]>([])
+
+    public init(failing failures: [URL: StoreError] = [:]) {
+        self.failures = failures
+    }
+
+    public var writes: [(url: URL, data: Data)] { recorded.withLock { $0 } }
+
+    public func write(_ data: Data, to url: URL) throws(StoreError) {
+        if let failure = failures[url] { throw failure }
+        recorded.withLock { $0.append((url, data)) }
+    }
+}
+
 /// Delivers exactly what the test passes to `emit`, to every stream still being iterated.
 /// Logs "start <root>" and "end <root>" as streams begin and terminate.
 public final class ManualFolderWatch: FolderWatch {
