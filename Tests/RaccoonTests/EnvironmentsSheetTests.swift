@@ -666,4 +666,95 @@ struct EnvironmentsSheetTests {
         #expect(sheet.sourceTitles == ["Globals", "Environments", "Dev", "Staging"])
         #expect(environments.firstResponder === sheet.sourceTable)
     }
+
+    // MARK: Import from Postman…
+
+    @Test func `Import from Postman… is an icon-only footer button at the list's trailing edge, away from + and −`() throws {
+        let sheet = sheet(try staging())
+        sheet.view.layoutSubtreeIfNeeded()
+        let footer = sheet.listFooter
+        let button = sheet.importButton
+
+        #expect(button.superview === footer)
+        #expect(!button.isBordered && button.imageScaling == .scaleNone)
+        #expect(button.alignmentRect(forFrame: button.frame).size == NSSize(width: 24, height: 22))
+        #expect(button.toolTip == "Import from Postman…")
+        #expect(button.accessibilityLabel() == "Import from Postman…")
+        #expect(button.imagePosition == .imageOnly)
+        #expect(button.image?.accessibilityDescription == "Import from Postman…")
+        let remove = sheet.removeButton.convert(sheet.removeButton.bounds, to: footer)
+        let frame = button.convert(button.bounds, to: footer)
+        #expect(frame.minX > remove.maxX + 24)
+        #expect(abs(footer.bounds.maxX - frame.maxX) <= 8)
+        #expect(abs(frame.midY - footer.bounds.midY) <= 1)
+    }
+
+    /// The window and its Environments sheet, with the action recorded as `importFromPostman` runs
+    /// it: whether the window still had a sheet attached at that moment is what the real action
+    /// returns early on.
+    func presented(imports: @escaping (_ attachedSheetAtCall: Bool) -> Void) throws -> (parent: NSWindow, field: NSTextField, sheet: EnvironmentsSheet) {
+        let window = try staging()
+        let parent = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+        let field = NSTextField()
+        parent.contentView?.addSubview(field)
+        parent.makeFirstResponder(field)
+        EnvironmentsSheet.present(
+            on: parent, model: window, theme: theme, writer: RecordingFileWriting(), version: "1.2.3",
+            importFromPostman: { [unowned parent] in imports(parent.attachedSheet != nil) }
+        )
+        let panel = try #require(parent.attachedSheet)
+        let sheet = try #require(panel.contentViewController as? EnvironmentsSheet)
+        _ = sheet.view
+        return (parent, field, sheet)
+    }
+
+    @Test func `Import from Postman… closes the sheet and runs the import only once the window has no sheet, focus back on its field`() async throws {
+        var calls: [Bool] = []
+        let (parent, field, sheet) = try presented { calls.append($0) }
+
+        sheet.importButton.performClick(nil)
+        for _ in 0..<50 { await Task.yield() }
+
+        #expect(parent.attachedSheet == nil)
+        // One run, and with no sheet attached: `AppDelegate.importFromPostman` would have returned at once otherwise.
+        #expect(calls == [false], "calls: \(calls)")
+        #expect(parent.firstResponder === field || parent.firstResponder === parent.fieldEditor(false, for: field))
+    }
+
+    @Test func `Done and Esc close the sheet without running the import`() async throws {
+        var calls = 0
+        let (parent, _, sheet) = try presented { _ in calls += 1 }
+        sheet.doneButton.performClick(nil)
+        for _ in 0..<50 { await Task.yield() }
+        #expect(parent.attachedSheet == nil && calls == 0)
+
+        let (again, _, second) = try presented { _ in calls += 1 }
+        second.cancelOperation(nil)
+        for _ in 0..<50 { await Task.yield() }
+        #expect(again.attachedSheet == nil && calls == 0)
+    }
+
+    @Test func `the import is sent at once when the window has no sheet, and only once`() {
+        let parent = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+        var calls = 0
+        EnvironmentsSheet.afterSheetEnds(on: parent) { calls += 1 }
+        #expect(calls == 1)
+        NotificationCenter.default.post(name: NSWindow.didEndSheetNotification, object: parent)
+        #expect(calls == 1)
+    }
+
+    @Test func `the import waits for the window's end-of-sheet notification while a sheet is attached, and is sent once`() async throws {
+        let parent = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+        let panel = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 100), styleMask: [.titled], backing: .buffered, defer: false)
+        parent.beginSheet(panel, completionHandler: nil)
+        var calls: [Bool] = []
+        EnvironmentsSheet.afterSheetEnds(on: parent) { [unowned parent] in calls.append(parent.attachedSheet != nil) }
+        #expect(calls.isEmpty)
+
+        parent.endSheet(panel)
+        for _ in 0..<50 { await Task.yield() }
+        #expect(calls == [false])
+        NotificationCenter.default.post(name: NSWindow.didEndSheetNotification, object: parent)
+        #expect(calls == [false])
+    }
 }

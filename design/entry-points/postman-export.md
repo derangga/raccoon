@@ -154,7 +154,11 @@ memory to one file and are dropped; Raccoon keeps no copy.
 -> importFromPostman(), from the Environments sheet
   -> the Environments sheet closes               R: none. The same close as Done: focus goes back to
                                                  the field that had it (surfaces.md §8). It must
-                                                 have finished closing before the next node
+                                                 have finished closing before the next node: sent
+                                                 at once if `attachedSheet` is nil in the sheet's
+                                                 completion, else when the window posts
+                                                 `NSWindow.didEndSheetNotification`, once. The
+                                                 completion can run before the window drops the sheet
   -> NSApp.sendAction(AppDelegate.importFromPostman(_:), to: nil, from: nil)
                                                  R: none. The action File ▸ Import from Postman…
                                                  (⇧⌘I) sends, as an Empty state row does. It

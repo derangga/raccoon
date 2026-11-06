@@ -29,6 +29,8 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
     let sourceTable = SourceTableView()
     let addButton = NSButton(image: NSImage(systemSymbolName: "plus", accessibilityDescription: "New Environment")!, target: nil, action: nil)
     let removeButton = NSButton(image: NSImage(systemSymbolName: "minus", accessibilityDescription: "Delete Environment")!, target: nil, action: nil)
+    /// At the footer's trailing edge, away from + | −: closes the sheet, then File ▸ Import from Postman… runs.
+    let importButton = NSButton(image: NSImage(systemSymbolName: "square.and.arrow.down", accessibilityDescription: "Import from Postman…")!, target: nil, action: nil)
     let nameField = NSTextField()
     /// Under the name field: a refused rename.
     let renameError = EnvironmentsSheet.errorLine()
@@ -57,6 +59,8 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
     /// answered is kept, never what.
     private var missing: Set<VariableName> = []
     private var isOpen = true
+    /// Set by the Import button; `present` reads it once the sheet has finished closing.
+    private var importRequested = false
 
     /// The Variables table's colours: it is drawn as the key/value table is.
     private let theme: ThemeEnvironment
@@ -78,7 +82,8 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
     /// Shown as a sheet on `window`; the field focused before is focused again when it closes.
     static func present(
         on parent: NSWindow, model: WindowModel, theme: ThemeEnvironment, writer: any FileWriting, version: String,
-        id: @escaping () -> UUID = { UUID() }, now: @escaping () -> Date = { Date() }
+        id: @escaping () -> UUID = { UUID() }, now: @escaping () -> Date = { Date() },
+        importFromPostman: @escaping @MainActor () -> Void = { NSApp.sendAction(#selector(AppDelegate.importFromPostman(_:)), to: nil, from: nil) }
     ) {
         guard parent.attachedSheet == nil else { return }
         let sheet = EnvironmentsSheet(window: model, theme: theme)
@@ -91,7 +96,24 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
             )
         }
         let restore = rememberFocus(in: parent)
-        parent.beginSheet(sheetPanel(sheet, focus: sheet.sourceTable)) { _ in restore() }
+        // The action returns early while the window has a sheet attached: send it once none is.
+        parent.beginSheet(sheetPanel(sheet, focus: sheet.sourceTable)) { [weak sheet, weak parent] _ in
+            restore()
+            guard sheet?.importRequested == true, let parent else { return }
+            afterSheetEnds(on: parent, importFromPostman)
+        }
+    }
+
+    /// Runs `send` with no sheet attached to `parent`, once. The `beginSheet` completion can run
+    /// before the window has dropped the sheet, so the window's own end-of-sheet notification is
+    /// the signal, whichever comes first.
+    static func afterSheetEnds(on parent: NSWindow, _ send: @escaping @MainActor () -> Void) {
+        if parent.attachedSheet == nil { return send() }
+        nonisolated(unsafe) var observer: NSObjectProtocol?
+        observer = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification, object: parent, queue: .main) { _ in
+            observer.map(NotificationCenter.default.removeObserver)
+            MainActor.assumeIsolated { send() }
+        }
     }
 
     /// surfaces.md §8: where focus returns to. A text field being edited is its field editor
@@ -129,7 +151,7 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
         let sourceScroll = EnvironmentsSheet.scroll(sourceTable)
         sourceScroll.drawsBackground = false
 
-        for (button, action) in [(addButton, #selector(add)), (removeButton, #selector(remove))] {
+        for (button, action) in [(addButton, #selector(add)), (removeButton, #selector(remove)), (importButton, #selector(importPostman))] {
             button.isBordered = false
             // One size for both: sized to its own image, − was a 4 pt sliver beside +.
             button.symbolConfiguration = .init(pointSize: 13, weight: .medium)
@@ -137,7 +159,8 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
             button.heightAnchor.constraint(equalToConstant: 22).isActive = true
             button.target = self
             button.action = action
-            button.setAccessibilityLabel(button === addButton ? "New Environment" : "Delete Environment")
+            button.setAccessibilityLabel(button.image?.accessibilityDescription)
+            if button === importButton { button.toolTip = "Import from Postman…" }
         }
 
         // Taller than its text, so the editing ring does not touch the letters.
@@ -212,7 +235,7 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
         footerDivider.boxType = .separator
 
         let right = NSView()
-        let views: [NSView] = [left, right, sourceScroll, listFooter, footerRule, footerDivider, addButton, removeButton, nameField, renameError, tableScroll, problemLabel, hintLabel, doneButton] + separators
+        let views: [NSView] = [left, right, sourceScroll, listFooter, footerRule, footerDivider, addButton, removeButton, importButton, nameField, renameError, tableScroll, problemLabel, hintLabel, doneButton] + separators
         for view in views { view.translatesAutoresizingMaskIntoConstraints = false }
         root.addSubview(left)
         root.addSubview(right)
@@ -220,7 +243,7 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
         root.addSubview(doneButton)
         left.addSubview(sourceScroll)
         left.addSubview(listFooter)
-        for view in [footerRule, addButton, footerDivider, removeButton] { listFooter.addSubview(view) }
+        for view in [footerRule, addButton, footerDivider, removeButton, importButton] { listFooter.addSubview(view) }
         root.addSubview(separators[0])
         for view in [nameField, renameError, tableScroll, problemLabel, hintLabel] { right.addSubview(view) }
         // The tables' rows are Auto Layout views of their own; only the table itself is sized by hand.
@@ -267,6 +290,9 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
             removeButton.leadingAnchor.constraint(equalTo: footerDivider.trailingAnchor, constant: 2),
             removeButton.centerYAnchor.constraint(equalTo: listFooter.centerYAnchor),
             removeButton.widthAnchor.constraint(equalToConstant: 24),
+            importButton.trailingAnchor.constraint(equalTo: listFooter.trailingAnchor, constant: -6),
+            importButton.centerYAnchor.constraint(equalTo: listFooter.centerYAnchor),
+            importButton.widthAnchor.constraint(equalToConstant: 24),
 
             nameField.topAnchor.constraint(equalTo: right.topAnchor, constant: 11),
             nameField.heightAnchor.constraint(equalToConstant: 24),
@@ -825,6 +851,11 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
         endEditing()
         isOpen = false
         if let panel = view.window, let parent = panel.sheetParent { parent.endSheet(panel) }
+    }
+
+    @objc private func importPostman() {
+        importRequested = true
+        done()
     }
 
     /// Esc.

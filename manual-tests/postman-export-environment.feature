@@ -254,3 +254,35 @@ Feature: Worst case (break-ui)
     And under it: 200 Variables, 60 secrets
     When I click Export… and Save in /tmp/raccoon-envexport-out
     Then the file holds 200 values, 60 of them type secret with an empty value: python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(len(d["values"]), sum(v["type"]=="secret" and v["value"]=="" for v in d["values"]))' "/tmp/raccoon-envexport-out/$(printf 'E%.0s' $(seq 1 120)).postman_environment.json" prints: 200 60
+
+
+Feature: Import from the Environments sheet
+  The footer's icon button closes the sheet, then runs File ▸ Import from Postman… (⇧⌘I)
+
+  Background:
+    Given Raccoon is running on /tmp/raccoon-envexport and I pressed ⌥⌃E, so the Environments sheet is open
+
+  Scenario: 14. The button, the open panel, and Cancel
+    Then under the list, at the footer's trailing edge and well apart from + and −, there is one icon-only button, a tray with a down arrow, 24 pt wide, borderless
+    When I rest the pointer on it
+    Then after a moment a tooltip reads "Import from Postman…"
+    When I click it
+    Then the Environments sheet slides up, and only then an open panel slides down from the window's title bar, with Open and Cancel buttons
+    And the Environments sheet is not behind or on top of it
+    When I click Cancel
+    Then the open panel slides up and no sheet is open: the window is as it is with no sheet, and nothing was written
+    When I press ⌥⌃E
+    Then the Environments sheet opens again, listing Globals, then under Environments: Broken (with its warning), Dev and Staging
+
+  Scenario: 15. Importing a Postman Environment from the sheet
+    Given scenario 14 ran, so the Environments sheet is closed
+    When I press ⌥⌃E and click the Import from Postman… button
+    And in the open panel I press ⇧⌘G, type ~/Documents/playground/raccoon/example, press Return, pick "Sociolla Beauty Journal.postman_environment.json" and click Open
+    Then the Import sheet slides down with one row: ticked, Sociolla Beauty Journal, "Environment · 14 Variables", Sociolla Beauty Journal.postman_environment.json
+    When I click Import
+    Then the sheet closes straight away and nothing else opens: the Environments sheet is not shown again
+    When I press ⌥⌃E
+    Then under Environments the list reads Broken, Dev, Sociolla Beauty Journal, Staging
+    When I select "Sociolla Beauty Journal"
+    Then its table has 14 rows, all Enabled and none locked, the first uat_host and the last local_accounts
+    And in Terminal B, python3 -c 'import json; print(len(json.load(open("/tmp/raccoon-envexport/environments/Sociolla Beauty Journal.json"))["variables"]))' prints: 14
