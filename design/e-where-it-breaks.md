@@ -87,6 +87,40 @@ Postman Import
                            written in clear
   ⚠ an Environment file or globals.json fails to write → escape: the result names it, the
                            secrets just stored for it are deleted again, the rest lands
+Postman Export
+  ⚠ the save panel cancelled → not an error: back on the Export sheet, nothing written, and no
+                           Keychain read has happened (an Environment's are read after the panel)
+  ⚠ the target not writable, or the write fails → escape: the sheet stays with a red line, "Not
+                           exported. <reason>.", and Export… still works for another place. The
+                           write is atomic (temp file, then replace): the old file at that url
+                           is as it was, and nothing half-written is left. Any secret values
+                           already read are dropped. NEVER retried: the user picks again
+  ⚠ a Request file that does not decode (an .unreadable node, or a file that no longer decodes
+                           when read) → escape: skipped, counted and named on the sheet, and never
+                           blocks the export. The file on disk is untouched
+  ⚠ a Request file can't be read, or the Data Folder fails mid-read → escape: the same row: that
+                           file is skipped and named with the reason
+  ⚠ the Collection gone from the index when the sheet should open (renamed or trashed outside
+                           Raccoon) → escape: nothing opens
+  ⚠ a Request that is Dirty in a Tab → not an error: an info line, "Export uses what is
+                           saved"; the file holds the saved Request
+  ⚠ a Request changed on disk while the Export sheet is open → not an error: the file holds
+                           what the sheet counted and scanned (the plan is computed once)
+  ⚠ credentials found     → not an error: a warning with the count and the Request names;
+                           Export… is still enabled and the file holds them as typed
+  ⚠ Include secret values, SecretStore.get throws → escape: that one Secret Variable is exported
+                           empty, the others are still read, and the result names it after the
+                           write. Never a failed export: the file is on disk
+  ⚠ Include secret values, a Secret Variable has no Keychain item → not an error: exported empty,
+                           not named. It was never typed, and Raccoon resolves it as undefined too
+  ⚠ Include secret values off → not an error: every Secret Variable is written `type: "secret"`
+                           with an empty value, and the Keychain is not read
+  ⚠ Export on Globals, or on an Environment that does not decode → no such item: neither row has
+                           an Export… (variables.md)
+  ⚠ the file saved inside the Data Folder → not an error: the watch sees an outside change, and a
+                           `.json` in a Collection that is not a Request is an .unreadable row
+  ⚠ Import from Postman… in the Environments sheet, Cancel in the open panel → not an error: no
+                           sheet is open, since the Environments sheet closed first
 Data Folder
   ⚠ root not writable    → escape: banner with Open Workspace…, sidebar empty, Drafts and
                            sending still work. A missing Data Folder must not stop the

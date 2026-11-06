@@ -157,6 +157,29 @@ ImportNote               kind, names: what was dropped or changed, and the Reque
                          · .renamed(from, to) · .globalSkipped · .collectionVariables
                          · .variableNameInvalid
 
+ExportCollection         name, nodes [ExportNode]: a Collection as Postman Export reads it, every
+                         Request decoded from its file, in sidebar order
+ExportNode               .folder(name, [ExportNode]) · .request(Request)
+ExportSkip               path, reason: a Request file left out of the export, because the scan
+                         marked it .unreadable or it no longer decodes. reason is the text the
+                         unreadable row shows
+CredentialFinding        request: String, place: CredentialPlace
+                         one literal credential: the Request's name and where. No value, so no
+                         sheet can print one
+CredentialPlace          .header(name) · .query(name) · .bearerToken · .basicPassword
+ExportPlan               collection ExportCollection, requests Int, folders Int, findings
+                         [CredentialFinding], skipped [ExportSkip], dirtyRequests [String]: the names
+                         of Requests that are Dirty in a Tab (matched by RequestID, named from the
+                         index), and data: the bytes to write. The
+                         bytes and the findings come from the same Requests, so the warning
+                         describes the file. Not Codable
+ExportStep               .read(count: Int) · .formatted · .scanned(ExportPlan): one finished
+                         step, in this order; the Collection Export sheet checks each off as it
+                         arrives, and the last one carries the plan the sheet then shows
+EnvironmentSecrets       values [VariableName: String], unreadable [VariableName]: what Include
+                         secret values read from the SecretStore. `.none` is both empty. Not
+                         Codable, never stored: it lives from the save panel's return to the write
+
 LineIndex                starts [Int]: the UTF-16 offset of each line start. Lines break
                          where NSString.lineRange breaks them: \n, \r, \r\n, U+2028, U+2029,
                          U+0085. Always at least one line
@@ -210,6 +233,15 @@ and refusing a pasted request is worse than an unusual method.
 Environment's name and the WorkspaceID (workspaces.md). A `VariableEntry` that carried it would be one `Codable` encode away from
 writing it into a file that is in git.
 
+**`CredentialFinding` holds no value, and `EnvironmentSecrets` is not Codable.** The same rule as
+`.secret`: a record that carried a credential would be one `Codable` encode, or one `Text`, away
+from printing it. The warning needs the count and the Request's name, never the value, and the
+values that Include secret values reads go from memory to the one file and are dropped.
+
+**`ExportPlan` carries its bytes.** The sheet shows the counts and the warning, and Export… writes
+`data`. A plan with no bytes would have the sheet describe one file and write another if the
+Requests changed in between; this way they are one value computed once.
+
 **`ResolvedRequest` has no public init.** The transport takes only a `ResolvedRequest`, so a
 request with an Undefined Variable cannot reach the socket: the type that the transport
 accepts does not exist until resolution succeeded.
@@ -241,6 +273,10 @@ ImportError              .collectionUnwritable(name, StoreError)   nothing of it
                                                           with no value, undefined until set;
                                                           environment nil is Globals
 FormatError              .notValid(line, column)          the body text is left unchanged
+                         Postman Export has no error enum of its own. A write that fails is a
+                         StoreError (.unwritable, with the target's path); a Request left out is an
+                         ExportSkip, a value; a Keychain read that fails is a name in
+                         EnvironmentSecrets.unreadable. None of them stops the export
 ```
 
 Cancelling a send is not an error. It is `ResponseState.idle` (§4).

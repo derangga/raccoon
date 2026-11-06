@@ -49,6 +49,7 @@ Every entry point as a call tree, one file per feature.
 | [variables](design/entry-points/variables.md) | Pick the Active Environment · Edit a Variable · Highlight `{{name}}` · Resolve on send · The Variables pane | M5 |
 | [postman](design/entry-points/postman.md) | Import Postman Collections, Environments and Globals | M7 |
 | [workspaces](design/entry-points/workspaces.md) | Switch Workspace · New Workspace · Open Workspace · Remove from List | M8 |
+| [postman-export](design/entry-points/postman-export.md) | Export a Collection · Export an Environment · Import from Postman… in the Environments sheet | M9 |
 | [folding](design/entry-points/folding.md) | The Gutter · Fold · Unfold · Fold All | — |
 | [theme](design/entry-points/theme.md) | Pick a Theme or Flavor · System appearance changes · Package the app and its icon | M6 |
 

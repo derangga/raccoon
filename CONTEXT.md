@@ -36,7 +36,7 @@ _Avoid_: Content mode, payload type
 
 **Auth**:
 The request's authentication scheme: none, Basic, or Bearer.
-_Avoid_: Credentials, authorization header
+_Avoid_: authorization header
 
 **Request Settings**:
 Per-request transport options: allow insecure TLS and follow redirects.
@@ -57,6 +57,14 @@ _Avoid_: Curl parse, conversion
 **Postman Import**:
 Turning Postman Collection, Environment and Globals exports into Collections, Environments and Globals in the Data Folder, with everything Raccoon cannot represent listed before anything is written.
 _Avoid_: Migration, sync, Postman converter
+
+**Postman Export**:
+Writing a Collection as a Postman Collection v2.1 file, or an Environment as a Postman Environment file, to a place the user picks outside the Data Folder. The file holds exactly what the Requests hold; Credentials found in a Collection are listed first, never removed. An Environment's Secret Variables are written empty unless the user asks for their values.
+_Avoid_: Backup, share, publish, sync, Postman converter
+
+**Credential**:
+A literal token, password or key typed into a Request: a header, query param or Auth field whose name says what it holds and whose value is not a `{{name}}` reference. The Postman Export scan finds them and reports how many there are and in which Requests, never the values, so the user knows what the file will carry. It is not the Auth scheme (Auth), and not a Secret Variable, which is kept in the Keychain and never typed into a Request.
+_Avoid_: Secret (Postman's word; a Secret Variable is a different thing), leak, password or token as the general word
 
 **Copy as Curl**:
 Turning a request definition into a `curl` command with Variables resolved, for sharing outside Raccoon.

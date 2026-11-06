@@ -222,7 +222,8 @@ A 4 pt base. Sizes used: 2, 4, 6, 8, 10, 12, 16, 24.
 Decided per motion in [surfaces.md §7](./surfaces.md#7-behavior-motion-decisions-from-animate):
 Tabs and the Pretty/Raw switch do not animate; the spinner is the system one after 150 ms;
 banners use a 200 ms ease-out `NSAnimationContext` group (150 ms out), reduced to an opacity
-cross-fade under Reduce Motion. Nothing else in v1 moves. Hover and press states change on
+cross-fade under Reduce Motion. The Collection Export sheet's step checks fade in, 150 ms
+ease-out, opacity only, 60 ms apart (§6 Collection Export sheet). Nothing else in v1 moves. Hover and press states change on
 the same frame, with no transition, because they are seen tens of times a minute.
 
 ## 6. Components
@@ -733,6 +734,15 @@ replaces a native table.
   it and focuses its name field. − trashes the selected Environment's file with no prompt and
   keeps its Keychain items; if it was active, No Environment is. − is off for Globals; with no
   Environments the list is Globals and +.
+- **Import from Postman….** A third footer control at the list's trailing edge, away from + | −
+  so those two stay together: borderless, 24 × 22, the `square.and.arrow.down` symbol, 13 pt
+  medium, with the tooltip and accessibility label "Import from Postman…". It closes the sheet
+  as Done does, focus going back to the field that had it, then runs what File ▸ Import from
+  Postman… (⇧⌘I) runs: the open panel, then the Import sheet. Cancel in the open panel leaves no
+  sheet open. The Environments sheet does not reopen afterwards (postman-export.md).
+- **Export….** A context menu on an Environment's row in the source list, with that one item,
+  "Export…". Globals and a row that does not decode (the warning-triangle ones) have no menu.
+  It opens the Environment Export sheet below.
 - **Name cell.** A name that is not a Variable name is refused, and so is one already in the
   set: the old name stays, nothing is written, and an 11 pt system-red line under the row reads
   "Names use letters, digits, _, - and . only." or "tenant is already in Staging." (".. in
@@ -955,6 +965,80 @@ the full mapping: [design/entry-points/postman.md](../entry-points/postman.md).
   Collection, selected, in the sidebar. If everything landed, the sheet closes straight away
   instead.
 
+### Collection Export sheet (native)
+
+Opened by File ▸ Export Collection… (enabled when the sidebar selection is in a Collection; no
+shortcut) or Export… in a Collection row's context menu, on that Collection. 440 pt wide, as tall
+as its content: 20 pt margins, the title, a 12 pt gap, the steps, a 12 pt gap, the counts, the
+notices, a 16 pt gap, **Cancel** · **Export…** (default, Return) at the trailing edge. Cancel and
+Esc close; nothing has been written. Behaviour and the mapping:
+[design/entry-points/postman-export.md](../entry-points/postman-export.md). The layout follows
+Postman's export card, and the steps copy its checked steps, but only for work that happens.
+
+- **Title**: `Export “Sociolla”`, 15 pt semibold, end-truncated, one line.
+- **Steps**: three rows, 22 pt, each a 12 pt `checkmark` in `systemGreen`, 8 pt, then the text in
+  13 pt label color. A row is drawn when its step has finished, so a step is never shown before
+  its work is done:
+  - “Read 41 Requests from ~/Raccoon” (the Data Folder's path abbreviated with `~`,
+    middle-truncated; “Read 1 Request from …”)
+  - “Formatted as Collection Format v2.1”
+  - “Scanned for credentials”
+- **Motion**: each row fades in on opacity only, 150 ms ease-out
+  (`CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)`), starting when its step finishes
+  and no sooner than 60 ms after the previous row's start. No artificial delay: a slow step is
+  shown when it finishes. The counts, the credential warning and Export… all appear and enable in
+  the third row's frame, together, so nothing is clickable before the warning shows. Reduce Motion: every row is drawn at its finish, with no fade. A read over
+  150 ms shows the system small spinner under the title until the first row. The three rows'
+  height is kept from the first frame, so rows appearing move nothing.
+- **Counts**, drawn in the same frame as the third row, 13 pt, no motion of their own:
+  “41 Requests · 11 Folders” (“1 Request · 1 Folder”, “0 Requests · 0 Folders”). The numbers are
+  what the file holds; an empty Collection exports.
+- **Credentials** (only when the scan found some), under the counts: an orange
+  `exclamationmark.triangle.fill` 14 pt, “18 credentials in plain text” in 13 pt semibold
+  (“1 credential in plain text”); under it, 12 pt secondary, “The file keeps them exactly as
+  typed.”; under that, 11 pt secondary, the Requests' names once each in tree order, joined by
+  “ · ”, as many as fit one line, then “and 12 more”; a single name too long is cut in the middle
+  so “and N more” stays readable (the Import sheet's rule). The sheet gives no way to remove
+  them: Export never changes what a Request holds.
+- **Not exported** (only when a Request file was skipped): an orange triangle and “1 file is not
+  exported” (“3 files are not exported”), 13 pt semibold; under it, 12 pt secondary, “Raccoon
+  can't read it as a Request, and won't change it.”; then the file names on one line, the same
+  rule.
+- **Dirty Requests** (only when a Dirty Tab holds one of the Collection's Requests): an ⓘ and “2
+  Requests have unsaved edits in Tabs. Export uses what is saved.”, 12 pt secondary.
+- **Failure**: an 11 pt system-red line above the buttons, “Not exported. <reason>.”, the reason
+  being the StoreError's (“Not exported. The folder “Archive” is not writable.”). The sheet stays
+  and Export… works for another place.
+- **Export…** opens an `NSSavePanel` as a sheet on this one, `.json`, named
+  `Sociolla.postman_collection.json`, in the folder the panel last used. Cancel in the panel
+  returns to this sheet. A saved file closes the sheet and gives focus back to where it was.
+
+### Environment Export sheet (native)
+
+Opened by Export… in an Environment's row in the Environments sheet. 380 pt wide: 20 pt
+margins, the title, a 6 pt gap, a 12 pt secondary line, a 14 pt gap, the checkbox, its hint, a
+16 pt gap, **Cancel** · **Export…** (default, Return).
+
+- **Title**: `Export “Staging”`, 15 pt semibold, end-truncated. Under it “14 Variables, 2
+  secrets” (“1 Variable, 1 secret”, “0 Variables, 0 secrets”), 12 pt secondary.
+- **Include secret values**: a checkbox, 13 pt, off by default and off every time the sheet
+  opens. Its hint, 11 pt secondary, indented to the label, reads “Secrets are exported empty.”
+  when off and “Secret values are written to the file in plain text.” when on. With no secret in
+  the Environment the checkbox and its hint are not drawn.
+- **Export…** opens an `NSSavePanel` as a sheet, named `Staging.postman_environment.json`.
+  Cancel in the panel returns here with nothing read from the Keychain. Ticked, the values are
+  read from the Keychain only after the panel returns (a Keychain prompt never follows a
+  Cancel), then the file is written.
+- **Failure**: the same red line as the Collection sheet, “Not exported. <reason>.”; the sheet
+  stays.
+- **Result**, only when a Secret Variable could not be read (the same sheet, replaced): a green
+  `checkmark` and “Exported to Staging.postman_environment.json” (13 pt, file name
+  middle-truncated); under it, an orange triangle and “2 secrets could not be read from the
+  Keychain and are empty in the file.” (“1 secret could not be read from the Keychain and is
+  empty in the file.”), then the names in SF Mono 11 on one line, joined by “ · ”, then “and N
+  more”; **Done** (default) closes. A Secret Variable that was never given a value is not named:
+  there was nothing to read. With nothing to report the sheet closes at once after the write.
+
 ### Variable popover
 
 A popover on `backgroundElevated` with `border`, 6 pt radius, 8 pt padding, 320 pt wide,
@@ -1149,6 +1233,13 @@ Every entry of [e-where-it-breaks.md](../e-where-it-breaks.md) with a visible pl
 | Postman Import: Data Folder not writable | Import disabled, reason in the footer | Postman Import sheet |
 | Postman Import: a Collection fails to write | the result names it; nothing partial is left | Postman Import sheet |
 | Postman Import: Keychain refuses an imported secret | the result: imported with no value | Postman Import sheet |
+| Postman Export: save panel cancelled | back on the Export sheet; nothing written, no Keychain read | Collection or Environment Export sheet |
+| Postman Export: target not writable, write fails | red line “Not exported. <reason>.”; the sheet stays | Collection or Environment Export sheet |
+| Postman Export: a Request file that does not decode | “N files are not exported”, named; Export… still enabled | Collection Export sheet |
+| Postman Export: credentials found | “18 credentials in plain text”, the Request names; Export… still enabled | Collection Export sheet |
+| Postman Export: a Request that is Dirty in a Tab | an info line, “Export uses what is saved” | Collection Export sheet |
+| Postman Export: Keychain refuses a secret value | the result names it; it is empty in the file | Environment Export sheet |
+| Postman Export: Reduce Motion | the step rows are drawn at once, no fade | Collection Export sheet |
 
 ## 8. Worst case (break-ui)
 
@@ -1278,3 +1369,17 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
     ("pai" in "Payments API"), so there it keeps only the rows that match on their own.
     Swapped or wrong letters ("refnuds") and queries across levels ("pay ref") still find
     nothing.
+
+20. **Postman Export.** Decided 2026-11-06, with the user: an Environment's Secret Variables are
+    written `type: "secret"` with an empty value unless the sheet's Include secret values box
+    is ticked (off by default), and the Keychain is read only after the save panel returns. A
+    Collection's credentials are listed, never removed or masked: the file is exactly what the
+    Requests hold. The Collection sheet's steps are Postman's checked steps, drawn only for
+    work that has finished, 60 ms apart, opacity only. The Environments sheet gets Import from
+    Postman…, which closes it and runs File ▸ Import from Postman…. Raccoon has no Collection
+    variables, so an exported Collection has no `variable`. Settled in the design pass, not yet
+    confirmed with the user: a
+    Request file that does not decode is skipped and listed, never blocks; the scan counts
+    Disabled Rows and not Cookies, and an empty `authorization` value counts so the example
+    gives Postman's 18; output is sorted-keys and indented, so it diffs; the Environments sheet
+    is not reopened after an import.

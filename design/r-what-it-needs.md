@@ -51,6 +51,14 @@ RequestFile / EnvironmentFile / SessionFile encode·decode         Codable, vers
 Tab.isDirty, Tab.hasLosableContent                                computed, never stored
 ThemeChoice.flavor(for:)                                          appearance -> Flavor
 PostmanImporter.read, PostmanMapping.plan                         export bytes -> ImportPlan
+PostmanExporter.collection                                        ExportCollection, id -> Collection
+                                                                  v2.1 bytes
+PostmanExporter.environment                                       Environment, EnvironmentSecrets, id,
+                                                                  date, version -> Environment bytes
+CredentialScan.find                                               Requests -> [CredentialFinding]
+ExportStepReveal.starts                                           when each step finished,
+                                                                  reduceMotion -> when its check
+                                                                  starts, 60 ms apart
 ```
 
 Path Variables add no port and no boundary: reading the URL, setting a value and encoding it
@@ -67,6 +75,12 @@ HTTPTransport     send(ResolvedRequest) async throws(SendError) -> Response
                   the Request Settings ride inside the ResolvedRequest. The live one
                   reads multipart file parts through the FileReading given to its init
 FileReading       read(path) throws(StoreError) -> Data       @file and multipart parts
+FileWriting       write(Data, to: URL) throws(StoreError)     Postman Export: a path the user
+                  picked, outside the Data Folder. Atomic: a temp file in the target's
+                  folder, then replace, so a failed write leaves the old file as it was.
+                  StoreError.unwritable(path, reason) carries url.path. Never records in
+                  the WriteLedger: the Data Folder is not what it writes. DataFolderStore
+                  cannot do this: its paths are relative to its root
 DataFolderStore   ensureExists, scan -> DataFolderScan (files [path: Data] and every
                   folder, so an empty Collection or Folder shows), read, write (atomic), move, trash,
                   createDirectory, writeDirectory(DataFolderScan, to:) (temp + rename, so empty
@@ -119,6 +133,24 @@ Postman Import    FileReading, DataFolderStore, SecretStore      through the win
                                                     the index and the WriteLedger. The sheet
                                                     reads the picked files through a
                                                     FileReading the composition root builds
+Export Collection DataFolderStore, FileWriting      through the window, which owns the index, the
+                                                    Tabs and the store. The sheet reads and writes
+                                                    nothing itself: it draws the ExportStep stream
+                                                    and the ExportPlan the window hands it. No
+                                                    SecretStore: a Collection file holds `{{name}}`
+                                                    only
+Export Environment SecretStore, FileWriting         SecretStore only when Include secret values is
+                                                    ticked, and only after the save panel returns.
+                                                    No DataFolderStore: the Environment is the one
+                                                    the window already decoded
+  id, date, version                                 a `() -> UUID`, a `() -> Date` and a String
+                                                    from the composition root, as Import's newID
+                                                    is. Not ports: each is one value, and a test
+                                                    passes a fixed one
+Import from Postman… in the Environments sheet
+                  nothing                           one closure: close the sheet, then send
+                                                    AppDelegate.importFromPostman(_:) up the responder
+                                                    chain, once the sheet has finished closing
 BreadcrumbBar     the selected Tab's Breadcrumb,        no port. The window derives the
                   and one closure, select(path)         Breadcrumb from its index and hands it
                                                         down; the bar reads no file and holds no

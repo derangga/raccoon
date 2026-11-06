@@ -153,11 +153,12 @@ next save silently overwrite the pulled change, which is the bug Changed on Disk
 
 **Where they are** (decided 2026-10-19). The sidebar footer's
 + menu and File ▸ New Collection make a Collection; the + menu's New Folder makes one in the
-selected row's Collection or Folder. A row's context menu has New Folder…, Rename…, Move To ▸
-(every Collection and Folder as a path), Move to Trash and Reveal in Finder; a Collection has
-no Move To, an unreadable row no Rename. New Collection, New Folder and Rename share one name
-sheet. A taken name gets " 2", as a file does. Renaming a Request changes the name inside its
-file and renames the file to match. Move to Trash does not ask: the Trash is the undo.
+selected row's Collection or Folder. A row's context menu has New Folder…, Rename…, Move To ▸ (every
+Collection and Folder as a path), Move to Trash and Reveal in Finder; a Collection has no Move To,
+an unreadable row no Rename. A Collection's menu also has Export…, after Rename… and before Move to
+Trash (postman-export.md); no other row has it. New Collection, New Folder and Rename share one name
+sheet. A taken name gets " 2", as a file does. Renaming a Request changes the name inside its file
+and renames the file to match. Move to Trash does not ask: the Trash is the undo.
 ```
 
 ## Filtering the sidebar

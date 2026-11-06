@@ -47,12 +47,18 @@ Window                          one, native chrome
   WindowBanner                  Data Folder not writable or not readable, the one global failure
 Overlays
   VariableTooltip               hover on {{name}}
-  EnvironmentsSheet             native sheet
+  EnvironmentsSheet             native sheet; its footer has + | − and Import from Postman…, an
+                                Environment row has Export… in its context menu
   WorkspacesSheet               native sheet: every Workspace, a Remove button on each
   SaveDraftSheet                native sheet
   NewWorkspacePanel             native NSSavePanel: name + location
   OpenWorkspacePanel            native NSOpenPanel: one folder
   PostmanImportSheet            native sheet: the plan, the notes, then the result
+  CollectionExportSheet         native sheet: title · three checked steps · counts · credentials ·
+                                skipped files · Dirty Requests · Cancel · Export…
+  EnvironmentExportSheet        native sheet: title · "N Variables, M secrets" · Include secret
+                                values · Cancel · Export…; then a result when a secret was unreadable
+  ExportPanel                   native NSSavePanel as a sheet on either Export sheet
   CloseConfirm                  native card sheet: body · Always discard checkbox (i) ·
                                 Don't Save · Cancel · Save
   ForceCloseConfirm             native card sheet: body · Cancel · Force Close
@@ -74,6 +80,7 @@ Overlays
 | SendButton | Send · Cancel (while sending) |
 | URLField | rest · focus · invalid (outlined after an invalidURL send) |
 | Multipart part | text · file · file missing |
+| ExportStep row | not drawn (the step has not finished) · fading in · checked |
 | Secret toggle | plain · secret · save failed |
 
 **Moves:** open a Request (sidebar click) · select a location (click a Breadcrumb segment) · new Tab (⌘T) · select Tab (click, ⌘1…9, ⌃⇥) ·
@@ -84,7 +91,9 @@ pop-up) · open Environments sheet · edit / mark secret · pick Theme or Flavor
 Workspace (pop-up) · New Workspace… · Open Workspace… · Manage Workspaces… · Remove from List (in the sheet) · Reveal in Finder · Allow insecure TLS for this request · filter the sidebar (type, ⌥⌘F focuses,
 Esc clears) · toggle the sidebar (⌃⌘S) · toggle the inspector (⌥⌘I) · find in a body (⌘F) · switch Variables / Curl · Copy · Include secrets ·
 Edit Environments… (from the Variables pane) · Import from Postman… (File menu, ⇧⌘I, the
-sidebar's + menu) · untick a file · Import.
+sidebar's + menu, the Environments sheet) · untick a file · Import · Export Collection… (File menu,
+a Collection row's menu) · Export… (an Environment row's menu) · Include secret values · Export…
+(in either Export sheet).
 
 ## §2 C: the flow graph
 
@@ -144,6 +153,18 @@ sidebar's + menu) · untick a file · Import.
                                                  V: notes -> "What won't come across"
   -> Import -> the result, then the sidebar reveals the first new Collection
                                                  V: a Collection failed -> named in the result
+-> move to Postman
+  -> Export Collection… -> CollectionExportSheet: the steps check off as each finishes, then the
+     counts                                      V: skipped files -> "N files are not exported"
+                                                 V: credentials -> the warning; Export… stays on
+                                                 V: Dirty Requests -> an info line
+    -> Export… -> ExportPanel -> the file written -> the sheet closes
+                                                 V: Cancel -> back on the sheet, nothing written
+                                                 V: write fails -> a red line on the sheet
+  -> Export… on an Environment row -> EnvironmentExportSheet -> Include secret values (off)
+    -> Export… -> ExportPanel -> Keychain read, only if ticked -> the file written
+                                                 V: a secret unreadable -> the result names it
+  -> Import from Postman… in the EnvironmentsSheet -> the sheet closes -> the Import flow above
 -> appearance
   -> ThemeMenu -> content re-reads tokens
   -> system appearance flips -> Flavor for that appearance
@@ -170,6 +191,8 @@ Every node above appears on a screen or in a component spec in
 | StatusLine elapsed time | live while sending | ticks every 100 ms, tabular figures so it does not jitter |
 | WorkspacesSheet | many, sorted by title | 1 Workspace, 30; a path of 120 characters (end-truncated) |
 | EnvironmentsSheet | list + detail | no Environments (Globals only), secrets the Keychain cannot read |
+| CollectionExportSheet | one record, one run | 0 Requests (exports, empty), 41, 2,000; a Collection named in 120 characters (end-truncated title); a warning naming 40 Requests (one line, then "and N more"); a skipped file named in 120 characters (middle-cut) |
+| EnvironmentExportSheet | one record | 0 Variables, 0 secrets (no checkbox), 200 Variables, 60 secrets; a name of 120 characters; 40 unreadable secrets named (one line, then "and N more") |
 
 ## §4 V: void states and where each is shown
 
@@ -201,6 +224,8 @@ Each row is a designed state. "Place" is the surface the user is already looking
 | VariableTooltip | n/a | n/a | n/a | undefined: "Not defined in <Env> or Globals" | secret: "Secret", the value is never shown |
 | EnvironmentsSheet | Globals only, no Environments: list shows Globals and "+" | n/a | Keychain unreadable: the secret's row says "Not in the Keychain" and resolves as undefined | SecretStore.set failed: row message with the OSStatus, file untouched | n/a |
 | PostmanImportSheet | no file picked: the sheet does not open (Cancel in the open panel) | parsing is pure and fast; for a large export the rows show a spinner until counted | some files are not Postman exports: their rows are disabled with the reason, the rest import | a Collection fails to write: the result names it, says nothing of it is left behind, the others landed; a secret the Keychain refused is imported with no value | Data Folder not writable: Import disabled, the reason in the footer |
+| CollectionExportSheet | a Collection with no Requests: "0 Requests · 0 Folders", Export… enabled | the steps appear as each finishes; a read over 150 ms shows a spinner under the title; Export… enables in the third check's frame, with the counts and the warning | some Request files skipped: "N files are not exported", named, the rest exports; Dirty Requests: "Export uses what is saved" | write failed: "Not exported. <reason>." on the sheet, which stays | credentials found: "N credentials in plain text", Export… still enabled (warn and list only); a read-only Data Folder does not matter, since nothing is written to it |
+| EnvironmentExportSheet | no secret: the checkbox and hint are not drawn | n/a: nothing is read until Export… | a secret the Keychain would not give: the result names it, empty in the file | write failed: "Not exported. <reason>." on the sheet, which stays | Include secret values off: no Keychain read, secrets written empty |
 | SaveDraftSheet | no Collections: Location pop-up offers "New Collection…" only | n/a | n/a | write failed: sheet closes, TabBanner Not saved, Tab stays a Draft | Data Folder not writable: ⌘S on a Draft shows the WindowBanner instead of the sheet |
 | CloseConfirm | n/a: an empty Draft closes without it | n/a | n/a | Save fails: the sheet has closed, TabBanner Not saved, the Tab stays open | Always discard on: no sheet, the Tab closes; File ▸ Always Discard Unsaved Changes is checked and turns it off |
 | Environment picker | "No Environment" | n/a | Active Environment file gone at relaunch: "No Environment" (§4) | n/a | n/a |
@@ -228,6 +253,9 @@ two cases are a binary body and a secret value, and both say why instead of show
 | VariableTooltip | pointer over a `{{name}}` range in a field that takes Variables |
 | WorkspacePopUp | always shown |
 | WorkspacesSheet | Manage Workspaces…; Remove is off on the only Workspace |
+| CollectionExportSheet | File ▸ Export Collection… enabled only while the sidebar selection is in a Collection; Export… in a row's menu on Collections only; Export… in the sheet needs the third check, the counts and the warning drawn |
+| EnvironmentExportSheet | Export… on a decodable Environment's row; Globals and an unreadable Environment have none; Include secret values needs at least one Secret Variable to be drawn |
+| Import from Postman… (Environments sheet) | the Environments sheet; it closes first, so the open panel and the Import sheet never stack on it |
 | SidebarFilter | at least one Collection; with none it is hidden, not disabled |
 | Inspector | the Curl pane needs a selected Tab; the Variables pane does not. Width for 280 pt beside an editor of at least 480 pt, otherwise it overlays the content edge (decided, Q2) |
 | Include secrets | the Curl pane; it changes only the copied text |
@@ -244,6 +272,7 @@ two cases are a binary body and a secret value, and both say why instead of show
 | Sidebar filter narrowing | every keystroke | **None.** Rows appear and vanish on the same frame as the keystroke |
 | Breadcrumb change, hover, and the sidebar revealing a row | tens/day | **None.** The segments swap on the Tab switch's frame, hover fills at once, and the row is selected and scrolled into view without animating (`scrollRowToVisible`). The sidebar showing is the system's split-view collapse, unmodified |
 | Pretty / Raw switch | tens/day | **None.** The text view swaps on the same frame |
+| Export sheet step checks | once per export, rare | Purpose: show that each step has really finished, as Postman's does. Each row fades in on opacity only, 150 ms ease-out (`CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)`), starting when its step finishes and no sooner than 60 ms after the previous row's start. No artificial delay: a late step shows when it finishes, and The counts, the warnings and Export… (enabled) share the third row's frame and have no motion, so nothing is clickable before the warning shows. Reduce Motion: every row at its finish, no fade |
 
 ## §8 Scope: attention
 
@@ -253,6 +282,8 @@ two cases are a binary body and a secret value, and both say why instead of show
 | EnvironmentsSheet | window focus | Done, Esc | the field focused before ⌃E or the menu |
 | WorkspacesSheet | the list | Done, Esc | the field focused before Manage Workspaces… |
 | PostmanImportSheet | window focus | Import (then Done on the result), Cancel, Esc | the sidebar, on the first imported Collection; on Cancel, where it was |
+| CollectionExportSheet | window focus; ExportPanel is attached to it | Export… once the file is written, Cancel, Esc | where it was before the menu or the context menu |
+| EnvironmentExportSheet | window focus; ExportPanel is attached to it | Export… once the file is written (or Done on the result), Cancel, Esc | the Environments sheet, which was open under it |
 | SaveDraftSheet | window focus | Save, Cancel, Esc | the URL field of the same Tab |
 | CloseConfirm | window focus | Save (Return), Don't Save (⌘D), Cancel, Esc (both = Cancel) | the Tab, or its neighbour if closed; where it was on Cancel |
 | SidebarFilter | keyboard focus | Esc clears the query; a second Esc, or Return on a match, gives focus back to the editor (Return also opens the match) | the editor of the selected Tab |
