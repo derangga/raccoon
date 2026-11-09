@@ -640,6 +640,14 @@ final class EnvironmentsSheet: NSViewController, NSTableViewDataSource, NSTableV
 
     // MARK: Editing
 
+    /// Esc in a cell gives focus up, so the cell drops its focus outline; the sheet's own Esc
+    /// closes it, which the next one does. The typed value is kept, as leaving the cell keeps it.
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+        guard selector == #selector(NSResponder.cancelOperation(_:)), table.row(for: control) >= 0 else { return false }
+        view.window?.makeFirstResponder(nil)
+        return true
+    }
+
     func controlTextDidBeginEditing(_ notification: Notification) {
         clearRowError()
         renameError.isHidden = true

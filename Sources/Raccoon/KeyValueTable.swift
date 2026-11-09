@@ -239,6 +239,14 @@ final class KeyValueTable: NSView, NSTableViewDataSource, NSTableViewDelegate, N
     @objc private func checkboxClicked(_ sender: NSButton) { toggle(row: table.row(for: sender) - lead) }
     @objc private func deleteClicked(_ sender: NSButton) { delete(row: table.row(for: sender) - lead) }
 
+    /// Esc gives focus up, the way a value field in the Inspector does, so the cell drops its
+    /// focus outline. Every keystroke is already in `rows`, so there is nothing to revert.
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+        guard selector == #selector(NSResponder.cancelOperation(_:)) else { return false }
+        window?.makeFirstResponder(nil)
+        return true
+    }
+
     func controlTextDidChange(_ notification: Notification) {
         guard let field = notification.object as? NSTextField else { return }
         let row = table.row(for: field) - lead
