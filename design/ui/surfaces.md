@@ -15,7 +15,7 @@ Window                          one, native chrome
   Toolbar                       native: sidebar toggle (leading), title, Environment picker,
                                 inspector toggle (trailing)
   Sidebar                       native material: the Collection tree
-    WorkspacePopUp              native pop-up button at the top: the open Workspace's title
+    WorkspacePopUp              a Dropdown at the top: the open Workspace's title
     SidebarFilter               native search field, "Filter Collections"
     unit: SidebarRow            Collection · Folder · Request · Unreadable
   Content                       themed

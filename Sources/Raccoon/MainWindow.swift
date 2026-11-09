@@ -9,9 +9,10 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     let banner: BannerView
     let sidebarToggle = MainWindowController.toggle(symbol: "sidebar.left", label: "Show Sidebar", action: #selector(NSSplitViewController.toggleSidebar(_:)))
     let inspectorToggle = MainWindowController.toggle(symbol: "sidebar.right", label: "Show Inspector", action: #selector(NSSplitViewController.toggleInspector(_:)))
-    let environmentPicker = EnvironmentPicker()
+    let environmentPicker: EnvironmentPicker
 
     init(theme: ThemeEnvironment, inspector: InspectorMemory, reduceMotion: @escaping () -> Bool) {
+        environmentPicker = EnvironmentPicker(theme: theme)
         split = MainSplitViewController(theme: theme, inspector: inspector)
         banner = BannerView(theme: theme, reduceMotion: reduceMotion)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 760),

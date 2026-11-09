@@ -171,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func showNextTab(_ sender: Any?) { windowModel?.selectNext() }
     @objc func showPreviousTab(_ sender: Any?) { windowModel?.selectPrevious() }
     /// ⌃E opens the toolbar's Environment pop-up.
-    @objc func chooseEnvironment(_ sender: Any?) { windowController?.environmentPicker.performClick(sender) }
+    @objc func chooseEnvironment(_ sender: Any?) { windowController?.environmentPicker.open() }
     /// ⌥⌘F: opens a hidden sidebar and focuses its filter.
     @objc func focusFilter(_ sender: Any?) {
         windowController?.split.revealSidebar()

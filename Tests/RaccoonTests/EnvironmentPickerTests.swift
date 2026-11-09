@@ -30,42 +30,77 @@ struct EnvironmentPickerTests {
         return window
     }
 
-    @Test func `the menu is No Environment, each Environment, then Edit Environments…, and shows the active one`() async throws {
+    @Test func `the rows are No Environment, each Environment, then Edit Environments…, and the active one is chosen`() async throws {
         let window = try makeWindow(environments: ["Prod", "Dev"])
-        let picker = EnvironmentPicker()
+        let picker = EnvironmentPicker(theme: ThemeController.standalone().theme)
         picker.bind(window)
 
-        #expect(picker.itemArray.map { $0.isSeparatorItem ? "-" : $0.title } == ["No Environment", "-", "Dev", "Prod", "-", "Edit Environments…"])
-        #expect(picker.titleOfSelectedItem == "No Environment")
+        #expect(picker.entries == [
+            .option(id: "none", title: "No Environment", detail: nil, isChosen: true),
+            .separator,
+            .option(id: "env:Dev", title: "Dev", detail: nil, isChosen: false),
+            .option(id: "env:Prod", title: "Prod", detail: nil, isChosen: false),
+            .separator,
+            .action(id: "edit", title: "Edit Environments…"),
+        ])
+        #expect(picker.title == "No Environment")
 
         window.pickActiveEnvironment("Prod")
-        for _ in 0..<100 where picker.titleOfSelectedItem != "Prod" { await Task.yield() }
-        #expect(picker.titleOfSelectedItem == "Prod")
-        #expect(picker.selectedItem?.state == .on)
+        for _ in 0..<100 where picker.title != "Prod" { await Task.yield() }
+        #expect(picker.title == "Prod")
+        #expect(picker.entries[3] == .option(id: "env:Prod", title: "Prod", detail: nil, isChosen: true))
     }
 
-    @Test func `picking an item sets the window's Active Environment, and No Environment clears it`() throws {
+    @Test func `picking a row sets the window's Active Environment, and No Environment clears it`() throws {
         let window = try makeWindow(environments: ["Dev", "Prod"])
-        let picker = EnvironmentPicker()
+        let picker = EnvironmentPicker(theme: ThemeController.standalone().theme)
         picker.bind(window)
 
-        picker.pick(try #require(picker.item(withTitle: "Dev")))
+        picker.onPick(.option("env:Dev"))
         #expect(window.activeEnvironment == "Dev")
-        picker.pick(try #require(picker.item(withTitle: "No Environment")))
+        picker.onPick(.option("none"))
         #expect(window.activeEnvironment == nil)
     }
 
-    @Test func `a long Environment name truncates at 200 pt and shows in full in the menu`() throws {
+    @Test func `an Environment named none is not No Environment`() throws {
+        let window = try makeWindow(environments: ["none"])
+        let picker = EnvironmentPicker(theme: ThemeController.standalone().theme)
+        picker.bind(window)
+
+        picker.onPick(.option("env:none"))
+        #expect(window.activeEnvironment == "none")
+    }
+
+    @Test func `a long Environment name truncates at 200 pt and shows in full in the list`() throws {
         let long = String(repeating: "Payments sandbox for EU tenants ", count: 3)
         let window = try makeWindow(environments: [long])
-        let picker = EnvironmentPicker()
+        let picker = EnvironmentPicker(theme: ThemeController.standalone().theme)
         picker.bind(window)
         window.pickActiveEnvironment(long)
         picker.bind(window)
 
-        picker.layoutSubtreeIfNeeded()
-        #expect(picker.fittingSize.width <= 200)
-        #expect(picker.item(withTitle: long) != nil)
+        #expect(picker.fittingWidth == 200)
+        #expect(picker.entries.contains(.option(id: "env:" + long, title: long, detail: nil, isChosen: true)))
+    }
+
+    @Test func `a short title sizes the picker to its text`() throws {
+        let picker = EnvironmentPicker(theme: ThemeController.standalone().theme)
+        picker.bind(try makeWindow(environments: []))
+        #expect(picker.fittingWidth > 60 && picker.fittingWidth < 200)
+    }
+
+    @Test func `Edit Environments… opens the sheet and leaves the choice showing`() throws {
+        let window = try makeWindow(environments: ["Dev"])
+        window.pickActiveEnvironment("Dev")
+        let picker = EnvironmentPicker(theme: ThemeController.standalone().theme)
+        picker.bind(window)
+        var opened = 0
+        picker.onEdit = { opened += 1 }
+
+        picker.onPick(.action("edit"))
+
+        #expect(opened == 1)
+        #expect(picker.title == "Dev")
     }
 
     @Test func `⌃E in the View menu opens the picker`() throws {

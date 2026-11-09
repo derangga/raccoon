@@ -195,7 +195,7 @@ A 4 pt base. Sizes used: 2, 4, 6, 8, 10, 12, 16, 24.
 | Element | Size |
 |---|---|
 | Toolbar (unified title bar) | 52 pt |
-| Toolbar Environment control | "Environment" 11 pt, 8 pt gap, pop-up 28 pt high (large control size, 12 pt text), 200 pt max; 12 pt clear before the inspector toggle (§6 Environment picker) |
+| Toolbar Environment control | "Environment" 11 pt, 8 pt gap, Dropdown 28 pt high (12 pt text), 200 pt max; 12 pt clear before the inspector toggle (§6 Environment picker) |
 | Sidebar width | 232 pt default, 180 min, 360 max (NSSplitView) |
 | Sidebar filter field | 24 pt, 6 pt radius, full sidebar width minus 20 pt |
 | Inspector width | 280 pt default, 240 min, 400 max; closed by default |
@@ -625,16 +625,14 @@ and `warning` Theme tokens, secondary label). The cell reads `backgroundStyle ==
 - **Empty**: "No Collections yet. Create one, or save a Draft into one with ⌘S." plus the Data
   Folder path in SF Mono 11.
 
-### Workspace pop-up (native)
+### Workspace pop-up
 
-An `NSPopUpButton` (pull-down off, borderless, `.small`) at the top of the sidebar, above the
-filter field, full sidebar width minus 20 pt, 24 pt high. Its title is the open Workspace's
-title in `sys` label color, end-truncated. The menu opens as a dropdown (Dropdown placement,
-below): under the control, not over it. Its items:
+A `Dropdown` (below) at the top of the sidebar, above the filter field, full sidebar width
+minus 20 pt, 24 pt high. Its title is the open Workspace's title, end-truncated. Its rows:
 
 - every Workspace by title (`localizedStandardCompare`), the open one checked. A title is
   the folder name; two Workspaces with the same folder name read "api — work" and
-  "api — side", the parent folder added for those two only. The menu item's tooltip is the
+  "api — side", the parent folder added for those two only. Each row's detail line is the
   full path, abbreviated with `~`.
 - a separator, then **New Workspace…**, **Open Workspace…** and **Manage Workspaces…**, which
   opens the Workspaces sheet below. Removing is not in this menu: a menu that switches and a
@@ -700,27 +698,45 @@ toolbar, above sidebar and content, because it is the only failure with no small
 
 ### Environment picker
 
-A native pop-up button in the toolbar, labelled "Environment", showing the Active Environment
-or "No Environment". Menu: No Environment, a separator, each Environment by name with a check
+A `Dropdown` (below) in the toolbar, labelled "Environment", showing the Active Environment
+or "No Environment". Rows: No Environment, a separator, each Environment by name with a check
 on the active one, a separator, "Edit Environments…", which opens the sheet and leaves the Active Environment showing. ⌃E
-opens the menu (View ▸ Choose Environment); ⌥⌃E opens the sheet (View ▸ Edit Environments…;
-decided, Q5), so both are listed in the menu bar. Long names end-truncate at 200 pt; the menu shows them in full. The menu opens as a dropdown (Dropdown placement, below).
+opens the list (View ▸ Choose Environment); ⌥⌃E opens the sheet (View ▸ Edit Environments…;
+decided, Q5), so both are listed in the menu bar. Long names end-truncate at 200 pt; the list shows them in full.
 
-**Dropdown placement.** The Workspace pop-up and the Environment picker share one placement
-(`DropdownPopUp`). AppKit's own pop-up menu slides so the selected item sits over the button,
-which covers the control; these two open instead 4 pt below the control's bottom edge with the
-menu's left edge on the control's left edge, the selected item still checked, whatever the
-window position. Click, Space on the focused control and ⌃E all open it there.
-
-Sizes (decided 2026-10-28; the small control at 20 pt left "No Environment" almost no room
-above and below). The label is 11 pt `secondaryLabelColor`, then an 8 pt gap, then the pop-up
-borderless like the Workspace pop-up, so it shows the same plain up/down chevrons instead of the
-bezel's blue capsule. Raccoon draws the 28 pt height, a 6 pt radius `quaternaryLabelColor` fill
-and an 8 pt leading text inset, with the 12 pt text. The item's own trailing inset is 12 pt, so at
-least 12 pt of toolbar stays clear between the pop-up and the inspector toggle's background
-whatever spacing the toolbar adds. The pop-up's width is the selected title's width plus the
-8 pt inset, an 8 pt gap before the chevrons and 18 pt for them, to a 200 pt maximum; the
+Sizes: the label is 11 pt `secondaryLabelColor`, then an 8 pt gap, then the Dropdown at 28 pt
+high. The item's own trailing inset is 12 pt, so at least 12 pt of toolbar stays clear between
+the Dropdown and the inspector toggle's background whatever spacing the toolbar adds. The
+Dropdown's width is the selected title's width plus its insets, to a 200 pt maximum; the
 toolbar fixes the view's size once, so the picker resets the width each time the title changes.
+
+### Dropdown
+
+One control, `Dropdown`, for choosing one of a short list and for the actions that sit beside
+the choice. It replaces the system pop-up button and its `NSMenu`, which the Theme cannot paint.
+
+- **Trigger.** `backgroundElevated` fill, 1 pt `border`, 6 pt radius; `rowHover` fill under the
+  pointer; a 2 pt `focusRing` outline while it has keyboard focus. The title is 12 pt `text`,
+  8 pt from the leading edge, end-truncated; a 9 pt `chevron.down` in `textSecondary` sits 8 pt
+  from the trailing edge. The title is the chosen option's; an action never changes it.
+- **List.** A borderless panel under the trigger, 4 pt below its bottom edge with its left edge
+  on the trigger's, a child of the window so focus stays on the trigger. It is at least as wide
+  as the trigger and at most 320 pt, 8 pt radius, `backgroundElevated`, 1 pt `border` at 50 % opacity,
+  a soft shadow (black at 12 %, 12 pt blur, 4 pt down) drawn on the list, not the system's
+  window shadow, 4 pt padding. Separators are the same 50 % `border`. Where the screen ends below, it opens above the trigger; its
+  left edge is clamped to the screen. Past 8 rows it scrolls.
+- **Rows.** 28 pt (40 pt with a detail line), a 6 pt radius highlight in `rowHover` for the
+  row under the pointer or the keyboard. The chosen option shows an 11 pt medium `checkmark`
+  in `accent` in a 24 pt leading column that every row keeps, so titles align. Title 12 pt
+  `text`; the detail line 11 pt `textTertiary`, end-truncated. An action row has the same
+  look as an option row, without the check. A separator is a 1 pt `border` rule in a 9 pt row,
+  inset 8 pt.
+- **Keys.** Space, Return and ↓ on the focused trigger open the list, and ⌃E opens the
+  Environment one. Open, the chosen option is highlighted (the first row when none is).
+  ↑ and ↓ move the highlight over rows and skip separators, stopping at the ends; Return or
+  Space picks it; Esc, Tab, a click outside, a scroll outside or a ⌘ key closes without picking.
+- **Accessibility.** The trigger is a pop-up button with the control's label and the title as
+  its value; the list is a menu whose rows are menu items, the chosen one marked selected.
 
 ### Environments sheet (native)
 

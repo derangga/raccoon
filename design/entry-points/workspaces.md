@@ -190,9 +190,9 @@ whole, only saving fails.
 ## The Workspace pop-up
 
 ```
--> workspaceMenu()                               opening the pop-up at the top of the sidebar
-                                                 the menu hangs below it, left edges aligned
-                                                 (design-system §6 Dropdown placement)
+-> workspaceMenu()                               opening the Dropdown at the top of the sidebar
+                                                 the list hangs below it, left edges aligned
+                                                 (design-system §6 Dropdown)
   -> WorkspaceList.titles(paths)                 pure: the folder name; two with the same
                                                  name -> "<name> — <parent folder>" for
                                                  those two only

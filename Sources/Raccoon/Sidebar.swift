@@ -53,7 +53,7 @@ final class SidebarItem {
 final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate,
     NSMenuItemValidation, NSSearchFieldDelegate {
     /// The open Workspace and the others, above the filter (design-system §6 Workspace pop-up).
-    let workspacePopUp = WorkspacePopUp()
+    let workspacePopUp: WorkspacePopUp
     /// design-system §6 Sidebar filter: names only, every keystroke, no debounce.
     let searchField = NSSearchField()
     let sectionLabel = NSTextField(labelWithString: "Collections")
@@ -101,6 +101,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         self.window = window
         self.theme = theme
         self.revealInFinder = reveal
+        workspacePopUp = WorkspacePopUp(theme: theme)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -193,7 +194,6 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
             workspacePopUp.topAnchor.constraint(equalTo: view.topAnchor, constant: 8),
             workspacePopUp.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
             workspacePopUp.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
-            workspacePopUp.heightAnchor.constraint(equalToConstant: 24),
             searchField.topAnchor.constraint(equalTo: workspacePopUp.bottomAnchor, constant: 6),
             searchField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
             searchField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),

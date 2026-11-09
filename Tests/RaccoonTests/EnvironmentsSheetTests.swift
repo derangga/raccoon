@@ -567,23 +567,6 @@ struct EnvironmentsSheetTests {
         #expect(item.action == #selector(AppDelegate.editEnvironments(_:)))
     }
 
-    @Test func `the picker's Edit Environments… is on, opens the sheet, and leaves the choice showing`() throws {
-        let window = try staging()
-        window.pickActiveEnvironment("Staging")
-        let picker = EnvironmentPicker()
-        picker.bind(window)
-        var opened = 0
-        picker.onEdit = { opened += 1 }
-
-        let edit = try #require(picker.item(withTitle: "Edit Environments…"))
-        picker.select(edit)
-        picker.edit(edit)
-
-        #expect(edit.isEnabled)
-        #expect(opened == 1)
-        #expect(picker.titleOfSelectedItem == "Staging")
-    }
-
     // MARK: Export…
 
     /// What a right-click on source row `row` shows: nil is no menu.
