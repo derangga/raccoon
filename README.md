@@ -71,3 +71,7 @@ The app and `swift run` share one set of settings (the UserDefaults domain `Racc
 - [DESIGN.md](./DESIGN.md) indexes the design, one file per question under `design/`.
 - [CONTEXT.md](./CONTEXT.md) defines the vocabulary used in type names and UI strings.
 - [CLAUDE.md](./CLAUDE.md) describes how work on this repository is done.
+
+## License
+
+Raccoon is licensed under the [GNU General Public License v3.0](./LICENSE) or, at your option, any later version. Test fixtures copied from Bruno and Yaak keep their MIT notices.
