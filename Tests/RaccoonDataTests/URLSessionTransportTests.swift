@@ -257,6 +257,59 @@ struct URLSessionTransportTests {
         }
     }
 
+    @Test func `each request of a redirected send has a Timing, on the Redirect and on the Response`() async throws {
+        try await withEchoServer { server in
+            let response = try await transport().send(resolved(server, "/redirect", settings: settings()))
+
+            let redirect = try #require(response.redirects.first?.timing)
+            let final = try #require(response.timing)
+            for timing in [redirect, final] {
+                #expect(timing.total != nil)
+                #expect(timing.download != nil)
+                #expect(timing.connect != nil)
+                #expect(timing.protocolName == "http/1.1")
+                #expect(timing.remoteAddress?.hasSuffix(":\(server.port)") == true)
+                #expect(timing.tlsVersion == nil)
+            }
+        }
+    }
+
+    @Test func `a chain pairs one Timing with each of its requests`() async throws {
+        try await withEchoServer { server in
+            let response = try await transport().send(resolved(server, "/chain/3", settings: settings()))
+
+            #expect(response.redirects.count == 3)
+            #expect(response.redirects.allSatisfy { $0.timing?.total != nil })
+            #expect(response.timing?.total != nil)
+        }
+    }
+
+    @Test func `a gzip reply's Wire Size is what crossed the network, not the decoded body`() async throws {
+        try await withEchoServer { server in
+            let response = try await transport().send(resolved(server, "/gzip"))
+
+            #expect(response.byteCount == 16)
+            #expect(response.timing?.bodyBytesOnWire == 36)
+        }
+    }
+
+    @Test func `the second send on a kept-alive connection reuses it and has no DNS, Connect or TLS`() async throws {
+        try await withEchoServer { server in
+            let transport = transport()
+            let first = try await transport.send(resolved(server, "/keepalive"))
+            let second = try await transport.send(resolved(server, "/keepalive"))
+
+            #expect(first.timing?.reusedConnection == false)
+            #expect(first.timing?.connect != nil)
+            let timing = try #require(second.timing)
+            #expect(timing.reusedConnection)
+            #expect(timing.dns == nil)
+            #expect(timing.connect == nil)
+            #expect(timing.tls == nil)
+            #expect(timing.waiting != nil)
+        }
+    }
+
     @Test func `a Redirect Limit of 0 refuses the first redirect`() async throws {
         try await withEchoServer { server in
             let request = resolved(server, "/redirect", settings: settings(maxRedirects: 0))

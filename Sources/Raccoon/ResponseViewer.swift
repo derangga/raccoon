@@ -709,6 +709,8 @@ final class ResponseViewer: NSView {
         for (index, block) in TimelineText.blocks(response).enumerated() {
             if index > 0 { views.append(blockRule()) }
             views.append(titleLabel(block))
+            views += [(block.phases, ColorToken.textSecondary), (block.connection, .textTertiary), (block.size, .textSecondary)]
+                .compactMap { text, token in text.map { detailLabel($0, token) } }
             views += block.rows.map { headerRow(headerLabels($0)) }
         }
         let notes: [NSView] = TimelineText.showsHeadersNote(response) ? [timelineNote] : []
@@ -730,6 +732,17 @@ final class ResponseViewer: NSView {
         let label = NSTextField(labelWithAttributedString: title)
         label.lineBreakMode = .byTruncatingTail
         label.toolTip = block.line
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        return label
+    }
+
+    /// A Timeline line under the title: phases, connection or size, in SF Mono 12 like the rest.
+    private func detailLabel(_ text: String, _ token: ColorToken) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        label.textColor = theme.color(token)
+        label.lineBreakMode = .byTruncatingTail
+        label.toolTip = text
         label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         return label
     }

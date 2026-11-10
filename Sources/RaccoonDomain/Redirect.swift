@@ -12,12 +12,15 @@ public struct Redirect: Equatable, Sendable {
     public var location: URL
     /// Sorted by name, as the Response's are.
     public var headers: [Response.Header]
+    /// Nil when URLSession reported none, or none reached this request.
+    public var timing: Timing?
 
-    public init(status: Int, method: String, url: URL, location: URL, headers: [Response.Header]) {
+    public init(status: Int, method: String, url: URL, location: URL, headers: [Response.Header], timing: Timing? = nil) {
         self.status = status
         self.method = method
         self.url = url
         self.location = location
         self.headers = headers
+        self.timing = timing
     }
 }

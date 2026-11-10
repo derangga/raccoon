@@ -46,9 +46,14 @@ public final class URLSessionTransport: HTTPTransport {
         guard let http = response as? HTTPURLResponse else {
             throw .transport(.badServerResponse, "The server's reply was not HTTP.", host: Self.authority(request.url))
         }
+        // The delegate has the metrics by now (environment-facts.md); none, or too many, leaves every Timing nil.
+        var redirects = delegate.redirects
+        var timings = Timing.paired(delegate.marks.map(Timing.init), requests: redirects.count + 1)
+        let final = timings.removeLast()
+        for (index, timing) in timings.enumerated() { redirects[index].timing = timing }
         return Response(
             status: http.statusCode, headers: Self.headers(http), body: body, elapsed: .now - start, byteCount: body.count,
-            url: http.url, method: delegate.method, redirects: delegate.redirects)
+            url: http.url, method: delegate.method, redirects: redirects, timing: final)
     }
 
     /// allHeaderFields is a dictionary that joins duplicates with ", ", and no API keeps wire
@@ -176,10 +181,13 @@ private final class SendDelegate: NSObject, URLSessionTaskDelegate, Sendable {
     /// The method of the request in flight: the original's, then each returned request's.
     private let sentMethod: Mutex<String>
     private let followedRedirects = Mutex<[Redirect]>([])
+    /// One per request made, in send order: URLSession keeps the last 20.
+    private let collected = Mutex<[Timing.Marks]>([])
 
     var refusedAfter: Int? { refused.withLock { $0 } }
     var method: String { sentMethod.withLock { $0 } }
     var redirects: [Redirect] { followedRedirects.withLock { $0 } }
+    var marks: [Timing.Marks] { collected.withLock { $0 } }
 
     init(settings: RequestSettings, original: URLRequest) {
         self.settings = settings
@@ -218,6 +226,11 @@ private final class SendDelegate: NSObject, URLSessionTaskDelegate, Sendable {
         }
         sentMethod.withLock { $0 = next.httpMethod ?? "GET" }
         return next
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
+        // A cached answer made no request. The transport has no cache, so this is a guard, not a case.
+        collected.withLock { $0 = metrics.transactionMetrics.filter { $0.resourceFetchType == .networkLoad }.map(Timing.Marks.init) }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge) async

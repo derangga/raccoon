@@ -573,14 +573,15 @@ Anatomy: status line (34 pt) over the body area, on `backgroundRecessed`.
   body." with the path as its informative text.
 - **Timeline** (the third section, Body | Headers N | Timeline): one block per Redirect, then
   the Response, separated by a `border` rule, SF Mono 12. Line 1: "302 Found · GET ·
-  https://a.example/login · 48 ms", the status in its `status3xx`…`status5xx` token. For a
-  Redirect, "Location  https://a.example/home", then its headers as in Headers. Then the
-  phases in `textSecondary`: "DNS 4 ms · Connect 12 ms · TLS 18 ms · Send 0 ms · Waiting
-  10 ms · Download 1 ms", a phase that did not happen left out, and "Reused connection" in
-  place of DNS, Connect and TLS. Then "h2 · 93.184.216.34:443 · TLS 1.3" in `textTertiary`.
-  The Response's block ends "1.2 KB · 420 B on the wire" when the Wire Size differs. With no
-  Timing for the send, each block's phase line reads "Timing was not reported for this
-  send." The status line adds "· 2 redirects" after the size when the send followed any.
+  https://a.example/login · 48 ms", the status in its `status3xx`…`status5xx` token. Under
+  it the phases in `textSecondary`: "DNS 4 ms · Connect 12 ms · TLS 18 ms · Send 0 ms ·
+  Waiting 10 ms · Download 1 ms", a phase that did not happen left out, and "Reused
+  connection" in place of DNS, Connect and TLS. Then "h2 · 93.184.216.34:443 · TLS 1.3" in
+  `textTertiary`. The Response's block then has "1.2 KB · 420 B on the wire" in
+  `textSecondary` when the Wire Size differs. A Redirect's block ends with "Location
+  https://a.example/home", then its headers as in Headers; the timing lines sit above them so
+  a long header list never pushes them out of sight. With no Timing for the send, each
+  block's phase line reads "Timing was not reported for this send." The status line adds "· 2 redirects" after the size when the send followed any.
 - **Find**: ⌘F over a folded body unfolds every Fold Region first, so a match inside one is
   found.
 - **image** (`Content-Type: image/*` other than `image/svg+xml`, and the bytes decode): the

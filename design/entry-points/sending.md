@@ -232,7 +232,9 @@ merged them rather than claiming to be raw.
       -> the method sent next = the returned request's       also Response.method for the last
                                                              request: the original, or what the
                                                              last followed redirect returned
-    -> SendDelegate.didFinishCollecting(metrics)             keeps metrics.transactionMetrics.
+    -> SendDelegate.didFinishCollecting(metrics)             keeps the .networkLoad entries of
+                                                             metrics.transactionMetrics (a guard:
+                                                             the session has no URL cache, Q10).
                                                              It has run by the time data(for:)
                                                              returns (Q9), so nothing waits
                                                              E: absent anyway -> escape: every

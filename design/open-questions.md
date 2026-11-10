@@ -8,3 +8,10 @@ against a local server that echoes the raw request bytes, and the answer moves t
 were, because other files cite them; Q1 to Q12 are answered there, and none is open. Q9 to
 Q12 are when the metrics arrive, how many transactions a redirect chain gives, what Wire
 Size counts, and what a reused connection leaves out.
+
+Open:
+
+- **Q13.** On an uncompressed `Transfer-Encoding: chunked` reply, does
+  `countOfResponseBodyBytesReceived` count the chunk framing? If it does, the Timeline shows
+  "on the wire" for a body that was not compressed, and the "differs" rule needs the
+  `Content-Encoding` header too.

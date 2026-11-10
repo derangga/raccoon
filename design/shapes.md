@@ -120,8 +120,13 @@ ResolvedRequest          a RequestDefinition with every {{name}} substituted and
 Response                 status, headers [(name, value)] sorted by name, body Data,
                          elapsed Duration, byteCount, url URL? (what answered), method String?
                          (what was sent to it; nil on a Response nobody sent), redirects
-                         [Redirect]
-Redirect                 status, method, url, location, headers sorted by name
+                         [Redirect], timing Timing?
+Redirect                 status, method, url, location, headers sorted by name, timing Timing?
+Timing                   dns, connect, tls, send, waiting, download, total Duration? (nil: the phase
+                         did not happen or its marks were unusable), reusedConnection, protocolName,
+                         remoteAddress ("93.184.216.34:443"), tlsVersion ("TLS 1.3"), bodyBytesOnWire
+                         (the Wire Size). Built from Timing.Marks, a plain copy of one
+                         transaction's dates and counts, so the rule needs no URLSession.
 MessageLine              .error(text) · .note(text)       the line under the URL bar, on the
                          TabModel, never saved: a note goes on the next URL edit, an error on
                          the next send or paste

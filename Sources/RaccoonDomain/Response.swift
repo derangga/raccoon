@@ -24,10 +24,13 @@ public struct Response: Equatable, Sendable {
     public var method: String?
     /// In the order they were followed; empty when the send was not redirected.
     public var redirects: [Redirect]
+    /// Of the request that got this Response; nil when URLSession reported none.
+    public var timing: Timing?
 
     public init(
         status: Int, headers: [Header], body: Data, elapsed: Duration, byteCount: Int,
-        url: URL? = nil, method: String? = nil, redirects: [Redirect] = []
+        url: URL? = nil, method: String? = nil, redirects: [Redirect] = [],
+        timing: Timing? = nil
     ) {
         self.status = status
         self.headers = headers
@@ -37,6 +40,7 @@ public struct Response: Equatable, Sendable {
         self.url = url
         self.method = method
         self.redirects = redirects
+        self.timing = timing
     }
 }
 
