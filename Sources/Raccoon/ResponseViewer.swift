@@ -17,6 +17,10 @@ final class ResponseViewer: NSView {
     private let redirectsDot = NSTextField(labelWithString: "·")
     let redirectsLabel = NSTextField(labelWithString: "")
     let prettyNote = NSTextField(labelWithString: ResponseBody.prettyOffNote)
+    /// "Showing the first 1 MB of 3.2 MB", where the Pretty note sits, above the Hex view's limit.
+    let hexNote = NSTextField(labelWithString: "")
+    /// Beside `hexNote`, styled like `fixButton`; runs Save Response Body.
+    let saveButton = NSButton()
     /// "900 × 900 · image/webp", where an image body is shown.
     let imageNote = NSTextField(labelWithString: "")
     let mode: SegmentedControl
@@ -112,7 +116,7 @@ final class ResponseViewer: NSView {
         reasonLabel.lineBreakMode = .byTruncatingTail
         // Only the reason truncates; the code, time and size never do.
         reasonLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        for label in [codeLabel, elapsedLabel, dot, sizeLabel, redirectsDot, redirectsLabel, prettyNote, imageNote] {
+        for label in [codeLabel, elapsedLabel, dot, sizeLabel, redirectsDot, redirectsLabel, prettyNote, hexNote, imageNote] {
             label.setContentCompressionResistancePriority(.required, for: .horizontal)
         }
         for label in [elapsedLabel, sizeLabel, redirectsLabel] {
@@ -122,6 +126,8 @@ final class ResponseViewer: NSView {
         for separator in [dot, redirectsDot] { theme.paint(separator) { $0.textColor = $1.color(.textTertiary) } }
         prettyNote.font = .systemFont(ofSize: 11)
         theme.paint(prettyNote) { $0.textColor = $1.color(.textDisabled) }
+        hexNote.font = .systemFont(ofSize: 11)
+        theme.paint(hexNote) { $0.textColor = $1.color(.textDisabled) }
         imageNote.font = .systemFont(ofSize: 11)
         theme.paint(imageNote) { $0.textColor = $1.color(.textDisabled) }
         mode.selectedSegment = 0
@@ -135,7 +141,7 @@ final class ResponseViewer: NSView {
 
         let spacer = NSView()
         spacer.setContentHuggingPriority(.init(1), for: .horizontal)
-        let row = NSStackView(views: [spinner, codeLabel, reasonLabel, elapsedLabel, dot, sizeLabel, redirectsDot, redirectsLabel, spacer, prettyNote, imageNote, mode, section])
+        let row = NSStackView(views: [spinner, codeLabel, reasonLabel, elapsedLabel, dot, sizeLabel, redirectsDot, redirectsLabel, spacer, prettyNote, hexNote, saveButton, imageNote, mode, section])
         row.spacing = 10
         row.setCustomSpacing(6, after: codeLabel)
         row.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
@@ -202,25 +208,12 @@ final class ResponseViewer: NSView {
             failureGlyph.heightAnchor.constraint(equalToConstant: 22),
         ])
         // backgroundElevated is the Send/Cancel fill. This one sits on background.
-        fixButton.isBordered = false
-        fixButton.wantsLayer = true
-        fixButton.layer?.cornerRadius = 6
-        fixButton.layer?.borderWidth = 1
-        fixButton.title = "Allow insecure TLS for this request"
-        theme.paint(fixButton) { button, theme in
-            button.layer?.borderColor = theme.color(.border).cgColor
-            button.layer?.backgroundColor = theme.color(.background).cgColor
-            button.attributedTitle = NSAttributedString(string: button.title, attributes: [
-                .font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text),
-            ])
-        }
+        styleAsFixButton(fixButton, title: "Allow insecure TLS for this request")
         fixButton.target = self
         fixButton.action = #selector(allowInsecureTLS)
-        fixButton.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            fixButton.heightAnchor.constraint(equalToConstant: 24),
-            fixButton.widthAnchor.constraint(equalToConstant: fixButton.attributedTitle.size().width.rounded(.up) + 20),
-        ])
+        // No target: Save Response Body goes up the responder chain to the AppDelegate.
+        styleAsFixButton(saveButton, title: "Save to File…")
+        saveButton.action = #selector(AppDelegate.saveResponseBody(_:))
         voidStack.setViews([failureGlyph, voidTitle, voidText, keycap, fixButton], in: .center)
         voidStack.orientation = .vertical
         voidStack.spacing = 8
@@ -232,6 +225,8 @@ final class ResponseViewer: NSView {
         imageView.setContentHuggingPriority(.init(1), for: .horizontal)
         imageView.setContentHuggingPriority(.init(1), for: .vertical)
         imageView.setAccessibilityLabel("Response image")
+        imageView.menu = NSMenu()
+        imageView.menu?.addItem(MainMenu.saveResponseBody())
         for view in [scroll, imageView, voidStack] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
@@ -249,6 +244,26 @@ final class ResponseViewer: NSView {
             voidStack.centerYAnchor.constraint(equalTo: scroll.centerYAnchor),
             voidStack.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 16),
             voidStack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -16),
+        ])
+    }
+
+    private func styleAsFixButton(_ button: NSButton, title: String) {
+        button.isBordered = false
+        button.wantsLayer = true
+        button.layer?.cornerRadius = 6
+        button.layer?.borderWidth = 1
+        button.title = title
+        theme.paint(button) { button, theme in
+            button.layer?.borderColor = theme.color(.border).cgColor
+            button.layer?.backgroundColor = theme.color(.background).cgColor
+            button.attributedTitle = NSAttributedString(string: button.title, attributes: [
+                .font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text),
+            ])
+        }
+        button.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            button.heightAnchor.constraint(equalToConstant: 24),
+            button.widthAnchor.constraint(equalToConstant: button.attributedTitle.size().width.rounded(.up) + 20),
         ])
     }
 
@@ -324,6 +339,8 @@ final class ResponseViewer: NSView {
         spinner.stopAnimation(nil)
         spinner.isHidden = true
         prettyNote.isHidden = true
+        hexNote.isHidden = true
+        saveButton.isHidden = true
         imageNote.isHidden = true
         imageView.isHidden = true
         mode.isHidden = true
@@ -384,22 +401,42 @@ final class ResponseViewer: NSView {
     private func drawBody(_ response: Response) {
         let presented = model.presented
         if response.byteCount == 0 { return showVoid(title: nil, text: "Empty body.", keycap: false) }
-        if case .binary(let count) = presented?.body { return showBinary(count) }
+        // The Hex view when it has landed, else the old void; a binary body is empty until it lands.
+        // present() always fills hex for a binary body.
+        if case .binary = presented?.body { return showText(response, presented) }
         // From the header, so an image never waits for the presentation behind a flash of its bytes as text.
         if let mediaType = ResponseBody.imageMediaType(response) {
-            guard let image = decodedImage(response) else { return showBinary(response.byteCount) }
+            guard let image = decodedImage(response) else {
+                // Nothing until the hex lands, as for any binary body.
+                guard let presented else { return showVoid(title: nil, text: "", keycap: false) }
+                return presented.hex == nil ? showBinary(response.byteCount) : showText(response, presented)
+            }
             return showImage(image, mediaType: mediaType)
         }
         // Not UTF-8 and not yet known to be: the bytes as text would be garbage, so nothing until it lands.
         if presented == nil, String(validating: response.body, as: UTF8.self) == nil {
             return showVoid(title: nil, text: "", keycap: false)
         }
+        showText(response, presented)
+    }
+
+    /// The text view: a text body with Pretty | Raw and its Gutter, or the Hex view, which has
+    /// neither (the offset column is the address) and no folds.
+    private func showText(_ response: Response, _ presented: TabModel.Presented?) {
+        let hex = presented?.hex
         voidStack.isHidden = true
         scroll.isHidden = false
+        scroll.rulersVisible = hex == nil
         let canPretty: Bool = if case .pretty = presented?.body { true } else { false }
-        mode.isHidden = false
+        mode.isHidden = hex != nil
         mode.setEnabled(canPretty, forSegment: 0)
-        prettyNote.isHidden = response.byteCount <= ResponseBody.prettyThreshold
+        prettyNote.isHidden = hex != nil || response.byteCount <= ResponseBody.prettyThreshold
+        if let hex, hex.totalBytes > hex.shownBytes {
+            let size = StatusLine(status: 0, elapsed: .zero, byteCount: hex.totalBytes).size
+            hexNote.stringValue = "Showing the first \(HexDump.limit / 1_000_000) MB of \(size)"
+            hexNote.isHidden = false
+            saveButton.isHidden = false
+        }
         let pretty = canPretty && wantsPretty
         mode.selectedSegment = pretty ? 0 : 1
 
@@ -412,7 +449,7 @@ final class ResponseViewer: NSView {
         body = bodyText(response, presented, pretty: pretty)
         regions = pretty ? presented?.regions ?? [] : []
         // Raw before the presentation lands has no numbers yet.
-        gutter.lines = presented.map { pretty ? $0.lines : $0.rawLines }
+        gutter.lines = hex != nil ? nil : presented.map { pretty ? $0.lines : $0.rawLines }
         folds = FoldSet()
         refold(keeping: nil)
         textView.scrollToBeginningOfDocument(nil)
@@ -708,6 +745,9 @@ final class ResponseViewer: NSView {
 
     private func bodyText(_ response: Response, _ presented: TabModel.Presented?, pretty: Bool) -> NSAttributedString {
         let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        if let hex = presented?.hex {
+            return NSAttributedString(string: hex.text, attributes: [.font: font, .foregroundColor: theme.color(.text)])
+        }
         if pretty, let presented, case .pretty(let text, _) = presented.body {
             let colored = NSMutableAttributedString(string: text, attributes: [.font: font, .foregroundColor: theme.color(.text)])
             for range in presented.ranges { colored.addAttribute(.foregroundColor, value: theme.color(range.token), range: range.range) }
@@ -811,6 +851,8 @@ final class ResponseTextView: NSTextView {
             menu.addItem(.separator())
             items.forEach(menu.addItem)
         }
+        menu?.addItem(.separator())
+        menu?.addItem(MainMenu.saveResponseBody())
         return menu
     }
 

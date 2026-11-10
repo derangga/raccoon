@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 import Observation
 import OSLog
 import RaccoonDomain
@@ -216,6 +217,8 @@ final class TabModel {
         var rawLines: LineIndex
         /// Pretty only: Raw is never folded.
         var regions: [FoldRegion]
+        /// The Hex view: a binary body, or an `image/*` body ImageIO cannot decode. nil for the rest.
+        var hex: HexDump?
     }
 
     @concurrent
@@ -223,11 +226,23 @@ final class TabModel {
         let body = ResponseBody.presentation(response)
         let rawLines = LineIndex(String(decoding: response.body, as: UTF8.self))
         guard case .pretty(let text, let kind) = body else {
-            return Presented(body: body, ranges: [], lines: rawLines, rawLines: rawLines, regions: [])
+            let hex: HexDump? = switch body {
+            case .binary: HexDump(response.body)
+            case .image where !decodes(response.body): HexDump(response.body)
+            default: nil
+            }
+            return Presented(body: body, ranges: [], lines: rawLines, rawLines: rawLines, regions: [], hex: hex)
         }
         let lines = LineIndex(text)
         return Presented(body: body, ranges: Highlighter.ranges(text, kind: kind), lines: lines, rawLines: rawLines,
-                         regions: FoldRegion.find(text, lines: lines))
+                         regions: FoldRegion.find(text, lines: lines), hex: nil)
+    }
+
+    /// Whether ImageIO finds an image in `data`; it reads the header, not every pixel.
+    nonisolated private static func decodes(_ data: Data) -> Bool {
+        // A full decode, not a header check: a truncated PNG has a valid header, NSImage then
+        // fails in the viewer, and the bytes would show neither as a picture nor as hex.
+        CGImageSourceCreateWithData(data as CFData, nil).flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) } != nil
     }
 
     /// Resolution runs first, so a request that cannot be sent never shows `.sending`.
@@ -281,6 +296,30 @@ final class TabModel {
                     message = .error("Not sent. \((path as NSString).abbreviatingWithTildeInPath) is missing.")
                 }
             }
+        }
+    }
+
+    /// Save Response Body is offered for a received Response with bytes in it.
+    var canSaveBody: Bool {
+        guard case .received(let response) = tab.response else { return false }
+        return response.byteCount > 0
+    }
+
+    /// Taken once when the save panel opens, so a send that lands while it is up cannot pair
+    /// this name with another Response's bytes. Nil when there is no received Response.
+    var bodyToSave: BodyToSave? {
+        guard case .received(let response) = tab.response else { return nil }
+        return BodyToSave(name: ResponseFileName.suggest(headers: response.headers, url: response.url), body: response.body)
+    }
+
+    struct BodyToSave: Sendable {
+        let name: String
+        /// The bytes the viewer holds, after URLSession undid any `Content-Encoding`.
+        let body: Data
+
+        /// Atomic: the file is whole or untouched.
+        func write(to url: URL, writer: any FileWriting) throws(StoreError) {
+            try writer.write(body, to: url)
         }
     }
 

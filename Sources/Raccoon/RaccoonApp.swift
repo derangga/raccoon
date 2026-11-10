@@ -163,6 +163,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func newTab(_ sender: Any?) { windowModel?.newTab() }
     @objc func newCollection(_ sender: Any?) { sidebar?.newCollection(sender) }
     @objc func save(_ sender: Any?) { if let tab = windowModel?.selectedTab { saver?.save(tab) } }
+    /// File ▸ Save Response Body…, the body's and the image's context menu, and the Hex view's
+    /// button: a save panel on the window, then the bytes the viewer holds. Cancel writes nothing.
+    @objc func saveResponseBody(_ sender: Any?) {
+        guard let saving = windowModel?.selectedTab?.bodyToSave,
+              let window = windowController?.window, window.attachedSheet == nil else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = saving.name
+        Task { @MainActor [fileWriting] in
+            guard await panel.beginSheetModal(for: window) == .OK, let url = panel.url else { return }
+            do throws(StoreError) {
+                try saving.write(to: url, writer: fileWriting)
+            } catch {
+                switch error {
+                case .unwritable(let path, _), .unreadable(let path, _), .undecodable(let path, _):
+                    let alert = NSAlert()
+                    alert.messageText = "Couldn't save the Response body."
+                    alert.informativeText = path
+                    alert.beginSheetModal(for: window, completionHandler: nil)
+                }
+            }
+        }
+    }
     @objc func closeTab(_ sender: Any?) { if let tab = windowModel?.selectedTab { closer?.close(tab) } }
     @objc func forceCloseTab(_ sender: Any?) { if let tab = windowModel?.selectedTab { closer?.close(.tab, of: tab, force: true) } }
     /// File ▸ Always Discard Unsaved Changes: the way back from the close sheet's checkbox.
@@ -238,6 +260,8 @@ extension AppDelegate: NSMenuItemValidation {
         // Disabled, not hidden, while no Tab is open (surfaces.md §5).
         case #selector(save(_:)), #selector(closeTab(_:)), #selector(forceCloseTab(_:)), #selector(showNextTab(_:)), #selector(showPreviousTab(_:)):
             return windowModel?.selectedTab != nil
+        case #selector(saveResponseBody(_:)):
+            return windowModel?.selectedTab?.canSaveBody == true && windowController?.window?.attachedSheet == nil
         case #selector(exportCollection(_:)):
             return Self.canExportCollection(selected: sidebar?.selectedCollection, sheetUp: windowController?.window?.attachedSheet != nil)
         case #selector(showTab(_:)):

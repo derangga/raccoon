@@ -221,12 +221,6 @@ struct ResponseViewerTests {
         #expect(viewer.textView.textContainer?.widthTracksTextView == false)
     }
 
-    @Test func `a binary body says so instead of drawing bytes`() async {
-        let (_, viewer) = await received(response(Data([0xFF, 0xFE, 0x00, 0x81])))
-        #expect(viewer.voidTitle.stringValue == "Binary body")
-        #expect(viewer.voidText.stringValue == "4 B that is not UTF-8 text. Raccoon shows text bodies only.")
-    }
-
     @Test func `an empty body says so, and the status line stays`() async {
         let (_, viewer) = await received(response(Data(), status: 204))
         #expect(viewer.voidText.stringValue == "Empty body.")

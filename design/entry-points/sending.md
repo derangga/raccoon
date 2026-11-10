@@ -291,30 +291,38 @@ is view state and never saved, so unfolding loses nothing.
 
 ```
 -> TabModel.present(response)                    off the main actor
-  -> .binary -> HexDump(response.body,
-     limit: HexDump.limit)                       pure        R: none. The `hexdump -C` layout
--> drawBody(.binary)                             Raccoon.app
+  -> .binary -> HexDump(response.body)           pure        R: none. The `hexdump -C` layout,
+                                                             up to HexDump.limit
+  -> .image the bytes do not decode -> HexDump   R: ImageIO, a full decode of the first
+                                                 image, so it agrees with NSImage in the viewer
+-> drawBody(.binary, or an image that does not decode)       Raccoon.app
   -> hex not landed yet                          the empty body area, as before
   -> the hex text in the body's text view        no Pretty | Raw, no Gutter numbers, no folds
   -> body > limit -> note                        "Showing the first 1 MB of 3.2 MB"
 ```
 
-**The Hex view stops at 1 MB of bytes**: 65,536 lines of 79 characters, about 5.2 MB of
-plain text, inside the measured 5 MB coloured. An `image/*` body that does not decode is
-drawn as hex too, so the reason it did not decode is visible.
+**The Hex view stops at 1,000,000 bytes**: 62,500 lines of 79 characters, about 4.9 MB of
+plain text, inside the measured 5 MB coloured. The text is `hexdump -C`'s byte for byte,
+final-offset line included, except that repeated lines are not collapsed to `*` (the offset
+column is each line's address) and there is no trailing newline. An `image/*` body that
+ImageIO cannot read is drawn as hex too, so the reason it did not decode is visible.
 
 ```
 -> saveResponseBody(tab)                         File ▸ Save Response Body…, the body's and the
                                                  image's context menu, the Hex view's button
   -> .received and byteCount > 0                 else disabled, or the button hidden
-  -> ResponseFileName.suggest(response)          pure, boundary
+  -> TabModel.bodyToSave                         the name and the bytes, taken once as the
+                                                 panel opens, so a send landing while it is up
+                                                 cannot pair this name with other bytes
+  -> ResponseFileName.suggest(headers:,
+     url: response.url)                          pure, boundary
                                                  Content-Disposition filename*, then filename,
                                                  then the URL's last path component, then
                                                  "response"; an extension from the media type
                                                  when the name has none
                                                  E: an unsafe name -> escape: the next source
   -> NSSavePanel                                 cancel -> nothing
-  -> FileWriting.write(response.body, to: url)   R: FileWriting
+  -> BodyToSave.write(to: url, writer:)          R: FileWriting
                                                  E: unwritable -> escape: an alert
 ```
 

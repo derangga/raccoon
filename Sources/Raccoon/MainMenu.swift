@@ -24,6 +24,8 @@ enum MainMenu {
             NSMenuItem(title: "Export Collection…", action: #selector(AppDelegate.exportCollection(_:)), keyEquivalent: ""),
             .separator(),
             NSMenuItem(title: "Save", action: #selector(AppDelegate.save(_:)), keyEquivalent: "s"),
+            // Disabled unless the selected Tab holds a received Response with bytes; AppDelegate's validation.
+            saveResponseBody(),
             .separator(),
             NSMenuItem(title: "Close Tab", action: #selector(AppDelegate.closeTab(_:)), keyEquivalent: "w"),
             forceClose,
@@ -95,6 +97,12 @@ enum MainMenu {
         NSApp?.windowsMenu = window.submenu
         menu.addItem(window)
         return menu
+    }
+
+    /// No target: the AppDelegate takes it up the responder chain, from the File menu, the body's
+    /// and the image's context menu alike.
+    static func saveResponseBody() -> NSMenuItem {
+        NSMenuItem(title: "Save Response Body…", action: #selector(AppDelegate.saveResponseBody(_:)), keyEquivalent: "")
     }
 
     /// No target: the selected Tab's TabViewController takes it.
