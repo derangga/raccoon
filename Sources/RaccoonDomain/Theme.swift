@@ -79,6 +79,9 @@ public enum ColorToken: String, CaseIterable, Sendable {
     case warning
     case error
     case success
+    /// Mixed over `background`, not a palette colour: build.py, Find highlights.
+    case findMatch
+    case findMatchCurrent
 }
 
 /// An sRGB color, 8 bits per channel, as the theme file writes it (`#rrggbb`).

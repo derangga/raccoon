@@ -305,6 +305,21 @@ final class TabModel {
         return response.byteCount > 0
     }
 
+    /// The whole text the body shows, folded lines included: the Hex view, Pretty, or the bytes
+    /// as text, which is also what shows before the presentation lands.
+    nonisolated static func shownText(_ response: Response, _ presented: Presented?, pretty: Bool) -> String {
+        if let hex = presented?.hex { return hex.text }
+        if pretty, case .pretty(let text, _) = presented?.body { return text }
+        if case .raw(let text) = presented?.body { return text }
+        return String(decoding: response.body, as: UTF8.self)
+    }
+
+    /// The Body toolbar's Copy.
+    func copyBody(pretty: Bool) {
+        guard case .received(let response) = tab.response else { return }
+        clipboard.setString(Self.shownText(response, presented, pretty: pretty))
+    }
+
     /// Taken once when the save panel opens, so a send that lands while it is up cannot pair
     /// this name with another Response's bytes. Nil when there is no received Response.
     var bodyToSave: BodyToSave? {

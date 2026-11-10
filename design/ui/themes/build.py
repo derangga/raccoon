@@ -36,6 +36,16 @@ MAPPING = {
     "dirtyDot": "peach", "warning": "yellow", "error": "red", "success": "green",
 }
 
+# Backgrounds that are a palette colour mixed over `background`, not a palette colour: the
+# Find panel's match highlights. token -> (palette name, starting fraction). The fraction
+# steps down until every code token and `text` keeps 3:1 over the mix: WCAG's floor for large
+# text and UI, because 4.5:1 leaves no visible tint over `jsonPunctuation`, which sits at 4.5
+# on `background` already. A highlight is brief, and the current match is also underlined.
+HIGHLIGHT_FLOOR = 3.0
+HIGHLIGHTS = {"findMatch": ("yellow", 0.30), "findMatchCurrent": ("peach", 0.55)}
+HIGHLIGHT_TEXT = ["text", "jsonKey", "jsonString", "jsonNumber", "jsonBoolean", "jsonNull",
+                  "jsonPunctuation", "xmlTag", "xmlAttribute", "xmlValue"]
+
 # Where a Flavor needs a different palette name. Latte has no colour lighter than base, so
 # an elevated surface cannot be lighter than the editor; it stays base and is lifted by a
 # border and a shadow instead (design-system.md, Surfaces).
@@ -90,6 +100,10 @@ assert round(ratio("#000000", "#ffffff"), 1) == 21.0
 assert ratio("#777777", "#ffffff") < 4.5 < ratio("#767676", "#ffffff")
 
 
+def mix(top, under, fraction):
+    return "#" + "".join(f"{round(a * fraction * 255 + b * (1 - fraction) * 255):02x}" for a, b in zip(rgb(top), rgb(under)))
+
+
 def build(key, appearance):
     pal = PALETTE[key]
     names = {**MAPPING, **OVERRIDES.get(key, {})}
@@ -114,10 +128,19 @@ def build(key, appearance):
     # accent and focusRing share a palette name; keep them one colour after accent moved
     if "accent" in adjusted:
         colors["focusRing"] = colors["accent"]
+    # A highlight moves, never the text over it: the syntax colours stay what the checks above made them.
+    for t, (name, fraction) in HIGHLIGHTS.items():
+        while True:
+            colors[t] = mix(pal[name], colors["background"], fraction)
+            if min(ratio(colors[f], colors[t]) for f in HIGHLIGHT_TEXT) >= HIGHLIGHT_FLOOR or fraction <= 0.02:
+                break
+            fraction = round(fraction - 0.02, 2)
+        names[t] = f"{name} {round(fraction * 100)}%"
+    highlight_rows = [(f, t, ratio(colors[f], colors[t])) for t in HIGHLIGHTS for f in HIGHLIGHT_TEXT]
     for t, (need, bgs) in CHECKS.items():
         for b in bgs:
             rows.append((t, b, ratio(colors[t], bg(b)), need))
-    return colors, adjusted, rows, names
+    return colors, adjusted, rows, names, highlight_rows
 
 
 def scheme_markdown(theme):
@@ -144,6 +167,8 @@ def scheme_markdown(theme):
     for t, name in MAPPING.items():
         pname = f"{name} (Latte: {latte[t]}*)" if t in latte else name
         lines.append(f"| `{t}` | {pname} | " + " | ".join(f"`{f['colors'][t]}`" for f in flavors) + " |")
+    for t in HIGHLIGHTS:
+        lines.append(f"| `{t}` | {HIGHLIGHTS[t][0]} over background | " + " | ".join(f"`{f['colors'][t]}`" for f in flavors) + " |")
     lines += ["", "## Palette", "", "Catppuccin's own values, from github.com/catppuccin/palette.", "",
               "| Color | " + " | ".join(n for _, n, _ in FLAVORS) + " |", "|---|" + "---|" * len(FLAVORS)]
     for color in PALETTE["latte"]:
@@ -155,17 +180,18 @@ def main():
     theme = {"name": "Catppuccin", "flavors": []}
     failed, report = False, []
     for key, name, appearance in FLAVORS:
-        colors, adjusted, rows, names = build(key, appearance)
+        colors, adjusted, rows, names, highlight_rows = build(key, appearance)
         theme["flavors"].append({"name": name, "appearance": appearance, "colors": colors})
         worst = {}
         for t, b, r, need in rows:
             if t not in worst or r < worst[t][1]:
                 worst[t] = (b, r, need)
             failed |= r < need
-        report.append((name, worst, adjusted, names))
+        failed |= any(r < HIGHLIGHT_FLOOR for *_, r in highlight_rows)
+        report.append((name, worst, adjusted, names, highlight_rows))
     keys = [set(f["colors"]) for f in theme["flavors"]]
     assert all(k == keys[0] for k in keys), "every Flavor must have every key"
-    assert keys[0] == set(MAPPING)
+    assert keys[0] == set(MAPPING) | set(HIGHLIGHTS)
     out = Path(__file__).with_name("catppuccin.json")
     out.write_text(json.dumps(theme, indent=2, ensure_ascii=False) + "\n")
     out.with_suffix(".md").write_text(scheme_markdown(theme))
@@ -175,13 +201,24 @@ def main():
         print("|---|---|---|" + "---|" * len(report))
         for t in CHECKS:
             cells = []
-            for name, worst, adjusted, names in report:
+            for name, worst, adjusted, names, _ in report:
                 b, r, need = worst[t]
                 mark = "" if r >= need else " FAIL"
                 adj = f", L{'-' if appearance_of[name] == 'light' else '+'}{adjusted[t][1]}%" if t in adjusted else ""
                 pname = names[t] if names[t] != MAPPING[t] else ""
                 cells.append(f"{r:.2f} on {b}{adj}{', = ' + pname if pname else ''}{mark}")
             print(f"| `{t}` | {MAPPING[t]} | {CHECKS[t][0]} | " + " | ".join(cells) + " |")
+        print()
+        print(f"Find highlights, the lowest ratio of any code token or `text` over each (floor {HIGHLIGHT_FLOOR}):")
+        print()
+        print("| Highlight | Mix | " + " | ".join(n for n, *_ in report) + " |")
+        print("|---|---|" + "---|" * len(report))
+        for t in HIGHLIGHTS:
+            cells = []
+            for name, _, _, names, hl in report:
+                f, _, r = min((row for row in hl if row[1] == t), key=lambda row: row[2])
+                cells.append(f"{r:.2f} ({f}), {names[t].split()[1]}" + ("" if r >= HIGHLIGHT_FLOOR else " FAIL"))
+            print(f"| `{t}` | {HIGHLIGHTS[t][0]} over background | " + " | ".join(cells) + " |")
     print("FAIL" if failed else "all pairs pass", file=sys.stderr)
     sys.exit(1 if failed else 0)
 

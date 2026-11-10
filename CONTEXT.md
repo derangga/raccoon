@@ -168,6 +168,14 @@ _Avoid_: Transfer size, compressed size
 A binary body drawn as `hexdump -C` draws it: offset, sixteen bytes in hex, then those bytes as ASCII.
 _Avoid_: Hex editor, binary viewer
 
+**Body toolbar**:
+The row under the Response viewer's status line, in the Body section only: Pretty | Raw and its note on the leading edge, Search and Copy on the trailing edge.
+_Avoid_: Action bar, response toolbar
+
+**Find panel**:
+The small panel that floats over a Response body's top-right corner to search it: a field, the match count, previous, next and close. It searches the whole body, folded lines included, and unfolds only the Fold Region a match is in.
+_Avoid_: Search bar, find bar (the system's, which the Response body no longer uses)
+
 **Save Response Body**:
 Writing a received body's bytes, as the viewer holds them, to a file the user picks.
 _Avoid_: Download, export (Export is Postman Export)

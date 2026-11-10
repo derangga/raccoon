@@ -168,4 +168,17 @@ struct ShortcutTests {
         #expect(BodyPane(model: model, theme: theme).textView.validateMenuItem(find))
         #expect(ResponseViewer(model: model, theme: theme).textView.validateMenuItem(find))
     }
+
+    @Test func `⌘G and ⇧⌘G are Find Next and Find Previous, enabled in the Response body`() throws {
+        let next = try item("Edit", "Find", "Find Next")
+        let previous = try item("Edit", "Find", "Find Previous")
+        #expect(next.keyEquivalent == "g" && next.keyEquivalentModifierMask == .command)
+        #expect(previous.keyEquivalent == "g" && previous.keyEquivalentModifierMask == [.command, .shift])
+        #expect(next.tag == NSTextFinder.Action.nextMatch.rawValue && previous.tag == NSTextFinder.Action.previousMatch.rawValue)
+        let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
+        let model = TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+                             instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
+        let viewer = ResponseViewer(model: model, theme: theme)
+        #expect(viewer.textView.validateMenuItem(next) && viewer.textView.validateMenuItem(previous))
+    }
 }

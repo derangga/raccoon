@@ -48,7 +48,9 @@
         "dirtyDot": "#df5201",
         "warning": "#8e5a12",
         "error": "#c80e36",
-        "success": "#307820"
+        "success": "#307820",
+        "findMatch": "#ead3b4",
+        "findMatchCurrent": "#f6b28c"
       }
     },
     {
@@ -98,7 +100,9 @@
         "dirtyDot": "#ef9f76",
         "warning": "#e5c890",
         "error": "#eea4a6",
-        "success": "#a6d189"
+        "success": "#a6d189",
+        "findMatch": "#4d4c52",
+        "findMatchCurrent": "#584a50"
       }
     },
     {
@@ -148,7 +152,9 @@
         "dirtyDot": "#f5a97f",
         "warning": "#eed49f",
         "error": "#ed8796",
-        "success": "#a6da95"
+        "success": "#a6da95",
+        "findMatch": "#4c4a4e",
+        "findMatchCurrent": "#58484b"
       }
     },
     {
@@ -198,7 +204,9 @@
         "dirtyDot": "#fab387",
         "warning": "#f9e2af",
         "error": "#f38ba8",
-        "success": "#a6e3a1"
+        "success": "#a6e3a1",
+        "findMatch": "#4e494a",
+        "findMatchCurrent": "#594646"
       }
     }
   ]

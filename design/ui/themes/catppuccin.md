@@ -57,6 +57,8 @@ A hex that differs from the palette color named is the lightness-adjusted value
 | `warning` | yellow | `#8e5a12` | `#e5c890` | `#eed49f` | `#f9e2af` |
 | `error` | red | `#c80e36` | `#eea4a6` | `#ed8796` | `#f38ba8` |
 | `success` | green | `#307820` | `#a6d189` | `#a6da95` | `#a6e3a1` |
+| `findMatch` | yellow over background | `#ead3b4` | `#4d4c52` | `#4c4a4e` | `#4e494a` |
+| `findMatchCurrent` | peach over background | `#f6b28c` | `#584a50` | `#58484b` | `#594646` |
 
 ## Palette
 

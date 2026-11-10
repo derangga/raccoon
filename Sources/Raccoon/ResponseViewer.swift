@@ -2,7 +2,7 @@ import AppKit
 import Observation
 import RaccoonDomain
 
-/// The status line over the body (design-system.md §6 Response viewer).
+/// The status line, the Body toolbar and the body (design-system.md §6 Response viewer).
 final class ResponseViewer: NSView {
     private var model: TabModel
     private let theme: ThemeEnvironment
@@ -25,6 +25,17 @@ final class ResponseViewer: NSView {
     let imageNote = NSTextField(labelWithString: "")
     let mode: SegmentedControl
     let section: SegmentedControl
+
+    /// Under the status line in the Body section: Pretty | Raw and its note, then Search and Copy.
+    let bodyToolbar = NSView()
+    private let toolbarRule = NSBox()
+    let searchButton: IconButton
+    let copyButton: IconButton
+    let findPanel: FindPanel
+    /// 35 under the status line alone, 66 under the Body toolbar too.
+    private var scrollTop: NSLayoutConstraint!
+    /// Left of a legacy scroller, or 16 pt in when scrollers overlay.
+    private var findTrailing: NSLayoutConstraint!
 
     let textView: ResponseTextView
     let gutter: Gutter
@@ -75,6 +86,17 @@ final class ResponseViewer: NSView {
     private var folds = FoldSet()
     private(set) var foldedText = FoldedText(regions: [], folds: FoldSet())
 
+    /// Kept across opens, sends and Tabs; the matches are for the text shown now.
+    private var findQuery = ""
+    private var matches: FindMatches?
+    private var currentMatch: Int?
+    /// Counts searches, so a result for an older query or text is dropped when it lands.
+    private var findRuns = 0
+    private var finding: Task<Void, Never>?
+    /// Where highlights are drawn now, in the storage's offsets, so they can be taken off.
+    private var highlighted: [NSRange] = []
+    private var scrolling: NSObjectProtocol?
+
     init(model: TabModel, theme: ThemeEnvironment) {
         self.model = model
         self.theme = theme
@@ -89,12 +111,17 @@ final class ResponseViewer: NSView {
         gutter = Gutter(textView: textView, theme: theme)
         mode = SegmentedControl(labels: ["Pretty", "Raw"], theme: theme)
         section = SegmentedControl(labels: ["Body", "Headers", "Timeline"], theme: theme)
+        searchButton = IconButton(symbol: "magnifyingglass", label: "Find (⌘F)", theme: theme)
+        copyButton = IconButton(symbol: "doc.on.doc", label: "Copy Response Body", theme: theme)
+        findPanel = FindPanel(theme: theme)
         super.init(frame: .zero)
         wantsLayer = true
         buildStatusLine()
+        buildBodyToolbar()
         buildBody()
         buildHeaders()
         buildTimeline()
+        buildFind()
         theme.paint(self) { viewer, theme in
             viewer.layer?.backgroundColor = theme.color(.backgroundRecessed).cgColor
             viewer.recolorBody()
@@ -114,9 +141,9 @@ final class ResponseViewer: NSView {
         let bold = NSFont.monospacedSystemFont(ofSize: 12, weight: .bold)
         for label in [codeLabel, reasonLabel] { label.font = bold }
         reasonLabel.lineBreakMode = .byTruncatingTail
-        // Only the reason truncates; the code, time and size never do.
+        // The reason truncates first, then the redirects count goes; the code, time and size never do.
         reasonLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        for label in [codeLabel, elapsedLabel, dot, sizeLabel, redirectsDot, redirectsLabel, prettyNote, hexNote, imageNote] {
+        for label in [codeLabel, elapsedLabel, dot, sizeLabel, redirectsDot, redirectsLabel] {
             label.setContentCompressionResistancePriority(.required, for: .horizontal)
         }
         for label in [elapsedLabel, sizeLabel, redirectsLabel] {
@@ -124,24 +151,17 @@ final class ResponseViewer: NSView {
             theme.paint(label) { $0.textColor = $1.color(.textSecondary) }
         }
         for separator in [dot, redirectsDot] { theme.paint(separator) { $0.textColor = $1.color(.textTertiary) } }
-        prettyNote.font = .systemFont(ofSize: 11)
-        theme.paint(prettyNote) { $0.textColor = $1.color(.textDisabled) }
-        hexNote.font = .systemFont(ofSize: 11)
-        theme.paint(hexNote) { $0.textColor = $1.color(.textDisabled) }
-        imageNote.font = .systemFont(ofSize: 11)
-        theme.paint(imageNote) { $0.textColor = $1.color(.textDisabled) }
-        mode.selectedSegment = 0
-        mode.target = self
-        mode.action = #selector(modeChanged)
-        mode.setContentCompressionResistancePriority(.required, for: .horizontal)
         section.selectedSegment = 0
         section.target = self
         section.action = #selector(sectionChanged)
         section.setContentCompressionResistancePriority(.required, for: .horizontal)
 
+        // The sections lead; the Response's facts trail in every state, so they never move when one lands.
         let spacer = NSView()
         spacer.setContentHuggingPriority(.init(1), for: .horizontal)
-        let row = NSStackView(views: [spinner, codeLabel, reasonLabel, elapsedLabel, dot, sizeLabel, redirectsDot, redirectsLabel, spacer, prettyNote, hexNote, saveButton, imageNote, mode, section])
+        let row = NSStackView(views: [section, spacer, spinner, codeLabel, reasonLabel, elapsedLabel, dot, sizeLabel, redirectsDot, redirectsLabel])
+        row.setVisibilityPriority(.detachOnlyIfNecessary, for: redirectsDot)
+        row.setVisibilityPriority(.detachOnlyIfNecessary, for: redirectsLabel)
         row.spacing = 10
         row.setCustomSpacing(6, after: codeLabel)
         row.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
@@ -165,10 +185,70 @@ final class ResponseViewer: NSView {
         ])
     }
 
+    private func buildBodyToolbar() {
+        for note in [prettyNote, hexNote, imageNote] {
+            note.font = .systemFont(ofSize: 11)
+            note.lineBreakMode = .byTruncatingTail
+            // The note is what gives way at a narrow width.
+            note.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            theme.paint(note) { $0.textColor = $1.color(.textDisabled) }
+        }
+        mode.selectedSegment = 0
+        mode.target = self
+        mode.action = #selector(modeChanged)
+        mode.setContentCompressionResistancePriority(.required, for: .horizontal)
+        searchButton.target = self
+        searchButton.action = #selector(openFind)
+        copyButton.target = self
+        copyButton.action = #selector(copyBody)
+
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        let row = NSStackView(views: [mode, prettyNote, hexNote, saveButton, imageNote, spacer, searchButton, copyButton])
+        row.spacing = 10
+        row.setCustomSpacing(4, after: searchButton)
+        row.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
+        toolbarRule.boxType = .custom
+        toolbarRule.borderWidth = 0
+        theme.paint(toolbarRule) { $0.fillColor = $1.color(.border) }
+        for view in [bodyToolbar, row, toolbarRule] { view.translatesAutoresizingMaskIntoConstraints = false }
+        bodyToolbar.addSubview(row)
+        bodyToolbar.addSubview(toolbarRule)
+        addSubview(bodyToolbar)
+        NSLayoutConstraint.activate([
+            bodyToolbar.topAnchor.constraint(equalTo: topAnchor, constant: 35),
+            bodyToolbar.leadingAnchor.constraint(equalTo: leadingAnchor),
+            bodyToolbar.trailingAnchor.constraint(equalTo: trailingAnchor),
+            bodyToolbar.heightAnchor.constraint(equalToConstant: 31),
+            row.topAnchor.constraint(equalTo: bodyToolbar.topAnchor),
+            row.leadingAnchor.constraint(equalTo: bodyToolbar.leadingAnchor),
+            row.trailingAnchor.constraint(equalTo: bodyToolbar.trailingAnchor),
+            row.heightAnchor.constraint(equalToConstant: 30),
+            toolbarRule.topAnchor.constraint(equalTo: row.bottomAnchor),
+            toolbarRule.leadingAnchor.constraint(equalTo: bodyToolbar.leadingAnchor),
+            toolbarRule.trailingAnchor.constraint(equalTo: bodyToolbar.trailingAnchor),
+            toolbarRule.heightAnchor.constraint(equalToConstant: 1),
+        ])
+    }
+
+    /// Shown in the Body section of a received Response; `searchable` is false for an image.
+    private func showToolbar(searchable: Bool) {
+        bodyToolbar.isHidden = false
+        scrollTop.constant = 66
+        searchButton.isEnabled = searchable
+        copyButton.isEnabled = searchable
+    }
+
+    private func hideToolbar() {
+        bodyToolbar.isHidden = true
+        scrollTop.constant = 35
+    }
+
     private func buildBody() {
         textView.isEditable = false
         textView.isSelectable = true
-        textView.usesFindBar = true
+        // The Find panel searches instead: the system bar insets the body and cannot see folded text.
+        textView.usesFindBar = false
         textView.drawsBackground = false
         textView.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
         textView.textContainerInset = NSSize(width: 8, height: 8)
@@ -231,8 +311,9 @@ final class ResponseViewer: NSView {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
         }
+        scrollTop = scroll.topAnchor.constraint(equalTo: topAnchor, constant: 35)
         NSLayoutConstraint.activate([
-            scroll.topAnchor.constraint(equalTo: topAnchor, constant: 35),
+            scrollTop,
             scroll.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
             scroll.trailingAnchor.constraint(equalTo: trailingAnchor),
             scroll.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -303,6 +384,151 @@ final class ResponseViewer: NSView {
 
     @objc private func allowInsecureTLS() { model.allowInsecureTLS() }
 
+    @objc private func copyBody() {
+        model.copyBody(pretty: bodySource?.pretty ?? false)
+        copyButton.flash("checkmark", tooltip: "Copied", for: 1.5)
+    }
+
+    // MARK: Find
+
+    private func buildFind() {
+        findPanel.isHidden = true
+        findPanel.onQuery = { [weak self] query in
+            self?.findQuery = query
+            self?.runFind()
+        }
+        findPanel.onStep = { [weak self] forward in self?.findStep(forward: forward) }
+        findPanel.onClose = { [weak self] in self?.closeFind(focusingBody: true) }
+        // Above the body, so it floats over the text and never moves it.
+        addSubview(findPanel, positioned: .above, relativeTo: scroll)
+        findTrailing = findPanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16)
+        NSLayoutConstraint.activate([findPanel.topAnchor.constraint(equalTo: scroll.topAnchor, constant: 8), findTrailing])
+        scroll.contentView.postsBoundsChangedNotifications = true
+        scrolling = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: scroll.contentView, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.highlightVisible() }
+        }
+    }
+
+    /// 8 pt left of a legacy scroller; 16 pt in when scrollers overlay the text or there is none.
+    override func layout() {
+        super.layout()
+        let scroller = scroll.verticalScroller
+        let beside = scroll.scrollerStyle == .legacy && scroller.map { !$0.isHidden && $0.frame.width > 0 } ?? false
+        let constant = -(beside ? (scroller?.frame.width ?? 0) + 8 : 16)
+        if findTrailing.constant != constant { findTrailing.constant = constant }
+    }
+
+    var isFinding: Bool { !findPanel.isHidden }
+
+    /// The Search button, ⌘F and Edit ▸ Find ▸ Find….
+    @objc func openFind() {
+        guard !bodyToolbar.isHidden, searchButton.isEnabled else { return }
+        let wasOpen = isFinding
+        findPanel.field.stringValue = findQuery
+        findPanel.open()
+        if !wasOpen { runFind() }
+    }
+
+    /// Next or previous: Return and ⇧Return in the field, ⌘G and ⇧⌘G, the chevrons.
+    func findStep(forward: Bool) {
+        guard isFinding else { return openFind() }
+        guard let matches, let current = currentMatch else { return }
+        currentMatch = matches.step(current, forward: forward)
+        showCount()
+        reveal(currentMatch ?? current)
+    }
+
+    /// Off the main actor: a query with no match scans 20 MB in 70 ms (environment-facts.md, Q14).
+    private func runFind() {
+        findRuns += 1
+        let run = findRuns
+        let query = findQuery
+        let text = body.string
+        // From the current match while typing, so adding a letter does not jump back to the top.
+        let anchor = currentMatch.flatMap { matches?.ranges[$0].lowerBound } ?? foldedText.source(textView.selectedRange().location)
+        finding?.cancel()
+        finding = Task { @MainActor [weak self] in
+            let found = await Self.match(query, in: text)
+            guard let self, run == findRuns, isFinding else { return }
+            matches = found
+            currentMatch = found.first(atOrAfter: anchor)
+            showCount()
+            if let currentMatch { reveal(currentMatch) } else { highlightVisible() }
+        }
+    }
+
+    @concurrent
+    nonisolated private static func match(_ query: String, in text: String) async -> FindMatches {
+        FindMatches(of: query, in: text as NSString)
+    }
+
+    private func showCount() {
+        let count = matches?.count(current: currentMatch) ?? ""
+        findPanel.show(count: count, canStep: !(matches?.ranges.isEmpty ?? true))
+    }
+
+    /// Opens only the folds the match is in, then brings it on screen.
+    private func reveal(_ index: Int) {
+        guard let match = matches?.ranges[index] else { return }
+        let opened = folds.unfolding(match, in: regions)
+        if opened != folds {
+            folds = opened
+            refold(keeping: nil)
+        }
+        textView.scrollRangeToVisible(shownRange(match))
+        highlightVisible()
+    }
+
+    private func shownRange(_ match: Range<Int>) -> NSRange {
+        let start = foldedText.display(match.lowerBound)
+        return NSRange(location: start, length: foldedText.display(match.upperBound) - start)
+    }
+
+    /// Esc, the close button, or nothing left to search. Closing by hand leaves the current
+    /// match selected in the body, so ⌘C copies it.
+    func closeFind(focusingBody: Bool) {
+        let selection = currentMatch.flatMap { matches?.ranges[$0] }.map(shownRange)
+        findPanel.isHidden = true
+        findRuns += 1
+        finding?.cancel()
+        matches = nil
+        currentMatch = nil
+        highlightVisible()
+        guard focusingBody else { return }
+        window?.makeFirstResponder(textView)
+        if let selection { textView.setSelectedRange(selection) }
+    }
+
+    /// Takes the last highlights off and draws the matches in the visible range only: a
+    /// one-letter query on 5 MB finds a million, and the text shows a screenful.
+    private func highlightVisible() {
+        for range in highlighted where NSMaxRange(range) <= storage.length {
+            for key: NSAttributedString.Key in [.backgroundColor, .underlineStyle, .underlineColor] {
+                layoutManager.removeTemporaryAttribute(key, forCharacterRange: range)
+            }
+        }
+        highlighted = []
+        guard isFinding, let matches, !matches.ranges.isEmpty, storage.length > 0, let container = textView.textContainer else { return }
+        let visible = textView.visibleRect.offsetBy(dx: -textView.textContainerOrigin.x, dy: -textView.textContainerOrigin.y)
+        let glyphs = layoutManager.glyphRange(forBoundingRect: visible, in: container)
+        let characters = layoutManager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+        let source = foldedText.sourceRange(characters.location ..< NSMaxRange(characters))
+        for index in matches.indices(overlapping: source) {
+            let match = matches.ranges[index]
+            let range = shownRange(match)
+            // Inside a fold, all or part: not on screen as itself.
+            guard range.length == match.count, foldedText.source(range.location) == match.lowerBound,
+                  NSMaxRange(range) <= storage.length else { continue }
+            let current = index == currentMatch
+            layoutManager.addTemporaryAttribute(.backgroundColor, value: theme.color(current ? .findMatchCurrent : .findMatch), forCharacterRange: range)
+            if current {
+                layoutManager.addTemporaryAttributes([.underlineStyle: NSUnderlineStyle.single.rawValue, .underlineColor: theme.color(.accent)],
+                                                     forCharacterRange: range)
+            }
+            highlighted.append(range)
+        }
+    }
+
     @objc private func sectionChanged() {
         wantsSection = Section(rawValue: section.selectedSegment) ?? .body
         render()
@@ -335,6 +561,13 @@ final class ResponseViewer: NSView {
     }
 
     private func draw(_ state: ResponseState) {
+        drawState(state)
+        // Nothing to search any more: Headers, Timeline, an image, or no body at all.
+        if isFinding, bodyToolbar.isHidden || !searchButton.isEnabled { closeFind(focusingBody: false) }
+    }
+
+    private func drawState(_ state: ResponseState) {
+        hideToolbar()
         setStatus(nil)
         spinner.stopAnimation(nil)
         spinner.isHidden = true
@@ -424,6 +657,7 @@ final class ResponseViewer: NSView {
     /// neither (the offset column is the address) and no folds.
     private func showText(_ response: Response, _ presented: TabModel.Presented?) {
         let hex = presented?.hex
+        showToolbar(searchable: true)
         voidStack.isHidden = true
         scroll.isHidden = false
         scroll.rulersVisible = hex == nil
@@ -450,9 +684,14 @@ final class ResponseViewer: NSView {
         regions = pretty ? presented?.regions ?? [] : []
         // Raw before the presentation lands has no numbers yet.
         gutter.lines = hex != nil ? nil : presented.map { pretty ? $0.lines : $0.rawLines }
+        // The matches were for the old text; the search below finds them in this one.
+        matches = nil
+        currentMatch = nil
         folds = FoldSet()
         refold(keeping: nil)
         textView.scrollToBeginningOfDocument(nil)
+        // An open panel keeps its query and searches the new text.
+        if isFinding { runFind() }
     }
 
     /// Decoded once per send: Body | Headers, resizing and a Theme change redraw without decoding again.
@@ -470,6 +709,7 @@ final class ResponseViewer: NSView {
 
     private func showImage(_ image: NSImage, mediaType: String) {
         shown = nil
+        showToolbar(searchable: false)
         scroll.isHidden = true
         voidStack.isHidden = true
         imageView.image = image
@@ -503,7 +743,10 @@ final class ResponseViewer: NSView {
         foldedText = FoldedText(regions: regions, folds: folds)
         storage = Self.cut(body, foldedText.folded, marker: marker)
         layoutManager.replaceTextStorage(storage)
+        // Temporary attributes belong to the layout manager, not the storage: clear any for the new text.
+        highlighted = highlighted.isEmpty ? [] : [NSRange(location: 0, length: storage.length)]
         gutter.show(regions: regions, folds: folds, shown: foldedText)
+        defer { highlightVisible() }
         guard let anchor, let offset, let lines = gutter.lines else { return }
         let at = foldedText.display(lines.starts[anchor])
         textView.setSelectedRange(NSRange(location: at, length: 0))
@@ -758,17 +1001,13 @@ final class ResponseViewer: NSView {
 
     private func bodyText(_ response: Response, _ presented: TabModel.Presented?, pretty: Bool) -> NSAttributedString {
         let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-        if let hex = presented?.hex {
-            return NSAttributedString(string: hex.text, attributes: [.font: font, .foregroundColor: theme.color(.text)])
+        let text = NSMutableAttributedString(string: TabModel.shownText(response, presented, pretty: pretty),
+                                             attributes: [.font: font, .foregroundColor: theme.color(.text)])
+        // Only Pretty is coloured; its ranges are for exactly that text.
+        if pretty, presented?.hex == nil, let presented, case .pretty = presented.body {
+            for range in presented.ranges { text.addAttribute(.foregroundColor, value: theme.color(range.token), range: range.range) }
         }
-        if pretty, let presented, case .pretty(let text, _) = presented.body {
-            let colored = NSMutableAttributedString(string: text, attributes: [.font: font, .foregroundColor: theme.color(.text)])
-            for range in presented.ranges { colored.addAttribute(.foregroundColor, value: theme.color(range.token), range: range.range) }
-            return colored
-        }
-        // Raw is the bytes as received: shown at once, before the presentation lands.
-        let raw: String = if case .raw(let text) = presented?.body { text } else { String(decoding: response.body, as: UTF8.self) }
-        return NSAttributedString(string: raw, attributes: [.font: font, .foregroundColor: theme.color(.text)])
+        return text
     }
 
     private func setStatus(_ status: (code: String, reason: String, token: ColorToken)?) {
@@ -829,11 +1068,29 @@ final class ResponseTextView: NSTextView {
         pasteboard.setString(viewer.bodyText(of: selectedRange()), forType: .string)
     }
 
-    /// Find searches the visible text, so unfold first for a match inside a Fold Region to be found.
+    /// Edit ▸ Find's Find…, Find Next and Find Previous go to the viewer's Find panel.
     override func performTextFinderAction(_ sender: Any?) {
-        if let viewer, !viewer.foldedText.folded.isEmpty { viewer.unfoldAll(nil) }
-        super.performTextFinderAction(sender)
+        guard let viewer, let tag = (sender as? NSValidatedUserInterfaceItem)?.tag else { return }
+        switch NSTextFinder.Action(rawValue: tag) {
+        case .showFindInterface: viewer.openFind()
+        case .nextMatch: viewer.findStep(forward: true)
+        case .previousMatch: viewer.findStep(forward: false)
+        default: break
+        }
     }
+
+    /// With no system find bar, NSTextView would disable the Find items; the panel takes these three.
+    override func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        guard item.action == #selector(performTextFinderAction(_:)) else { return super.validateMenuItem(item) }
+        return Self.findActions.contains(item.tag)
+    }
+
+    override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        guard item.action == #selector(performTextFinderAction(_:)) else { return super.validateUserInterfaceItem(item) }
+        return Self.findActions.contains(item.tag)
+    }
+
+    private static let findActions: Set<Int> = [NSTextFinder.Action.showFindInterface, .nextMatch, .previousMatch].map(\.rawValue).reduce(into: []) { $0.insert($1) }
 
     /// The indent guides, under the text.
     override func drawBackground(in rect: NSRect) {

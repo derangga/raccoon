@@ -34,6 +34,10 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
                                                  E: a cut past the body -> DIE
   -> a new NSTextStorage swapped in              the folded line keeps its place on screen
   -> the Gutter redraws
+-> reveal a Find match                          the Find panel (sending.md)
+  -> FoldSet.unfolding(match, in: regions)       pure: every folded region whose cut overlaps
+                                                 the match, nested ones included; the rest stay
+  -> as fold or unfold above, when it changed anything
 -> Copy                                          ⌘C, or Copy in the context menu
   -> FoldedText.sourceRange(selection)           pure: a selection across a … copies the
                                                  folded lines too

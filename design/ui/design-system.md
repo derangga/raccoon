@@ -80,6 +80,8 @@ raw palette, are in [themes/catppuccin.md](./themes/catppuccin.md), generated wi
 | `variableSecret` | mauve | `{{name}}` that resolves to a Secret Variable; plus a dotted underline |
 | `variableUndefined` | red | `{{name}}` that does not resolve; plus a wavy underline |
 | `dirtyDot` | peach | the 8 px dot in a Tab's close slot |
+| `findMatch` | yellow mixed over `background` (The adjustment rule) | a Find match's background |
+| `findMatchCurrent` | peach mixed over `background` (The adjustment rule) | the current Find match's background |
 | `warning` | yellow | Changed on Disk / Deleted on disk glyph, the unreadable-row glyph |
 | `error` | red | error message lines, error banner glyph, missing-file chip, invalid URL outline |
 | `success` | green | **no v1 surface uses it** (Q6, decided) |
@@ -112,6 +114,19 @@ on it, and `focusRing` takes the same value.
 `selection` is checked only against `text`: NSTextView draws selected text in `text` through
 `selectedTextAttributes`, so syntax and Variable colors never sit on `selection`. The
 implementation must set that attribute or this result does not hold.
+
+`findMatch` and `findMatchCurrent` are the one pair that is not a palette colour: yellow and
+peach mixed over `background`. The background moves, never the text: the mix starts at 30 %
+and 55 % and steps down 2 % until `text` and every JSON and XML colour keep **3:1** over it.
+That is WCAG's floor for large text and UI, not the 4.5:1 body text gets, because
+`jsonPunctuation` already sits at 4.5:1 on `background` and any visible tint drops it below.
+A highlight lasts only while the Find panel is open, and the current match also carries an
+`accent` underline, so colour is never its only signal.
+
+| Highlight | Mix | Latte | Frappé | Macchiato | Mocha |
+|---|---|---|---|---|---|
+| `findMatch` | yellow over background | 3.78 (jsonString), 30% | 3.13 (jsonPunctuation), 16% | 3.15 (jsonPunctuation), 20% | 3.13 (jsonPunctuation), 22% |
+| `findMatchCurrent` | peach over background | 3.04 (jsonString), 45% | 3.08 (jsonPunctuation), 21% | 3.09 (jsonPunctuation), 25% | 3.11 (jsonPunctuation), 27% |
 
 ### Contrast results
 
@@ -524,12 +539,39 @@ as it was**, redrawing the field at the committed number, as a value field in th
 
 ### Response viewer
 
-Anatomy: status line (34 pt) over the body area, on `backgroundRecessed`.
+Anatomy: status line (34 pt), then the Body toolbar (30 pt, Body section only), over the body
+area, all on `backgroundRecessed`.
 
-- **Status line**: status code + reason in `status1xx`…`status5xx`, SF Mono 12 bold, single
-  line, the reason end-truncates first (the code never does); then elapsed time and size in
-  `textSecondary` with tabular figures, separated by a `textTertiary` middle dot. Trailing:
-  Pretty | Raw, then Body | Headers N | Timeline.
+- **Status line**: leading, Body | Headers N | Timeline (received only), 12 pt in from the
+  edge; it never truncates. Trailing, in every state so it never moves when a Response lands:
+  the spinner, the status code + reason in `status1xx`…`status5xx` (SF Mono 12 bold), then
+  elapsed time, size and "2 redirects" in `textSecondary` with tabular figures, separated by
+  `textTertiary` middle dots, 12 pt in from the trailing edge. The reason end-truncates first,
+  then the redirects count hides; the code, time and size never truncate.
+- **Body toolbar**: 30 pt, 12 pt side padding, a 1 pt `border` rule under it. Leading: Pretty |
+  Raw, then the note in `textDisabled` 11 pt ("Pretty is off above 5 MB", "Showing the first
+  1 MB of 3.2 MB" with Save to File… beside it, or an image's "900 × 900 · image/webp"); the
+  note truncates first. Trailing: Search (`magnifyingglass`, tooltip "Find (⌘F)") and Copy
+  (`doc.on.doc`, tooltip "Copy Response Body"), 4 pt apart. For an image both are disabled
+  and Pretty | Raw is hidden; for the Hex view Pretty | Raw is hidden. Copy turns to
+  `checkmark` (tooltip "Copied") for 1.5 s with the system symbol swap, no transition under
+  Reduce Motion.
+- **Icon button** (`IconButton`): 24 × 24 (20 × 20 inside the Find panel), 6 pt radius,
+  borderless, the symbol 13 pt regular in `textSecondary`. Hover fills `rowHover` and the
+  symbol turns `text`; pressed fills `selection`, on mouse-down. Disabled: the symbol in
+  `textDisabled`, no hover. Every one has a tooltip and an accessibility label.
+- **Find panel**: floats over the body, 8 pt below the body area's top and 8 pt left of the
+  vertical scroller (16 pt from the trailing edge with none); the text under it never moves.
+  320 × 32 pt, the Dropdown list's surface: `backgroundElevated`, 8 pt radius, 1 pt `border` at
+  50 %, a soft shadow (black at 12 %, 12 pt blur, 4 pt down). Inside, 6 pt padding: a 13 pt
+  `magnifyingglass` in `textTertiary`; a borderless field, SF Mono 12 `text`, placeholder
+  "Find" in `textTertiary`, taking the free width; the count, 11 pt `textTertiary` with
+  tabular figures ("2 of 7", "No results", "2 of 10,000+", empty for an empty field); then
+  `chevron.up`, `chevron.down` and `xmark` icon buttons, tooltips "Previous (⇧⌘G)", "Next
+  (⌘G)" and "Close (Esc)". While the field has focus the panel draws a 2 pt `focusRing`
+  outline. It appears and goes with no animation. Matches are drawn with a `findMatch`
+  background, the current one `findMatchCurrent` with a 1 pt `accent` underline. Return and
+  ⇧Return step; Esc closes and leaves the current match selected in the body.
 - **idle**: "Send a request to see the Response here." `textTertiary`, with a ⌘↩ key cap.
 - **sending**: spinner + "Sending… 1.4 s", the time live; body: "Waiting for the server. ⌘.
   cancels."
@@ -563,7 +605,7 @@ Anatomy: status line (34 pt) over the body area, on `backgroundRecessed`.
   transport errors, "Invalid URL" quoting the URL after substitution (status line "Not sent").
 - **binary**: the Hex view, in the body's text view, SF Mono 12 `text`: the `hexdump -C`
   layout (`00000000  7b 22 69 64 …  |{"id…|`). No Gutter numbers (the offset column is the
-  address), no Pretty | Raw, no folds. Above 1 MB the status line holds "Showing the first
+  address), no Pretty | Raw, no folds. Above 1 MB the Body toolbar holds "Showing the first
   1 MB of 3.2 MB" where the Pretty note sits, `textDisabled` 11 pt, and a "Save to File…"
   button beside it styled as the failure fix button. Until the off-main presentation lands
   the body area is empty, not the bytes as text.
@@ -582,12 +624,12 @@ Anatomy: status line (34 pt) over the body area, on `backgroundRecessed`.
   https://a.example/home", then its headers as in Headers; the timing lines sit above them so
   a long header list never pushes them out of sight. With no Timing for the send, each
   block's phase line reads "Timing was not reported for this send." The status line adds "· 2 redirects" after the size when the send followed any.
-- **Find**: ⌘F over a folded body unfolds every Fold Region first, so a match inside one is
-  found.
+- **Find**: the Find panel, above. A match inside a folded region unfolds that region and the
+  folds around it, and no other.
 - **image** (`Content-Type: image/*` other than `image/svg+xml`, and the bytes decode): the
   body area shows the picture centered on `backgroundRecessed`, scaled down to fit and never
-  past its natural size, aspect ratio kept; no Gutter, no Pretty | Raw. The status line holds
-  a caption left of the Body | Headers control, `textDisabled` 11 pt like the Pretty note:
+  past its natural size, aspect ratio kept; no Gutter, no Pretty | Raw. The Body toolbar holds
+  a caption where the Pretty note sits, `textDisabled` 11 pt like the Pretty note:
   "900 × 900 · image/webp" (pixels, then the media type). Bytes that do not decode show
   **binary**, above. The picture appears at once, decided by the header: no text is drawn
   first.

@@ -16,6 +16,18 @@ struct MeasurementTests {
         return Double(usage.ru_maxrss) / 1_048_576
     }
 
+    /// Q14: a keystroke in the Find panel, on a Pretty-sized and a Raw-only body.
+    @Test(arguments: [5, 20])
+    func `matching a body for the Find panel`(megabytes: Int) {
+        let line = #"    "id": "big-pickle", "owned_by": "opencode", "created": 1794300781,"# + "\n"
+        let text = String(repeating: line, count: megabytes * 1_000_000 / line.utf8.count) as NSString
+        for query in ["e", "pickle", "1794300781", "zzqx"] {
+            let start = ContinuousClock.now
+            let matches = FindMatches(of: query, in: text)
+            print("MEASURE find \(megabytes) MB \"\(query)\": \(matches.ranges.count)\(matches.capped ? "+" : "") matches in \(ContinuousClock.now - start)")
+        }
+    }
+
     @Test(arguments: [100, 500])
     func `peak memory for a large response`(megabytes: Int) async throws {
         try await withEchoServer { server in

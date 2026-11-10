@@ -37,9 +37,14 @@ enum MainMenu {
         copyAsCurl.keyEquivalentModifierMask = [.command, .shift]
         let redo = NSMenuItem(title: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
         redo.keyEquivalentModifierMask = [.command, .shift]
-        // The focused body editor or Response body shows its own find bar.
+        // The focused body editor shows the system find bar; the Response body, its Find panel.
         let find = NSMenuItem(title: "Find…", action: #selector(NSTextView.performTextFinderAction(_:)), keyEquivalent: "f")
         find.tag = NSTextFinder.Action.showFindInterface.rawValue
+        let findNext = NSMenuItem(title: "Find Next", action: #selector(NSTextView.performTextFinderAction(_:)), keyEquivalent: "g")
+        findNext.tag = NSTextFinder.Action.nextMatch.rawValue
+        let findPrevious = NSMenuItem(title: "Find Previous", action: #selector(NSTextView.performTextFinderAction(_:)), keyEquivalent: "g")
+        findPrevious.keyEquivalentModifierMask = [.command, .shift]
+        findPrevious.tag = NSTextFinder.Action.previousMatch.rawValue
         let filter = NSMenuItem(title: "Filter Collections", action: #selector(AppDelegate.focusFilter(_:)), keyEquivalent: "f")
         filter.keyEquivalentModifierMask = [.option, .command]
         // No target: each goes to the first responder, which is the field or text view being edited.
@@ -54,7 +59,7 @@ enum MainMenu {
             .separator(),
             copyAsCurl,
             .separator(),
-            submenu("Find", [find, filter]),
+            submenu("Find", [find, findNext, findPrevious, filter]),
         ]))
         let showSidebar = NSMenuItem(title: "Show Sidebar", action: #selector(NSSplitViewController.toggleSidebar(_:)), keyEquivalent: "s")
         showSidebar.keyEquivalentModifierMask = [.control, .command]

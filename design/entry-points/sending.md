@@ -276,18 +276,59 @@ applies to them too.
 Raccoon sees the body, so `byteCount` is the decoded size. The Response's Timeline block adds
 "420 B on the wire" when the Wire Size differs from it.
 
-## Find in a folded body
+## The Body toolbar, Copy and the Find panel
 
 ```
--> ResponseTextView.performTextFinderAction(sender)       every find action
-  -> viewer.foldedText.folded is not empty?               R: none
-    -> viewer.unfoldAll(nil)                              keeps the top line on screen
-  -> super.performTextFinderAction(sender)
+-> received, Body section                        Raccoon.app
+  -> the Body toolbar                            text: Pretty | Raw, its note, Search, Copy
+                                                 hex: the hex note, Save to File…, Search, Copy
+                                                 image: the caption; Search and Copy disabled
+  -> Headers, Timeline, or any other state       no Body toolbar; an open Find panel closes
 ```
 
-**Find unfolds, because folding cuts the text out of the storage.** The find bar searches
-the text view's storage, and a Folded region is not in it (`ResponseViewer.cut`). Fold state
-is view state and never saved, so unfolding loses nothing.
+```
+-> Copy                                          the Body toolbar's Copy button
+  -> TabModel.copyBody(shown text)               R: ClipboardWriter. The text as shown in full:
+                                                 Pretty, Raw or hex, folded lines included
+  -> the icon turns to a checkmark for 1.5 s     the system symbol swap; none with Reduce Motion
+```
+
+```
+-> openFind                                      Search, ⌘F, Edit ▸ Find ▸ Find…
+  -> the Find panel shown, its field focused     no animation: a keyboard action, many a day
+-> type in the field                             every keystroke, no debounce
+  -> FindMatches(of: query, in: body source)     pure        R: none. The whole body, not the
+                                                 folded storage, so a folded line is found.
+                                                 Off the main actor: a missing query scans
+                                                 20 MB in 70 ms (Q14); an older query's
+                                                 result is dropped when it lands
+                                                 V: empty query -> no count, no highlights
+                                                 V: none -> "No results"
+                                                 V: past FindMatches.cap -> "10,000+"
+  -> current = matches.first(atOrAfter: caret)   pure
+  -> reveal(current)
+-> Return, ⌘G, the down chevron                  matches.step(current, forward: true), wrapping
+-> ⇧Return, ⇧⌘G, the up chevron                  matches.step(current, forward: false), wrapping
+-> reveal(match)
+  -> FoldSet.unfolding(match, in: regions)       pure: only the folded regions whose cut holds
+                                                 part of the match; every other fold stays
+  -> refold, when that unfolded any
+  -> scroll the match into view
+  -> highlight the visible range only            findMatchCurrent on the current match with a
+                                                 1 pt accent underline, findMatch on the rest;
+                                                 repainted on scroll (a one-letter query on 5 MB
+                                                 finds a million)
+-> Esc, the close button                         the panel hides, the highlights go, and the body
+                                                 takes focus with the current match selected
+-> Pretty ⇄ Raw, a new send, a Tab switch        an open panel keeps its query and searches the
+                                                 new text
+```
+
+**The Find panel replaces the system find bar on the Response body.** The system bar is
+AppKit's to draw: system colours, full width, and it insets the body by its height. It also
+searches only the text view's storage, which a Folded region is cut out of, so it could only
+find inside folds by unfolding everything. The request body editor keeps the system bar: it is
+editable, and the system bar's Replace works there.
 
 ## Hex view and Save Response Body
 

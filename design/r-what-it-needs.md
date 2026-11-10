@@ -30,6 +30,10 @@ Timing(marks)                                                     a request's ma
 TimelineText.blocks, .showsHeadersNote                            Response -> the Timeline's lines,
                                                                   and whether any Redirect has headers
 ResponseFileName.suggest                                          Response -> the name Save offers
+FindMatches, .first(atOrAfter:), .step, .count                    query + body -> the Find panel's
+                                                                  matches, current one and count
+FoldSet.unfolding(_:in:)                                          a match -> the folds that hide it,
+                                                                  opened; the rest kept
                                                                   (image/* is decided by the header; the
                                                                   decode is NSImage's, in Raccoon.app)
 Highlighter.curl                                                  curl command -> its token ranges
@@ -157,6 +161,9 @@ Export Environment SecretStore, FileWriting         SecretStore only when Includ
 Save Response Body FileWriting                      through the Tab, which holds the Response. The
                                                     save panel is AppKit's, in Raccoon.app; the
                                                     name it offers is ResponseFileName.suggest
+Copy (Body toolbar) ClipboardWriter                 through the Tab, which already holds one for
+                                                    Copy as Curl
+Find panel        nothing                           pure rules over the text the viewer holds
 Redirects, Timing nothing new                       the live transport's per-send SendDelegate
                                                     records them; no port changes
 Import from Postman… in the Environments sheet

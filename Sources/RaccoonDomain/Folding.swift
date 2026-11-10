@@ -99,6 +99,14 @@ public struct FoldSet: Equatable, Sendable {
     public func innermost(at line: Int, in regions: [FoldRegion], folded wanted: Bool) -> FoldRegion? {
         regions.last { $0.openLine <= line && line <= $0.closeLine && isFolded($0) == wanted }
     }
+
+    /// What a Find match needs open to be seen: every folded region whose cut overlaps it,
+    /// nested ones included. Every other fold stays as it was.
+    public func unfolding(_ match: Range<Int>, in regions: [FoldRegion]) -> FoldSet {
+        var opened = self
+        for region in regions where region.cut.overlaps(match) { opened.folded.remove(region.openLine) }
+        return opened
+    }
 }
 
 /// The body as shown: each outermost Folded region's cut replaced by `marker`, and offsets
