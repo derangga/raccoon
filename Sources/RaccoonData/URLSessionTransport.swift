@@ -46,12 +46,18 @@ public final class URLSessionTransport: HTTPTransport {
         guard let http = response as? HTTPURLResponse else {
             throw .transport(.badServerResponse, "The server's reply was not HTTP.", host: Self.authority(request.url))
         }
-        // allHeaderFields is a dictionary that joins duplicates with ", ", and no API keeps wire
-        // order (environment-facts.md), so the headers are sorted by name.
-        let headers = (http.allHeaderFields as? [String: String] ?? [:])
+        return Response(
+            status: http.statusCode, headers: Self.headers(http), body: body, elapsed: .now - start, byteCount: body.count,
+            url: http.url, method: delegate.method, redirects: delegate.redirects)
+    }
+
+    /// allHeaderFields is a dictionary that joins duplicates with ", ", and no API keeps wire
+    /// order (environment-facts.md), so the headers are sorted by name. The Response's and every
+    /// Redirect's come through here.
+    static func headers(_ http: HTTPURLResponse) -> [Response.Header] {
+        (http.allHeaderFields as? [String: String] ?? [:])
             .map { Response.Header(name: $0.key, value: $0.value) }
             .sorted { $0.name < $1.name }
-        return Response(status: http.statusCode, headers: headers, body: body, elapsed: .now - start, byteCount: body.count)
     }
 
     private func urlRequest(for request: ResolvedRequest) throws(SendError) -> URLRequest {
@@ -167,11 +173,18 @@ private final class SendDelegate: NSObject, URLSessionTaskDelegate, Sendable {
     /// How many redirects had been followed when the Redirect Limit refused the next one.
     private let refused = Mutex<Int?>(nil)
 
+    /// The method of the request in flight: the original's, then each returned request's.
+    private let sentMethod: Mutex<String>
+    private let followedRedirects = Mutex<[Redirect]>([])
+
     var refusedAfter: Int? { refused.withLock { $0 } }
+    var method: String { sentMethod.withLock { $0 } }
+    var redirects: [Redirect] { followedRedirects.withLock { $0 } }
 
     init(settings: RequestSettings, original: URLRequest) {
         self.settings = settings
         self.original = original
+        sentMethod = Mutex(original.httpMethod ?? "GET")
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
@@ -183,6 +196,12 @@ private final class SendDelegate: NSObject, URLSessionTaskDelegate, Sendable {
             return nil
         }
         followed.withLock { $0 += 1 }
+        // Both guards have passed, so this redirect is followed. A URLSession 3xx always has a URL.
+        if let url = response.url, let location = request.url {
+            let redirect = Redirect(status: response.statusCode, method: method, url: url, location: location,
+                                    headers: URLSessionTransport.headers(response))
+            followedRedirects.withLock { $0.append(redirect) }
+        }
 
         var next = request
         // 307 and 308 already carry the method, and URLSession carries their body itself:
@@ -197,6 +216,7 @@ private final class SendDelegate: NSObject, URLSessionTaskDelegate, Sendable {
         if settings.followsAuthorizationHeader, let authorization = original.value(forHTTPHeaderField: "Authorization") {
             next.setValue(authorization, forHTTPHeaderField: "Authorization")
         }
+        sentMethod.withLock { $0 = next.httpMethod ?? "GET" }
         return next
     }
 

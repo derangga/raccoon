@@ -202,6 +202,61 @@ struct URLSessionTransportTests {
         }
     }
 
+    @Test func `a followed redirect is recorded and the Response names the URL that answered`() async throws {
+        try await withEchoServer { server in
+            let response = try await transport().send(resolved(server, "/redirect", settings: settings()))
+
+            let redirect = try #require(response.redirects.first)
+            #expect(response.redirects.count == 1)
+            #expect(redirect.status == 302)
+            #expect(redirect.method == "GET")
+            #expect(redirect.url == server.url("/redirect"))
+            #expect(redirect.location.path == "/echo")
+            #expect(redirect.headers.contains { $0.name.lowercased() == "location" })
+            #expect(redirect.headers == redirect.headers.sorted { $0.name < $1.name })
+            #expect(response.url?.path == "/echo")
+            #expect(response.method == "GET")
+        }
+    }
+
+    @Test func `a refused redirect records nothing: the 3xx is the Response`() async throws {
+        try await withEchoServer { server in
+            let response = try await transport().send(resolved(server, "/redirect", settings: settings(redirects: false)))
+
+            #expect(response.status == 302)
+            #expect(response.redirects.isEmpty)
+            #expect(response.url == server.url("/redirect"))
+        }
+    }
+
+    @Test func `the second request's method is the one the delegate returned`() async throws {
+        let body = Body.raw(.text, "a=1")
+        try await withEchoServer { server in
+            let request = resolved(server, "/redirect/303", method: "POST", body: body, settings: settings(originalMethod: true))
+            let response = try await transport().send(request)
+
+            #expect(response.method == "POST")
+            #expect(response.redirects.map(\.method) == ["POST"])
+        }
+        try await withEchoServer { server in
+            let request = resolved(server, "/redirect/303", method: "POST", body: body, settings: settings(originalMethod: false))
+            let response = try await transport().send(request)
+
+            #expect(response.method == "GET")
+            #expect(response.redirects.map(\.method) == ["POST"])
+        }
+    }
+
+    @Test func `a send that is not redirected has no Redirects and the method it sent`() async throws {
+        try await withEchoServer { server in
+            let response = try await transport().send(resolved(server, "/echo", method: "PUT", settings: settings()))
+
+            #expect(response.redirects.isEmpty)
+            #expect(response.method == "PUT")
+            #expect(response.url == server.url("/echo"))
+        }
+    }
+
     @Test func `a Redirect Limit of 0 refuses the first redirect`() async throws {
         try await withEchoServer { server in
             let request = resolved(server, "/redirect", settings: settings(maxRedirects: 0))

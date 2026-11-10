@@ -27,7 +27,8 @@ PasteTarget.for                                                   current Tab or
 ResponseBody.presentation, Highlighter.ranges                     bytes -> what to draw
 HexDump                                                           bytes -> the Hex view's text
 Timing(marks)                                                     a request's marks -> its phases
-TimelineText.blocks                                               Response -> the Timeline's lines
+TimelineText.blocks, .showsHeadersNote                            Response -> the Timeline's lines,
+                                                                  and whether any Redirect has headers
 ResponseFileName.suggest                                          Response -> the name Save offers
                                                                   (image/* is decided by the header; the
                                                                   decode is NSImage's, in Raccoon.app)

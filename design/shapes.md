@@ -118,7 +118,10 @@ ResolvedRequest          a RequestDefinition with every {{name}} substituted and
                          percent-encoded params built once. What the transport sends, and
                          what Copy as Curl renders. Only `VariableResolver` can build one
 Response                 status, headers [(name, value)] sorted by name, body Data,
-                         elapsed Duration, byteCount
+                         elapsed Duration, byteCount, url URL? (what answered), method String?
+                         (what was sent to it; nil on a Response nobody sent), redirects
+                         [Redirect]
+Redirect                 status, method, url, location, headers sorted by name
 MessageLine              .error(text) · .note(text)       the line under the URL bar, on the
                          TabModel, never saved: a note goes on the next URL edit, an error on
                          the next send or paste

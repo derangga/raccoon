@@ -92,6 +92,15 @@ struct StatusLineTests {
         #expect(line.token == token)
     }
 
+    @Test(arguments: [(0, ""), (1, "1 redirect"), (2, "2 redirects"), (20, "20 redirects")])
+    func `redirects are counted, and nothing is said at 0`(count: Int, text: String) {
+        #expect(StatusLine(status: 200, elapsed: .zero, byteCount: 0, redirects: count).redirects == text)
+    }
+
+    @Test func `a status line built without redirects says none`() {
+        #expect(StatusLine(status: 200, elapsed: .zero, byteCount: 0).redirects == "")
+    }
+
     @Test(arguments: [
         (Duration.milliseconds(3), "3 ms"),
         (.microseconds(88_400), "88 ms"),

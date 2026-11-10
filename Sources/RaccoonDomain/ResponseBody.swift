@@ -57,8 +57,10 @@ public struct StatusLine: Equatable, Sendable {
     public var token: ColorToken
     public var elapsed: String
     public var size: String
+    /// "" at 0, then "1 redirect", "2 redirects".
+    public var redirects: String
 
-    public init(status: Int, elapsed: Duration, byteCount: Int) {
+    public init(status: Int, elapsed: Duration, byteCount: Int, redirects: Int = 0) {
         code = "\(status)"
         reason = Self.reasons[status] ?? ""
         token = switch status {
@@ -70,6 +72,7 @@ public struct StatusLine: Equatable, Sendable {
         }
         self.elapsed = Self.elapsed(elapsed)
         size = Self.size(byteCount)
+        self.redirects = redirects == 0 ? "" : "\(redirects) redirect\(redirects == 1 ? "" : "s")"
     }
 
     /// "88 ms" under a second, then "1.4 s"; also the live time while sending.

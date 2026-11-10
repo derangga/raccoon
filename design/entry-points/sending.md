@@ -229,7 +229,9 @@ merged them rather than claiming to be raw.
     -> SendDelegate, per redirect                            after both guards above pass
       -> record Redirect(status, method sent,                a refused redirect records nothing:
          response.url, offered url, headers)                 it is the Response
-      -> the method sent next = the returned request's
+      -> the method sent next = the returned request's       also Response.method for the last
+                                                             request: the original, or what the
+                                                             last followed redirect returned
     -> SendDelegate.didFinishCollecting(metrics)             keeps metrics.transactionMetrics.
                                                              It has run by the time data(for:)
                                                              returns (Q9), so nothing waits
@@ -245,7 +247,7 @@ merged them rather than claiming to be raw.
                                                              E: more transactions than requests
                                                              -> escape: every Timing nil, the
                                                              Redirects stay
-  -> Response(..., url, redirects, timing)
+  -> Response(..., url, method, redirects, timing)
 ```
 
 **Redirects come from the delegate, Timing from metrics.** The delegate already sees every
@@ -263,6 +265,9 @@ applies to them too.
 -> showTimeline(response)                        Raccoon.app
   -> TimelineText.blocks(response)               pure        R: none. Every string drawn
   -> label rows in a scroll view, as Headers
+  -> TimelineText.showsHeadersNote(response)     pure        the "macOS merges repeated
+                                                             headers" note, once, when any
+                                                             Redirect has headers
 ```
 
 **Wire Size is shown only where it differs.** URLSession undoes `Content-Encoding` before

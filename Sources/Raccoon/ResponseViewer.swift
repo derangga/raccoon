@@ -13,6 +13,9 @@ final class ResponseViewer: NSView {
     let elapsedLabel = NSTextField(labelWithString: "")
     let sizeLabel = NSTextField(labelWithString: "")
     private let dot = NSTextField(labelWithString: "·")
+    /// "· 2 redirects", after the size; hidden when the send followed none.
+    private let redirectsDot = NSTextField(labelWithString: "·")
+    let redirectsLabel = NSTextField(labelWithString: "")
     let prettyNote = NSTextField(labelWithString: ResponseBody.prettyOffNote)
     /// "900 × 900 · image/webp", where an image body is shown.
     let imageNote = NSTextField(labelWithString: "")
@@ -40,7 +43,12 @@ final class ResponseViewer: NSView {
     private(set) var headerRows: [(name: NSTextField, value: NSTextField)] = []
     let noHeaders = NSTextField(labelWithString: "No headers.")
     /// Always under the last row: the transport merged and sorted them before Raccoon saw them.
-    let headerNote = NSTextField(labelWithString: "macOS merges repeated headers and doesn't keep their order.")
+    let headerNote = NSTextField(labelWithString: TimelineText.headersNote)
+
+    let timelineList = NSScrollView()
+    private let timelineStack = NSStackView()
+    /// Once at the end, when a Redirect's headers are drawn.
+    let timelineNote = NSTextField(labelWithString: TimelineText.headersNote)
 
     /// Which text the view holds, so a render that changes nothing never swaps the storage.
     private var shown: (send: Int, presented: Bool, pretty: Bool)?
@@ -49,7 +57,10 @@ final class ResponseViewer: NSView {
     private var ticking: Task<Void, Never>?
     /// The user's Pretty | Raw choice, kept apart from whether Pretty is possible right now.
     private var wantsPretty = true
-    private var wantsHeaders = false
+    /// The chosen section (Body, Headers, Timeline), kept across sends.
+    private var wantsSection = Section.body
+
+    private enum Section: Int { case body, headers, timeline }
 
     /// The whole coloured body for the current mode; the storage shows it with folds cut.
     private var body = NSAttributedString()
@@ -73,12 +84,13 @@ final class ResponseViewer: NSView {
         textView = ResponseTextView(frame: .zero, textContainer: container)
         gutter = Gutter(textView: textView, theme: theme)
         mode = SegmentedControl(labels: ["Pretty", "Raw"], theme: theme)
-        section = SegmentedControl(labels: ["Body", "Headers"], theme: theme)
+        section = SegmentedControl(labels: ["Body", "Headers", "Timeline"], theme: theme)
         super.init(frame: .zero)
         wantsLayer = true
         buildStatusLine()
         buildBody()
         buildHeaders()
+        buildTimeline()
         theme.paint(self) { viewer, theme in
             viewer.layer?.backgroundColor = theme.color(.backgroundRecessed).cgColor
             viewer.recolorBody()
@@ -100,14 +112,14 @@ final class ResponseViewer: NSView {
         reasonLabel.lineBreakMode = .byTruncatingTail
         // Only the reason truncates; the code, time and size never do.
         reasonLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        for label in [codeLabel, elapsedLabel, dot, sizeLabel, prettyNote, imageNote] {
+        for label in [codeLabel, elapsedLabel, dot, sizeLabel, redirectsDot, redirectsLabel, prettyNote, imageNote] {
             label.setContentCompressionResistancePriority(.required, for: .horizontal)
         }
-        for label in [elapsedLabel, sizeLabel] {
+        for label in [elapsedLabel, sizeLabel, redirectsLabel] {
             label.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
             theme.paint(label) { $0.textColor = $1.color(.textSecondary) }
         }
-        theme.paint(dot) { $0.textColor = $1.color(.textTertiary) }
+        for separator in [dot, redirectsDot] { theme.paint(separator) { $0.textColor = $1.color(.textTertiary) } }
         prettyNote.font = .systemFont(ofSize: 11)
         theme.paint(prettyNote) { $0.textColor = $1.color(.textDisabled) }
         imageNote.font = .systemFont(ofSize: 11)
@@ -123,7 +135,7 @@ final class ResponseViewer: NSView {
 
         let spacer = NSView()
         spacer.setContentHuggingPriority(.init(1), for: .horizontal)
-        let row = NSStackView(views: [spinner, codeLabel, reasonLabel, elapsedLabel, dot, sizeLabel, spacer, prettyNote, imageNote, mode, section])
+        let row = NSStackView(views: [spinner, codeLabel, reasonLabel, elapsedLabel, dot, sizeLabel, redirectsDot, redirectsLabel, spacer, prettyNote, imageNote, mode, section])
         row.spacing = 10
         row.setCustomSpacing(6, after: codeLabel)
         row.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
@@ -277,7 +289,7 @@ final class ResponseViewer: NSView {
     @objc private func allowInsecureTLS() { model.allowInsecureTLS() }
 
     @objc private func sectionChanged() {
-        wantsHeaders = section.selectedSegment == 1
+        wantsSection = Section(rawValue: section.selectedSegment) ?? .body
         render()
     }
 
@@ -317,6 +329,7 @@ final class ResponseViewer: NSView {
         mode.isHidden = true
         section.isHidden = true
         headerList.isHidden = true
+        timelineList.isHidden = true
         switch state {
         case .idle:
             showVoid(title: nil, text: "Send a request to see the Response here.", keycap: true)
@@ -335,15 +348,22 @@ final class ResponseViewer: NSView {
             showVoid(title: nil, text: "Waiting for the server. ⌘. cancels.", keycap: false)
             tick(after: .milliseconds(100))
         case .received(let response):
-            let line = StatusLine(status: response.status, elapsed: response.elapsed, byteCount: response.byteCount)
+            let line = StatusLine(status: response.status, elapsed: response.elapsed, byteCount: response.byteCount,
+                                  redirects: response.redirects.count)
             setStatus((line.code, line.reason, line.token))
             elapsedLabel.stringValue = line.elapsed
             sizeLabel.stringValue = line.size
             [elapsedLabel, dot, sizeLabel].forEach { $0.isHidden = false }
+            redirectsLabel.stringValue = line.redirects
+            [redirectsDot, redirectsLabel].forEach { $0.isHidden = line.redirects.isEmpty }
             section.isHidden = false
             section.setLabel("Headers \(response.headers.count)", forSegment: 1)
-            section.selectedSegment = wantsHeaders ? 1 : 0
-            if wantsHeaders { drawHeaders(response.headers) } else { drawBody(response) }
+            section.selectedSegment = wantsSection.rawValue
+            switch wantsSection {
+            case .body: drawBody(response)
+            case .headers: drawHeaders(response.headers)
+            case .timeline: drawTimeline(response)
+            }
         case .failed(let error, let after):
             setStatus(("Failed", "", .statusFailed))
             elapsedLabel.stringValue = "after " + StatusLine.elapsed(after)
@@ -559,49 +579,131 @@ final class ResponseViewer: NSView {
         scroll.isHidden = true
         voidStack.isHidden = true
         headerList.isHidden = false
-        headerRows = headers.map { header in
-            let name = NSTextField(labelWithString: header.name)
-            let value = NSTextField(labelWithString: header.value)
-            name.textColor = theme.color(.textSecondary)
-            value.textColor = theme.color(.text)
-            value.toolTip = header.value
-            for label in [name, value] {
-                label.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-                label.lineBreakMode = .byTruncatingTail
-                label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-            }
-            return (name, value)
-        }
-        let rows = headerRows.map { row in
-            let line = NSStackView(views: [row.name, row.value])
-            line.spacing = 0
-            line.distribution = .fill
-            line.alignment = .firstBaseline
-            line.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
-            // The name column is 220 pt when there is room; the value takes the rest and truncates first.
-            row.name.widthAnchor.constraint(lessThanOrEqualToConstant: 220).isActive = true
-            let wide = row.name.widthAnchor.constraint(equalToConstant: 220)
-            wide.priority = .init(750)
-            wide.isActive = true
-            row.value.setContentHuggingPriority(.init(1), for: .horizontal)
-            row.value.setContentCompressionResistancePriority(.init(250), for: .horizontal)
-            let rule = NSBox()
-            rule.boxType = .custom
-            rule.borderWidth = 0
-            rule.fillColor = theme.color(.border)
-            rule.heightAnchor.constraint(equalToConstant: 1).isActive = true
-            let cell = NSStackView(views: [line, rule])
-            cell.orientation = .vertical
-            cell.alignment = .leading
-            cell.spacing = 0
-            line.widthAnchor.constraint(equalTo: cell.widthAnchor).isActive = true
-            rule.widthAnchor.constraint(equalTo: cell.widthAnchor).isActive = true
-            return cell
-        }
+        headerRows = headers.map(headerLabels)
+        let rows = headerRows.map(headerRow)
         noHeaders.isHidden = !headers.isEmpty
         headerStack.setViews(rows + [noHeaders, headerNote], in: .top)
         headerStack.setCustomSpacing(8, after: rows.last ?? noHeaders)
         for row in rows { row.widthAnchor.constraint(equalTo: headerStack.widthAnchor).isActive = true }
+    }
+
+    private func headerLabels(_ header: Response.Header) -> (name: NSTextField, value: NSTextField) {
+        let name = NSTextField(labelWithString: header.name)
+        let value = NSTextField(labelWithString: header.value)
+        name.textColor = theme.color(.textSecondary)
+        value.textColor = theme.color(.text)
+        value.toolTip = header.value
+        for label in [name, value] {
+            label.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+            label.lineBreakMode = .byTruncatingTail
+            label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        }
+        return (name, value)
+    }
+
+    /// One row of a two-column list with its rule underneath: Headers and the Timeline draw alike.
+    private func headerRow(_ row: (name: NSTextField, value: NSTextField)) -> NSView {
+        let line = NSStackView(views: [row.name, row.value])
+        line.spacing = 0
+        line.distribution = .fill
+        line.alignment = .firstBaseline
+        line.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
+        // The name column is 220 pt when there is room; the value takes the rest and truncates first.
+        row.name.widthAnchor.constraint(lessThanOrEqualToConstant: 220).isActive = true
+        let wide = row.name.widthAnchor.constraint(equalToConstant: 220)
+        wide.priority = .init(750)
+        wide.isActive = true
+        row.value.setContentHuggingPriority(.init(1), for: .horizontal)
+        row.value.setContentCompressionResistancePriority(.init(250), for: .horizontal)
+        let rule = NSBox()
+        rule.boxType = .custom
+        rule.borderWidth = 0
+        rule.fillColor = theme.color(.border)
+        rule.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        let cell = NSStackView(views: [line, rule])
+        cell.orientation = .vertical
+        cell.alignment = .leading
+        cell.spacing = 0
+        line.widthAnchor.constraint(equalTo: cell.widthAnchor).isActive = true
+        rule.widthAnchor.constraint(equalTo: cell.widthAnchor).isActive = true
+        return cell
+    }
+
+    // MARK: Timeline
+
+    private func buildTimeline() {
+        timelineNote.font = .systemFont(ofSize: 11)
+        theme.paint(timelineNote) { $0.textColor = $1.color(.textTertiary) }
+        timelineStack.orientation = .vertical
+        timelineStack.alignment = .leading
+        timelineStack.spacing = 0
+        timelineStack.translatesAutoresizingMaskIntoConstraints = false
+        let document = FlippedView()
+        document.translatesAutoresizingMaskIntoConstraints = false
+        document.addSubview(timelineStack)
+        timelineList.documentView = document
+        timelineList.hasVerticalScroller = true
+        timelineList.autohidesScrollers = true
+        timelineList.drawsBackground = false
+        timelineList.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(timelineList)
+        NSLayoutConstraint.activate([
+            timelineList.topAnchor.constraint(equalTo: topAnchor, constant: 35),
+            timelineList.leadingAnchor.constraint(equalTo: leadingAnchor),
+            timelineList.trailingAnchor.constraint(equalTo: trailingAnchor),
+            timelineList.bottomAnchor.constraint(equalTo: bottomAnchor),
+            document.topAnchor.constraint(equalTo: timelineList.contentView.topAnchor),
+            document.leadingAnchor.constraint(equalTo: timelineList.contentView.leadingAnchor),
+            document.widthAnchor.constraint(equalTo: timelineList.contentView.widthAnchor),
+            timelineStack.topAnchor.constraint(equalTo: document.topAnchor, constant: 8),
+            timelineStack.leadingAnchor.constraint(equalTo: document.leadingAnchor, constant: 12),
+            timelineStack.trailingAnchor.constraint(equalTo: document.trailingAnchor, constant: -12),
+            timelineStack.bottomAnchor.constraint(equalTo: document.bottomAnchor, constant: -8),
+        ])
+    }
+
+    /// Each Redirect, then the Response, as `TimelineText` words them, separated by a rule.
+    private func drawTimeline(_ response: Response) {
+        shown = nil
+        scroll.isHidden = true
+        voidStack.isHidden = true
+        timelineList.isHidden = false
+        var views: [NSView] = []
+        for (index, block) in TimelineText.blocks(response).enumerated() {
+            if index > 0 { views.append(blockRule()) }
+            views.append(titleLabel(block))
+            views += block.rows.map { headerRow(headerLabels($0)) }
+        }
+        let notes: [NSView] = TimelineText.showsHeadersNote(response) ? [timelineNote] : []
+        timelineStack.setViews(views + notes, in: .top)
+        for (view, next) in zip(views, views.dropFirst()) where view is NSBox || next is NSBox {
+            timelineStack.setCustomSpacing(8, after: view)
+        }
+        if let last = views.last, !notes.isEmpty { timelineStack.setCustomSpacing(8, after: last) }
+        // Every row and rule spans the list; the title and the note keep their own width.
+        for view in views where !(view is NSTextField) { view.widthAnchor.constraint(equalTo: timelineStack.widthAnchor).isActive = true }
+    }
+
+    /// "302 Found" in its status color, then the rest of the first line in the text color.
+    private func titleLabel(_ block: TimelineText.Block) -> NSTextField {
+        let mono = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        let title = NSMutableAttributedString(string: block.line, attributes: [.font: mono, .foregroundColor: theme.color(.text)])
+        title.addAttributes([.font: NSFont.monospacedSystemFont(ofSize: 12, weight: .bold), .foregroundColor: theme.color(block.token)],
+                            range: NSRange(location: 0, length: (block.statusText as NSString).length))
+        let label = NSTextField(labelWithAttributedString: title)
+        label.lineBreakMode = .byTruncatingTail
+        label.toolTip = block.line
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        return label
+    }
+
+    private func blockRule() -> NSBox {
+        let rule = NSBox()
+        rule.boxType = .custom
+        rule.borderWidth = 0
+        rule.fillColor = theme.color(.border)
+        rule.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        return rule
     }
 
     private func bodyText(_ response: Response, _ presented: TabModel.Presented?, pretty: Bool) -> NSAttributedString {
@@ -621,12 +723,13 @@ final class ResponseViewer: NSView {
         reasonLabel.stringValue = status?.reason ?? ""
         for label in [codeLabel, reasonLabel] { label.textColor = theme.color(status?.token ?? .text) }
         reasonLabel.toolTip = status?.reason
-        [elapsedLabel, dot, sizeLabel].forEach { $0.isHidden = true }
+        [elapsedLabel, dot, sizeLabel, redirectsDot, redirectsLabel].forEach { $0.isHidden = true }
     }
 
     private func showVoid(title: String?, text: String, keycap showsKeycap: Bool, failed: Bool = false) {
         shown = nil
         headerList.isHidden = true
+        timelineList.isHidden = true
         scroll.isHidden = true
         voidStack.isHidden = false
         voidTitle.stringValue = title ?? ""

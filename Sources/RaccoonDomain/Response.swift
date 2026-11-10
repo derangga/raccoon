@@ -17,13 +17,26 @@ public struct Response: Equatable, Sendable {
     public var body: Data
     public var elapsed: Duration
     public var byteCount: Int
+    /// The URL that produced this Response: the last one, when the send followed redirects.
+    public var url: URL?
+    /// The method of the request that got this Response: the original, or what the last followed
+    /// redirect sent. Nil for a Response nobody sent, such as a scripted one.
+    public var method: String?
+    /// In the order they were followed; empty when the send was not redirected.
+    public var redirects: [Redirect]
 
-    public init(status: Int, headers: [Header], body: Data, elapsed: Duration, byteCount: Int) {
+    public init(
+        status: Int, headers: [Header], body: Data, elapsed: Duration, byteCount: Int,
+        url: URL? = nil, method: String? = nil, redirects: [Redirect] = []
+    ) {
         self.status = status
         self.headers = headers
         self.body = body
         self.elapsed = elapsed
         self.byteCount = byteCount
+        self.url = url
+        self.method = method
+        self.redirects = redirects
     }
 }
 
