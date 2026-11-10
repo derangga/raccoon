@@ -53,9 +53,12 @@ showResponse
   ⚠ JSON did not parse   → not an error: .raw. A server that says json and sends HTML
                            is the server's fact
   ⚠ body does not nest   → not an error: no Fold Regions, no chevrons
-  ⚠ metrics never arrive, or their count is not Redirects + 1
+  ⚠ metrics absent, or more transactions than Redirects + 1
                          → escape: every Timing is nil, the Timeline says "Timing was not
                            reported for this send.", the Redirects stay
+  ⚠ fewer transactions than Redirects + 1 (URLSession keeps the last 20, environment-facts.md)
+                         → not an error: paired from the end, the earliest Redirects have
+                           no Timing
   ⚠ a Timing mark missing, or an end before its start (marks are wall-clock Dates)
                          → escape: that phase is nil, never negative. elapsed is
                            ContinuousClock and is not touched

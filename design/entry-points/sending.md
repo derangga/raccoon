@@ -230,16 +230,21 @@ merged them rather than claiming to be raw.
       -> record Redirect(status, method sent,                a refused redirect records nothing:
          response.url, offered url, headers)                 it is the Response
       -> the method sent next = the returned request's
-    -> SendDelegate.didFinishCollecting(metrics)             keeps metrics.transactionMetrics
-                                                             Q9 decides whether the transport
-                                                             waits for it, at most 100 ms
-                                                             E: never arrives -> escape: every
+    -> SendDelegate.didFinishCollecting(metrics)             keeps metrics.transactionMetrics.
+                                                             It has run by the time data(for:)
+                                                             returns (Q9), so nothing waits
+                                                             E: absent anyway -> escape: every
                                                              Timing is nil
   -> Timing.Marks(transaction)                   RaccoonData a field copy                R: none
   -> Timing(marks)                               pure        E: a mark missing, or an end before
                                                              its start -> that phase is nil
-  -> pair transactions with Redirects + the final pure       E: counts differ -> escape: every
-                                                             Timing nil, the Redirects stay
+  -> pair transactions with Redirects + the final pure       aligned from the end: the metrics
+                                                             keep only the last 20 transactions
+                                                             (Q10), so after 20 redirects the
+                                                             first Redirect has no Timing
+                                                             E: more transactions than requests
+                                                             -> escape: every Timing nil, the
+                                                             Redirects stay
   -> Response(..., url, redirects, timing)
 ```
 

@@ -295,4 +295,161 @@ struct URLSessionFactsTests {
             #expect(ContinuousClock.now - start < .seconds(2))
         }
     }
+
+    // MARK: Metrics
+
+    /// Keeps the metrics of the task it was passed to. Trusts the echo server's self-signed certificate.
+    final class MetricsWatcher: NSObject, URLSessionTaskDelegate {
+        let collected = Mutex<URLSessionTaskMetrics?>(nil)
+
+        func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
+            collected.withLock { $0 = metrics }
+        }
+
+        func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge) async
+            -> (URLSession.AuthChallengeDisposition, URLCredential?) {
+            guard let trust = challenge.protectionSpace.serverTrust else { return (.performDefaultHandling, nil) }
+            return (.useCredential, URLCredential(trust: trust))
+        }
+    }
+
+    /// The transport's session: ephemeral, with no cache and no cookies.
+    func transportSession() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpCookieStorage = nil
+        configuration.urlCache = nil
+        return URLSession(configuration: configuration)
+    }
+
+    /// One send with its own watcher, as the transport does. `metrics` is read the instant `data(for:delegate:)` returns, with no wait.
+    func measured(_ session: URLSession, _ url: URL) async throws -> (body: Data, metrics: URLSessionTaskMetrics?) {
+        let watcher = MetricsWatcher()
+        let (body, _) = try await session.data(for: URLRequest(url: url), delegate: watcher)
+        return (body, watcher.collected.withLock { $0 })
+    }
+
+    @Test func `the delegate has the metrics by the time data(for:delegate:) returns`() async throws {
+        try await withEchoServer { server in
+            let session = transportSession()
+            defer { session.finishTasksAndInvalidate() }
+            // 60 sends, three kinds, none ever late: the callback runs before the async call resumes.
+            for path in ["/echo", "/chain/3", "/gzip"] {
+                for _ in 0..<20 {
+                    let (_, metrics) = try await measured(session, server.url(path))
+                    #expect(metrics != nil)
+                }
+            }
+        }
+    }
+
+    @Test(arguments: [0, 1, 3, 19])
+    func `after N followed redirects there are N + 1 transactions, in send order, each with its response`(redirects: Int) async throws {
+        try await withEchoServer { server in
+            let session = transportSession()
+            defer { session.finishTasksAndInvalidate() }
+
+            let metrics = try #require(try await measured(session, server.url("/chain/\(redirects)")).metrics)
+            let transactions = metrics.transactionMetrics
+
+            #expect(transactions.count == redirects + 1)
+            #expect(transactions.map { $0.request.url?.path } == (0...redirects).reversed().map { "/chain/\($0)" })
+            #expect(transactions.map { ($0.response as? HTTPURLResponse)?.statusCode } == Array(repeating: 302, count: redirects) + [200])
+            #expect(transactions.map { $0.response?.url?.path } == (0...redirects).reversed().map { "/chain/\($0)" })
+            let starts = transactions.compactMap(\.fetchStartDate)
+            #expect(starts == starts.sorted())
+            #expect(metrics.redirectCount == redirects)
+        }
+    }
+
+    /// The most URLSession follows is 20 (the redirect cap), and the metrics keep only the last 20 transactions.
+    @Test func `after 20 followed redirects the metrics hold 20 transactions and have dropped the first request`() async throws {
+        try await withEchoServer { server in
+            let session = transportSession()
+            defer { session.finishTasksAndInvalidate() }
+
+            let metrics = try #require(try await measured(session, server.url("/chain/20")).metrics)
+            let transactions = metrics.transactionMetrics
+
+            #expect(server.requests.count == 21)
+            #expect(transactions.count == 20)
+            #expect(transactions.first?.request.url?.path == "/chain/19")
+            #expect(transactions.last?.response?.url?.path == "/chain/0")
+            #expect(metrics.redirectCount == 19)
+        }
+    }
+
+    /// With a cache a repeated send adds a transaction served from it, so the Timeline must come from a session with no cache.
+    @Test func `with the default ephemeral cache a repeated redirect chain gains a local cache transaction`() async throws {
+        try await withEchoServer { server in
+            let session = URLSession(configuration: .ephemeral)
+            defer { session.finishTasksAndInvalidate() }
+
+            let first = try #require(try await measured(session, server.url("/chain/3")).metrics)
+            let second = try #require(try await measured(session, server.url("/chain/3")).metrics)
+
+            #expect(first.transactionMetrics.count == 4)
+            #expect(second.transactionMetrics.count == 5)
+            #expect(second.transactionMetrics.filter { $0.resourceFetchType == .localCache }.count == 1)
+        }
+    }
+
+    @Test func `countOfResponseBodyBytesReceived is the gzip size on the wire, smaller than the body data(for:) returns`() async throws {
+        try await withEchoServer { server in
+            let session = transportSession()
+            defer { session.finishTasksAndInvalidate() }
+
+            let (body, metrics) = try await measured(session, server.url("/gzip"))
+            let transaction = try #require(metrics?.transactionMetrics.last)
+
+            #expect(EchoServer.gzipBody.count == 36)
+            #expect(body.count == 16)
+            #expect(transaction.countOfResponseBodyBytesReceived == 36)
+            #expect(transaction.countOfResponseBodyBytesAfterDecoding == 16)
+        }
+    }
+
+    /// A second send on the same session reuses the connection, so there is no DNS, connect or TLS phase to draw.
+    @Test(arguments: [false, true])
+    func `a second send over a kept-alive connection has no lookup, connect or TLS dates`(tls: Bool) async throws {
+        try await withEchoServer(tls: tls) { server in
+            let session = transportSession()
+            defer { session.finishTasksAndInvalidate() }
+
+            let first = try #require(try await measured(session, server.url("/keepalive")).metrics?.transactionMetrics.last)
+            let second = try #require(try await measured(session, server.url("/keepalive")).metrics?.transactionMetrics.last)
+
+            #expect(first.isReusedConnection == false)
+            #expect(first.domainLookupStartDate != nil && first.domainLookupEndDate != nil)
+            #expect(first.connectStartDate != nil && first.connectEndDate != nil)
+            #expect((first.secureConnectionStartDate != nil && first.secureConnectionEndDate != nil) == tls)
+
+            #expect(second.isReusedConnection)
+            #expect(second.domainLookupStartDate == nil && second.domainLookupEndDate == nil)
+            #expect(second.connectStartDate == nil && second.connectEndDate == nil)
+            #expect(second.secureConnectionStartDate == nil && second.secureConnectionEndDate == nil)
+            #expect(second.fetchStartDate != nil && second.requestStartDate != nil && second.responseEndDate != nil)
+            #expect(server.requests.count == 2)
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func `the protocol is http 1.1, TLS 1.3 only over TLS, and the fetch, request and response dates are always set`(tls: Bool) async throws {
+        try await withEchoServer(tls: tls) { server in
+            let session = transportSession()
+            defer { session.finishTasksAndInvalidate() }
+
+            let metrics = try #require(try await measured(session, server.url("/chain/3")).metrics)
+
+            for transaction in metrics.transactionMetrics {
+                #expect(transaction.resourceFetchType == .networkLoad)
+                #expect(transaction.networkProtocolName == "http/1.1")
+                #expect(transaction.negotiatedTLSProtocolVersion == (tls ? .TLSv13 : nil))
+                #expect(transaction.fetchStartDate != nil)
+                #expect(transaction.requestStartDate != nil)
+                #expect(transaction.requestEndDate != nil)
+                #expect(transaction.responseStartDate != nil)
+                #expect(transaction.responseEndDate != nil)
+            }
+        }
+    }
 }

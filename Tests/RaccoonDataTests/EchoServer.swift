@@ -12,11 +12,13 @@ func withEchoServer<T>(tls: Bool = false, _ body: (EchoServer) async throws -> T
 }
 
 /// A test-only HTTP/1.1 server that answers with the raw bytes it received, so a test can see
-/// exactly what URLSession put on the wire. Every reply closes the connection.
+/// exactly what URLSession put on the wire. Every reply closes the connection, except /keepalive's.
 ///
 ///     /delay/<ms>   waits, then echoes
 ///     /redirect     302 to /echo; /redirect/<status> uses that status instead
 ///     /loop         302 to /loop, forever
+///     /chain/<n>    302 to /chain/<n-1>, and /chain/0 echoes: n redirects, then the echo
+///     /keepalive    echoes, then leaves the connection open for the next request
 ///     /bytes/<n>    a body of n bytes
 ///     /headers      two Set-Cookie headers and two others out of alphabetical order
 ///     /gzip         "compressed hello", gzip-encoded with Content-Encoding: gzip, whatever was asked
@@ -139,6 +141,17 @@ final class EchoServer: Sendable {
             }
         case ("redirect", let status):
             send(status: Self.reason(status ?? 302), headers: ["Location: /echo"], body: Data(), on: connection)
+        case ("chain", let remaining?) where remaining > 0:
+            send(status: "302 Found", headers: ["Location: /chain/\(remaining - 1)"], body: Data(), on: connection)
+        case ("chain", _):
+            send(status: "200 OK", headers: [], body: request, on: connection)
+        case ("keepalive", _):
+            let head = ["HTTP/1.1 200 OK", "Content-Length: \(request.count)", "Content-Type: application/octet-stream",
+                        "Connection: keep-alive"].joined(separator: "\r\n") + "\r\n\r\n"
+            connection.send(content: Data(head.utf8) + request, completion: .contentProcessed { [weak self] error in
+                guard error == nil else { return connection.cancel() }
+                self?.receive(on: connection, buffer: Data())
+            })
         case ("loop", _):
             send(status: "302 Found", headers: ["Location: /loop"], body: Data(), on: connection)
         case ("headers", _):
