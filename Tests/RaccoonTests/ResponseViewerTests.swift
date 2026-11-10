@@ -296,6 +296,15 @@ struct ResponseViewerTests {
         viewer.section.sendAction(viewer.section.action, to: viewer.section.target)
     }
 
+    @Test func `Headers and Timeline start under the status line's rule, 45 pt down, like the body`() async {
+        let (_, viewer) = await received(Response(status: 200, headers: [], body: Data(), elapsed: .zero, byteCount: 0))
+        viewer.frame = NSRect(x: 0, y: 0, width: 800, height: 400)
+        viewer.layoutSubtreeIfNeeded()
+        // A 44 pt status row and its 1 pt rule; the viewer is not flipped, so the top edge is maxY.
+        #expect(viewer.headerList.frame.maxY == 355)
+        #expect(viewer.timelineList.frame.maxY == 355)
+    }
+
     @Test func `Headers shows one row per header, sorted as received, with the merged-headers note`() async {
         // URLSession has already joined the two Set-Cookie headers and sorted by name.
         let headers = [

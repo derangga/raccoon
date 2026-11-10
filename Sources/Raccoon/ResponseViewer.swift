@@ -4,6 +4,15 @@ import RaccoonDomain
 
 /// The status line, the Body toolbar and the body (design-system.md §6 Response viewer).
 final class ResponseViewer: NSView {
+    /// Row heights, each with a 1 pt rule under it.
+    private enum Chrome {
+        static let statusRow: CGFloat = 44
+        static let toolbarRow: CGFloat = 38
+        /// Where the body starts under the status line alone, and under the Body toolbar too.
+        static let bodyTop = statusRow + 1
+        static let bodyTopWithToolbar = bodyTop + toolbarRow + 1
+    }
+
     private var model: TabModel
     private let theme: ThemeEnvironment
 
@@ -32,7 +41,7 @@ final class ResponseViewer: NSView {
     let searchButton: IconButton
     let copyButton: IconButton
     let findPanel: FindPanel
-    /// 35 under the status line alone, 66 under the Body toolbar too.
+    /// `Chrome.bodyTop` under the status line alone, `bodyTopWithToolbar` under the Body toolbar too.
     private var scrollTop: NSLayoutConstraint!
     /// Left of a legacy scroller, or 16 pt in when scrollers overlay.
     private var findTrailing: NSLayoutConstraint!
@@ -109,8 +118,8 @@ final class ResponseViewer: NSView {
         storage.addLayoutManager(layoutManager)
         textView = ResponseTextView(frame: .zero, textContainer: container)
         gutter = Gutter(textView: textView, theme: theme)
-        mode = SegmentedControl(labels: ["Pretty", "Raw"], theme: theme)
-        section = SegmentedControl(labels: ["Body", "Headers", "Timeline"], theme: theme)
+        mode = SegmentedControl(labels: ["Pretty", "Raw"], style: .underline, theme: theme)
+        section = SegmentedControl(labels: ["Body", "Headers", "Timeline"], style: .track, theme: theme)
         searchButton = IconButton(symbol: "magnifyingglass", label: "Find (⌘F)", theme: theme)
         copyButton = IconButton(symbol: "doc.on.doc", label: "Copy Response Body", theme: theme)
         findPanel = FindPanel(theme: theme)
@@ -177,7 +186,7 @@ final class ResponseViewer: NSView {
             row.topAnchor.constraint(equalTo: topAnchor),
             row.leadingAnchor.constraint(equalTo: leadingAnchor),
             row.trailingAnchor.constraint(equalTo: trailingAnchor),
-            row.heightAnchor.constraint(equalToConstant: 34),
+            row.heightAnchor.constraint(equalToConstant: Chrome.statusRow),
             rule.topAnchor.constraint(equalTo: row.bottomAnchor),
             rule.leadingAnchor.constraint(equalTo: leadingAnchor),
             rule.trailingAnchor.constraint(equalTo: trailingAnchor),
@@ -216,14 +225,16 @@ final class ResponseViewer: NSView {
         bodyToolbar.addSubview(toolbarRule)
         addSubview(bodyToolbar)
         NSLayoutConstraint.activate([
-            bodyToolbar.topAnchor.constraint(equalTo: topAnchor, constant: 35),
+            bodyToolbar.topAnchor.constraint(equalTo: topAnchor, constant: Chrome.bodyTop),
             bodyToolbar.leadingAnchor.constraint(equalTo: leadingAnchor),
             bodyToolbar.trailingAnchor.constraint(equalTo: trailingAnchor),
-            bodyToolbar.heightAnchor.constraint(equalToConstant: 31),
+            bodyToolbar.heightAnchor.constraint(equalToConstant: Chrome.toolbarRow + 1),
             row.topAnchor.constraint(equalTo: bodyToolbar.topAnchor),
             row.leadingAnchor.constraint(equalTo: bodyToolbar.leadingAnchor),
             row.trailingAnchor.constraint(equalTo: bodyToolbar.trailingAnchor),
-            row.heightAnchor.constraint(equalToConstant: 30),
+            row.heightAnchor.constraint(equalToConstant: Chrome.toolbarRow),
+            // The underline runs the row's full height, down to the rule.
+            mode.heightAnchor.constraint(equalTo: row.heightAnchor),
             toolbarRule.topAnchor.constraint(equalTo: row.bottomAnchor),
             toolbarRule.leadingAnchor.constraint(equalTo: bodyToolbar.leadingAnchor),
             toolbarRule.trailingAnchor.constraint(equalTo: bodyToolbar.trailingAnchor),
@@ -234,14 +245,14 @@ final class ResponseViewer: NSView {
     /// Shown in the Body section of a received Response; `searchable` is false for an image.
     private func showToolbar(searchable: Bool) {
         bodyToolbar.isHidden = false
-        scrollTop.constant = 66
+        scrollTop.constant = Chrome.bodyTopWithToolbar
         searchButton.isEnabled = searchable
         copyButton.isEnabled = searchable
     }
 
     private func hideToolbar() {
         bodyToolbar.isHidden = true
-        scrollTop.constant = 35
+        scrollTop.constant = Chrome.bodyTop
     }
 
     private func buildBody() {
@@ -311,7 +322,7 @@ final class ResponseViewer: NSView {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
         }
-        scrollTop = scroll.topAnchor.constraint(equalTo: topAnchor, constant: 35)
+        scrollTop = scroll.topAnchor.constraint(equalTo: topAnchor, constant: Chrome.bodyTop)
         NSLayoutConstraint.activate([
             scrollTop,
             scroll.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
@@ -368,7 +379,7 @@ final class ResponseViewer: NSView {
         headerList.translatesAutoresizingMaskIntoConstraints = false
         addSubview(headerList)
         NSLayoutConstraint.activate([
-            headerList.topAnchor.constraint(equalTo: topAnchor, constant: 35),
+            headerList.topAnchor.constraint(equalTo: topAnchor, constant: Chrome.bodyTop),
             headerList.leadingAnchor.constraint(equalTo: leadingAnchor),
             headerList.trailingAnchor.constraint(equalTo: trailingAnchor),
             headerList.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -607,7 +618,7 @@ final class ResponseViewer: NSView {
             redirectsLabel.stringValue = line.redirects
             [redirectsDot, redirectsLabel].forEach { $0.isHidden = line.redirects.isEmpty }
             section.isHidden = false
-            section.setLabel("Headers \(response.headers.count)", forSegment: 1)
+            section.setCount(response.headers.count, forSegment: 1)
             section.selectedSegment = wantsSection.rawValue
             switch wantsSection {
             case .body: drawBody(response)
@@ -928,7 +939,7 @@ final class ResponseViewer: NSView {
         timelineList.translatesAutoresizingMaskIntoConstraints = false
         addSubview(timelineList)
         NSLayoutConstraint.activate([
-            timelineList.topAnchor.constraint(equalTo: topAnchor, constant: 35),
+            timelineList.topAnchor.constraint(equalTo: topAnchor, constant: Chrome.bodyTop),
             timelineList.leadingAnchor.constraint(equalTo: leadingAnchor),
             timelineList.trailingAnchor.constraint(equalTo: trailingAnchor),
             timelineList.bottomAnchor.constraint(equalTo: bottomAnchor),

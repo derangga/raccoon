@@ -227,7 +227,7 @@ A 4 pt base. Sizes used: 2, 4, 6, 8, 10, 12, 16, 24.
 | Section bar | 28 pt, 2 pt accent underline |
 | Auth pane | 16 pt padding; left column 240 pt, 1 pt rule, 16 pt gaps; "Auth type" 16 pt line, pop-up 28 pt; heading 22 pt line; None's empty state 8 pt between symbol, title and message; label column 80 pt; fields 26 pt, 320 pt max, rows 36 pt apart; stacks below 600 pt of pane width |
 | Key/value row | 28 pt; header 24 pt; columns 30 pt / 36 % / rest / 30 pt |
-| Status line | 34 pt |
+| Status line | 44 pt; the Body toolbar under it 38 pt |
 | Banner | 36 pt min, grows to two lines |
 | Split handle | 6 pt hit area, 32 × 3 pt grip |
 | Radii | 4 pt small controls and chips, 6 pt fields and buttons, 8 pt cards and menus, 10 pt window |
@@ -235,7 +235,8 @@ A 4 pt base. Sizes used: 2, 4, 6, 8, 10, 12, 16, 24.
 ## 5. Motion
 
 Decided per motion in [surfaces.md §7](./surfaces.md#7-behavior-motion-decisions-from-animate):
-Tabs and the Pretty/Raw switch do not animate; the spinner is the system one after 150 ms;
+Tabs do not animate; the segmented controls' thumb and underline slide on a spring, and what
+they switch swaps at once; the spinner is the system one after 150 ms;
 banners use a 200 ms ease-out `NSAnimationContext` group (150 ms out), reduced to an opacity
 cross-fade under Reduce Motion. The Collection Export sheet's step checks fade in, 150 ms
 ease-out, opacity only, 60 ms apart (§6 Collection Export sheet). Nothing else in v1 moves. Hover and press states change on
@@ -539,17 +540,33 @@ as it was**, redrawing the field at the committed number, as a value field in th
 
 ### Response viewer
 
-Anatomy: status line (34 pt), then the Body toolbar (30 pt, Body section only), over the body
+Anatomy: status line (44 pt), then the Body toolbar (38 pt, Body section only), over the body
 area, all on `backgroundRecessed`.
 
-- **Status line**: leading, Body | Headers N | Timeline (received only), 12 pt in from the
+- **Segmented control** (`SegmentedControl`), in three styles. Titles are 12 pt. A segment is
+  as wide as its semibold title, so choosing one never moves its neighbours. A count, the 11
+  of "Headers 11", is 11 pt regular with tabular figures, 5 pt after the title, in
+  `textTertiary` (`textSecondary` while selected). A click moves the thumb or underline on a
+  spring (§5, surfaces.md §7); titles recolour on the click's frame, and so does hover. A
+  disabled segment's title is `textDisabled`.
+  - *Track* (Body | Headers N | Timeline): 28 pt high, 8 pt radius, a `selection` fill at
+    60 %, 2 pt padding. Segments are the title plus 12 pt each side. The selected segment is a
+    6 pt radius thumb in `backgroundElevated` with a 0.5 pt `border` at 70 % and a 1 pt
+    shadow, its title `text` semibold. An unselected title is `textSecondary`, and `text`
+    under the pointer.
+  - *Underline* (Pretty | Raw): as tall as its row, no fill, no border. Segments are the title
+    plus 3 pt each side, 14 pt apart. The selected title is `text` semibold, with a 2 pt `text`
+    underline along the bottom of the row, above its rule. Unselected and hover as in Track.
+  - *Boxed* (the Inspector's pane switch, unchanged): 24 pt, 1 pt `border`, 6 pt radius,
+    `backgroundElevated`, 22 pt segments split by 1 pt rules, the selected one `selection`.
+- **Status line**: leading, Body | Headers N | Timeline (received only, the Track style), 12 pt in from the
   edge; it never truncates. Trailing, in every state so it never moves when a Response lands:
   the spinner, the status code + reason in `status1xx`…`status5xx` (SF Mono 12 bold), then
   elapsed time, size and "2 redirects" in `textSecondary` with tabular figures, separated by
   `textTertiary` middle dots, 12 pt in from the trailing edge. The reason end-truncates first,
   then the redirects count hides; the code, time and size never truncate.
-- **Body toolbar**: 30 pt, 12 pt side padding, a 1 pt `border` rule under it. Leading: Pretty |
-  Raw, then the note in `textDisabled` 11 pt ("Pretty is off above 5 MB", "Showing the first
+- **Body toolbar**: 38 pt, 12 pt side padding, a 1 pt `border` rule under it. Leading: Pretty |
+  Raw (the Underline style), then the note in `textDisabled` 11 pt ("Pretty is off above 5 MB", "Showing the first
   1 MB of 3.2 MB" with Save to File… beside it, or an image's "900 × 900 · image/webp"); the
   note truncates first. Trailing: Search (`magnifyingglass`, tooltip "Find (⌘F)") and Copy
   (`doc.on.doc`, tooltip "Copy Response Body"), 4 pt apart. For an image both are disabled
