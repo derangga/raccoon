@@ -148,6 +148,30 @@ _Avoid_: Section, node, block
 To show a Fold Region on its opening line only, as `{ … }`; unfolding shows its lines again. The text keeps every line, so Copy and selection still see a folded one. Fold state is view state: every send starts unfolded and it is never saved.
 _Avoid_: Collapse, expand, hide
 
+**Redirect**:
+One 3xx a send followed on its way to the Response: the URL that answered, the method sent to it, its status, its headers and the Location it pointed to. A redirect the send refused is not a Redirect; it is the Response.
+_Avoid_: Hop, leg, bounce, transaction
+
+**Timeline**:
+The Response viewer's third section: each Redirect, then the Response, in the order they were sent, each with its Timing.
+_Avoid_: Waterfall, trace, history
+
+**Timing**:
+How long one request of a send spent in each phase (DNS, Connect, TLS, Send, Waiting, Download), as URLSession measured it. A phase it skipped is absent, not 0.
+_Avoid_: Metrics, latency, profile
+
+**Wire Size**:
+A Response body's byte count as it crossed the network, before URLSession undid its `Content-Encoding`.
+_Avoid_: Transfer size, compressed size
+
+**Hex view**:
+A binary body drawn as `hexdump -C` draws it: offset, sixteen bytes in hex, then those bytes as ASCII.
+_Avoid_: Hex editor, binary viewer
+
+**Save Response Body**:
+Writing a received body's bytes, as the viewer holds them, to a file the user picks.
+_Avoid_: Download, export (Export is Postman Export)
+
 ### Appearance
 
 **Theme**:

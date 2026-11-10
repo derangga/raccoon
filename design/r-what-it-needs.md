@@ -25,6 +25,10 @@ VariableKinds.suggestions                                         prefix -> the 
 VariableScope, VariableResolver                                   definition -> ResolvedRequest
 PasteTarget.for                                                   current Tab or a new one
 ResponseBody.presentation, Highlighter.ranges                     bytes -> what to draw
+HexDump                                                           bytes -> the Hex view's text
+Timing(marks)                                                     a request's marks -> its phases
+TimelineText.blocks                                               Response -> the Timeline's lines
+ResponseFileName.suggest                                          Response -> the name Save offers
                                                                   (image/* is decided by the header; the
                                                                   decode is NSImage's, in Raccoon.app)
 Highlighter.curl                                                  curl command -> its token ranges
@@ -77,8 +81,8 @@ HTTPTransport     send(ResolvedRequest) async throws(SendError) -> Response
                   and its init's `timeout` is only the fallback for a Request that
                   sets no Request Timeout of its own
 FileReading       read(path) throws(StoreError) -> Data       @file and multipart parts
-FileWriting       write(Data, to: URL) throws(StoreError)     Postman Export: a path the user
-                  picked, outside the Data Folder. Atomic: a temp file in the target's
+FileWriting       write(Data, to: URL) throws(StoreError)     Postman Export and Save Response
+                  Body: a path the user picked, outside the Data Folder. Atomic: a temp file in the target's
                   folder, then replace, so a failed write leaves the old file as it was.
                   StoreError.unwritable(path, reason) carries url.path. Never records in
                   the WriteLedger: the Data Folder is not what it writes. DataFolderStore
@@ -149,6 +153,11 @@ Export Environment SecretStore, FileWriting         SecretStore only when Includ
                                                     from the composition root, as Import's newID
                                                     is. Not ports: each is one value, and a test
                                                     passes a fixed one
+Save Response Body FileWriting                      through the Tab, which holds the Response. The
+                                                    save panel is AppKit's, in Raccoon.app; the
+                                                    name it offers is ResponseFileName.suggest
+Redirects, Timing nothing new                       the live transport's per-send SendDelegate
+                                                    records them; no port changes
 Import from Postman… in the Environments sheet
                   nothing                           one closure: close the sheet, then send
                                                     AppDelegate.importFromPostman(_:) up the responder

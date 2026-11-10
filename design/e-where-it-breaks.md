@@ -53,6 +53,19 @@ showResponse
   ⚠ JSON did not parse   → not an error: .raw. A server that says json and sends HTML
                            is the server's fact
   ⚠ body does not nest   → not an error: no Fold Regions, no chevrons
+  ⚠ metrics never arrive, or their count is not Redirects + 1
+                         → escape: every Timing is nil, the Timeline says "Timing was not
+                           reported for this send.", the Redirects stay
+  ⚠ a Timing mark missing, or an end before its start (marks are wall-clock Dates)
+                         → escape: that phase is nil, never negative. elapsed is
+                           ContinuousClock and is not touched
+Save Response Body
+  ⚠ Content-Disposition name empty, ".", "..", or holding "/", ":" or a control
+    character            → escape: the next source (URL, then "response")
+  ⚠ panel cancelled      → not an error: nothing is written
+  ⚠ unwritable(path)     → escape: an alert on the window, "Couldn't save the Response
+                           body." with the path. FileWriting is atomic, so the target is
+                           whole or untouched
 Folding
   ⚠ a Folded region past the end of the body → DIE. Regions and body come from the
                            same Presented text; a mismatch is our bug

@@ -529,7 +529,7 @@ Anatomy: status line (34 pt) over the body area, on `backgroundRecessed`.
 - **Status line**: status code + reason in `status1xx`…`status5xx`, SF Mono 12 bold, single
   line, the reason end-truncates first (the code never does); then elapsed time and size in
   `textSecondary` with tabular figures, separated by a `textTertiary` middle dot. Trailing:
-  Pretty | Raw, then Body | Headers N.
+  Pretty | Raw, then Body | Headers N | Timeline.
 - **idle**: "Send a request to see the Response here." `textTertiary`, with a ⌘↩ key cap.
 - **sending**: spinner + "Sending… 1.4 s", the time live; body: "Waiting for the server. ⌘.
   cancels."
@@ -561,8 +561,28 @@ Anatomy: status line (34 pt) over the body area, on `backgroundRecessed`.
   send), "No response after 60 s" (or the Request Timeout the send used), "Too many
   redirects" naming how many were followed, URLError's description plus the code and host for
   transport errors, "Invalid URL" quoting the URL after substitution (status line "Not sent").
-- **binary**: "Binary body", then "48.2 KB that is not UTF-8 text. Raccoon shows text bodies
-  only." Until the off-main presentation lands the body area is empty, not the bytes as text.
+- **binary**: the Hex view, in the body's text view, SF Mono 12 `text`: the `hexdump -C`
+  layout (`00000000  7b 22 69 64 …  |{"id…|`). No Gutter numbers (the offset column is the
+  address), no Pretty | Raw, no folds. Above 1 MB the status line holds "Showing the first
+  1 MB of 3.2 MB" where the Pretty note sits, `textDisabled` 11 pt, and a "Save to File…"
+  button beside it styled as the failure fix button. Until the off-main presentation lands
+  the body area is empty, not the bytes as text.
+- **Save Response Body…**: File menu, no key equivalent, and the last item of the body's and
+  the image's context menu. Disabled unless the Tab holds a received Response with a
+  non-empty body. A failed write is an alert on the window: "Couldn't save the Response
+  body." with the path as its informative text.
+- **Timeline** (the third section, Body | Headers N | Timeline): one block per Redirect, then
+  the Response, separated by a `border` rule, SF Mono 12. Line 1: "302 Found · GET ·
+  https://a.example/login · 48 ms", the status in its `status3xx`…`status5xx` token. For a
+  Redirect, "Location  https://a.example/home", then its headers as in Headers. Then the
+  phases in `textSecondary`: "DNS 4 ms · Connect 12 ms · TLS 18 ms · Send 0 ms · Waiting
+  10 ms · Download 1 ms", a phase that did not happen left out, and "Reused connection" in
+  place of DNS, Connect and TLS. Then "h2 · 93.184.216.34:443 · TLS 1.3" in `textTertiary`.
+  The Response's block ends "1.2 KB · 420 B on the wire" when the Wire Size differs. With no
+  Timing for the send, each block's phase line reads "Timing was not reported for this
+  send." The status line adds "· 2 redirects" after the size when the send followed any.
+- **Find**: ⌘F over a folded body unfolds every Fold Region first, so a match inside one is
+  found.
 - **image** (`Content-Type: image/*` other than `image/svg+xml`, and the bytes decode): the
   body area shows the picture centered on `backgroundRecessed`, scaled down to fit and never
   past its natural size, aspect ratio kept; no Gutter, no Pretty | Raw. The status line holds

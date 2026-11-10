@@ -41,7 +41,7 @@ Every entry point as a call tree, one file per feature.
 
 | File | Entry points | Milestone |
 |---|---|---|
-| [sending](design/entry-points/sending.md) | Send · Cancel · Show the Response | M1 |
+| [sending](design/entry-points/sending.md) | Send · Cancel · Show the Response · Show the Timeline · Find in a folded body · Save Response Body | M1 |
 | [editing](design/entry-points/editing.md) | Type in the URL bar · Edit a Params row · Edit a Path Variable value · Toggle a Disabled Row · Pick a Body Type · Format the body | M1 |
 | [curl](design/entry-points/curl.md) | Paste into the URL bar · Copy as Curl · The Curl pane | M2 |
 | [tabs](design/entry-points/tabs.md) | New Tab · Switch · Close · Always Discard Unsaved Changes · The empty state · Quit · Relaunch · Restore the inspector | M3 |

@@ -220,3 +220,93 @@ first, and a parse failure is `.raw`, never an error.
 joined with `, `, and `HTTPURLResponse` offers only a dictionary, so the order is gone too
 (measured, `environment-facts.md`). The Headers view sorts them by name and says the system
 merged them rather than claiming to be raw.
+
+## Redirects and Timing
+
+```
+-> HTTPTransport.send(resolved)                  boundary    R: HTTPTransport (unchanged)
+  -> URLSession data(for:delegate:)                          E: SendError -> escape (unchanged)
+    -> SendDelegate, per redirect                            after both guards above pass
+      -> record Redirect(status, method sent,                a refused redirect records nothing:
+         response.url, offered url, headers)                 it is the Response
+      -> the method sent next = the returned request's
+    -> SendDelegate.didFinishCollecting(metrics)             keeps metrics.transactionMetrics
+                                                             Q9 decides whether the transport
+                                                             waits for it, at most 100 ms
+                                                             E: never arrives -> escape: every
+                                                             Timing is nil
+  -> Timing.Marks(transaction)                   RaccoonData a field copy                R: none
+  -> Timing(marks)                               pure        E: a mark missing, or an end before
+                                                             its start -> that phase is nil
+  -> pair transactions with Redirects + the final pure       E: counts differ -> escape: every
+                                                             Timing nil, the Redirects stay
+  -> Response(..., url, redirects, timing)
+```
+
+**Redirects come from the delegate, Timing from metrics.** The delegate already sees every
+followed redirect, and that path is measured (environment-facts.md). Metrics are not, so a
+metrics surprise costs Timing and never the Redirects. The Redirects' headers are mapped and
+sorted by the same function as the Response's, and the "macOS merges repeated headers" note
+applies to them too.
+
+```
+-> showResponse(response)
+  -> StatusLine(status, elapsed, byteCount,
+     redirects: response.redirects.count)        pure        "· 2 redirects", "· 1 redirect",
+                                                             nothing at 0
+  -> section: Body | Headers N | Timeline
+-> showTimeline(response)                        Raccoon.app
+  -> TimelineText.blocks(response)               pure        R: none. Every string drawn
+  -> label rows in a scroll view, as Headers
+```
+
+**Wire Size is shown only where it differs.** URLSession undoes `Content-Encoding` before
+Raccoon sees the body, so `byteCount` is the decoded size. The Response's Timeline block adds
+"420 B on the wire" when the Wire Size differs from it.
+
+## Find in a folded body
+
+```
+-> ResponseTextView.performTextFinderAction(sender)       every find action
+  -> viewer.foldedText.folded is not empty?               R: none
+    -> viewer.unfoldAll(nil)                              keeps the top line on screen
+  -> super.performTextFinderAction(sender)
+```
+
+**Find unfolds, because folding cuts the text out of the storage.** The find bar searches
+the text view's storage, and a Folded region is not in it (`ResponseViewer.cut`). Fold state
+is view state and never saved, so unfolding loses nothing.
+
+## Hex view and Save Response Body
+
+```
+-> TabModel.present(response)                    off the main actor
+  -> .binary -> HexDump(response.body,
+     limit: HexDump.limit)                       pure        R: none. The `hexdump -C` layout
+-> drawBody(.binary)                             Raccoon.app
+  -> hex not landed yet                          the empty body area, as before
+  -> the hex text in the body's text view        no Pretty | Raw, no Gutter numbers, no folds
+  -> body > limit -> note                        "Showing the first 1 MB of 3.2 MB"
+```
+
+**The Hex view stops at 1 MB of bytes**: 65,536 lines of 79 characters, about 5.2 MB of
+plain text, inside the measured 5 MB coloured. An `image/*` body that does not decode is
+drawn as hex too, so the reason it did not decode is visible.
+
+```
+-> saveResponseBody(tab)                         File ▸ Save Response Body…, the body's and the
+                                                 image's context menu, the Hex view's button
+  -> .received and byteCount > 0                 else disabled, or the button hidden
+  -> ResponseFileName.suggest(response)          pure, boundary
+                                                 Content-Disposition filename*, then filename,
+                                                 then the URL's last path component, then
+                                                 "response"; an extension from the media type
+                                                 when the name has none
+                                                 E: an unsafe name -> escape: the next source
+  -> NSSavePanel                                 cancel -> nothing
+  -> FileWriting.write(response.body, to: url)   R: FileWriting
+                                                 E: unwritable -> escape: an alert
+```
+
+**The bytes saved are the bytes the viewer holds**: after URLSession undid any
+`Content-Encoding`, so what is saved is what was shown.
