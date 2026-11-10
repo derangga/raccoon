@@ -673,6 +673,12 @@ final class ResponseTextView: NSTextView {
         pasteboard.setString(viewer.bodyText(of: selectedRange()), forType: .string)
     }
 
+    /// Find searches the visible text, so unfold first for a match inside a Fold Region to be found.
+    override func performTextFinderAction(_ sender: Any?) {
+        if let viewer, !viewer.foldedText.folded.isEmpty { viewer.unfoldAll(nil) }
+        super.performTextFinderAction(sender)
+    }
+
     /// The indent guides, under the text.
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in: rect)
