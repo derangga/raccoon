@@ -205,13 +205,16 @@ the key is not written.
 | Body `.none` | no `body` key |
 | Body `.raw(json / xml / text)` | `body: {mode: "raw", raw, options: {raw: {language: "json" / "xml" / "text"}}}` |
 | Body `.formURLEncoded` | `body: {mode: "urlencoded", urlencoded: [{key, value}]}`, `disabled: true` on a Disabled Row |
+| Body `.graphql` | `body: {mode: "graphql", graphql: {query, variables}}`, variables the text as typed. Postman has no Operation Name field: it is not written (graphql.md) |
 | Body `.multipart` | `body: {mode: "formdata", formdata: [...]}`: a text Part is `{key, value, type: "text"}`, a file Part `{key, type: "file", src: <path as typed>}`, `disabled: true` on a Disabled Row. The path is written as the Request holds it, so an absolute one names the user's home folder |
 | Auth `.none` | `auth: {type: "noauth"}`, written on every Request. An item with no `auth` inherits in Postman, so leaving it out would change what the Request sends |
 | Auth `.basic` | `auth: {type: "basic", basic: [{key: "username", value, type: "string"}, {key: "password", value, type: "string"}]}` |
 | Auth `.bearer` | `auth: {type: "bearer", bearer: [{key: "token", value, type: "string"}]}` |
 | Request Settings | `protocolProfileBehavior` on the item: `followRedirects` always, true or false, because Raccoon's default is off and an absent key means follow in Postman; `strictSSL: false` only when `allowsInsecureTLS` is on; `disableBodyPruning: true` when the method is GET or HEAD and the Body is not `.none`, so Postman keeps the body Raccoon holds. Import drops it without a note. Also `maxRedirects`, `followOriginalHttpMethod` and `followAuthorizationHeader`, always, because Postman's defaults differ from Raccoon's and an absent key would change what the Request does. The Request Timeout is not written: Postman keeps its timeout in app settings, not on the item, so it would have nowhere to land |
 | `{{name}}` | unchanged: Postman uses the same syntax. A Collection file holds names only; the values are in Environments, which are exported on their own |
-| `description`, `event`, `response` | not written: Raccoon has none |
+| Docs | the item request's `description`, a string, only when not empty (docs.md) |
+| Examples | the item's `response`: `{name, code, status, header, body}`, a `.bytes` body as base64 text, no `originalRequest` (examples.md) |
+| `event`, a Folder's or the Collection's `description` | not written: Raccoon has none |
 
 | Raccoon Environment | Postman Environment |
 |---|---|

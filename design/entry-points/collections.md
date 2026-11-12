@@ -156,7 +156,15 @@ next save silently overwrite the pulled change, which is the bug Changed on Disk
 selected row's Collection or Folder. A row's context menu has New Folder…, Rename…, Move To ▸ (every
 Collection and Folder as a path), Move to Trash and Reveal in Finder; a Collection has no Move To,
 an unreadable row no Rename. A Collection's menu also has Export…, after Rename… and before Move to
-Trash (postman-export.md); no other row has it. New Collection, New Folder and Rename share one name
+Trash (postman-export.md); no other row has it. A Request's menu also has New Example, and an
+Example row has its own menu (examples.md); a Collection's menu also has the Mock Server items
+(mock-server.md).
+
+**The `⋯` button opens the same menu** (decided 2026-11-12). Every sidebar row shows a `⋯`
+button at its trailing edge while the pointer is over the row and while the row is selected,
+tooltip "More actions". Clicking it opens the row's context menu, built by the same
+`contextMenu(row:)` as a right-click, under the button. It does not select the row. A row's
+double-click is unchanged (open a Request, expand a Folder). New Collection, New Folder and Rename share one name
 sheet. A taken name gets " 2", as a file does. Renaming a Request changes the name inside its file
 and renames the file to match. Move to Trash does not ask: the Trash is the undo.
 ```

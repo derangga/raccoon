@@ -260,6 +260,49 @@ Breadcrumb
                            an alert: the next derivation replaces the segments
   ⚠ too narrow for every segment → not an error: the middle collapses into "…", then the last
                            name end-truncates, then the first; tooltips hold the full text
+Docs
+  ⚠ markdown that does not parse as the user meant → not an error: DocsStyle.ranges is total;
+                           unmatched marks are drawn as text. The characters are never changed
+GraphQL
+  ⚠ Variables not a JSON object after substitution → escape: .notSent(.graphqlVariables), the
+                           message "Not sent. Variables is not a JSON object: line 3, column 14."
+                           Nothing went out
+  ⚠ GraphQL body on a GET set by hand → the existing Body on GET failure, not a new one
+  ⚠ the server answers 200 with an `errors` array → not an error: it is the Response, shown
+                           as JSON like any other
+  ⚠ Postman Export of an Operation Name → not an error: Postman has no field for it, it is
+                           left out (graphql.md)
+Examples
+  ⚠ Save as Example, the Request file unreadable, undecodable or unwritable → escape: the Body
+                           toolbar's note "Couldn't save the Example: <reason>." Nothing written,
+                           a file Raccoon failed to read is never rewritten (collections.md)
+  ⚠ a Request ⌘S whose file has Examples → not an error: read-modify-write keeps them. The file
+                           unreadable now -> the existing "Not saved" path
+  ⚠ an Example ⌘S, its Request file gone → escape: stays Dirty, "Not saved. Its Request was
+                           deleted."
+  ⚠ an Example ⌘S, the Example gone from the file → not an error: appended again, same id
+  ⚠ an `examples` entry that does not decode (no id, a status that is not a number, a body
+                           with neither text nor base64) → the whole file is .unreadable, as for
+                           any wrong key: one format, no half-read Request
+  ⚠ two Examples with one id in a file → the file is .unreadable("duplicate Example id")
+  ⚠ status outside 100...599, delay outside 0...60000 → not an error: clamped by the init
+Mock Server
+  ⚠ the remembered port is taken  → escape: alert "Port <n> is in use." Use Another Port
+                           binds a free one and remembers it; Cancel starts nothing
+  ⚠ NWListener fails for any other reason → escape: alert "Couldn't start the Mock Server:
+                           <reason>."
+  ⚠ raccoon.json unwritable when remembering the port → escape: logged; the server runs, the
+                           port is not remembered
+  ⚠ a request head that does not parse → not an error of Raccoon's: 400, connection closed.
+                           Never retried, never shown
+  ⚠ head over 64 KiB or body over 16 MiB → 413, connection closed
+  ⚠ Transfer-Encoding on the request → 501, connection closed (mock-server.md, shortcut)
+  ⚠ no route or no Example matches → 404 with a JSON reason; not an error
+  ⚠ the client goes away during the delay or the write → not an error: the connection closes
+  ⚠ a Collection renamed or trashed while its Mock Server runs → escape: the server stops and
+                           the row's indicator goes; a renamed one starts again by hand
+  ⚠ a Request file in the Collection unreadable → not an error: it has no route, as it has no
+                           Tab
 Invariants
   ⚠ two Tabs with the same .request(id)    → DIE (assertion). openRequest and relaunch
                            are the only ways in and both check

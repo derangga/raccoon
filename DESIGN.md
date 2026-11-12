@@ -51,6 +51,10 @@ Every entry point as a call tree, one file per feature.
 | [workspaces](design/entry-points/workspaces.md) | Switch Workspace · New Workspace · Open Workspace · Remove from List | M8 |
 | [postman-export](design/entry-points/postman-export.md) | Export a Collection · Export an Environment · Import from Postman… in the Environments sheet | M9 |
 | [folding](design/entry-points/folding.md) | The Gutter · Fold · Unfold · Fold All | — |
+| [docs](design/entry-points/docs.md) | Select the Docs section · Type in the Docs editor · Docs in Postman Import and Export | M10 |
+| [graphql](design/entry-points/graphql.md) | Pick the GraphQL Body Type · Edit the Query and Variables · Send a GraphQL body · GraphQL in Postman Import and Export | M11 |
+| [examples](design/entry-points/examples.md) | Save as Example · New, Rename, Duplicate and Delete an Example · Open and edit an Example · Examples in Postman Import and Export | M12 |
+| [mock-server](design/entry-points/mock-server.md) | Start and stop a Mock Server · Answer a request · Match a route | M13 |
 | [theme](design/entry-points/theme.md) | Pick a Theme or Flavor · System appearance changes · Package the app and its icon | M6 |
 
 A new entry point is a new row here and a tree in one of those files, plus its failures in

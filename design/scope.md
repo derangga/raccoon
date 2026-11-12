@@ -9,6 +9,10 @@ withApp {                        // release: SessionWriter.writeNow, then everyt
                                  //   then the FolderWatch stream ends and the FSEventStream
                                  //   is stopped and invalidated. switchWorkspace releases
                                  //   this scope and opens a new one (workspaces.md)
+    withMockServer(collection) { // one per running Collection. release: the NWListener is
+                                 //   cancelled, open connections closed, pending delays
+                                 //   cancelled. Released before the Tabs, with the Data Folder
+    }
     withTab(id) {                // release: cancel the in-flight send
       withSend { … }             // release: URLSessionTask.cancel(). One per Tab at most
     }
@@ -43,3 +47,7 @@ means a switch cannot leave a Tab, or its send, holding the old Workspace's Secr
 **Quit writes the Session before releasing Tabs.** The snapshot is taken from the Tabs, so
 the order matters in one direction: releasing first would still work (the Session holds no
 Responses) but would let a cancelled send flip a Tab's state while the snapshot is read.
+
+**A Mock Server lives inside the Data Folder scope.** It serves that Workspace's files, so a
+Workspace switch that left it running would answer from a folder the window no longer shows.
+Stopping it is cancelling the task that holds the NWListener; nothing is written.

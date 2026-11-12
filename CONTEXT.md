@@ -7,7 +7,7 @@ A native macOS HTTP client for building, sending and saving HTTP requests, in th
 ### Requests
 
 **Request**:
-A saved HTTP request definition (method, URL, headers, query params, Path Variable values, body, cookies, auth) that lives in a Collection.
+A saved HTTP request definition (method, URL, headers, query params, Path Variable values, body, cookies, auth, Docs) that lives in a Collection, with its Examples beside it.
 _Avoid_: Call, endpoint, API
 
 **Draft**:
@@ -31,8 +31,16 @@ A named group of Requests and Folders inside a Collection, nestable to any depth
 _Avoid_: Group, directory, section
 
 **Body Type**:
-The kind of request body: none, raw (JSON, text or XML), form-urlencoded, or multipart.
+The kind of request body: none, raw (JSON, text or XML), form-urlencoded, multipart, or GraphQL.
 _Avoid_: Content mode, payload type
+
+**GraphQL body**:
+A Body Type holding a Query, its Variables as JSON text and an optional Operation Name, sent as one POST whose JSON body is `{"query", "variables", "operationName"}`. Raccoon reads no schema.
+_Avoid_: GraphQL request, GraphQL mode, operation
+
+**Docs**:
+A Request's notes, written as markdown in the Docs section of the editor. Part of the request definition, saved with it, never sent.
+_Avoid_: Description (Postman's word, used only when naming its field), notes, documentation, README
 
 **Auth**:
 The request's authentication scheme: none, Basic, or Bearer.
@@ -53,6 +61,14 @@ _Avoid_: Deadline, TTL, total time
 **Response**:
 The result of the last send from a Tab, kept in memory only and lost when the Tab closes or Raccoon quits.
 _Avoid_: Result, output, history entry
+
+**Example**:
+A saved reply that belongs to a Request: a name, a status, headers, a body and a delay. Made from a Response or from scratch, kept in the Request's file beside its definition, and served by the Mock Server.
+_Avoid_: Saved response, mock response, fixture, stub
+
+**Mock Server**:
+A local HTTP server on 127.0.0.1 that answers with one Collection's Examples, matched by method and path; started and stopped by hand, at most one per Collection.
+_Avoid_: Mock, stub server, fake server, mock API
 
 **Disabled Row**:
 A header, query param, form field or Request Cookie that stays saved on the request but is not sent.
@@ -85,7 +101,7 @@ _Avoid_: Cookie jar, session cookies
 ### Tabs
 
 **Tab**:
-An open editor for exactly one Request or Draft, holding its own editing state, inside the single main window. A Request is open in at most one Tab.
+An open editor for exactly one Request, Draft or Example, holding its own editing state, inside the single main window. A Request is open in at most one Tab, and so is an Example.
 _Avoid_: Window, page
 
 **Dirty**:
@@ -93,7 +109,7 @@ The state of a Tab whose edits to a saved Request have not been written back to 
 _Avoid_: Modified, unsaved, changed
 
 **Changed on Disk**:
-The state of a Dirty Tab whose Request file was modified outside Raccoon, which the user resolves by reloading or keeping their edits.
+The state of a Dirty Tab whose Request or Example was modified in its file outside Raccoon, which the user resolves by reloading or keeping their edits.
 _Avoid_: Conflict, out of sync, stale
 
 **Session**:

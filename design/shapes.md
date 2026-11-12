@@ -8,6 +8,7 @@ Branded where two of them could be swapped:
 
 `RequestID` (UUID, written inside the Request file) · `TabID` (UUID, lives in the Session) ·
 `WorkspaceID` (UUID, written in the Data Folder's `raccoon.json`) ·
+`ExampleID` (UUID, written inside its Request's file; examples.md) ·
 `VariableName` (validated: ASCII letters and digits, `_`, `-`, `.`; not empty)
 
 A Request's identity is its `RequestID`, not its path. A path changes when a Folder is renamed
@@ -33,6 +34,8 @@ RequestDefinition        what Request and Draft share, and the only thing a Tab 
   body                   Body
   auth                   Auth
   settings               RequestSettings
+  docs                   String           Docs, markdown; "" is none (docs.md). Never sent:
+                         ResolvedRequest drops it
 
 Row                      name, value, isEnabled         a Disabled Row is isEnabled == false
 PathVariableToken        range: NSRange (UTF-16, covers `:` and the name), name: String
@@ -43,9 +46,12 @@ Body                     .none
                          .raw(RawKind, String)          RawKind: json · text · xml
                          .formURLEncoded([Row])
                          .multipart([Part])
+                         .graphql(GraphQLBody)          graphql.md
+GraphQLBody              query, variables, operationName: String     variables is JSON text as
+                         typed; "" operationName is none
 Part                     name, isEnabled, .text(String) | .file(path: String)
 HighlightRange           range: NSRange (UTF-16, as text storage takes it), token: ColorToken
-BodyType                 .none · .raw(RawKind) · .formURLEncoded · .multipart
+BodyType                 .none · .raw(RawKind) · .formURLEncoded · .multipart · .graphql
                          what the Body Type pop-up picks; Body.type reads it off a Body
 Auth                     .none · .basic(user, password) · .bearer(token)
 AutomaticHeader          name, value: String?          a header sent that no row sets;
@@ -63,8 +69,16 @@ RequestSettings          allowsInsecureTLS, followsRedirects
                          file carries 9007199254740991; timeoutSeconds 1...3600
 
 Request                  id: RequestID, name, definition         one file in the Data Folder
-TreeNode                 .folder(name, [TreeNode]) · .request(RequestID, name, method, path)
+                         examples: [Example]                     beside the definition, never in
+                         it: a Request Tab never holds them (examples.md)
+Example                  id: ExampleID, name, status Int (100...599), headers [Row],
+                         body ExampleBody, delayMilliseconds Int (0...60000)
+                         the init clamps status and delay, as RequestSettings' does
+ExampleBody              .text(String) · .bytes(Data)            .text when the bytes are UTF-8
+TreeNode                 .folder(name, [TreeNode]) · .request(RequestID, name, method, path,
+                         examples [ExampleSummary])
                          method is for the sidebar badge
+ExampleSummary           id: ExampleID, name, status             a sidebar child row
                          .unreadable(path, reason)              §4: a file that did not decode
 Collection               name, [TreeNode]
 DataFolderScan           files: [path: Data], folders: Set<path>    what scan returns
@@ -96,13 +110,15 @@ EnvironmentFile.Decoded  entries [VariableEntry], droppedSecretValues [VariableN
                          the second is the boundary warning (boundary.md), logged by the window
 
 Tab                      id: TabID
-                         source: .draft | .request(RequestID)
-                         definition: RequestDefinition           the working copy
-                         baseline: RequestDefinition?            what is on disk; nil for a Draft
+                         source: .draft | .request(RequestID) | .example(RequestID, ExampleID)
+                         content: .request(RequestDefinition) | .example(Example)
+                                                                 the working copy; .example only
+                                                                 with an .example source
+                         baseline: TabContent?                   what is on disk; nil for a Draft
                          response: ResponseState                 never written to the Session
                          isChangedOnDisk: Bool
 Session                  tabs: [TabSnapshot], selected: TabID?, activeEnvironment: String?
-TabSnapshot              id, source, definition, baseline       a Tab minus its Response
+TabSnapshot              id, source, content, baseline          a Tab minus its Response
 Breadcrumb               segments [BreadcrumbSegment]           derived from the index by RequestID,
                          never stored on the Tab; a Draft's is its Tab title alone
 BreadcrumbSegment        title, target: String?                 target is a sidebar path: a Collection's
@@ -262,6 +278,32 @@ Requests changed in between; this way they are one value computed once.
 request with an Undefined Variable cannot reach the socket: the type that the transport
 accepts does not exist until resolution succeeded.
 
+## Mock Server
+
+```
+MockSettings             port: UInt16?, allowsCORS: Bool         one Collection's, in raccoon.json
+                         `mocks.<Collection name>`; absent is (nil, true) (mock-server.md)
+MockRoute                method, segments [MockSegment], requestName, examples [Example]
+                         one Request with Examples, in sidebar order
+MockSegment              .literal(String) · .wildcard              `:name` and a whole `{{name}}`
+                         are .wildcard
+MockRequestHead          method, path (no query, percent-decoded per segment), headers
+                         [(name, value)], bodyLength            what MockRequestHead.parse read
+                         off the socket. No body: the Mock Server never reads it
+MockReply                status, headers [(name, value)], body Data, delay Duration
+                         what MockMatch.answer returns; MockReply.bytes frames it
+MockServer               collection, port, allowsCORS, routes [MockRoute]   held by the window,
+                         one per running Collection, released with the Data Folder (§8)
+```
+
+**A route holds its Examples, not their Request's ID.** The listener answers off the main
+actor from a value: routes are rebuilt and swapped in whole when files change, so a reply never
+reads a half-updated index.
+
+**`MockSettings` are keyed by the Collection's name.** Collections have no ID (IDs, above), and
+a port remembered for a name that later means another Collection is harmless: the next start
+uses it or picks another.
+
 ## Errors
 
 Named, typed, carrying what the user needs to see:
@@ -270,6 +312,8 @@ Named, typed, carrying what the user needs to see:
 CurlImportError          .unterminatedQuote(position) · .noURL
 ResolveError             .undefined([VariableName])       every missing one, not the first
                          .invalidURL(String)              the URL text after substitution
+                         .graphqlVariables(line, column)  a GraphQL body's Variables, after
+                                                          substitution, is not a JSON object
 SendError                .fileMissing(path)               a multipart file part, read by
                                                           the transport before sending
                          .timedOut(seconds)               the Request Timeout that elapsed
@@ -291,6 +335,9 @@ ImportError              .collectionUnwritable(name, StoreError)   nothing of it
                                                           with no value, undefined until set;
                                                           environment nil is Globals
 FormatError              .notValid(line, column)          the body text is left unchanged
+MockError                .portInUse(UInt16)               the remembered port is taken
+                         .failed(String)                  NWListener's own reason. A connection's
+                                                          failures are never errors: it is closed
                          Postman Export has no error enum of its own. A write that fails is a
                          StoreError (.unwritable, with the target's path); a Request left out is an
                          ExportSkip, a value; a Keychain read that fails is a name in

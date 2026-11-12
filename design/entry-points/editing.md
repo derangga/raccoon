@@ -156,6 +156,8 @@ so a Path Variable value holding an Undefined Variable is coloured red like any 
      raw → raw          keep the text, change RawKind
      form ↔ multipart   keep the rows, text parts only
      anything → none    keep nothing, but the old body is in undo
+     raw json ↔ graphql lift query, variables, operationName out of the JSON, and back
+                        (graphql.md); picking graphql on GET or HEAD also sets POST
      other pairs        start empty
   -> Headers.contentType(for: newType)           pure
      -> set Content-Type only if the user has not set one, or the one there was

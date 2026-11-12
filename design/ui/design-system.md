@@ -363,12 +363,13 @@ Anatomy: `[method pop-up] [URL field] [Send]`, then the message line.
 
 ### Section bar
 
-Params · Headers · Body · Auth · Cookies · Settings over the RequestEditor's pane, 28 pt each,
+Docs · Params · Headers · Body · Auth · Cookies · Settings over the RequestEditor's pane, 28 pt each,
 13 pt `textSecondary`, 10 pt padding, 2 pt apart, over a 1 pt `border` rule. Selected: `text`
 semibold with a 2 pt `accent` underline over the rule. Params, Headers and Cookies carry their
 row count in tabular `textTertiary` ("Params 3", Disabled Rows included; Params counts Query
 Params only, never Path Variables); a section with no rows
-shows no count. Auth reads "Auth" whatever the scheme (the pop-up in its pane names it, and
+shows no count. Docs carries a 5 pt `textTertiary` dot after its title when the Request has
+notes, and nothing otherwise; a Request opens on Params, never on Docs. Auth reads "Auth" whatever the scheme (the pop-up in its pane names it, and
 the section button's accessibility label is "Auth"). Body shows nothing more: the Body Type
 pop-ups in its pane already name it.
 
@@ -434,7 +435,7 @@ The Params pane is two labelled tables in one scroll view.
 
 ### Body editor
 
-- **Body Type** pop-up: none · raw · form-urlencoded · multipart. When raw, a second pop-up:
+- **Body Type** pop-up: none · raw · form-urlencoded · multipart · GraphQL. When raw, a second pop-up:
   JSON · text · XML. Switching follows editing.md's conversion table; the Content-Type row it
   writes appears in Headers like any other row.
 - **none**: "This request has no body." in `textTertiary`, centred.
@@ -447,6 +448,16 @@ The Params pane is two labelled tables in one scroll view.
   every `{{name}}` as typed (editing.md). If the body does not parse, the text is left alone
   and one 11 pt `error` line under the editor says where: "Couldn't format: not valid JSON
   at line 3, column 14." The line goes away on the next edit.
+- **GraphQL**: an "Operation Name" text field (placeholder "Optional") on the Body Type row,
+  then the Query editor over the Variables editor, split 2 : 1 by a draggable 1 pt `border`
+  divider, each with an 11 pt `textTertiary` caption ("Query", "Variables"). Both are the raw
+  editor above: SF Mono 12, line numbers, `{{name}}` highlighting. The Query is coloured by the
+  GraphQL tokens, reusing the JSON ones: keywords (`query`, `mutation`, `subscription`,
+  `fragment`, `on`) as `jsonBoolean`, field and argument names as `jsonKey`, `$variables` as
+  `jsonNull` (never a `variable*` token: those mean `{{name}}`), strings and
+  block strings as `jsonString`, numbers as `jsonNumber`, punctuation as `jsonPunctuation`, `#`
+  comments as `textTertiary`; the Variables as JSON. Format acts on Variables only, and is enabled only
+  while Variables has focus.
 - **form-urlencoded**: the key/value table.
 - **multipart**: the key/value table, where a value is text or a **file chip**: 20 pt,
   `backgroundRecessed`, `border`, a document glyph and the file name (full path in the
@@ -569,7 +580,9 @@ area, all on `backgroundRecessed`.
   Raw (the Underline style), then the note in `textDisabled` 11 pt ("Pretty is off above 5 MB", "Showing the first
   1 MB of 3.2 MB" with Save to File… beside it, or an image's "900 × 900 · image/webp"); the
   note truncates first. Trailing: Search (`magnifyingglass`, tooltip "Find (⌘F)") and Copy
-  (`doc.on.doc`, tooltip "Copy Response Body"), 4 pt apart. For an image both are disabled
+  (`doc.on.doc`, tooltip "Copy Response Body"), then Save as Example (`square.and.arrow.down.on.square`,
+  tooltip "Save as Example (⌥⌘E)"; disabled with tooltip "Save the Request first" on a Draft), 4 pt apart.
+  A failed save shows its reason as the note, in `error`, until the next send. For an image both are disabled
   and Pretty | Raw is hidden; for the Hex view Pretty | Raw is hidden. Copy turns to
   `checkmark` (tooltip "Copied") for 1.5 s with the system symbol swap, no transition under
   Reduce Motion.
@@ -702,6 +715,17 @@ and `warning` Theme tokens, secondary label). The cell reads `backgroundStyle ==
   valid JSON at line 14. Raccoon won't change this file.", "Unknown file version 3.", "Same id
   as List refunds.json.", and for JSON that is not a Request "Not a Raccoon Request: missing
   “name”. Raccoon won't change this file." Selecting it shows nothing in the editor; double-click reveals.
+- **More actions**: a 16 × 16 borderless `ellipsis` button at the trailing edge, 6 pt in,
+  tooltip and accessibility label "More actions". Shown while the pointer is over the row and
+  on the selected row, hidden otherwise, so names truncate against it only then. A click opens
+  the row's context menu under the button and does not change the selection. On an
+  emphasized selection it takes `alternateSelectedControlTextColor`, as the row's text does.
+- **Example** (a child of a Request row, one level deeper): the status code in SF Mono bold
+  9.5 pt where a Request's method badge sits, coloured `status2xx` … `status5xx` by class, as the
+  Response's status line, then the Example's name. A Request with Examples gets a
+  disclosure triangle; collapsed by default, expanded when Save as Example adds one.
+- **Mock indicator**: on a Collection row whose Mock Server runs, an 8 pt `success` dot before
+  the More actions button, tooltip "Mock Server on http://127.0.0.1:<port>".
 - **Empty**: "No Collections yet. Create one, or save a Draft into one with ⌘S." plus the Data
   Folder path in SF Mono 11.
 
@@ -1506,3 +1530,24 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
     Disabled Rows and not Cookies, and an empty `authorization` value counts so the example
     gives Postman's 18; output is sorted-keys and indented, so it diffs; the Environments sheet
     is not reopened after an import.
+
+### Docs pane
+
+The Docs section's pane: one NSTextView filling it, 16 pt padding, `background`, no line
+numbers. Body text is the system font 13 pt in `text`. Markdown is styled in place and the
+marks stay, in `textTertiary`: `#` headings at 20, 17 and 15 pt semibold for levels 1, 2 and 3+;
+`**bold**` semibold; `*italic*` italic; `` `code` `` and fenced blocks in SF Mono 12 on
+`backgroundRecessed`; list markers and `>` in `textSecondary`, a quote's text in `textSecondary`;
+`[text](url)` text in `accent`, ⌘-click opens an `http`/`https` URL. Empty: the placeholder
+"Notes for this Request, in markdown." in `textDisabled`. Undo, Find (⌘F, the system find bar)
+and spelling are NSTextView's own.
+
+### Example pane
+
+What an Example Tab shows in place of the URL bar, RequestEditor and Response viewer. A 44 pt
+header row, 12 pt side padding: the name field (fills), "Status" with a 64 pt numeric field
+(100–599) and its reason phrase in `textTertiary` ("OK"), "Delay" with a 64 pt field and "ms".
+Under it a Section bar: Headers (with its count) · Body. Headers is the key/value table. Body
+is the raw text editor, coloured by the Example's Content-Type (JSON, XML, else plain); a
+`.bytes` body is the Hex view, read-only, with "Replace from File…" and "Save Body…" in its
+toolbar. A status out of range is clamped when the field ends editing.

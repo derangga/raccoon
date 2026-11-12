@@ -122,7 +122,7 @@ and every loss becomes a note on the Import sheet, counted and naming the Reques
 | body `raw`, `options.raw.language` json / xml / text | `.raw(.json / .xml / .text)`; html and javascript become `.text` |
 | body `urlencoded` | `.formURLEncoded`, disabled fields kept as Disabled Rows |
 | body `formdata`, text and `src` parts | `.multipart`; a file part keeps its `src` path, and a `src` list becomes one file Part per path under the same name, the same bytes on the wire. Postman often stores only a file name, so the send reports `fileMissing` until it is re-picked, and the note says which. A part's `contentType` is dropped without a note, as Curl Import drops `;type=…`: a Part has no Content-Type of its own |
-| body `graphql` | `.raw(.json)` with `{"query", "variables"}`, as in Curl Import |
+| body `graphql` | `.graphql(query, variables, operationName: "")`, variables kept as text, an object re-printed with 2-space indent (graphql.md, decided 2026-11-12; it was `.raw(.json)`) |
 | body `file` (binary) | `.none`, noted: binary bodies are not supported |
 | a `raw`, `urlencoded`, `formdata` or `graphql` body with nothing in it | `.none`: Postman exports `{"mode": "raw", "raw": ""}` on plain GETs, and an empty body sends no bytes, so no Content-Type is added for it |
 | auth `noauth`, `basic`, `bearer` | `.none`, `.basic`, `.bearer` |
@@ -140,7 +140,9 @@ and every loss becomes a note on the Import sheet, counted and naming the Reques
 | `{{name}}` | unchanged: Raccoon uses the same syntax |
 | dynamic variables `{{$guid}}`, `{{$timestamp}}`, `{{$randomInt}}`, `{{$random…}}` | left as typed and noted. `$` is not a `VariableName` character, so each is an Undefined Variable and the request will not send until it is replaced. Sending the literal text would be worse |
 | `event` (pre-request and test scripts) | dropped, counted: Raccoon runs no scripts. A blank script is not counted; a Folder's or the Collection's script counts on every Request under it, since Postman runs it for each |
-| `response` (saved examples), `description` | dropped, counted. A Folder's or the Collection's description is named by that Folder or Collection. A header's, Param's, path variable's or body field's own `description` is dropped without a note: it is never sent |
+| `response` (saved examples) | each entry an Example (examples.md): name, `code`, `header`, `body` as text; `originalRequest`, `cookie`, `responseTime` and `_postman_previewlanguage` dropped without a note. Decided 2026-11-12; it was dropped and counted |
+| an item request's `description` | its Docs (docs.md), a string or the `content` of `{content, type}`, as written. Decided 2026-11-12 |
+| a Folder's or the Collection's `description` | dropped, counted, named by that Folder or Collection. A header's, Param's, path variable's or body field's own `description` is dropped without a note: it is never sent |
 | environment `values`, `enabled` | Environment entries, disabled ones kept disabled |
 | environment, Globals or collection value with `type: "secret"` | a Secret Variable: Keychain first, file without the value (variables.md order). The plan carries the value in `ImportVariable.secret`, which is not Codable; what goes to the file is its `entry`, a `.secret` with none |
 

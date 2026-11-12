@@ -36,6 +36,10 @@ a Postman export file       → PostmanFile               // PostmanImporter, pu
                                                         //   or an unknown schema is
                                                         //   .notPostman, never a throw
 bundled theme JSON          → Theme                     // ours: a failure is DIE (§4)
+a Mock Server connection    → MockRequestHead           // MockRequestHead.parse, pure. 64 KiB
+                                                        //   head, 16 MiB body, else 413; the
+                                                        //   body is drained, never read
+raccoon.json `mocks`        → [name: MockSettings]      // a wrong type is absent: defaults
 UserDefaults ThemeChoice    → ThemeChoice               // unknown names fall back
 UserDefaults Inspector…     → InspectorMemory           // open, width, pane; a wrong type is
                                                         //   absent, the width clamped by the split
@@ -61,6 +65,14 @@ is `.unreadable`, kept byte for byte, never rewritten. An empty-string value is 
 (an empty value is no value, shapes.md), and a name the URL no longer has is **kept**: decoding
 never edits what it read, so the baseline equals the disk. It does nothing until the next URL
 edit prunes it (editing.md).
+
+**`docs` and `examples` are optional keys of the Request file, `docs` of the Session's
+definitions too.** Both are omitted when empty, so every existing file stays byte-identical and
+`RequestFile` stays `version: 1`, as `pathVariables` did. `docs` is a string. `examples` is an
+array of `{id, name, status, headers, body: {text} | {base64}, delayMilliseconds}`, the last
+omitted when 0; anything else is `.malformed("examples")` and the file `.unreadable`. A GraphQL
+body is `{"type": "graphql", "query", "variables", "operationName"}`, the last two omitted when
+empty. The Session holds an Example Tab's content in the same encoding.
 
 **Nothing past this list parses.** Inside the graph a `Request` is a `Request`; no node
 re-validates a URL it was handed or re-reads a file to check it.

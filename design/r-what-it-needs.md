@@ -65,6 +65,16 @@ PostmanExporter.collection                                        ExportCollecti
 PostmanExporter.environment                                       Environment, EnvironmentSecrets, id,
                                                                   date, version -> Environment bytes
 CredentialScan.find                                               Requests -> [CredentialFinding]
+DocsStyle.ranges                                                  markdown -> styled ranges (docs.md)
+GraphQLPayload.encode / .text, GraphQLMethod.forPick              GraphQL body -> the JSON sent;
+                                                                  the method a pick sets
+Highlighter.ranges(_, .graphql)                                   GraphQL query -> token ranges
+Example.from(response)                                            Response -> Example
+ExampleFile (inside RequestFile) encode·decode                    `examples` <-> [Example]
+MockRoutes.build                                                  Requests -> [MockRoute]
+MockRequestHead.parse                                             socket bytes -> head, or 400/413/501
+MockMatch.answer                                                  routes + head + CORS -> MockReply
+MockReply.bytes                                                   MockReply -> HTTP/1.1 bytes
 ExportStepReveal.starts                                           when each step finished,
                                                                   reduceMotion -> when its check
                                                                   starts, 60 ms apart
@@ -112,6 +122,12 @@ SessionStore      read -> Data? / write(Data) / delete() throws(StoreError)
                   from a clock given to init
 ClipboardWriter   setString                                    Copy as Curl
 InstantSource     now                                          .sending(since:)
+MockListening     listen(port: UInt16?, handler) async throws(MockError) -> MockListener
+                  binds 127.0.0.1, port nil lets the system pick; the listener has `port` and
+                  `stop()`. For each connection it reads until MockRequestHead.parse has a
+                  head and the body's bytes are drained, calls `handler(head) async -> MockReply`
+                  and writes MockReply.bytes. Network.framework NWListener in RaccoonData; the
+                  test one in RaccoonTesting calls the handler with heads it is given
 ```
 
 Each port is a protocol with one live implementation and one test implementation (§9). The
@@ -170,6 +186,15 @@ Import from Postman… in the Environments sheet
                   nothing                           one closure: close the sheet, then send
                                                     AppDelegate.importFromPostman(_:) up the responder
                                                     chain, once the sheet has finished closing
+Examples          DataFolderStore, FileReading      through the window, which owns the index and
+                                                    the WriteLedger: every Example write is a
+                                                    read-modify-write of the Request file. FileReading
+                                                    for Replace from File…
+Mock Server       MockListening, DataFolderStore    through the window: it builds the routes from
+                                                    the Collection's files and holds one MockServer
+                                                    per running Collection. WorkspaceFile for the
+                                                    remembered port
+Docs, GraphQL     nothing new                       pure rules and the existing TabModel.edit
 BreadcrumbBar     the selected Tab's Breadcrumb,        no port. The window derives the
                   and one closure, select(path)         Breadcrumb from its index and hands it
                                                         down; the bar reads no file and holds no

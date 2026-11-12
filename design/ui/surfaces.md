@@ -17,7 +17,9 @@ Window                          one, native chrome
   Sidebar                       native material: the Collection tree
     WorkspacePopUp              a Dropdown at the top: the open Workspace's title
     SidebarFilter               native search field, "Filter Collections"
-    unit: SidebarRow            Collection · Folder · Request · Unreadable
+    unit: SidebarRow            Collection · Folder · Request · Example · Unreadable; a `⋯` More
+                                actions button on hover and selection; a Mock indicator on a
+                                Collection whose Mock Server runs
   Content                       themed
     TabStrip                    unit: Tab
     Breadcrumb                  unit: segment: Collection · Folder · Request name, or a Draft's
@@ -28,7 +30,9 @@ Window                          one, native chrome
     URLBar                      MethodPopUp · URLField · SendButton
     MessageLine                 under the URL bar: Curl Import error · Ignored note ·
                                 Undefined Variables
-    RequestEditor               sections: Params · Headers · Body · Auth · Cookies · Settings
+    ExamplePane                 in place of the URLBar, RequestEditor and ResponseViewer on an
+                                Example Tab: name, Status, Delay; sections Headers · Body
+    RequestEditor               sections: Docs · Params · Headers · Body · Auth · Cookies · Settings
       unit: KeyValueRow         Params, Headers, Cookies, form and multipart fields
       PathVariablesTable        in the Params pane under the Query Params table, only while the
                                 URL holds a Path Variable. unit: PathVariableRow: read-only Name,
