@@ -61,6 +61,10 @@ enum MainMenu {
             .separator(),
             submenu("Find", [find, findNext, findPrevious, filter]),
         ]))
+        // No target: DocsTextView takes them up the responder chain, so they are off elsewhere.
+        menu.addItem(submenu("Format", DocsFormat.groups.enumerated().flatMap { index, group in
+            (index == 0 ? [] : [NSMenuItem.separator()]) + group.map { $0.menuItem() }
+        }))
         let showSidebar = NSMenuItem(title: "Show Sidebar", action: #selector(NSSplitViewController.toggleSidebar(_:)), keyEquivalent: "s")
         showSidebar.keyEquivalentModifierMask = [.control, .command]
         let chooseEnvironment = NSMenuItem(title: "Choose Environment", action: #selector(AppDelegate.chooseEnvironment(_:)), keyEquivalent: "e")

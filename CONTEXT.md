@@ -39,8 +39,12 @@ A Body Type holding a Query, its Variables as JSON text and an optional Operatio
 _Avoid_: GraphQL request, GraphQL mode, operation
 
 **Docs**:
-A Request's notes, written as markdown in the Docs section of the editor. Part of the request definition, saved with it, never sent.
+A Request's notes, written as markdown in the Docs section of the editor and drawn with the marks hidden. Part of the request definition, saved with it, never sent.
 _Avoid_: Description (Postman's word, used only when naming its field), notes, documentation, README
+
+**Docs toolbar**:
+The bar of format controls that shows at the top of the Docs pane while the Docs editor has focus.
+_Avoid_: menubar, formatting bar, rich text toolbar
 
 **Auth**:
 The request's authentication scheme: none, Basic, or Bearer.

@@ -1569,13 +1569,45 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
 ### Docs pane
 
 The Docs section's pane: one NSTextView filling it, 16 pt padding, `background`, no line
-numbers. Body text is the system font 13 pt in `text`. Markdown is styled in place and the
-marks stay, in `textTertiary`: `#` headings at 20, 17 and 15 pt semibold for levels 1, 2 and 3+;
-`**bold**` semibold; `*italic*` italic; `` `code` `` and fenced blocks in SF Mono 12 on
-`backgroundRecessed`; list markers and `>` in `textSecondary`, a quote's text in `textSecondary`;
-`[text](url)` text in `accent`, ⌘-click opens an `http`/`https` URL. Empty: the placeholder
-"Notes for this Request, in markdown." in `textDisabled`. Undo, Find (⌘F, the system find bar)
-and spelling are NSTextView's own.
+numbers. Body text is the system font 13 pt in `text`. Markdown is drawn with its marks hidden
+(docs.md): `#` headings at 20, 17 and 15 pt semibold for levels 1, 2 and 3+; `**bold**`
+semibold; `*italic*` italic; `~~strike~~` with a single strikethrough; `` `code` `` in SF Mono 12
+on `backgroundRecessed`; `[text](url)` text in `accent`, the URL as its tooltip, ⌘-click opens
+an `http`/`https` URL. A bulleted item's `-` or `*` is drawn as `•` in `textSecondary`; a
+numbered item's `1.` stays, in `textSecondary`. A quote's `> ` is hidden; its line is indented
+12 pt with a 2 pt `border` bar at its leading edge and its text in `textSecondary`. A fenced
+block's lines are SF Mono 12 on `backgroundRecessed`; its fence lines stay, in `textTertiary`.
+Empty: the placeholder "Notes for this Request, in markdown." in `textDisabled`. Undo, Find (⌘F,
+the system find bar) and spelling are NSTextView's own. Esc ends editing: the editor resigns
+first responder (the window's, so focus goes nowhere) and the Docs toolbar hides.
+
+### Docs toolbar
+
+Shown while the Docs editor is first responder, hidden otherwise, with no animation. A bar
+floating 8 pt below the pane's top edge and 8 pt in from its leading edge, as wide as its
+items: 32 pt high, `backgroundElevated`, a 1 pt `border`, 8 pt radius, the menu shadow. While it
+shows, the text's top inset grows by 40 pt so the first line is never under it; on a click
+that focuses the editor it grows when the mouse is released, so the caret lands where clicked. Left to right,
+4 pt apart, a 1 pt × 16 pt `border` separator between groups:
+
+```
+[ Normal text ⌄ ] | B  I  S | •≡  1≡ | link  quote  code  code-block
+```
+
+- **Text style**: a pull-down, 120 pt, SF Pro 13 `text` and a `chevron.down`; items Normal text
+  (⌥⌘0), Heading 1 (⌥⌘1), Heading 2 (⌥⌘2), Heading 3 (⌥⌘3). Its title is the style of the
+  caret's line.
+- **Buttons**: 28 × 24 pt icon buttons, SF Symbols 13 pt `textSecondary`, hover `rowHover` with
+  a 4 pt radius; on when the caret or selection already has that style (`accent` glyph):
+  `bold` Bold (⌘B), `italic` Italic (⌘I), `strikethrough` Strikethrough (⇧⌘X), `list.bullet`
+  Bulleted list (⇧⌘8), `list.number` Numbered list (⇧⌘7), `link` Link (⌘K), `text.quote` Quote
+  (⇧⌘9), `chevron.left.forwardslash.chevron.right` Inline code (⌘E), `curlybraces` Code block
+  (⌥⌘C). The tooltip and accessibility label are the name and its shortcut, "Bold (⌘B)".
+- A click acts on the editor and leaves it first responder, so the toolbar stays.
+
+The shortcuts are a **Format** menu between Edit and View, holding the same items in the same
+order and groups; each is enabled only while the Docs editor is first responder, so ⌘B and the
+rest do nothing elsewhere.
 
 ### Example pane
 

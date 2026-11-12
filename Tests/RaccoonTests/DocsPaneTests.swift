@@ -78,12 +78,12 @@ struct DocsPaneTests {
         func attribute<T>(_ key: NSAttributedString.Key, at index: Int) -> T? { storage.attribute(key, at: index, effectiveRange: nil) as? T }
         func font(at index: Int) -> NSFont { storage.attribute(.font, at: index, effectiveRange: nil) as! NSFont }
         func weight(at index: Int) -> Int { NSFontManager.shared.weight(of: font(at: index)) }
-        // `#` is a dimmed mark, the heading text is 20 pt semibold
+        // `#` is a mark (hidden, tinted), the heading text is 20 pt semibold
         #expect(attribute(.foregroundColor, at: 0) == theme.color(.textTertiary))
         #expect(font(at: 2).pointSize == 20)
         let semibold = NSFontManager.shared.weight(of: .systemFont(ofSize: 13, weight: .semibold))
         #expect(weight(at: 2) == semibold)
-        // `**` stays, dimmed; the bold text is semibold, heavier than the body text after it
+        // `**` is a mark; the bold text is semibold, heavier than the body text after it
         #expect(attribute(.foregroundColor, at: 8) == theme.color(.textTertiary))
         #expect(weight(at: 10) == semibold && weight(at: 13) < semibold && font(at: 10).pointSize == 13)
         // inline code is a monospaced font on the recessed background
@@ -94,6 +94,18 @@ struct DocsPaneTests {
         let braces = (text as NSString).range(of: "{{name}}").location
         #expect(attribute(.foregroundColor, at: braces) == theme.color(.text))
         #expect(attribute(.link, at: braces) as URL? == nil)
+    }
+
+    @Test func `bold inside a heading keeps the heading's size`() throws {
+        let editor = editor()
+        model.tab.definition.docs = "## a **b**"
+        editor.render()
+        let storage = try #require(editor.docsPane.textView.textStorage)
+        let font = try #require(storage.attribute(.font, at: 8, effectiveRange: nil) as? NSFont)
+        #expect(font.pointSize == 17)
+        #expect(NSFontManager.shared.weight(of: font) >= NSFontManager.shared.weight(of: .systemFont(ofSize: 17, weight: .semibold)))
+        // its marks are hidden like any other
+        #expect(editor.docsPane.textView.hiddenMarks.contains(5) && editor.docsPane.textView.hiddenMarks.contains(9))
     }
 
     @Test func `a Variable in Docs is not an Undefined Variable`() {

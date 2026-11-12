@@ -262,7 +262,11 @@ Breadcrumb
                            name end-truncates, then the first; tooltips hold the full text
 Docs
   ⚠ markdown that does not parse as the user meant → not an error: DocsStyle.ranges is total;
-                           unmatched marks are drawn as text. The characters are never changed
+                           unmatched marks are drawn as text and only matched marks are hidden.
+                           The characters are never changed by drawing
+  ⚠ a format command that does not apply (Delete at the start of a plain line, Return on a
+                           plain line) → not an error: DocsEdit.apply returns nil and the editor
+                           does its own Delete or Return; an inline toggle on plain text wraps it
 GraphQL
   ⚠ Variables not a JSON object after substitution → escape: .notSent(.graphqlVariables), the
                            message "Not sent. Variables is not a JSON object: line 3, column 14."

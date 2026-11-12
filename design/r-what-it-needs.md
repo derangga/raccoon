@@ -66,6 +66,8 @@ PostmanExporter.environment                                       Environment, E
                                                                   date, version -> Environment bytes
 CredentialScan.find                                               Requests -> [CredentialFinding]
 DocsStyle.ranges                                                  markdown -> styled ranges (docs.md)
+DocsEdit.apply                                                    command + markdown + selection ->
+                                                                  markdown + selection (docs.md)
 GraphQLPayload.encode / .text, GraphQLMethod.forPick              GraphQL body -> the JSON sent;
                                                                   the method a pick sets
 Highlighter.ranges(_, .graphql)                                   GraphQL query -> token ranges

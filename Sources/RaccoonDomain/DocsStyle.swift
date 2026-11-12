@@ -16,11 +16,13 @@ public struct DocsStyleRange: Equatable, Sendable {
 /// order; where two overlap, the later one is drawn over the earlier.
 public enum DocsStyle {
     public enum Style: Equatable, Sendable {
-        /// `#`, `**`, `*`, a backtick, a fence line, `[` and `](url)`: dimmed, never removed.
+        /// `#`, `**`, `*`, `~~`, a backtick, a fence line, `[` and `](url)`: dimmed, never removed.
         case mark
         /// 1 to 6 `#`; the text after them.
         case heading(level: Int)
         case bold, italic
+        /// The text between `~~` and `~~`.
+        case strikethrough
         /// Inline code, without its backticks.
         case code
         /// The lines between two fences, or to the end when the fence is never closed.
@@ -93,6 +95,7 @@ public enum DocsStyle {
                     let level = j - i
                     while j < to, isBlank(j) { j += 1 }
                     add(j, to, .heading(level: level))
+                    inline(j, to)
                     return
                 }
             }
@@ -141,7 +144,7 @@ public enum DocsStyle {
                     } else {
                         i += 1
                     }
-                case char("*"):
+                case char("*"), char("~"):
                     i = emphasis(at: i, to)
                 case char("["):
                     i = link(at: i, to)
@@ -151,18 +154,20 @@ public enum DocsStyle {
             }
         }
 
-        /// `**bold**` or `*italic*` from the `*` at `i`: the index to go on from.
+        /// `**bold**`, `*italic*` or `~~strikethrough~~` from the `*` or `~` at `i`: the index to go on from.
         private mutating func emphasis(at i: Int, _ to: Int) -> Int {
-            let width = i + 1 < to && u[i + 1] == char("*") ? 2 : 1
+            let mark = u[i]
+            let width = i + 1 < to && u[i + 1] == mark ? 2 : 1
+            if mark == char("~"), width == 1 { return i + 1 }
             let open = i + width
             guard open < to, !isBlank(open) else { return open }
             let close = (open + 1..<max(to, open + 1)).first { j in
-                guard u[j] == char("*"), !isBlank(j - 1) else { return false }
-                return width == 2 ? j + 1 < to && u[j + 1] == char("*") : !(j + 1 < to && u[j + 1] == char("*"))
+                guard u[j] == mark, !isBlank(j - 1) else { return false }
+                return width == 2 ? j + 1 < to && u[j + 1] == mark : !(j + 1 < to && u[j + 1] == mark)
             }
             guard let close else { return open }
             add(i, open, .mark)
-            add(open, close, width == 2 ? .bold : .italic)
+            add(open, close, width == 1 ? .italic : mark == char("~") ? .strikethrough : .bold)
             add(close, close + width, .mark)
             return close + width
         }

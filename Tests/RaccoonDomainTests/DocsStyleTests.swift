@@ -35,8 +35,24 @@ struct DocsStyleTests {
         #expect(DocsStyle.ranges(text) == ranges)
     }
 
+    @Test func `a heading's inline marks are styled over it`() {
+        #expect(DocsStyle.ranges("## a **b** c") == [
+            Self.r(0, 2, .mark), Self.r(3, 9, .heading(level: 2)),
+            Self.r(5, 2, .mark), Self.r(7, 1, .bold), Self.r(8, 2, .mark),
+        ])
+        #expect(DocsStyle.ranges("# `x` ~~y~~") == [
+            Self.r(0, 1, .mark), Self.r(2, 9, .heading(level: 1)),
+            Self.r(2, 1, .mark), Self.r(3, 1, .code), Self.r(4, 1, .mark),
+            Self.r(6, 2, .mark), Self.r(8, 1, .strikethrough), Self.r(9, 2, .mark),
+        ])
+    }
+
+    @Test func `strikethrough is styled between its marks`() {
+        #expect(DocsStyle.ranges("a ~~b~~ c") == [Self.r(2, 2, .mark), Self.r(4, 1, .strikethrough), Self.r(5, 2, .mark)])
+    }
+
     @Test(arguments: [
-        "a ** b", "**open", "*open", "`open", "[text]", "[text](", "[text]()", "[](x)", "2 * 3 * 4",
+        "a ** b", "~~open", "~one~", "a ~~ b ~~", "**open", "*open", "`open", "[text]", "[text](", "[text]()", "[](x)", "2 * 3 * 4",
         "#nospace", "####### seven", "snake_case_name", "{{name}}", "-nospace", "1.nospace", ">", "", "\n\n",
     ])
     func `unmatched marks are drawn as text`(text: String) {
