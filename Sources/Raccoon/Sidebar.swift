@@ -588,15 +588,15 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         guard let item = item as? SidebarItem else { return nil }
         switch item.kind {
         case .collection, .folder:
-            let cell = reuse(NodeCell.identifier) { NodeCell() }
+            let cell = reuse(NodeCell.identifier) { NodeCell(target: self, action: #selector(moreClicked)) }
             cell.show(item, match: matches[item.path]?.ranges ?? [])
             return cell
         case .request(_, let method):
-            let cell = reuse(RequestCell.identifier) { RequestCell() }
+            let cell = reuse(RequestCell.identifier) { RequestCell(target: self, action: #selector(moreClicked)) }
             cell.show(name: item.name, method: method, match: matches[item.path]?.ranges ?? [], theme: theme)
             return cell
         case .unreadable(let reason):
-            let cell = reuse(UnreadableCell.identifier) { UnreadableCell(target: self, action: #selector(revealClicked)) }
+            let cell = reuse(UnreadableCell.identifier) { UnreadableCell(target: self, action: #selector(revealClicked), moreAction: #selector(moreClicked)) }
             cell.show(name: item.name, reason: reason, match: matches[item.path]?.ranges ?? [], theme: theme)
             return cell
         }
@@ -611,6 +611,24 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
     @objc private func revealClicked(_ sender: NSButton) {
         activate(row: outline.row(for: sender))
+    }
+
+    /// Opens a menu under a view; the app's, replaced where a test cannot run a menu's tracking loop.
+    var presentMenu: (NSMenu, NSView) -> Void = { menu, view in
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: view.isFlipped ? view.bounds.maxY : view.bounds.minY), in: view)
+    }
+
+    /// The ⋯ button: the row's context menu under it. The selection stays where it was.
+    @objc private func moreClicked(_ sender: NSButton) {
+        let row = outline.row(for: sender)
+        guard row >= 0 else { return }
+        presentMenu(contextMenu(row: row), sender)
+        (sender.superview as? MoreActionsCell)?.syncHover()
+    }
+
+    /// The ⋯ shows on the selected row: every cell lays out again to ask.
+    func outlineViewSelectionDidChange(_ notification: Notification) {
+        outline.enumerateAvailableRowViews { rowView, _ in (rowView.view(atColumn: 0) as? MoreActionsCell)?.needsLayout = true }
     }
 }
 
@@ -633,14 +651,77 @@ private protocol ThemedRow {
     func paint(_ theme: ThemeEnvironment)
 }
 
+/// A row's cell plus its More actions button (design-system §6 Sidebar rows): a 16 pt `ellipsis`
+/// at the trailing edge, 6 pt in, shown while the pointer is over the cell and while the row is
+/// selected. A click opens the row's context menu and leaves the selection alone, because the
+/// button takes the mouse-down before the outline does. Names stop `moreReserve` short of the edge.
+class MoreActionsCell: NSTableCellView {
+    static let moreSide: CGFloat = 16
+    private static let moreInset: CGFloat = 6
+    let more = NSButton()
+    var hovered = false { didSet { needsLayout = true } }
+
+    init(target: AnyObject, action: Selector) {
+        super.init(frame: .zero)
+        more.image = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: "More actions")?
+            .withSymbolConfiguration(.init(pointSize: 12, weight: .regular))
+        more.isBordered = false
+        more.imagePosition = .imageOnly
+        more.toolTip = "More actions"
+        more.setAccessibilityLabel("More actions")
+        more.target = target
+        more.action = action
+        more.isHidden = true
+        addSubview(more)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    var isRowSelected: Bool { (superview as? NSTableRowView)?.isSelected ?? false }
+    var showsMore: Bool { hovered || isRowSelected }
+    /// The width the trailing edge gives up to the button, and a 4 pt gap, while it shows.
+    var moreReserve: CGFloat { showsMore ? Self.moreInset + Self.moreSide + 4 : 0 }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
+    }
+
+    /// Hovered is where the pointer is now: a menu's tracking loop and a reload both hide the enter and exit events.
+    func syncHover() {
+        guard let window else { return hovered = false }
+        hovered = bounds.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
+    }
+
+    override func mouseEntered(with event: NSEvent) { hovered = true }
+    override func mouseExited(with event: NSEvent) { hovered = false }
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        needsLayout = true
+    }
+
+    override var backgroundStyle: NSView.BackgroundStyle { didSet { needsLayout = true } }
+
+    /// Subclasses lay out after `super`, and read `moreReserve` for the width their name keeps.
+    override func layout() {
+        super.layout()
+        more.isHidden = !showsMore
+        more.contentTintColor = backgroundStyle == .emphasized ? .alternateSelectedControlTextColor : .secondaryLabelColor
+        let y = isFlipped ? 4 : ((bounds.height - Self.moreSide) / 2).rounded()
+        more.frame = NSRect(x: bounds.width - Self.moreInset - Self.moreSide, y: y, width: Self.moreSide, height: Self.moreSide)
+    }
+}
+
 /// A Collection or Folder: its glyph and name in system colours.
-final class NodeCell: NSTableCellView {
+final class NodeCell: MoreActionsCell {
     static let identifier = NSUserInterfaceItemIdentifier("node")
     let glyph = NSImageView()
     let name = NSTextField(labelWithString: "")
 
-    init() {
-        super.init(frame: .zero)
+    override init(target: AnyObject, action: Selector) {
+        super.init(target: target, action: action)
         glyph.contentTintColor = .secondaryLabelColor
         name.font = .systemFont(ofSize: 13)
         name.lineBreakMode = .byTruncatingTail
@@ -656,6 +737,7 @@ final class NodeCell: NSTableCellView {
         let symbol = item.kind == .collection ? "square.3.layers.3d" : "folder"
         glyph.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 12, weight: .regular))
         shown = (item.name, match)
+        syncHover()
         renderName()
     }
 
@@ -672,20 +754,20 @@ final class NodeCell: NSTableCellView {
         super.layout()
         glyph.frame = NSRect(x: 0, y: (bounds.height - 14) / 2, width: 14, height: 14)
         let height = name.cell?.cellSize.height ?? 16
-        name.frame = NSRect(x: 20, y: ((bounds.height - height) / 2).rounded(), width: max(0, bounds.width - 20), height: height)
+        name.frame = NSRect(x: 20, y: ((bounds.height - height) / 2).rounded(), width: max(0, bounds.width - 20 - moreReserve), height: height)
     }
 }
 
 /// A Request: the left-aligned method badge, then the name 4 pt after it.
-final class RequestCell: NSTableCellView, ThemedRow {
+final class RequestCell: MoreActionsCell, ThemedRow {
     static let identifier = NSUserInterfaceItemIdentifier("request")
     let badge = NSTextField(labelWithString: "")
     let name = NSTextField(labelWithString: "")
     private var method = ""
     private var methodColor = NSColor.labelColor
 
-    init() {
-        super.init(frame: .zero)
+    override init(target: AnyObject, action: Selector) {
+        super.init(target: target, action: action)
         badge.alignment = .left
         badge.lineBreakMode = .byTruncatingTail
         badge.font = .monospacedSystemFont(ofSize: 9.5, weight: .bold)
@@ -700,6 +782,7 @@ final class RequestCell: NSTableCellView, ThemedRow {
 
     func show(name: String, method: String, match: [Range<String.Index>], theme: ThemeEnvironment) {
         self.method = method
+        syncHover()
         shown = (name, match)
         renderName()
         badge.setAccessibilityLabel(method)
@@ -744,13 +827,13 @@ final class RequestCell: NSTableCellView, ThemedRow {
         let badgeWidth = min(badge.cell?.cellSize.width ?? 56, 56)
         badge.frame = NSRect(x: -2, y: ((bounds.height - badgeHeight) / 2).rounded(), width: badgeWidth, height: badgeHeight)
         let height = name.cell?.cellSize.height ?? 16
-        name.frame = NSRect(x: badgeWidth, y: ((bounds.height - height) / 2).rounded(), width: max(0, bounds.width - badgeWidth), height: height)
+        name.frame = NSRect(x: badgeWidth, y: ((bounds.height - height) / 2).rounded(), width: max(0, bounds.width - badgeWidth - moreReserve), height: height)
     }
 }
 
 /// A file that did not decode: the warning glyph, the file name, an icon-only Reveal in Finder
 /// button, and the reason on its own line beneath.
-final class UnreadableCell: NSTableCellView, ThemedRow {
+final class UnreadableCell: MoreActionsCell, ThemedRow {
     static let identifier = NSUserInterfaceItemIdentifier("unreadable")
     let glyph = NSImageView()
     let name = NSTextField(labelWithString: "")
@@ -760,11 +843,11 @@ final class UnreadableCell: NSTableCellView, ThemedRow {
     private static let nameX: CGFloat = 20
     private static let reasonFont = NSFont.systemFont(ofSize: 11)
 
-    init(target: AnyObject, action: Selector) {
+    init(target: AnyObject, action: Selector, moreAction: Selector) {
         let image = NSImage(systemSymbolName: "arrow.up.forward.square", accessibilityDescription: "Reveal in Finder")!
             .withSymbolConfiguration(.init(pointSize: 11, weight: .regular))!
         reveal = NSButton(image: image, target: target, action: action)
-        super.init(frame: .zero)
+        super.init(target: target, action: moreAction)
         glyph.image = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: "Unreadable")?
             .withSymbolConfiguration(.init(pointSize: 12, weight: .regular))
         name.font = .systemFont(ofSize: 13)
@@ -782,6 +865,7 @@ final class UnreadableCell: NSTableCellView, ThemedRow {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
     func show(name: String, reason: String, match: [Range<String.Index>], theme: ThemeEnvironment) {
+        syncHover()
         shown = (name, match)
         renderName()
         self.name.toolTip = name
@@ -818,7 +902,7 @@ final class UnreadableCell: NSTableCellView, ThemedRow {
     override func layout() {
         super.layout()
         glyph.frame = NSRect(x: 0, y: 5, width: 14, height: 14)
-        reveal.frame = NSRect(x: bounds.width - 20 - 2, y: 3, width: 20, height: 18)
+        reveal.frame = NSRect(x: bounds.width - 20 - 2 - moreReserve, y: 3, width: 20, height: 18)
         let height = name.cell?.cellSize.height ?? 16
         name.frame = NSRect(x: Self.nameX, y: ((24 - height) / 2).rounded(), width: max(0, reveal.frame.minX - 4 - Self.nameX), height: height)
         let width = max(1, bounds.width - Self.nameX)
