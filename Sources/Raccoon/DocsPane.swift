@@ -40,10 +40,10 @@ final class DocsPane: NSView, NSTextViewDelegate {
             textView[keyPath: substitution] = false
         }
         textView.textContainerInset = Self.inset
+        textView.textContainer?.widthTracksTextView = false
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
-        textView.textContainer?.widthTracksTextView = true
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
         textView.setAccessibilityLabel("Docs")
         scroll.documentView = textView
@@ -77,6 +77,9 @@ final class DocsPane: NSView, NSTextViewDelegate {
             pane.textView.linkTextAttributes = [.foregroundColor: theme.color(.accent)]
             pane.textView.placeholderColor = theme.color(.textDisabled)
             pane.textView.quoteBarColor = theme.color(.border)
+            pane.textView.cardFill = theme.color(.backgroundRecessed)
+            pane.textView.cardBorder = theme.color(.border)
+            pane.textView.labelColor = theme.color(.textTertiary)
             pane.style()
         }
     }
@@ -103,7 +106,12 @@ final class DocsPane: NSView, NSTextViewDelegate {
         onChange?(textView.string)
     }
 
-    func textViewDidChangeSelection(_ notification: Notification) { refreshToolbar() }
+    func textViewDidChangeSelection(_ notification: Notification) {
+        refreshToolbar()
+        // A code block's fences show only while the caret is in it: restyle when it enters or leaves one.
+        if !textView.hasMarkedText(), textView.string == textView.markedUpText,
+           textView.blockIndex(containing: textView.selectedRange().location) != textView.expandedBlock { style() }
+    }
 
     /// A caret never rests inside a hidden mark.
     func textView(_ textView: NSTextView, willChangeSelectionFromCharacterRange old: NSRange, toCharacterRange new: NSRange) -> NSRange {
@@ -130,8 +138,9 @@ final class DocsPane: NSView, NSTextViewDelegate {
         let text = storage.string as NSString
         let all = NSRange(location: 0, length: text.length)
         var hidden = IndexSet(), blocks = IndexSet(), bullets = IndexSet(), quotes: [NSRange] = [], marks: [NSRange] = [], spans: [NSRange] = []
+        var fences: [(range: NSRange, language: String?)] = []
         storage.beginEditing()
-        storage.setAttributes([.font: Self.body, .foregroundColor: theme.color(.text)], range: all)
+        storage.setAttributes([.font: Self.body, .foregroundColor: theme.color(.text), .paragraphStyle: Self.bodyParagraph], range: all)
         for styled in DocsStyle.ranges(storage.string) where NSMaxRange(styled.range) <= text.length {
             let range = styled.range
             // Inside a heading, emphasis keeps the heading's size: it builds on the font already there.
@@ -143,9 +152,10 @@ final class DocsPane: NSView, NSTextViewDelegate {
             }
             switch styled.style {
             case .bold, .italic, .strikethrough, .code, .link: spans.append(range)
-            case .mark where text.substring(with: range).hasPrefix("```"):
-                // A fence line stays, dimmed.
-                storage.addAttribute(.font, value: Self.mono, range: range)
+            case .heading:
+                let line = text.lineRange(for: range)
+                storage.addAttribute(.paragraphStyle, value: Self.paragraph(multiple: 1.25, before: line.location > 0 ? 12 : 0, after: 4), range: line)
+            case .fence(let language): fences.append((range, language))
             case .mark, .quoteMark:
                 var end = NSMaxRange(range)
                 // `## ` and `> ` hide their space too; a space after `**bold**` is text.
@@ -158,13 +168,42 @@ final class DocsPane: NSView, NSTextViewDelegate {
                 if styled.style == .quoteMark {
                     let line = text.lineRange(for: range)
                     quotes.append(line)
-                    storage.addAttribute(.paragraphStyle, value: Self.quoteParagraph, range: line)
+                    storage.addAttribute(.paragraphStyle, value: Self.paragraph(multiple: 1.45, first: 16, head: 16), range: line)
                 }
-            case .listMarker where [0x2D, 0x2A].contains(text.character(at: range.location)):
-                bullets.insert(range.location)
+            case .listMarker:
+                hang(range, in: storage, bullets: &bullets)
             default: break
             }
         }
+        // Code blocks: a card each, with its fences hidden unless the caret is in it.
+        let caret = textView.selectedRange().location
+        var cards: [DocsCodeBlock] = []
+        for index in stride(from: 0, to: fences.count, by: 2) {
+            let open = fences[index], close = index + 1 < fences.count ? fences[index + 1] : nil
+            let openLine = text.lineRange(for: open.range)
+            let closeLine = close.map { text.lineRange(for: $0.range) }
+            let end = close.map { NSMaxRange($0.range) } ?? text.length
+            let region = NSRange(location: openLine.location, length: end - openLine.location)
+            let expanded = caret >= region.location && caret <= NSMaxRange(region)
+            let lines = NSRange(location: openLine.location, length: (closeLine.map(NSMaxRange) ?? text.length) - openLine.location)
+            storage.addAttribute(.paragraphStyle, value: Self.paragraph(multiple: 1.5, first: 12, head: 12, tail: -12), range: lines)
+            for (fence, line, isOpen) in [(open, openLine, true)] + (close.map { [($0, closeLine!, false)] } ?? []) {
+                let spacing = isOpen ? (before: CGFloat(8), after: CGFloat(0)) : (before: 0, after: 8)
+                storage.addAttribute(.font, value: Self.mono, range: fence.range)
+                if expanded {
+                    storage.addAttributes([.foregroundColor: theme.color(.textTertiary),
+                                           .paragraphStyle: Self.paragraph(multiple: 1.5, first: 12, head: 12, tail: -12, before: spacing.before, after: spacing.after)], range: line)
+                } else {
+                    // No glyphs, and the line shrinks to the card's 12 pt padding.
+                    var visibleEnd = NSMaxRange(line)
+                    while visibleEnd > line.location, [0x0A, 0x0D].contains(text.character(at: visibleEnd - 1)) { visibleEnd -= 1 }
+                    hidden.insert(integersIn: line.location..<visibleEnd)
+                    storage.addAttribute(.paragraphStyle, value: Self.paragraph(multiple: 1, before: spacing.before, after: spacing.after, fixedHeight: 12), range: line)
+                }
+            }
+            cards.append(DocsCodeBlock(region: region, language: open.language, expanded: expanded))
+        }
+        textView.codeBlocks = cards
         textView.hiddenMarks = hidden
         textView.blockMarks = blocks
         textView.markRanges = marks
@@ -173,20 +212,51 @@ final class DocsPane: NSView, NSTextViewDelegate {
         textView.quoteLines = quotes
         textView.markedUpText = storage.string
         storage.endEditing()
-        textView.typingAttributes = [.font: Self.body, .foregroundColor: theme.color(.text)]
+        textView.typingAttributes = [.font: Self.body, .foregroundColor: theme.color(.text), .paragraphStyle: Self.bodyParagraph]
         textView.needsDisplay = true
         // New marks (a setDocs, an undo, a `## ` just typed) can leave the caret inside one.
-        let caret = textView.selectedRange()
-        let settled = textView.settle(caret, from: caret, travel: nil)
-        if settled != caret { textView.setSelectedRange(settled) }
+        let selected = textView.selectedRange()
+        let settled = textView.settle(selected, from: selected, travel: nil)
+        if settled != selected { textView.setSelectedRange(settled) }
     }
 
-    private static let quoteParagraph: NSParagraphStyle = {
+    /// A list line hangs: the marker in a 24 pt gutter from 4 pt in, the text from 28 pt, wrapped
+    /// lines under the text. The space after the marker takes the kern that puts the text at 28;
+    /// a numbered marker is pushed right so 9. and 10. end together.
+    private func hang(_ marker: NSRange, in storage: NSTextStorage, bullets: inout IndexSet) {
+        let text = storage.string as NSString
+        let line = text.lineRange(for: marker)
+        let first = text.character(at: marker.location)
+        let isBullet = [0x2D, 0x2A].contains(first)
+        if isBullet { bullets.insert(marker.location) }
+        let shown = isBullet ? "•" : text.substring(with: marker)
+        let width = (shown as NSString).size(withAttributes: [.font: Self.body]).width
+        let space = (" " as NSString).size(withAttributes: [.font: Self.body]).width
+        let numbered = first >= 0x30 && first <= 0x39
+        let start = numbered ? max(4, 28 - width - space) : 4
+        let kern = numbered ? 0 : max(0, 28 - start - width - space)
+        let gap = NSRange(location: NSMaxRange(marker), length: 1)
+        if kern > 0, NSMaxRange(gap) <= text.length, text.character(at: gap.location) == 0x20 { storage.addAttribute(.kern, value: kern, range: gap) }
+        storage.addAttribute(.paragraphStyle, value: Self.paragraph(multiple: 1.45, first: start, head: 28, after: 2), range: line)
+    }
+
+    private static let bodyParagraph = paragraph(multiple: 1.45)
+
+    private static func paragraph(multiple: CGFloat, first: CGFloat = 0, head: CGFloat = 0, tail: CGFloat = 0,
+                                  before: CGFloat = 0, after: CGFloat = 0, fixedHeight: CGFloat? = nil) -> NSParagraphStyle {
         let style = NSMutableParagraphStyle()
-        style.firstLineHeadIndent = 12
-        style.headIndent = 12
+        style.lineHeightMultiple = multiple
+        style.firstLineHeadIndent = first
+        style.headIndent = head
+        style.tailIndent = tail
+        style.paragraphSpacingBefore = before
+        style.paragraphSpacing = after
+        if let fixedHeight {
+            style.minimumLineHeight = fixedHeight
+            style.maximumLineHeight = fixedHeight
+        }
         return style
-    }()
+    }
 
     private func attributes(for style: DocsStyle.Style) -> [NSAttributedString.Key: Any] {
         switch style {
@@ -195,7 +265,8 @@ final class DocsPane: NSView, NSTextViewDelegate {
         case .bold: [.font: NSFont.systemFont(ofSize: 13, weight: .semibold)]
         case .italic: [.font: NSFontManager.shared.convert(Self.body, toHaveTrait: .italicFontMask)]
         case .strikethrough: [.strikethroughStyle: NSUnderlineStyle.single.rawValue]
-        case .code, .codeBlock: [.font: Self.mono, .backgroundColor: theme.color(.backgroundRecessed)]
+        case .code: [.font: Self.mono, .backgroundColor: theme.color(.backgroundRecessed)]
+        case .codeBlock, .fence: [.font: Self.mono]
         case .listMarker, .quoteMark, .quote: [.foregroundColor: theme.color(.textSecondary)]
         case .link(let url):
             if let url, let target = URL(string: url) {
@@ -205,6 +276,14 @@ final class DocsPane: NSView, NSTextViewDelegate {
             }
         }
     }
+}
+
+/// A fenced code block as the editor draws it: its card, from the opening fence's line to the
+/// closing fence's end (or the text's), and whether the caret is in it, which shows its fences.
+struct DocsCodeBlock: Equatable {
+    var region: NSRange
+    var language: String?
+    var expanded: Bool
 }
 
 /// The Docs editor: matched marks laid out with no glyphs, format commands, the placeholder
@@ -225,6 +304,12 @@ final class DocsTextView: NSTextView, NSLayoutManagerDelegate, NSPopoverDelegate
     var markRanges: [NSRange] = []
     var spanRanges: [NSRange] = []
     var quoteLines: [NSRange] = []
+    var codeBlocks: [DocsCodeBlock] = []
+    var cardFill = NSColor.controlBackgroundColor
+    var cardBorder = NSColor.separatorColor
+    var labelColor = NSColor.tertiaryLabelColor
+    /// Lines run at most this far (720 pt) from the leading padding, plus the padding each side.
+    static let measure: CGFloat = 720
     var markedUpText = ""
     /// Fires when the editor gains or loses first responder: the Docs toolbar follows it.
     var onFocusChange: ((Bool) -> Void)?
@@ -253,6 +338,57 @@ final class DocsTextView: NSTextView, NSLayoutManagerDelegate, NSPopoverDelegate
     override func didChangeText() {
         super.didChangeText()
         needsDisplay = true
+    }
+
+    // MARK: Measure and code blocks
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        updateMeasure()
+    }
+
+    /// The text container is as wide as the pane allows, to the measure: a wider pane leaves the
+    /// rest empty, and the selection highlight stops there too.
+    func updateMeasure() {
+        guard let container = textContainer, bounds.width > 0 else { return }
+        let width = min(bounds.width - 2 * textContainerInset.width, Self.measure + 2 * container.lineFragmentPadding)
+        if container.size.width != width { container.size = NSSize(width: max(width, 0), height: .greatestFiniteMagnitude) }
+    }
+
+    /// The block whose region holds `location`, ends included.
+    func blockIndex(containing location: Int) -> Int? {
+        codeBlocks.firstIndex { location >= $0.region.location && location <= NSMaxRange($0.region) }
+    }
+
+    /// The block the caret was in at the last restyle.
+    var expandedBlock: Int? { codeBlocks.firstIndex(where: \.expanded) }
+
+    /// Each card's rect in this view, from its opening fence's line to its last line.
+    func cardRects() -> [NSRect] {
+        guard let layout = layoutManager, let container = textContainer, let length = textStorage?.length, length > 0 else { return [] }
+        let padding = container.lineFragmentPadding
+        return codeBlocks.compactMap { block in
+            guard NSMaxRange(block.region) <= length else { return nil }
+            let top = layout.lineFragmentUsedRect(forGlyphAt: layout.glyphIndexForCharacter(at: block.region.location), effectiveRange: nil)
+            let bottom = layout.lineFragmentUsedRect(forGlyphAt: layout.glyphIndexForCharacter(at: max(block.region.location, NSMaxRange(block.region) - 1)), effectiveRange: nil)
+            return NSRect(x: textContainerOrigin.x + padding, y: textContainerOrigin.y + top.minY,
+                          width: container.size.width - 2 * padding, height: bottom.maxY - top.minY)
+        }
+    }
+
+    private func drawCards() {
+        for (block, rect) in zip(codeBlocks, cardRects()) {
+            let card = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 6, yRadius: 6)
+            cardFill.setFill()
+            card.fill()
+            cardBorder.setStroke()
+            card.lineWidth = 1
+            card.stroke()
+            if !block.expanded, let language = block.language {
+                let label = NSAttributedString(string: language, attributes: [.font: NSFont.monospacedSystemFont(ofSize: 10, weight: .regular), .foregroundColor: labelColor])
+                label.draw(at: NSPoint(x: rect.maxX - 8 - label.size().width, y: rect.minY + 2))
+            }
+        }
     }
 
     // MARK: Hidden marks
@@ -455,6 +591,7 @@ final class DocsTextView: NSTextView, NSLayoutManagerDelegate, NSPopoverDelegate
     // MARK: Drawing
 
     override func draw(_ dirtyRect: NSRect) {
+        drawCards()
         super.draw(dirtyRect)
         drawQuoteBars()
         guard string.isEmpty else { return }
@@ -463,15 +600,28 @@ final class DocsTextView: NSTextView, NSLayoutManagerDelegate, NSPopoverDelegate
             .draw(at: origin)
     }
 
-    /// A 2 pt bar at each quote line's leading edge, beside its 12 pt indent.
-    private func drawQuoteBars() {
-        guard let layout = layoutManager, let length = textStorage?.length else { return }
-        quoteBarColor.setFill()
+    /// The 2 pt bars, 4 pt in, over exactly each quote line's own line fragments. They are found
+    /// from the line's first visible glyph: a hidden mark's glyph can sit in the line before.
+    func quoteBarRects() -> [NSRect] {
+        guard let layout = layoutManager, let container = textContainer, let length = textStorage?.length else { return [] }
+        let text = string as NSString
+        var rects: [NSRect] = []
         for line in quoteLines where NSMaxRange(line) <= length {
-            layout.enumerateLineFragments(forGlyphRange: layout.glyphRange(forCharacterRange: line, actualCharacterRange: nil)) { rect, _, container, _, _ in
-                NSRect(x: self.textContainerOrigin.x + container.lineFragmentPadding, y: self.textContainerOrigin.y + rect.minY, width: 2, height: rect.height).fill()
+            var first = line.location
+            while first < NSMaxRange(line) - 1, hiddenMarks.contains(first) { first += 1 }
+            let glyphs = layout.glyphRange(forCharacterRange: NSRange(location: first, length: NSMaxRange(line) - first), actualCharacterRange: nil)
+            layout.enumerateLineFragments(forGlyphRange: glyphs) { rect, _, _, fragmentGlyphs, _ in
+                // A fragment before the line's own (the glyph range can start in the previous one) is skipped.
+                guard NSMaxRange(layout.characterRange(forGlyphRange: fragmentGlyphs, actualGlyphRange: nil)) > first || text.length == 0 else { return }
+                rects.append(NSRect(x: self.textContainerOrigin.x + container.lineFragmentPadding + 4, y: self.textContainerOrigin.y + rect.minY, width: 2, height: rect.height))
             }
         }
+        return rects
+    }
+
+    private func drawQuoteBars() {
+        quoteBarColor.setFill()
+        quoteBarRects().forEach { $0.fill() }
     }
 
     override func mouseDown(with event: NSEvent) {

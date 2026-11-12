@@ -17,10 +17,6 @@ struct DocsStyleTests {
         ("a **b** c", [r(2, 2, .mark), r(4, 1, .bold), r(5, 2, .mark)]),
         ("a *b* c", [r(2, 1, .mark), r(3, 1, .italic), r(4, 1, .mark)]),
         ("run `curl -v` now", [r(4, 1, .mark), r(5, 7, .code), r(12, 1, .mark)]),
-        // a fenced block: the fences are marks, the lines between are the block
-        ("```json\n{\"a\": 1}\n```", [r(0, 7, .mark), r(8, 8, .codeBlock), r(17, 3, .mark)]),
-        // a fence never closed runs to the end
-        ("```\nx\ny", [r(0, 3, .mark), r(4, 3, .codeBlock)]),
         // lists and quotes: the marker, then the text styled inline
         ("- one\n1. two", [r(0, 1, .listMarker), r(6, 2, .listMarker)]),
         ("* a *b*", [r(0, 1, .listMarker), r(4, 1, .mark), r(5, 1, .italic), r(6, 1, .mark)]),
@@ -32,6 +28,17 @@ struct DocsStyleTests {
         ("# T\r\n- a", [r(0, 1, .mark), r(2, 1, .heading(level: 1)), r(5, 1, .listMarker)]),
     ])
     func `markdown is styled in place and every mark is kept`(text: String, ranges: [DocsStyleRange]) {
+        #expect(DocsStyle.ranges(text) == ranges)
+    }
+
+    @Test(arguments: [
+        // a fence is its whole line, with the language of an opening one; the lines between are the block
+        ("```json\n{\"a\": 1}\n```", [r(0, 7, .fence(language: "json")), r(8, 8, .codeBlock), r(17, 3, .fence(language: nil))]),
+        ("```swift\nx\n```", [r(0, 8, .fence(language: "swift")), r(9, 1, .codeBlock), r(11, 3, .fence(language: nil))]),
+        ("```  swift  \nx\n``` swift", [r(0, 12, .fence(language: "swift")), r(13, 1, .codeBlock), r(15, 9, .fence(language: nil))]),
+        ("```\nx\ny", [r(0, 3, .fence(language: nil)), r(4, 3, .codeBlock)]),
+    ])
+    func `a fence line is one range and carries the language`(text: String, ranges: [DocsStyleRange]) {
         #expect(DocsStyle.ranges(text) == ranges)
     }
 

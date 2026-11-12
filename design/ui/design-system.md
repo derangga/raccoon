@@ -1569,14 +1569,31 @@ wrapping, clipped lines); counts that need no plural ("Headers 1", "Headers 60")
 ### Docs pane
 
 The Docs section's pane: one NSTextView filling it, 16 pt padding, `background`, no line
-numbers. Body text is the system font 13 pt in `text`. Markdown is drawn with its marks hidden
-(docs.md): `#` headings at 20, 17 and 15 pt semibold for levels 1, 2 and 3+; `**bold**`
-semibold; `*italic*` italic; `~~strike~~` with a single strikethrough; `` `code` `` in SF Mono 12
-on `backgroundRecessed`; `[text](url)` text in `accent`, the URL as its tooltip, ⌘-click opens
-an `http`/`https` URL. A bulleted item's `-` or `*` is drawn as `•` in `textSecondary`; a
-numbered item's `1.` stays, in `textSecondary`. A quote's `> ` is hidden; its line is indented
-12 pt with a 2 pt `border` bar at its leading edge and its text in `textSecondary`. A fenced
-block's lines are SF Mono 12 on `backgroundRecessed`; its fence lines stay, in `textTertiary`.
+numbers. **Measure**: lines are at most 720 pt long (about 90 characters of body text), from the
+pane's leading padding, never centred; a wider pane leaves the rest empty, and selection
+highlights stop at 720 pt too (decided 2026-11-12). **Rhythm**: body text is the system font
+13 pt in `text` at a line height of 1.45 (19 pt); a line that follows a blank line, a heading or
+a block gets nothing extra, the blank line itself is the gap.
+
+Markdown is drawn with its marks hidden (docs.md):
+- `#` headings at 20, 17 and 15 pt semibold for levels 1, 2 and 3+, line height 1.25, 12 pt
+  above (none on the first line) and 4 pt below.
+- `**bold**` semibold; `*italic*` italic; `~~strike~~` a single strikethrough; `[text](url)`
+  text in `accent`, the URL as its tooltip, ⌘-click opens an `http`/`https` URL.
+- `` `code` `` in SF Mono 12 on `backgroundRecessed`.
+- **Lists** hang: the marker sits in a 24 pt gutter starting 4 pt in, the text starts 28 pt in,
+  and wrapped lines align with the text, not the marker. A bulleted item's `-` or `*` is drawn
+  as `•` in `textSecondary`; a numbered item's `1.` stays, in `textSecondary`, right-aligned in
+  the gutter so 9. and 10. line up. 2 pt between items.
+- **Quotes**: `> ` hidden; the line's text starts 16 pt in, in `textSecondary`, with a 2 pt
+  `border` bar at 4 pt that spans exactly the quote's own line fragments (never a neighbouring
+  line, even with no blank line between them).
+- **Code blocks** are a card: `backgroundRecessed`, a 1 pt `border`, 6 pt radius, as wide as
+  the measure, 12 pt padding on every side; lines in SF Mono 12, line height 1.5, `text`. With
+  the caret outside, the fence lines are hidden and the language, if any, is a label at the
+  card's top trailing corner in SF Mono 10 `textTertiary`; with the caret inside, the fence lines
+  show in `textTertiary` at the card's top and bottom (docs.md). 8 pt above and below the card.
+
 Empty: the placeholder "Notes for this Request, in markdown." in `textDisabled`. Undo, Find (⌘F,
 the system find bar) and spelling are NSTextView's own. Esc ends editing: the editor resigns
 first responder (the window's, so focus goes nowhere) and the Docs toolbar hides.

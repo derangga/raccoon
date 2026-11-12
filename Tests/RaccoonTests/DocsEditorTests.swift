@@ -51,7 +51,7 @@ struct DocsEditorTests {
         let (_, text) = focused("> q\n```\nx\n```")
         #expect(glyphProperty(text, at: 0).contains(.null) && glyphProperty(text, at: 1).contains(.null))
         let indent = try #require(text.textStorage?.attribute(.paragraphStyle, at: 2, effectiveRange: nil) as? NSParagraphStyle)
-        #expect(indent.firstLineHeadIndent == 12 && indent.headIndent == 12)
+        #expect(indent.firstLineHeadIndent == 16 && indent.headIndent == 16)
         #expect(text.quoteLines == [NSRange(location: 0, length: 4)])
         #expect(!glyphProperty(text, at: 4).contains(.null))
     }
@@ -142,6 +142,99 @@ struct DocsEditorTests {
         let layout = text.layoutManager!
         layout.invalidateGlyphs(forCharacterRange: NSRange(location: 0, length: 8), changeInLength: 0, actualCharacterRange: nil)
         for index in 0..<8 { #expect(!glyphProperty(text, at: index).contains(.null)) }
+    }
+
+    // MARK: layout
+
+    func paragraphStyle(_ text: DocsTextView, at index: Int) -> NSParagraphStyle {
+        text.textStorage!.attribute(.paragraphStyle, at: index, effectiveRange: nil) as! NSParagraphStyle
+    }
+
+    /// Where the glyph of the character at `index` starts, in the text view's own coordinates.
+    func x(_ text: DocsTextView, of index: Int) -> CGFloat {
+        let layout = text.layoutManager!
+        layout.ensureGlyphs(forCharacterRange: NSRange(location: 0, length: text.string.utf16.count))
+        let glyph = layout.glyphIndexForCharacter(at: index)
+        return text.textContainerOrigin.x + layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).minX + layout.location(forGlyphAt: glyph).x
+    }
+
+    @Test func `body, heading and code lines have their own line height, and a heading its spacing`() {
+        let (_, text) = focused("a\n\n# H\n\n```\nx\n```")
+        #expect(paragraphStyle(text, at: 0).lineHeightMultiple == 1.45)
+        let heading = paragraphStyle(text, at: 5)
+        #expect(heading.lineHeightMultiple == 1.25 && heading.paragraphSpacingBefore == 12 && heading.paragraphSpacing == 4)
+        #expect(paragraphStyle(text, at: 14).lineHeightMultiple == 1.5)
+        // none above a heading on the first line
+        let (_, first) = focused("# H")
+        #expect(paragraphStyle(first, at: 2).paragraphSpacingBefore == 0)
+    }
+
+    @Test func `list items hang: the text starts 28 pt in, wrapped lines too, and numbers end together`() {
+        let (_, text) = focused("- a\n* b\n9. c\n10. d")
+        let style = paragraphStyle(text, at: 0)
+        #expect(style.firstLineHeadIndent == 4 && style.headIndent == 28 && style.paragraphSpacing == 2)
+        // the text of every item starts at the same x
+        let starts = [2, 6, 11, 17].map { x(text, of: $0) }
+        #expect(starts.allSatisfy { abs($0 - starts[0]) < 0.5 })
+        #expect(abs(starts[0] - (text.textContainerOrigin.x + text.textContainer!.lineFragmentPadding + 28)) < 0.5)
+        // 9. and 10. end together (right-aligned in the gutter)
+        #expect(abs(x(text, of: 10) - x(text, of: 16)) < 0.5)
+    }
+
+    @Test func `lines are at most 720 pt long, and the container follows the pane`() {
+        let (_, text) = focused("x")
+        text.setFrameSize(NSSize(width: 1400, height: 300))
+        #expect(text.textContainer?.size.width == 730)
+        text.setFrameSize(NSSize(width: 500, height: 300))
+        #expect(text.textContainer?.size.width == 478 && text.textContainer?.widthTracksTextView == false)
+    }
+
+    @Test func `a quote's bar spans its own line only, even right after a fence`() {
+        let (_, text) = focused("```\nx\n```\n> q")
+        let layout = text.layoutManager!
+        func fence(_ index: Int) -> NSRect { layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: index), effectiveRange: nil).offsetBy(dx: 0, dy: text.textContainerOrigin.y) }
+        for caret in [13, 7] {
+            text.setSelectedRange(NSRange(location: caret, length: 0))
+            let bars = text.quoteBarRects()
+            #expect(bars.count == 1 && bars[0].width == 2)
+            #expect(!bars[0].intersects(fence(6)))
+            #expect(bars[0].intersects(fence(12)))
+        }
+    }
+
+    @Test func `a code block is a card whose fences show only while the caret is in it`() throws {
+        let (_, text) = focused("a\n```swift\nx\n```\nb")
+        // caret at the end, outside: the fence lines have no glyphs and the card is drawn
+        #expect(text.codeBlocks == [DocsCodeBlock(region: NSRange(location: 2, length: 14), language: "swift", expanded: false)])
+        #expect(glyphProperty(text, at: 2).contains(.null) && glyphProperty(text, at: 9).contains(.null) && glyphProperty(text, at: 13).contains(.null))
+        #expect(text.cardRects().count == 1)
+        let hiddenHeight = text.cardRects()[0].height
+        // the code line has no glyph background, inline code keeps its own
+        #expect(text.textStorage?.attribute(.backgroundColor, at: 11, effectiveRange: nil) == nil)
+        // the caret on the code line shows them
+        text.setSelectedRange(NSRange(location: 11, length: 0))
+        #expect(text.codeBlocks[0].expanded && !glyphProperty(text, at: 2).contains(.null) && !glyphProperty(text, at: 13).contains(.null))
+        #expect(text.cardRects()[0].height > hiddenHeight)
+        #expect(text.textStorage?.attribute(.foregroundColor, at: 2, effectiveRange: nil) as? NSColor == theme.color(.textTertiary))
+        text.setSelectedRange(NSRange(location: 0, length: 0))
+        #expect(!text.codeBlocks[0].expanded && glyphProperty(text, at: 2).contains(.null))
+        // the storage is the markdown throughout
+        #expect(text.string == "a\n```swift\nx\n```\nb")
+    }
+
+    @Test func `the caret passes through a code block's fences, up and down`() {
+        let (_, text) = focused("a\n```\nx\n```\nb")
+        text.setSelectedRange(NSRange(location: 0, length: 0))
+        for _ in 0..<6 { text.moveDown(nil) }
+        #expect(text.selectedRange().location == 13)
+        for _ in 0..<6 { text.moveUp(nil) }
+        #expect(text.selectedRange().location <= 1)
+        // a block that ends the text: the caret still reaches the end of its closing fence
+        let (_, ending) = focused("```\nx\n```")
+        ending.setSelectedRange(NSRange(location: 5, length: 0))
+        ending.moveDown(nil)
+        for _ in 0..<4 { ending.moveRight(nil) }
+        #expect(ending.selectedRange().location == 9)
     }
 
     // MARK: commands

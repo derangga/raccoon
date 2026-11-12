@@ -73,6 +73,12 @@ struct DocsEditTests {
         (.bullet, "1. a‸", "- a‸"),
         (.bullet, "‸", "- ‸"),
         (.heading(1), "  a‸", "  # a‸"),
+        // an empty selection ends at the end of its line, whatever the style does
+        (.bullet, "fir‸st", "- first‸"),
+        (.bullet, "x\nfir‸st\ny", "x\n- first‸\ny"),
+        (.heading(2), "## fi‸rst", "first‸"),
+        (.numbered, "‸first", "1. first‸"),
+        (.paragraph, "> fi‸rst", "first‸"),
         // every line the selection touches
         (.bullet, "«a\nb»", "- «a\n- b»"),
         (.numbered, "«a\nb\nc»", "1. «a\n2. b\n3. c»"),
@@ -88,6 +94,12 @@ struct DocsEditTests {
         (.codeBlock, "```\na‸\n```", "a‸"),
         (.codeBlock, "x\n```json\na‸\n```\ny", "x\na‸\ny"),
         (.codeBlock, "```\na‸", "a‸"),
+        // an empty selection: the first content line's end when adding, its own line's end when removing
+        (.codeBlock, "x\nfir‸st\ny", "x\n```\nfirst‸\n```\ny"),
+        (.codeBlock, "```\nfi‸rst\nsecond\n```", "first‸\nsecond"),
+        (.codeBlock, "```\nfirst\nsec‸ond\n```", "first\nsecond‸"),
+        (.codeBlock, "‸```\na\n```", "a‸"),
+        (.codeBlock, "```\na\n```‸", "a‸"),
     ])
     func `block styles set, replace and remove a line mark`(block: DocsEdit.Block, input: String, output: String) {
         #expect(Self.run(.block(block), input) == output)

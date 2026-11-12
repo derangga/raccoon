@@ -287,7 +287,14 @@ private struct Doc {
             let length = old.map { $0.end - $0.start } ?? 0
             if length > 0 || !new.isEmpty { edits.append(Edit(loc: loc, old: length, new: new)) }
         }
-        return result(edits)
+        return caretAtLineEnd(result(edits), line: index(of: s))
+    }
+
+    /// With an empty selection, the result's caret goes to the end of line `line` of its text.
+    func caretAtLineEnd(_ r: DocsEdit.Result?, line: Int) -> DocsEdit.Result? {
+        guard s == e, var r, let doc = Doc(r.text, NSRange(location: 0, length: 0)) else { return r }
+        r.selection = NSRange(location: doc.lines[min(line, doc.lines.count - 1)].end, length: 0)
+        return r
     }
 
     func codeBlock() -> DocsEdit.Result? {
@@ -302,13 +309,15 @@ private struct Doc {
             }
             let open = lines[fence.open]
             let close = fence.close.map { lines[$0] }
-            return result([drop(open, after: nil)] + (close.map { [drop($0, after: open)] } ?? []))
+            let line = first <= fence.open ? fence.open : fence.close.map { first >= $0 ? max($0 - 2, fence.open) : first - 1 } ?? first - 1
+            return caretAtLineEnd(result([drop(open, after: nil)] + (close.map { [drop($0, after: open)] } ?? [])), line: line)
         }
         let all = touched
-        return result([
+        // The caret goes to the end of the first content line, below the opening fence.
+        return caretAtLineEnd(result([
             Edit(loc: all[0].start, old: 0, new: "```\n"),
             Edit(loc: all[all.count - 1].end, old: 0, new: "\n```", before: true),
-        ])
+        ]), line: first + 1)
     }
 
     // MARK: link

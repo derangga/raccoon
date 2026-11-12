@@ -16,7 +16,7 @@ public struct DocsStyleRange: Equatable, Sendable {
 /// order; where two overlap, the later one is drawn over the earlier.
 public enum DocsStyle {
     public enum Style: Equatable, Sendable {
-        /// `#`, `**`, `*`, `~~`, a backtick, a fence line, `[` and `](url)`: dimmed, never removed.
+        /// `#`, `**`, `*`, `~~`, a backtick, `[` and `](url)`: dimmed, never removed.
         case mark
         /// 1 to 6 `#`; the text after them.
         case heading(level: Int)
@@ -25,6 +25,9 @@ public enum DocsStyle {
         case strikethrough
         /// Inline code, without its backticks.
         case code
+        /// A fence line, whole: the three backticks and any info string. `language` is the trimmed info
+        /// string of an opening fence, nil when empty and for a closing fence.
+        case fence(language: String?)
         /// The lines between two fences, or to the end when the fence is never closed.
         case codeBlock
         case listMarker
@@ -78,8 +81,15 @@ public enum DocsStyle {
             var i = from
             while i < to, isBlank(i) { i += 1 }
             if to - i >= 3, u[i] == char("`"), u[i + 1] == char("`"), u[i + 2] == char("`") {
-                if inBlock { closeBlock() } else { inBlock = true }
-                add(i, to, .mark)
+                var language: String?
+                if inBlock {
+                    closeBlock()
+                } else {
+                    inBlock = true
+                    let info = String(decoding: u[i + 3..<to], as: UTF16.self).trimmingCharacters(in: .whitespaces)
+                    language = info.isEmpty ? nil : info
+                }
+                add(i, to, .fence(language: language))
                 return
             }
             if inBlock {

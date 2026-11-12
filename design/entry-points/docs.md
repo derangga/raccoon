@@ -95,6 +95,9 @@ when it is already that style; with none, it wraps the word at the caret, and wi
 inserts the empty pair with the caret between (shown as text until something is typed). A block
 style (Normal text, Heading 1-3, Bulleted list, Numbered list, Quote, Code block) sets the
 caret's lines: it replaces their line mark, or removes it when they already have that style.
+With no selection the caret then goes to the end of its line, so typing continues the item;
+with a selection the selection keeps its text. Code block puts the caret on its first content
+line.
 Link opens the Link popover under the selection (design-system §6) with two fields, Link and
 Text, Text prefilled with the selection: `.link(url:text:)` writes `[text](url)` over the
 selection, or over the link the caret is in, so it both edits a link's URL and renames it. An
@@ -103,6 +106,12 @@ empty Text uses the URL; an empty URL removes the link and keeps its text.
 **Return and Delete follow the list.** Return in a list item starts the next one (`- `, or the
 next number); Return in an empty item removes its marker and ends the list. Delete at the start
 of a heading, list item or quote removes its line mark, so the line becomes Normal text.
+
+**A code block shows its fences only while the caret is in it.** With the caret outside, the
+fence lines draw no glyphs and collapse into the block's top and bottom padding, and the
+opening fence's language (```` ```swift ````) shows as a label inside the block. With the caret
+inside, the fences show in `textTertiary`, so the block can be edited, renamed and left by
+moving past them. The pane restyles on every selection change for this; the text never changes.
 
 **`{{name}}` in Docs is plain text.** It is not highlighted, not counted as an Undefined
 Variable, and not shown in the Variables pane: a note may well describe a Variable by name.
