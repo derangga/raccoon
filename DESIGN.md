@@ -76,6 +76,10 @@ Enforced by `Package.swift`, not by convention: `RaccoonDomain` may import Found
 value types (`URL`, `Data`, `Date`) and must not touch `FileManager`, `URLSession`,
 `Security` or `CoreServices`. A rule that wants a file reads it through a port.
 
+The one third-party package is `lottie-ios`, pinned `exact: "4.6.1"` and linked by the
+`Raccoon` target alone, so neither `RaccoonDomain` nor `RaccoonData` can import it
+(environment-facts.md).
+
 ## The method
 
 The graph is built with the `effect-swift` skill (`.agents/skills/effect-swift/`): A is the

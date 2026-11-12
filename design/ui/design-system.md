@@ -603,8 +603,38 @@ area, all on `backgroundRecessed`.
   background, the current one `findMatchCurrent` with a 1 pt `accent` underline. Return and
   ⇧Return step; Esc closes and leaves the current match selected in the body.
 - **idle**: "Send a request to see the Response here." `textTertiary`, with a ⌘↩ key cap.
-- **sending**: spinner + "Sending… 1.4 s", the time live; body: "Waiting for the server. ⌘.
-  cancels."
+- **sending**: spinner + "Sending… 1.4 s", the time live; body: the Sending loader, then
+  "Waiting for the server. ⌘. cancels." under it. Neither string changes.
+  - *Loader*: the Lottie `design/ui/assets/loading/raccoon-rocket.json`, read-only and never
+    redrawn. 240 × 240 pt (the art is about 195 pt of it), centred in the same centre-gravity
+    area of the stack as the text, so the pair is centred in the body area, 8 pt above it. Its
+    background is transparent. Motion and timing: surfaces.md §7.
+  - *Fit*: the stack needs 16 + 240 + 8 + 16 (one text line, computed, not measured) + 16 =
+    296 pt of body area, and the body area is the pane less the 45 pt status line. The Response
+    pane may shrink to 160 pt (Open UI Q2), where the body area is 115 pt, so the loader is
+    hidden and the text stays. It shows from a 341 pt pane up.
+  - *Reduce Motion*: the still Fly pose, frame 72 (1.2 s), with no playback and no fade. The
+    status row's spinner and the live time stay, because they are status.
+  - *Accessibility*: decorative, hidden from VoiceOver. The status line's "Sending…" and the
+    text already say the state.
+  - *Asset failure*: if the file is missing or does not decode, the sending state is as it was
+    before the loader existed: the status row's spinner and the text. No alert and no banner
+    (e-where-it-breaks.md, Sending loader).
+  - *Flavors*: the art is pale, drawn for a dark background. Against each Flavor's
+    `backgroundRecessed`, the Response pane's fill (WCAG contrast of its 78 fills, measured
+    2026-11-12):
+
+    | Flavor | Response background | Fills under 1.5:1 | Reads? |
+    |---|---|---|---|
+    | Latte | `#e6e9ef` | 28 of 78; the rocket body `#E6EAFA` is 1.0:1 | **No** |
+    | Frappé | `#292c3c` | 17, all the art's own navy shading; its pale parts are 12.8:1 or more | Yes |
+    | Macchiato | `#1e2030` | 13, same | Yes |
+    | Mocha | `#181825` | 13, same; the darkest fill is 1.09:1 | Yes |
+
+    **No background (decided 2026-11-12):** the loader holds no tile, fill or backing in any
+    Flavor; it is drawn straight on the Response pane. A backing tile for Latte was decided
+    first and then removed. Known cost: in Latte the pale parts of the art are close to the
+    pane's colour, so the loader reads faintly there.
 - **received**: Pretty (parsed JSON/XML, syntax tokens) or Raw (no colors). Raw shows first
   while Pretty is computed off the main thread (behavior.md). Above 5 MB Pretty is disabled
   (`textDisabled`) with "Pretty is off above 5 MB" beside it. ⌘F opens the system find bar

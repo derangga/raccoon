@@ -222,7 +222,7 @@ Each row is a designed state. "Place" is the surface the user is already looking
 | PathVariablesTable | absent when the URL has no Path Variable; a Value cell shows the grey placeholder "Value" | n/a | n/a | undefined `{{name}}` in a Value: red wavy underline, and the Params count in red (the label, when there is no count) | n/a |
 | AuthSection | Auth type None: right side shows "No Auth" + "Pick Basic Auth or Bearer Token under Auth type to add one." | n/a | n/a | n/a | n/a |
 | BodyEditor | Body Type none: "This request has no body." | n/a | n/a | multipart file missing: chip outlined red + MessageLine at send | binary @file: Curl note, body none |
-| ResponseViewer | idle: "Send a request to see the Response here." + ⌘↩ | sending: spinner, live elapsed, Cancel in the URL bar | Raw shown first while Pretty is computed off-main; above 5 MB Pretty is disabled with "Pretty is off above 5 MB" | failed: title + detail + the one fix if there is one (Allow insecure TLS); timedOut; transport code | n/a |
+| ResponseViewer | idle: "Send a request to see the Response here." + ⌘↩ | sending: spinner, live elapsed, Cancel in the URL bar; the Sending loader (§7) above the text when the pane is tall enough and the asset loaded, else the text alone | Raw shown first while Pretty is computed off-main; above 5 MB Pretty is disabled with "Pretty is off above 5 MB" | failed: title + detail + the one fix if there is one (Allow insecure TLS); timedOut; transport code | n/a |
 | ResponseViewer Body | 0 B: "Empty body." | as above | not JSON/XML or did not parse: Raw, no error | n/a | binary: "Binary body, N KB …"; an image that does not decode is the same |
 | ResponseViewer Headers | none: "No headers." | n/a | wire order can't be kept (environment-facts.md): rows sorted by name, footer "macOS merges repeated headers and doesn't keep their order." | n/a | n/a |
 | VariableTooltip | n/a | n/a | n/a | undefined: "Not defined in <Env> or Globals" | secret: "Secret", the value is never shown |
@@ -271,6 +271,7 @@ two cases are a binary body and a secret value, and both say why instead of show
 |---|---|---|
 | Tab open / close | 100+/day, keyboard-driven (⌘T, ⌘W) | **None.** Tabs appear and vanish; neighbours reflow on the same frame |
 | Sending spinner | tens/day | System `NSProgressIndicator` (spinning, small). Appears after 150 ms (design/behavior.md), with a 120 ms opacity fade so it doesn't pop. Kept under Reduce Motion: it is status, not decoration |
+| Sending loader | tens/day | The raccoon-on-a-rocket Lottie (`design/ui/assets/loading/raccoon-rocket.json`, 512 × 512, a 2.0 s loop) at 240 × 240 pt, centred in the Response body above "Waiting for the server. ⌘. cancels.". It is decoration: the status row's spinner and "Sending… 1.4 s" stay as the status. Timing is the spinner's: nothing for 150 ms, then a 120 ms opacity fade-in, ease-out (`CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)`). Any other state removes it on that frame, mid-loop, with no fade-out. It plays while the Response is `.sending` and the window is visible; occluded or miniaturised it pauses and resumes from frame 0. One player serves the window, so a Tab that is not selected has none and a Tab switch restarts the loop. Reduce Motion: the still Fly pose (frame 72), no playback, no fade. Hidden, with the text kept, when the body area is under 296 pt high (a Response pane under 341 pt) or the asset did not load. It has no background in any Flavor (design-system.md, Response viewer) |
 | Banner appearing | occasional | Purpose: prevent a jarring jump. `NSAnimationContext` group, 200 ms, ease-out (`CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)`), height from 0 plus opacity 0 → 1. Leaves the same way in 150 ms. Reduce Motion: no height animation, 150 ms opacity only |
 | Inspector show / hide | tens/day, a toolbar click or a shortcut | The system's `NSSplitViewItem` inspector collapse, unmodified: it is native chrome behaviour and already honours Reduce Motion. No custom motion |
 | Sidebar filter narrowing | every keystroke | **None.** Rows appear and vanish on the same frame as the keystroke |
@@ -308,5 +309,5 @@ two cases are a binary body and a secret value, and both say why instead of show
   vanish; Drafts and sending still work, so the window stays an HTTP client.
 - **Small and slow**: the 760 × 480 minimum (Q2), a send that times out after its Request
   Timeout (60 s with none set), Reduce
-  Motion on. The graph re-routes (Sidebar collapses, banners cross-fade), it does not
-  degrade.
+  Motion on. The graph re-routes (Sidebar collapses, banners cross-fade, the Sending loader
+  becomes a still, or goes when the Response pane is under 341 pt), it does not degrade.

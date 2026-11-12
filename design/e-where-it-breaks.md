@@ -303,6 +303,20 @@ Mock Server
                            the row's indicator goes; a renamed one starts again by hand
   ⚠ a Request file in the Collection unreadable → not an error: it has no route, as it has no
                            Tab
+Sending loader
+  ⚠ the JSON missing from the bundle, or Lottie cannot decode it → escape: no loader. The
+                           sending state is the status row's spinner and the text, as before
+                           the loader. No alert, no banner, nothing shown. Read once, on the
+                           first send that needs it; the result, nil included, is kept
+  ⚠ the body area under 296 pt high → not an error: the loader is hidden, the text stays
+  ⚠ the state is anything but .sending (Cancel, failure, time-out, a received Response) → not
+                           an error: the view is removed on that frame, mid-loop
+  ⚠ the selected Tab changes → not an error: the one player rebinds; a Tab that is not
+                           selected has no player, and the new Tab's own 150 ms applies
+  ⚠ the window is occluded or miniaturised → not an error: paused; it plays from frame 0 when
+                           the window is visible again
+  ⚠ Reduce Motion changes while sending → not an error: the next 100 ms redraw swaps the loop
+                           for the still pose, or the still for the loop from frame 0
 Invariants
   ⚠ two Tabs with the same .request(id)    → DIE (assertion). openRequest and relaunch
                            are the only ways in and both check

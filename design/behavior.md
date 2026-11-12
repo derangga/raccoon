@@ -8,8 +8,9 @@ one-at-a-time    ⟳ send                      // per Tab. While sending, Send b
                                              //   no response can land on the wrong click
 timeout 60s      ⟳ send                      // URLSessionConfiguration.timeoutIntervalForRequest.
                                              //   Fixed in v1, not a Request Setting
-slow-only 150ms  ⟳ send                      // the spinner appears only after 150 ms, so a
-                                             //   fast local API does not flash
+slow-only 150ms  ⟳ send                      // the spinner and the Sending loader appear only
+                                             //   after 150 ms, so a fast local API does not
+                                             //   flash
 coalesce 1s      ⟳ SessionWriter.schedule    // at most one Session file write a second,
                                              //   plus writeNow on quit
 coalesce 300ms   ⟳ FolderWatch               // FSEvents latency; a git checkout of 200

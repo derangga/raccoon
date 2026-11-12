@@ -201,6 +201,17 @@ BreadcrumbBar     the selected Tab's Breadcrumb,        no port. The window deri
                                                         index. The closure is MainSplitViewController
                                                         .revealSidebar, then SidebarViewController
                                                         .reveal(path)
+Sending loader    the bundled JSON as `() -> Data?`,    no port. `Data?` because a missing file is an
+                  Reduce Motion as `() -> Bool`, and    escape, not a crash; the closure is
+                  the window's occlusion and            Bundle.module in the app, a fixed value in
+                  miniaturise notifications             tests. Reduce Motion is the closure the
+                                                        banner already gets. The rule
+                                                        SendingLoaderMode.of(state, now,
+                                                        reduceMotion, bodyHeight, assetLoaded) is
+                                                        pure but lives in Raccoon, not
+                                                        RaccoonDomain: it takes a layout height, and
+                                                        Domain does not change. lottie-ios is linked
+                                                        by Raccoon alone
 ```
 
 **`TabModel` does not need `DataFolderStore`.** Saving goes through the window, which owns

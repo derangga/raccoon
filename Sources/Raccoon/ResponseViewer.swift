@@ -106,9 +106,22 @@ final class ResponseViewer: NSView {
     private var highlighted: [NSRange] = []
     private var scrolling: NSObjectProtocol?
 
-    init(model: TabModel, theme: ThemeEnvironment) {
+    private let reduceMotion: () -> Bool
+    private let loaderData: () -> Data?
+    /// The one Sending loader of the window, in `voidStack`. Nil until a send first needs it, and
+    /// nil after if the asset would not load; `triedLoader` keeps that answer.
+    private var loader: SendingLoaderView?
+    private var triedLoader = false
+
+    init(
+        model: TabModel, theme: ThemeEnvironment,
+        reduceMotion: @escaping () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion },
+        loaderData: @escaping () -> Data? = SendingLoaderAsset.bundledData
+    ) {
         self.model = model
         self.theme = theme
+        self.reduceMotion = reduceMotion
+        self.loaderData = loaderData
         // TextKit 1 with non-contiguous layout: TextKit 2 takes 19–36 s to scroll to the end of
         // 20 MB (environment-facts.md).
         let container = NSTextContainer(size: NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude))
@@ -555,6 +568,8 @@ final class ResponseViewer: NSView {
     /// The other Tab's Response gets its own storage; folds start open again.
     func bind(_ model: TabModel) {
         self.model = model
+        // The other Tab's loop starts from frame 0, after its own 150 ms.
+        loader?.apply(.hidden)
         shown = nil
         imageCache = nil
         render()
@@ -573,8 +588,26 @@ final class ResponseViewer: NSView {
 
     private func draw(_ state: ResponseState) {
         drawState(state)
+        drawLoader(state)
         // Nothing to search any more: Headers, Timeline, an image, or no body at all.
         if isFinding, bodyToolbar.isHidden || !searchButton.isEnabled { closeFind(focusingBody: false) }
+    }
+
+    /// The Sending loader for this state, every draw: `apply` does nothing when the mode is unchanged,
+    /// so the 100 ms redraw never restarts the loop. The file is read on the first send past 150 ms.
+    private func drawLoader(_ state: ResponseState) {
+        if !triedLoader, state.showsSpinner(at: model.now) {
+            triedLoader = true
+            loader = SendingLoaderView(data: loaderData())
+            // In the text's own gravity area: a top-gravity view makes AppKit keep the centred
+            // text centred in the whole stack, which doubles its height and lifts everything.
+            if let loader { voidStack.insertView(loader, at: 0, in: .center) }
+        }
+        let mode = SendingLoaderMode.of(
+            state, now: model.now, reduceMotion: reduceMotion(),
+            bodyHeight: Double(bounds.height - Chrome.bodyTop), assetLoaded: loader != nil
+        )
+        loader?.apply(mode)
     }
 
     private func drawState(_ state: ResponseState) {
