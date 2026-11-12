@@ -1583,20 +1583,27 @@ first responder (the window's, so focus goes nowhere) and the Docs toolbar hides
 
 ### Docs toolbar
 
-Shown while the Docs editor is first responder, hidden otherwise, with no animation. A bar
-floating 8 pt below the pane's top edge and 8 pt in from its leading edge, as wide as its
-items: 32 pt high, `backgroundElevated`, a 1 pt `border`, 8 pt radius, the menu shadow. While it
-shows, the text's top inset grows by 40 pt so the first line is never under it; on a click
-that focuses the editor it grows when the mouse is released, so the caret lands where clicked. Left to right,
-4 pt apart, a 1 pt × 16 pt `border` separator between groups:
+Shown while the Docs editor is first responder or its Link popover is open, hidden otherwise,
+with no animation: focus and Esc happen many times a day, and a keyboard-driven change should
+not move. It lives in a **band the pane always keeps**: the text's top inset is 56 pt (8 + 32 +
+16) whether or not the bar shows, so showing it never moves the text (decided 2026-11-12,
+replacing the inset that grew on focus). The bar sits 8 pt below the pane's top edge and 8 pt
+in from its leading edge, as wide as its items: 32 pt high, `backgroundElevated`, a 1 pt
+`border`, 8 pt radius, the menu shadow, 4 pt inner padding at each end. Left to right, 4 pt
+apart, a 1 pt × 16 pt `border` separator between groups, with 8 pt on each side of it:
 
 ```
 [ Normal text ⌄ ] | B  I  S | •≡  1≡ | link  quote  code  code-block
 ```
 
-- **Text style**: a pull-down, 120 pt, SF Pro 13 `text` and a `chevron.down`; items Normal text
-  (⌥⌘0), Heading 1 (⌥⌘1), Heading 2 (⌥⌘2), Heading 3 (⌥⌘3). Its title is the style of the
-  caret's line.
+- **Text style**: an NSPopUpButton in pull-down mode (`pullsDown`), 128 pt, borderless, with
+  hover `rowHover` and a 4 pt radius like the buttons. Its title, SF Pro 13 `text`, starts 8 pt
+  in from its leading edge and its `chevron.down` (10 pt, `textSecondary`) ends 8 pt in from its
+  trailing edge, so the space before the title equals the space after the chevron. The title is
+  the style of the caret's line. A click opens a native menu **below** the control, its leading
+  edge on the control's, never over the bar: Normal text (⌥⌘0), Heading 1 (⌥⌘1), Heading 2
+  (⌥⌘2), Heading 3 (⌥⌘3), the current one checked. Choosing one applies it and leaves the editor
+  first responder.
 - **Buttons**: 28 × 24 pt icon buttons, SF Symbols 13 pt `textSecondary`, hover `rowHover` with
   a 4 pt radius; on when the caret or selection already has that style (`accent` glyph):
   `bold` Bold (⌘B), `italic` Italic (⌘I), `strikethrough` Strikethrough (⇧⌘X), `list.bullet`
@@ -1608,6 +1615,27 @@ that focuses the editor it grows when the mouse is released, so the caret lands 
 The shortcuts are a **Format** menu between Edit and View, holding the same items in the same
 order and groups; each is enabled only while the Docs editor is first responder, so ⌘B and the
 rest do nothing elsewhere.
+
+### Link popover
+
+Opened by Link (⌘K or the toolbar button). An NSPopover, `.transient`, the system's own
+appearance and animation, anchored to the **selection's rect in the Docs editor** (the caret's
+line when nothing is selected), arrow edge below it, flipping above when there is no room. The
+Docs toolbar stays while it is open. 300 pt wide, 12 pt padding, two rows 8 pt apart, each a
+label column of 36 pt (SF Pro 12 `textSecondary`, right-aligned) and a 26 pt field:
+
+```
+  Link  [ https://…                        ]
+  Text  [ the selected text                ]
+```
+
+- **Link** comes first and has focus: the link's URL when the caret is in a link, else empty
+  with the placeholder "https://".
+- **Text** is the selected text, or the link's text when the caret is in one; empty with
+  nothing selected, placeholder "Text to show".
+- Return in either field applies `.link(url:text:)`, closes the popover, and gives focus back to
+  the editor with the caret after the link. An empty Text uses the URL. An empty Link removes the
+  link and keeps its text. Esc, or a click outside, closes it and changes nothing.
 
 ### Example pane
 

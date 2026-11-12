@@ -95,9 +95,10 @@ when it is already that style; with none, it wraps the word at the caret, and wi
 inserts the empty pair with the caret between (shown as text until something is typed). A block
 style (Normal text, Heading 1-3, Bulleted list, Numbered list, Quote, Code block) sets the
 caret's lines: it replaces their line mark, or removes it when they already have that style.
-Link asks for the URL in a popover under the selection ("https://", Return applies, Esc
-cancels): it wraps the selection as `[text](url)`, or edits the URL when the caret is in a
-link, and an empty URL removes the link and keeps its text.
+Link opens the Link popover under the selection (design-system §6) with two fields, Link and
+Text, Text prefilled with the selection: `.link(url:text:)` writes `[text](url)` over the
+selection, or over the link the caret is in, so it both edits a link's URL and renames it. An
+empty Text uses the URL; an empty URL removes the link and keeps its text.
 
 **Return and Delete follow the list.** Return in a list item starts the next one (`- `, or the
 next number); Return in an empty item removes its marker and ends the list. Delete at the start

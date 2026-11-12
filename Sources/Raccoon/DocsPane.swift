@@ -14,7 +14,11 @@ final class DocsPane: NSView, NSTextViewDelegate {
     let textView: DocsTextView
     private let scroll = NSScrollView()
     let toolbar: DocsToolbar
-    private static let inset = NSSize(width: 11, height: 16)
+    /// 11 pt side inset with the 5 pt line padding: 16 pt in. The 56 pt top is the band the toolbar
+    /// floats in (8 + 32 + 16), kept whether or not it shows, so showing it never moves the text.
+    private static let inset = NSSize(width: 11, height: 56)
+    private var editorFocused = false
+    private var linking = false
 
     init(theme: ThemeEnvironment) {
         self.theme = theme
@@ -35,7 +39,6 @@ final class DocsPane: NSView, NSTextViewDelegate {
                              \.isAutomaticTextReplacementEnabled, \.isAutomaticSpellingCorrectionEnabled] {
             textView[keyPath: substitution] = false
         }
-        // With the 5 pt line padding: 16 pt in from the pane's sides and from its top.
         textView.textContainerInset = Self.inset
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
@@ -52,8 +55,15 @@ final class DocsPane: NSView, NSTextViewDelegate {
         toolbar.isHidden = true
         addSubview(toolbar)
         textView.layoutManager?.delegate = textView
-        textView.onFocusChange = { [weak self] focused in self?.setToolbar(shown: focused) }
-        textView.onClickPlaced = { [weak self] in self?.applyInset() }
+        textView.theme = theme
+        textView.onFocusChange = { [weak self] focused in
+            self?.editorFocused = focused
+            self?.updateToolbar()
+        }
+        textView.onLinkPopover = { [weak self] open in
+            self?.linking = open
+            self?.updateToolbar()
+        }
         NSLayoutConstraint.activate([
             toolbar.topAnchor.constraint(equalTo: topAnchor, constant: 8),
             toolbar.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
@@ -100,18 +110,10 @@ final class DocsPane: NSView, NSTextViewDelegate {
         self.textView.settle(new, from: old)
     }
 
-    /// Hidden while the editor is not first responder; the text's top inset makes room while shown.
-    private func setToolbar(shown: Bool) {
-        toolbar.isHidden = !shown
-        applyInset()
+    /// Shown while the editor is first responder or its Link popover is open; no animation.
+    private func updateToolbar() {
+        toolbar.isHidden = !(editorFocused || linking)
         refreshToolbar()
-    }
-
-    /// Not while a click is being placed: the text moving 40 pt under it would land the caret 40 pt
-    /// off. The click's end applies it, and the clicked character moves with the text.
-    private func applyInset() {
-        guard !textView.isPlacingClick else { return }
-        textView.textContainerInset = NSSize(width: Self.inset.width, height: Self.inset.height + (toolbar.isHidden ? 0 : 40))
     }
 
     private func refreshToolbar() {
@@ -207,7 +209,7 @@ final class DocsPane: NSView, NSTextViewDelegate {
 
 /// The Docs editor: matched marks laid out with no glyphs, format commands, the placeholder
 /// while empty, and ⌘-click opens a link.
-final class DocsTextView: NSTextView, NSLayoutManagerDelegate {
+final class DocsTextView: NSTextView, NSLayoutManagerDelegate, NSPopoverDelegate {
     var placeholderColor = NSColor.placeholderTextColor {
         didSet { needsDisplay = true }
     }
@@ -227,43 +229,17 @@ final class DocsTextView: NSTextView, NSLayoutManagerDelegate {
     /// Fires when the editor gains or loses first responder: the Docs toolbar follows it.
     var onFocusChange: ((Bool) -> Void)?
     private(set) var linkPopover: NSPopover?
-    /// True from the click that focuses the editor until its `mouseDown` ends; `onClickPlaced` fires then.
-    private(set) var isPlacingClick = false
-    var onClickPlaced: (() -> Void)?
+    /// Fires when the Link popover opens or closes: the toolbar stays while it is open.
+    var onLinkPopover: ((Bool) -> Void)?
+    var theme: ThemeEnvironment?
 
     override func becomeFirstResponder() -> Bool {
-        // The window focuses the editor before it delivers the click: the pane keeps the text where
-        // it is until `mouseDown` has placed the caret.
-        if let event = window?.currentEvent, event.type == .leftMouseDown,
-           let hit = window?.contentView?.superview?.hitTest(event.locationInWindow), hit === self || hit.isDescendant(of: self) {
-            holdInsetForClick()
-        }
         let accepted = super.becomeFirstResponder()
         if accepted { onFocusChange?(true) }
         return accepted
     }
 
-    func holdInsetForClick() {
-        isPlacingClick = true
-        releaseAfterMouseUp()
-    }
-
-    /// A fallback for a click whose `mouseDown` never ends the hold: once the button is up, it goes.
-    private func releaseAfterMouseUp() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            guard let self, isPlacingClick else { return }
-            if NSEvent.pressedMouseButtons & 1 != 0 { releaseAfterMouseUp() } else { endClick() }
-        }
-    }
-
-    func endClick() {
-        guard isPlacingClick else { return }
-        isPlacingClick = false
-        onClickPlaced?()
-    }
-
     override func resignFirstResponder() -> Bool {
-        isPlacingClick = false
         let resigned = super.resignFirstResponder()
         if resigned { onFocusChange?(false) }
         return resigned
@@ -420,31 +396,60 @@ final class DocsTextView: NSTextView, NSLayoutManagerDelegate {
         return true
     }
 
-    /// ⌘K or the toolbar's link button: a URL field under the selection, with the current link's
-    /// URL or "https://". Return applies, Esc cancels.
+    /// ⌘K or the toolbar's link button: Link and Text fields under the selection (the caret's line
+    /// when nothing is selected). Link has focus. Return applies, Esc or a click outside closes.
     private func askForLink() {
-        guard window != nil else { return }
-        linkPopover?.close()
-        let controller = LinkPopoverController(url: DocsEdit.state(string, selection: selectedRange()).link ?? "https://")
+        guard window != nil, let theme else { return }
+        closeLinkPopover()
+        let state = DocsEdit.state(string, selection: selectedRange())
+        let selected = selectedRange().length > 0 ? (string as NSString).substring(with: selectedRange()) : ""
+        let controller = LinkPopoverController(url: state.link ?? "", text: state.link == nil ? selected : state.linkText ?? "", theme: theme)
         let popover = NSPopover()
         popover.behavior = .transient
+        popover.delegate = self
         popover.contentViewController = controller
-        controller.onCancel = { [weak self, weak popover] in
-            popover?.close()
-            self?.window?.makeFirstResponder(self)
-        }
-        controller.onApply = { [weak self, weak popover] url in
-            popover?.close()
+        controller.onCancel = { [weak self] in self?.closeLinkPopover() }
+        controller.onApply = { [weak self] url, text in
             guard let self else { return }
+            closeLinkPopover()
             window?.makeFirstResponder(self)
-            perform(.link(url: url), named: DocsFormat.link.name)
+            perform(.link(url: url, text: text), named: DocsFormat.link.name)
         }
         linkPopover = popover
-        let anchor = convert(window!.convertFromScreen(firstRect(forCharacterRange: selectedRange(), actualRange: nil)), from: nil)
-        popover.show(relativeTo: anchor, of: self, preferredEdge: .maxY)
-        let field = controller.field
-        controller.view.window?.makeFirstResponder(field)
-        field.currentEditor()?.selectedRange = NSRange(location: field.stringValue.utf16.count, length: 0)
+        onLinkPopover?(true)
+        // Below the selection in the view's own (flipped) coordinates; AppKit flips it above when there is no room.
+        popover.show(relativeTo: selectionRect(), of: self, preferredEdge: .maxY)
+        controller.view.window?.makeFirstResponder(controller.urlField)
+    }
+
+    private func closeLinkPopover() {
+        let popover = linkPopover
+        linkPopover = nil
+        popover?.close()
+        if popover != nil { onLinkPopover?(false) }
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        guard let popover = notification.object as? NSPopover, popover === linkPopover else { return }
+        closeLinkPopover()
+    }
+
+    /// The selection's rect in this view, or the caret's line when nothing is selected.
+    func selectionRect() -> NSRect {
+        guard let layout = layoutManager, let container = textContainer else { return bounds }
+        let selection = selectedRange()
+        let length = (string as NSString).length
+        var rect: NSRect
+        if selection.length > 0 {
+            rect = layout.boundingRect(forGlyphRange: layout.glyphRange(forCharacterRange: selection, actualCharacterRange: nil), in: container)
+        } else if selection.location == length, !layout.extraLineFragmentRect.isEmpty {
+            rect = layout.extraLineFragmentRect
+        } else if length > 0 {
+            rect = layout.lineFragmentUsedRect(forGlyphAt: layout.glyphIndexForCharacter(at: min(selection.location, length - 1)), effectiveRange: nil)
+        } else {
+            rect = NSRect(x: 0, y: 0, width: 1, height: NSFont.systemFont(ofSize: 13).boundingRectForFont.height)
+        }
+        return rect.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y)
     }
 
     // MARK: Drawing
@@ -470,7 +475,6 @@ final class DocsTextView: NSTextView, NSLayoutManagerDelegate {
     }
 
     override func mouseDown(with event: NSEvent) {
-        defer { endClick() }
         guard event.modifierFlags.contains(.command), let layout = layoutManager, let container = textContainer, let storage = textStorage else {
             return super.mouseDown(with: event)
         }

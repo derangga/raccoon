@@ -268,29 +268,36 @@ struct DocsEditorTests {
         #expect(line.selectedRange() == NSRange(location: 3, length: 0))
     }
 
-    @Test func `a held inset is released once the mouse button is up`() async throws {
-        let (pane, text) = focused("x")
-        _ = window.makeFirstResponder(nil)
-        text.holdInsetForClick()
-        _ = window.makeFirstResponder(text)
-        #expect(text.textContainerInset.height == 16)
-        try await Task.sleep(for: .milliseconds(400))
-        #expect(!text.isPlacingClick && text.textContainerInset.height == 56 && !pane.toolbar.isHidden)
-    }
-
     // MARK: toolbar
 
-    @Test func `the toolbar shows while the editor is first responder, and Esc hides it`() {
+    @Test func `the toolbar shows while the editor is first responder, and Esc hides it, and the text never moves`() {
         let (pane, text) = focused("x")
         #expect(!pane.toolbar.isHidden)
+        // the 56 pt band is always kept: 8 + 32 + 16
         #expect(text.textContainerInset.height == 56)
         text.cancelOperation(nil)
         #expect(window.firstResponder !== text)
-        #expect(pane.toolbar.isHidden && text.textContainerInset.height == 16)
+        #expect(pane.toolbar.isHidden && text.textContainerInset.height == 56)
         #expect(window.makeFirstResponder(text))
-        #expect(!pane.toolbar.isHidden)
+        #expect(!pane.toolbar.isHidden && text.textContainerInset.height == 56)
         #expect(window.makeFirstResponder(nil))
         #expect(pane.toolbar.isHidden)
+    }
+
+    @Test func `the Text style is a pull-down of four styles, 128 pt, showing and checking the caret line's`() throws {
+        let (pane, text) = focused("## t")
+        text.setSelectedRange(NSRange(location: 4, length: 0))
+        let pull = try #require(pane.toolbar.subviews.flatMap(\.subviews).compactMap { $0 as? StylePullDown }.first)
+        pane.toolbar.layoutSubtreeIfNeeded()
+        #expect(pull.pullsDown && pull.refusesFirstResponder)
+        #expect(pull.frame.width == 128)
+        #expect(pane.toolbar.styleTitle == "Heading 2")
+        #expect(pane.toolbar.styleItems.map(\.title) == ["Normal text", "Heading 1", "Heading 2", "Heading 3"])
+        #expect(pane.toolbar.styleItems.map { $0.state == .on } == [false, false, true, false])
+        // choosing one applies it to the editor
+        pane.toolbar.styleItems[0].menu?.performActionForItem(at: 1)
+        #expect(text.string == "t")
+        #expect(window.firstResponder === text)
     }
 
     @Test func `a toolbar click acts on the editor and leaves it first responder`() {
@@ -303,48 +310,61 @@ struct DocsEditorTests {
         #expect(button.toolTip == "Italic (⌘I)" && button.accessibilityLabel() == "Italic (⌘I)")
     }
 
-    @Test func `a click that focuses the editor keeps the text still until it is placed`() {
-        let (pane, text) = focused("line one\nline two")
-        _ = window.makeFirstResponder(nil)
-        #expect(pane.toolbar.isHidden && text.textContainerInset.height == 16)
-        // What the window does for a click on the unfocused editor: focus it, then deliver mouseDown.
-        text.holdInsetForClick()
-        _ = window.makeFirstResponder(text)
-        #expect(!pane.toolbar.isHidden && text.textContainerInset.height == 16)
-        text.endClick()
-        #expect(text.textContainerInset.height == 56)
-        // a focus that is not a click moves the text at once
-        _ = window.makeFirstResponder(nil)
-        _ = window.makeFirstResponder(text)
-        #expect(text.textContainerInset.height == 56)
-    }
-
     // MARK: link popover
 
-    @Test func `Link asks for the URL, prefilled, and Return applies it`() throws {
+    @Test func `Link has a Link and a Text field, Text prefilled with the selection, and Return applies both`() throws {
         let (_, text) = focused("see")
         text.setSelectedRange(NSRange(location: 0, length: 3))
         text.applyFormat(item(.link))
         defer { text.linkPopover?.close() }
         let controller = try #require(text.linkPopover?.contentViewController as? LinkPopoverController)
         _ = controller.view
-        #expect(controller.field.stringValue == "https://")
-        controller.field.stringValue = "https://a.io"
-        #expect(controller.control(controller.field, textView: NSTextView(), doCommandBy: #selector(NSResponder.insertNewline(_:))))
-        #expect(text.string == "[see](https://a.io)" && model.tab.isDirty)
+        #expect(text.linkPopover?.behavior == .transient && controller.view.frame.size == NSSize(width: 300, height: 84))
+        #expect(controller.urlField.stringValue == "" && controller.urlField.placeholderString == "https://")
+        #expect(controller.textField.stringValue == "see" && controller.textField.placeholderString == "Text to show")
+        controller.urlField.stringValue = "https://a.io"
+        controller.textField.stringValue = "read"
+        #expect(controller.control(controller.textField, textView: NSTextView(), doCommandBy: #selector(NSResponder.insertNewline(_:))))
+        #expect(text.string == "[read](https://a.io)" && model.tab.isDirty)
+        #expect(text.linkPopover == nil && window.firstResponder === text)
     }
 
-    @Test func `Link in a link is prefilled with its URL, and Esc cancels`() throws {
+    @Test func `Link in a link is prefilled with its URL and text, and Esc cancels`() throws {
         let (_, text) = focused("[see](https://a.io)")
         text.setSelectedRange(NSRange(location: 2, length: 0))
         text.applyFormat(item(.link))
         defer { text.linkPopover?.close() }
         let controller = try #require(text.linkPopover?.contentViewController as? LinkPopoverController)
         _ = controller.view
-        #expect(controller.field.stringValue == "https://a.io")
-        controller.field.stringValue = "https://b.io"
-        #expect(controller.control(controller.field, textView: NSTextView(), doCommandBy: #selector(NSResponder.cancelOperation(_:))))
-        #expect(text.string == "[see](https://a.io)" && !model.tab.isDirty)
+        #expect(controller.urlField.stringValue == "https://a.io" && controller.textField.stringValue == "see")
+        controller.urlField.stringValue = "https://b.io"
+        #expect(controller.control(controller.urlField, textView: NSTextView(), doCommandBy: #selector(NSResponder.cancelOperation(_:))))
+        #expect(text.string == "[see](https://a.io)" && !model.tab.isDirty && text.linkPopover == nil)
+    }
+
+    @Test func `the toolbar stays while the Link popover is open, and nothing is selected means an empty Text`() throws {
+        let (pane, text) = focused("see")
+        text.setSelectedRange(NSRange(location: 1, length: 0))
+        text.applyFormat(item(.link))
+        let controller = try #require(text.linkPopover?.contentViewController as? LinkPopoverController)
+        _ = controller.view
+        #expect(controller.textField.stringValue == "")
+        #expect(window.makeFirstResponder(nil))
+        #expect(!pane.toolbar.isHidden)
+        controller.onCancel()
+        #expect(pane.toolbar.isHidden)
+    }
+
+    @Test func `the popover is anchored to the selection's rect in the editor, or the caret's line`() {
+        let (_, text) = focused("first\nsecond line")
+        text.setSelectedRange(NSRange(location: 6, length: 6))
+        let rect = text.selectionRect()
+        #expect(rect.minY >= text.textContainerOrigin.y + 10 && rect.minY < text.textContainerOrigin.y + 40)
+        #expect(rect.width > 20 && rect.height > 5)
+        text.setSelectedRange(NSRange(location: 1, length: 0))
+        #expect(text.selectionRect().minY < rect.minY && text.selectionRect().height > 5)
+        let (_, empty) = focused("")
+        #expect(empty.selectionRect().height > 5 && empty.selectionRect().minY >= empty.textContainerOrigin.y)
     }
 
     // MARK: Format menu

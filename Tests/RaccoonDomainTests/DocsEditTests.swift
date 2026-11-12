@@ -103,24 +103,31 @@ struct DocsEditTests {
     }
 
     @Test(arguments: [
-        ("u.io", "a «b» c", "a [«b»](u.io) c"),
-        ("u.io", "x‸", "x[«u.io»](u.io)"),
-        (" u.io ", "x‸", "x[«u.io»](u.io)"),
-        ("a.io/x y(1)", "a «b» c", "a [«b»](a.io/x%20y%281%29) c"),
-        ("a.io/x y(1)", "[a‸](x.io)", "[a‸](a.io/x%20y%281%29)"),
-        ("a b", "x‸", "x[«a b»](a%20b)"),
-        ("y.io", "[a‸](x.io)", "[a‸](y.io)"),
-        ("y.io", "[«a»](x.io)", "[«a»](y.io)"),
-        ("", "[a‸](x.io)", "a‸"),
-        ("", "z [«ab»](x.io) z", "z «ab» z"),
+        // over the selection; an empty Text uses the URL as written
+        ("u.io", "b", "a «b» c", "a [b](u.io)‸ c"),
+        ("u.io", "", "a «b» c", "a [u.io](u.io)‸ c"),
+        ("u.io", "docs", "a «b» c", "a [docs](u.io)‸ c"),
+        // an empty selection outside a link inserts the link
+        ("u.io", "docs", "x‸", "x[docs](u.io)‸"),
+        (" u.io ", "", "x‸", "x[u.io](u.io)‸"),
+        ("a b", "", "x‸", "x[a b](a%20b)‸"),
+        // the URL is percent-encoded, the text is not
+        ("a.io/x y(1)", "b", "a «b» c", "a [b](a.io/x%20y%281%29)‸ c"),
+        // over the whole link the caret is in: URL and text both edit
+        ("y.io", "A", "[a‸](x.io)", "[A](y.io)‸"),
+        ("y.io", "a", "[«a»](x.io) z", "[a](y.io)‸ z"),
+        ("y.io", "", "z [ab‸](x.io)", "z [y.io](y.io)‸"),
+        // an empty URL removes the link and keeps its text, whatever Text says
+        ("", "ignored", "[a‸](x.io)", "a‸"),
+        ("", "", "z [«ab»](x.io) z", "z ab‸ z"),
     ])
-    func `link wraps, edits the URL and removes the link`(url: String, input: String, output: String) {
-        #expect(Self.run(.link(url: url), input) == output)
+    func `link writes text and URL over the selection or the link`(url: String, text: String, input: String, output: String) {
+        #expect(Self.run(.link(url: url, text: text), input) == output)
     }
 
     @Test(arguments: ["a «b» c", "x‸"])
     func `an empty URL outside a link is nil`(input: String) {
-        #expect(Self.run(.link(url: ""), input) == nil)
+        #expect(Self.run(.link(url: "", text: "t"), input) == nil)
     }
 
     @Test(arguments: [
@@ -183,8 +190,8 @@ struct DocsEditTests {
         ("a **b‸** c", .init(block: .paragraph, inline: [.bold], link: nil)),
         ("a ~~«b»~~ `c`", .init(block: .paragraph, inline: [.strikethrough], link: nil)),
         ("«a **b**»", .init(block: .paragraph, inline: [], link: nil)),
-        ("[a‸](x.io)", .init(block: .paragraph, inline: [], link: "x.io")),
-        ("[a‸](x.io/y%20z%281%29)", .init(block: .paragraph, inline: [], link: "x.io/y%20z%281%29")),
+        ("[a‸](x.io)", .init(block: .paragraph, inline: [], link: "x.io", linkText: "a")),
+        ("[a‸](x.io/y%20z%281%29)", .init(block: .paragraph, inline: [], link: "x.io/y%20z%281%29", linkText: "a")),
         ("«a\n- b»", .init(block: .paragraph, inline: [], link: nil)),
         ("", .init(block: .paragraph, inline: [], link: nil)),
     ])

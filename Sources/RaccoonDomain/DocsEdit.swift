@@ -11,8 +11,9 @@ public enum DocsEdit {
     public enum Command: Equatable, Sendable {
         case toggle(Inline)
         case block(Block)
-        /// An empty URL removes the link at the caret and keeps its text.
-        case link(url: String)
+        /// Writes `[text](url)` over the selection, or over the link the caret is in. An empty `text`
+        /// uses the URL; an empty `url` removes the link and keeps its current text.
+        case link(url: String, text: String)
         /// Return.
         case newline
         /// Delete with an empty selection.
@@ -34,11 +35,14 @@ public enum DocsEdit {
         public var block: Block
         public var inline: Set<Inline>
         public var link: String?
+        /// The text of that link.
+        public var linkText: String?
 
-        public init(block: Block, inline: Set<Inline>, link: String?) {
+        public init(block: Block, inline: Set<Inline>, link: String?, linkText: String? = nil) {
             self.block = block
             self.inline = inline
             self.link = link
+            self.linkText = linkText
         }
     }
 
@@ -48,7 +52,8 @@ public enum DocsEdit {
         case .toggle(let inline): return doc.toggle(inline)
         case .block(.codeBlock): return doc.codeBlock()
         case .block(let block): return doc.setBlock(block)
-        case .link(let url): return doc.link(url.trimmingCharacters(in: .whitespacesAndNewlines))
+        case .link(let url, let text):
+            return doc.link(url.trimmingCharacters(in: .whitespacesAndNewlines), text.trimmingCharacters(in: .whitespacesAndNewlines))
         case .newline: return doc.newline()
         case .deleteBackward: return doc.deleteBackward()
         }
@@ -66,7 +71,10 @@ public enum DocsEdit {
             block = if case .heading(let level) = mark.block { .heading(min(level, 3)) } else { mark.block }
         }
         let inline = Set(Inline.all.filter { doc.covering($0.style) != nil })
-        return State(block: block, inline: inline, link: doc.link().map { doc.url($0.mark) })
+        let link = doc.link()
+        return State(
+            block: block, inline: inline, link: link.map { doc.url($0.mark) },
+            linkText: link.map { doc.string($0.text) })
     }
 }
 
@@ -320,21 +328,28 @@ private struct Doc {
         String(decoding: u[mark.location + 2..<NSMaxRange(mark) - 1], as: UTF16.self)
     }
 
-    func link(_ raw: String) -> DocsEdit.Result? {
+    func string(_ range: NSRange) -> String {
+        String(decoding: u[range.location..<NSMaxRange(range)], as: UTF16.self)
+    }
+
+    func link(_ raw: String, _ text: String) -> DocsEdit.Result? {
         // A space or a parenthesis would end the `(url)` early.
         let url = raw.replacingOccurrences(of: " ", with: "%20").replacingOccurrences(of: "(", with: "%28")
             .replacingOccurrences(of: ")", with: "%29")
-        if let (text, mark) = link() {
-            if url.isEmpty {
-                return result([Edit(loc: text.location - 1, old: 1, new: ""), Edit(loc: NSMaxRange(text), old: mark.length, new: "")])
-            }
-            return result([Edit(loc: mark.location + 2, old: mark.length - 3, new: url)])
+        // The whole link the caret is in, else the selection.
+        let found = link()
+        let target = found.map { NSRange(location: $0.text.location - 1, length: NSMaxRange($0.mark) - $0.text.location + 1) }
+            ?? NSRange(location: s, length: e - s)
+        let new: String
+        if url.isEmpty {
+            guard let found else { return nil }
+            new = string(found.text)
+        } else {
+            new = "[\(text.isEmpty ? raw : text)](\(url))"
         }
-        guard !url.isEmpty else { return nil }
-        if s < e {
-            return result([Edit(loc: s, old: 0, new: "["), Edit(loc: e, old: 0, new: "](\(url))", before: true)])
-        }
-        return result([Edit(loc: s, old: 0, new: "[\(raw)](\(url))")], selection: NSRange(location: s + 1, length: raw.utf16.count))
+        return result(
+            [Edit(loc: target.location, old: target.length, new: new)],
+            selection: NSRange(location: target.location + new.utf16.count, length: 0))
     }
 
     // MARK: Return and Delete
