@@ -21,6 +21,15 @@ struct VariableResolverTests {
         #expect(resolved.definition.method == method)
     }
 
+    @Test func `Docs is never sent: the resolved request carries none, and a Variable in it is not undefined`() throws {
+        var request = definition("GET", "http://h/")
+        request.docs = "Send {{token}} as the bearer; Authorization: Bearer abc"
+        let resolved = try VariableResolver.resolve(request)
+        #expect(resolved.definition.docs == "")
+        #expect(CurlRenderer.render(resolved) == CurlRenderer.render(try VariableResolver.resolve(definition("GET", "http://h/"))))
+        #expect(!CurlRenderer.render(resolved).contains("token"))
+    }
+
     @Test(arguments: ["", "not a url", "localhost:8080", "http://"])
     func `a URL that cannot be built is not sent and the error quotes it`(text: String) {
         #expect(throws: ResolveError.invalidURL(text)) {

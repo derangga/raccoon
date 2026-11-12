@@ -13,6 +13,8 @@ struct DefinitionJSON: Codable {
     var body: BodyJSON?
     var auth: AuthJSON?
     var settings: SettingsJSON?
+    /// Left out when empty, so no file written before Docs gains a line (boundary.md).
+    var docs: String?
 
     struct RowJSON: Codable {
         var name: String
@@ -102,7 +104,7 @@ struct DefinitionJSON: Codable {
             pathVariables: definition.pathVariables.isEmpty ? nil : definition.pathVariables, headers: Self.rows(definition.headers),
             cookies: Self.rows(definition.cookies),
             body: body, auth: auth,
-            settings: SettingsJSON(definition.settings)
+            settings: SettingsJSON(definition.settings), docs: definition.docs.isEmpty ? nil : definition.docs
         )
     }
 
@@ -112,10 +114,11 @@ struct DefinitionJSON: Codable {
     }
 
     init(method: String, url: String, params: [RowJSON]?, pathVariables: [String: String]?, headers: [RowJSON]?, cookies: [RowJSON]?,
-         body: BodyJSON?, auth: AuthJSON?, settings: SettingsJSON?) {
+         body: BodyJSON?, auth: AuthJSON?, settings: SettingsJSON?, docs: String? = nil) {
         (self.method, self.url, self.params, self.headers, self.cookies) = (method, url, params, headers, cookies)
         self.pathVariables = pathVariables
         (self.body, self.auth, self.settings) = (body, auth, settings)
+        self.docs = docs
     }
 
     func definition() throws(Malformed) -> RequestDefinition {
@@ -128,7 +131,8 @@ struct DefinitionJSON: Codable {
             headers: (headers ?? []).map(\.row), cookies: (cookies ?? []).map(\.row),
             body: try body.map { json throws(Malformed) in try json.body() } ?? .none,
             auth: try auth.map { json throws(Malformed) in try json.auth() } ?? .none,
-            settings: (settings ?? SettingsJSON(empty.settings)).settings
+            settings: (settings ?? SettingsJSON(empty.settings)).settings,
+            docs: docs ?? ""
         )
     }
 

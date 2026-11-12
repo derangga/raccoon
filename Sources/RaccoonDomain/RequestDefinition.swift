@@ -16,11 +16,13 @@ public struct RequestDefinition: Equatable, Sendable {
     public var body: Body
     public var auth: Auth
     public var settings: RequestSettings
+    /// The Request's Docs, markdown, "" for none. Never sent: the resolver drops it (docs.md).
+    public var docs: String
 
     public init(
         method: String, url: String, params: [Row], pathVariables: [String: String] = [:],
         headers: [Row], cookies: [Row],
-        body: Body, auth: Auth, settings: RequestSettings
+        body: Body, auth: Auth, settings: RequestSettings, docs: String = ""
     ) {
         self.method = method
         self.url = url
@@ -31,6 +33,7 @@ public struct RequestDefinition: Equatable, Sendable {
         self.body = body
         self.auth = auth
         self.settings = settings
+        self.docs = docs
     }
 
     /// The empty Draft.

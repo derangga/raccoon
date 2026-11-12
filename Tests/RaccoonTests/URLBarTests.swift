@@ -202,6 +202,13 @@ struct URLBarTests {
         #expect(model.message == .note(note))
     }
 
+    @Test func `a curl paste replaces the request and keeps the Tab's Docs`() {
+        model.tab.definition.docs = "# Charges\nSend {{token}}"
+        #expect(model.pasteInURLBar("curl -X POST https://h/a"))
+        #expect(model.tab.definition.method == "POST" && model.tab.definition.url == "https://h/a")
+        #expect(model.tab.definition.docs == "# Charges\nSend {{token}}")
+    }
+
     @Test func `unknown flags and extra commands go in one note`() {
         let bar = bar()
         #expect(bar.pasteCurl("curl --retry 3 -s https://h/a\ncurl https://h/b\ncurl https://h/c"))

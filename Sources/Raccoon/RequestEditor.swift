@@ -3,10 +3,11 @@ import Observation
 import RaccoonDomain
 
 enum EditorSection: CaseIterable {
-    case params, headers, body, auth, cookies, settings
+    case docs, params, headers, body, auth, cookies, settings
 
     var name: String {
         switch self {
+        case .docs: "Docs"
         case .params: "Params"
         case .headers: "Headers"
         case .body: "Body"
@@ -24,8 +25,13 @@ enum EditorSection: CaseIterable {
         case .params: count(definition.params)
         case .headers: count(definition.headers)
         case .cookies: count(definition.cookies)
-        case .body, .auth, .settings: nil
+        case .docs, .body, .auth, .settings: nil
         }
+    }
+
+    /// Docs shows a dot, not a count, once the Request has Docs.
+    func hasDot(in definition: RequestDefinition) -> Bool {
+        self == .docs && !definition.docs.isEmpty
     }
 
     /// A count holding an Undefined Variable is drawn in `variableUndefined`, so the reason a send
@@ -36,7 +42,7 @@ enum EditorSection: CaseIterable {
         case .params: definition.params
         case .headers: definition.headers
         case .cookies: definition.cookies
-        case .body, .auth, .settings: []
+        case .docs, .body, .auth, .settings: []
         }
         let pathValues = self == .params ? PathVariables.sentValues(definition.pathVariables, in: definition.url) : []
         return rows.contains { $0.isEnabled && (kinds.holdsUndefined($0.name) || kinds.holdsUndefined($0.value)) }
@@ -57,6 +63,7 @@ final class RequestEditor: NSView {
     private var buttons: [EditorSection: SectionButton] = [:]
     private var panes: [EditorSection: NSView] = [:]
     private var tables: [EditorSection: KeyValueTable] = [:]
+    let docsPane: DocsPane
     let paramsPane: ParamsPane
     let settingsPane: SettingsPane
     let authPane: AuthPane
@@ -66,11 +73,13 @@ final class RequestEditor: NSView {
         self.model = model
         self.theme = theme
         settingsPane = SettingsPane(theme: theme)
+        docsPane = DocsPane(theme: theme)
         paramsPane = ParamsPane(theme: theme)
         authPane = AuthPane(theme: theme)
         bodyPane = BodyPane(model: model, theme: theme)
         super.init(frame: .zero)
         paramsPane.pathTable.onChange = { [weak self] in self?.model.setPathVariable($0, to: $1) }
+        docsPane.onChange = { [weak self] in self?.model.tab.definition.docs = $0 }
         authPane.onChange = { [weak self] in self?.model.tab.definition.auth = $0 }
         settingsPane.onChange = { [weak self] in self?.model.tab.definition.settings = $0 }
 
@@ -102,6 +111,8 @@ final class RequestEditor: NSView {
                 table.onChange = { [weak self] in self?.model.tab.definition[keyPath: rows] = $0 }
                 tables[section] = table
                 pane = table
+            } else if section == .docs {
+                pane = docsPane
             } else if section == .settings {
                 pane = settingsPane
             } else if section == .auth {
@@ -114,8 +125,8 @@ final class RequestEditor: NSView {
             panes[section] = pane
             pane.translatesAutoresizingMaskIntoConstraints = false
             paneArea.addSubview(pane)
-            // Auth pads itself (16 pt) and measures the editor's width, so it takes the whole area.
-            let (side, edge): (CGFloat, CGFloat) = section == .auth ? (0, 0) : (12, 8)
+            // Auth and Docs pad themselves (16 pt) and Auth measures the editor's width, so they take the whole area.
+            let (side, edge): (CGFloat, CGFloat) = section == .auth || section == .docs ? (0, 0) : (12, 8)
             NSLayoutConstraint.activate([
                 pane.leadingAnchor.constraint(equalTo: paneArea.leadingAnchor, constant: side),
                 pane.trailingAnchor.constraint(equalTo: paneArea.trailingAnchor, constant: -side),
@@ -159,7 +170,7 @@ final class RequestEditor: NSView {
         case .params: \.params
         case .headers: \.headers
         case .cookies: \.cookies
-        case .body, .auth, .settings: nil
+        case .docs, .body, .auth, .settings: nil
         }
     }
 
@@ -199,12 +210,16 @@ final class RequestEditor: NSView {
             // Read here, so switching the Active Environment re-runs this render.
             let kinds = model.kinds
             for (section, button) in buttons {
-                button.set(name: section.name, detail: section.detail(in: definition), isUndefined: section.holdsUndefined(in: definition, kinds: kinds))
+                button.set(
+                    name: section.name, detail: section.detail(in: definition),
+                    isUndefined: section.holdsUndefined(in: definition, kinds: kinds), hasDot: section.hasDot(in: definition)
+                )
             }
             for (section, table) in tables {
                 table.setKinds(kinds)
                 if let rows = Self.rows(section) { table.setRows(definition[keyPath: rows]) }
             }
+            docsPane.setDocs(definition.docs)
             paramsPane.setPathVariables(names: PathVariables.names(in: definition.url), values: definition.pathVariables, kinds: kinds)
             // An empty Draft or an invalid URL has no host yet, so nothing to show.
             let resolved = try? VariableResolver.resolve(definition, scope: model.scope(.asWritten))
@@ -226,6 +241,7 @@ final class SectionButton: NSButton {
     private var name = ""
     private var detail: String?
     private var isUndefined = false
+    private(set) var hasDot = false
     var isOn = false {
         didSet {
             redraw()
@@ -249,9 +265,9 @@ final class SectionButton: NSButton {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    func set(name: String, detail: String?, isUndefined: Bool = false) {
-        guard (name, detail, isUndefined) != (self.name, self.detail, self.isUndefined) else { return }
-        (self.name, self.detail, self.isUndefined) = (name, detail, isUndefined)
+    func set(name: String, detail: String?, isUndefined: Bool = false, hasDot: Bool = false) {
+        guard (name, detail, isUndefined, hasDot) != (self.name, self.detail, self.isUndefined, self.hasDot) else { return }
+        (self.name, self.detail, self.isUndefined, self.hasDot) = (name, detail, isUndefined, hasDot)
         redraw()
     }
 
@@ -277,8 +293,22 @@ final class SectionButton: NSButton {
                 .foregroundColor: theme.color(isUndefined ? .variableUndefined : .textTertiary),
             ]))
         }
+        let label = title.string
+        if hasDot {
+            // A 5 pt `textTertiary` dot: a glyph would be larger than the 13 pt text around it.
+            let dot = NSTextAttachment()
+            let color = theme.color(.textTertiary)
+            dot.image = NSImage(size: NSSize(width: 5, height: 5), flipped: false) { rect in
+                color.setFill()
+                NSBezierPath(ovalIn: rect).fill()
+                return true
+            }
+            dot.bounds = CGRect(x: 0, y: 3, width: 5, height: 5)
+            title.append(NSAttributedString(string: " "))
+            title.append(NSAttributedString(attachment: dot))
+        }
         attributedTitle = title
-        setAccessibilityLabel(title.string)
+        setAccessibilityLabel(label)
         needsDisplay = true
     }
 

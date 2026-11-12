@@ -57,6 +57,10 @@ marks stay on screen in a quieter colour.
 **`{{name}}` in Docs is plain text.** It is not highlighted, not counted as an Undefined
 Variable, and not shown in the Variables pane: a note may well describe a Variable by name.
 
-**No preview, no links opened, no images.** Links are styled and ⌘-click opens them in the
-browser (NSTextView's own link handling, on a `.link` attribute DocsStyle sets only for
-`http`/`https`). Images are their markdown text.
+**A curl paste keeps Docs.** Curl Import replaces the rest of the definition and leaves `docs`
+as the Tab had it (curl.md).
+
+**No preview, no images.** Links are styled, and ⌘-click opens one in the browser: the editor
+hit-tests the click, reads the `.link` attribute the pane sets only where DocsStyle gives an
+`http`/`https` URL, and opens it. A plain click only places the caret. Images are their
+markdown text.

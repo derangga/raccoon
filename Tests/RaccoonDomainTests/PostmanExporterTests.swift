@@ -194,6 +194,15 @@ extension PostmanExporterTests {
         #expect(item["description"] == nil && item["event"] == nil)
         #expect((item["request"] as? NSDictionary)?["description"] == nil)
     }
+
+    @Test func `Docs is the request's description, written only when not empty`() throws {
+        let docs = "# Notes\n\nUse `{{token}}`."
+        #expect(((try Self.item(Self.definition()) as? NSDictionary)?["request"] as? NSDictionary)?["description"] == nil)
+        var definition = Self.definition()
+        definition.docs = docs
+        #expect(try Self.item(definition, at: "request.description") as? String == docs)
+        #expect((try Self.item(definition) as? NSDictionary)?["description"] == nil)
+    }
 }
 
 extension PostmanExporterTests {

@@ -249,7 +249,7 @@ struct PostmanImport {
             case .examplesDropped:
                 add(true, "Saved examples in \(requests) are not imported.")
             case .descriptionsDropped:
-                add(true, "\(plural(n, "description")) \(one ? "is" : "are") not imported. Raccoon keeps no descriptions.")
+                add(true, "\(plural(n, "description")) \(one ? "is" : "are") not imported. Raccoon keeps no Folder or Collection descriptions.")
             case .itemsSkipped:
                 add(true, one ? "1 Postman item that is neither a Request nor a Folder is skipped."
                     : "\(number(n)) Postman items that are neither a Request nor a Folder are skipped.")

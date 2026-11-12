@@ -151,6 +151,23 @@ struct RequestFileTests {
         #expect(throws: RequestFileError.unknownVersion(3)) { try RequestFile.decode(Data(json.utf8)) }
     }
 
+    // MARK: Docs
+
+    @Test func `no docs writes no key, and docs survive a round trip character for character`() throws {
+        var request = try RequestFile.decode(Data(Self.fixtures[0].utf8))
+        #expect(!String(decoding: RequestFile.encode(request), as: UTF8.self).contains("docs"))
+        request.definition.docs = "# Charges\n\nSend `{{token}}` — **café** ☕\r\n- a \"quote\" and a / slash\n"
+        let file = RequestFile.encode(request)
+        #expect(String(decoding: file, as: UTF8.self).contains(#""docs" : "#))
+        #expect(try RequestFile.decode(file) == request)
+        #expect(try RequestFile.decode(file).definition.docs == request.definition.docs)
+    }
+
+    @Test func `docs that are not a string make the file malformed`() {
+        let json = #"{"version": 1, "id": "6F1C2B3A-0000-4000-8000-000000000001", "name": "A", "method": "GET", "url": "x", "docs": 3}"#
+        #expect(throws: RequestFileError.malformed("“docs” has the wrong type")) { try RequestFile.decode(Data(json.utf8)) }
+    }
+
     // MARK: Request Settings
 
     @Test func `the four newer Request Settings round-trip, and a file without them has the defaults`() throws {

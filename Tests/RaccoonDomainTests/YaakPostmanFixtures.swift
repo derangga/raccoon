@@ -1386,11 +1386,11 @@ enum YaakPostmanFixtures {
         }))
 
     static let inline: [PostmanFixture] = [
-        // Differs: the description is dropped and counted (`response`, `description`).
+        // Differs: the description is the Request's Docs, with no note.
         PostmanFixture("Imports object descriptions without [object Object]", #"""
             {"info": {"name": "Description Test", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
              "item": [{"name": "Request 1", "request": {"method": "GET", "description": {"content": "Lijst van klanten", "type": "text/plain"}}}]}
-            """#, plan: imported("Description Test", [planned(1, "Request 1")], notes: [note(.descriptionsDropped, "Request 1")])),
+            """#, plan: imported("Description Test", [planned(1, "Request 1", docs: "Lijst van klanten")])),
         PostmanFixture("Imports url.path when it is a string instead of an array", #"""
             {"info": {"name": "String Path Test", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
              "item": [{"name": "String Path", "request": {"method": "GET", "url": {"host": ["example", "com"], "path": "foo/bar"}}}]}

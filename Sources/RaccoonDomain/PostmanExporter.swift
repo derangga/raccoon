@@ -99,6 +99,7 @@ public enum PostmanExporter {
 
     private static func wire(_ definition: RequestDefinition) -> Req {
         Req(
+            description: definition.docs.isEmpty ? nil : definition.docs,
             method: definition.method, url: url(definition), header: headers(definition),
             body: body(definition.body), auth: auth(definition.auth)
         )
@@ -240,6 +241,7 @@ public enum PostmanExporter {
     }
 
     private struct Req: Encodable {
+        var description: String?
         var method: String
         var url: WireURL
         var header: [KeyValue]

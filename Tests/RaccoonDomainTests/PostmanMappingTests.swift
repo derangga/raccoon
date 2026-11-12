@@ -341,11 +341,16 @@ extension PostmanMappingTests {
 
     @Test(arguments: [
         (PostmanRequest(name: "r", responseCount: 2), [ImportNote(.examplesDropped, names: ["r"])]),
-        (PostmanRequest(name: "r", description: "Lists users."), [ImportNote(.descriptionsDropped, names: ["r"])]),
+        (PostmanRequest(name: "r", description: "Lists users."), []),
         (PostmanRequest(name: "r", description: ""), []),
     ])
-    func `saved examples and descriptions are dropped and counted`(request: PostmanRequest, notes: [ImportNote]) {
+    func `saved examples are dropped and counted, and a request's description is no note`(request: PostmanRequest, notes: [ImportNote]) {
         #expect(self.notes(request) == notes)
+    }
+
+    @Test func `a request's description becomes its Docs as written`() {
+        #expect(definition(PostmanRequest(name: "r", description: "# Lists\n\n{{x}} *users*"))?.docs == "# Lists\n\n{{x}} *users*")
+        #expect(definition(PostmanRequest(name: "r"))?.docs == "")
     }
 
     @Test func `a Folder's and the Collection's description are named by that Folder and Collection`() {

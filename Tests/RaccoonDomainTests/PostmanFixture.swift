@@ -27,13 +27,14 @@ func imported(_ name: String, _ nodes: [ImportNode], globals: [ImportVariable] =
 func planned(
     _ n: Int, _ name: String, _ method: String = "GET", _ url: String = "", params: [Row] = [], pathVariables: [String: String] = [:], headers: [Row] = [],
     cookies: [Row] = [], body: Body = .none, auth: Auth = .none, insecure: Bool = false, redirects: Bool = true,
-    originalMethod: Bool = false, authorization: Bool = false, maxRedirects: Int = 20
+    originalMethod: Bool = false, authorization: Bool = false, maxRedirects: Int = 20, docs: String = ""
 ) -> ImportNode {
     .request(Request(id: PostmanMappingTests.id(n), name: name, definition: RequestDefinition(
         method: method, url: url, params: params, pathVariables: pathVariables, headers: headers, cookies: cookies,
         body: body, auth: auth,
         settings: RequestSettings(allowsInsecureTLS: insecure, followsRedirects: redirects, followsOriginalMethod: originalMethod,
-                                  followsAuthorizationHeader: authorization, maxRedirects: maxRedirects)
+                                  followsAuthorizationHeader: authorization, maxRedirects: maxRedirects),
+        docs: docs
     )))
 }
 

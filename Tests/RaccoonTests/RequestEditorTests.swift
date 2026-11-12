@@ -23,7 +23,7 @@ struct RequestEditorTests {
         definition.params = [Row(name: "a", value: "1"), Row(name: "b", value: "2", isEnabled: false), Row(name: "c", value: "")]
         definition.headers = [Row(name: "Accept", value: "*/*")]
         #expect(EditorSection.allCases.map { $0.title(in: definition) }
-            == ["Params 3", "Headers 1", "Body", "Auth", "Cookies", "Settings"])
+            == ["Docs", "Params 3", "Headers 1", "Body", "Auth", "Cookies", "Settings"])
     }
 
     @Test func `Auth and Body show no detail, whatever the scheme or Body Type`() {

@@ -109,6 +109,8 @@ and every place they disagree is a command split inside a quote.
 
 - **Cookies become Request Cookies rows, not one `Cookie` header.** Raccoon has a Cookies
   table (CONTEXT, Request Cookies), and a cookie a user wants to disable is one row.
+- **A paste keeps the Tab's Docs.** Docs are about the Request, not part of what curl describes
+  (docs.md), so the imported definition takes the Tab's `docs` and replaces everything else.
 - **Several pasted commands import only the first.** Yaak makes one request per command.
   A paste lands in one Tab, so the rest are listed in the ignored note as "2 more commands".
 - **`--digest` and `--ntlm` are ignored, not mapped.** Auth has no Digest or NTLM (CONTEXT,

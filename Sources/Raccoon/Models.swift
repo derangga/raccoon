@@ -123,6 +123,8 @@ final class TabModel {
         if imported.definition.method == "GET" && imported.definition.body != .none {
             notes.append("A GET with a body won't send: macOS refuses it. Change the method or remove the body.")
         }
+        // Docs are about the Request, not part of what curl describes (curl.md).
+        imported.definition.docs = tab.definition.docs
         tab.definition = imported.definition
         isURLInvalid = false
         message = notes.isEmpty ? nil : .note(notes.joined(separator: ". "))

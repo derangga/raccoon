@@ -21,6 +21,7 @@ public enum VariableResolver {
         resolved.headers = rows(definition.headers)
         resolved.cookies = rows(definition.cookies)
         resolved.pathVariables = [:]
+        resolved.docs = ""
         resolved.body = switch definition.body {
         case .none: .none
         case .raw(let kind, let body): .raw(kind, text(body))

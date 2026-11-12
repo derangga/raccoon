@@ -19,6 +19,12 @@ struct CredentialScanTests {
         CredentialScan.find([Request(id: RequestID(UUID()), name: name, definition: definition)])
     }
 
+    @Test func `Docs are never scanned`() {
+        var definition = Self.definition()
+        definition.docs = "Authorization: Bearer abc\ntoken=secret123 password: hunter2"
+        #expect(Self.find(definition) == [])
+    }
+
     @Test func `a finding is the Request's name and the place, in Request order, headers then params then Auth`() {
         let first = Request(id: RequestID(UUID()), name: "A", definition: Self.definition(
             headers: [Row(name: "Authorization", value: "x")], params: [Row(name: "token", value: "y")], auth: .bearer(token: "z")

@@ -91,7 +91,7 @@ public struct ImportNote: Equatable, Sendable {
         case scriptsDropped
         /// Saved examples (`response`).
         case examplesDropped
-        /// Names the Requests, Folders and Collections whose description was dropped.
+        /// Names the Folders and Collections whose description was dropped; a Request's is its Docs.
         case descriptionsDropped
         /// A Collection or Environment planned under another name: taken, or not a file name.
         /// Names the old name.
@@ -221,7 +221,6 @@ public enum PostmanMapping {
                 kinds += dynamicVariables(planned.definition).map { .dynamicVariable(name: $0) }
                 if scripts || hasScripts(request.events) { kinds.append(.scriptsDropped) }
                 if request.responseCount > 0 { kinds.append(.examplesDropped) }
-                if !(request.description ?? "").isEmpty { kinds.append(.descriptionsDropped) }
                 var seen: Set<ImportNote.Kind> = []
                 for kind in kinds where seen.insert(kind).inserted { notes.add(kind, name) }
                 return .request(planned)
@@ -252,7 +251,8 @@ public enum PostmanMapping {
                 followsOriginalMethod: request.followOriginalHttpMethod ?? false,
                 followsAuthorizationHeader: request.followAuthorizationHeader ?? false,
                 maxRedirects: request.maxRedirects ?? RequestDefinition.empty.settings.maxRedirects
-            )
+            ),
+            docs: request.description ?? ""
         )
     }
 

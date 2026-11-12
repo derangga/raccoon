@@ -2619,8 +2619,8 @@ enum BrunoPostmanFixtures {
     ]
 
     // bruno/packages/bruno-converters/tests/postman/postman-to-bruno/transform-description.spec.js
-    // Differs from Bruno throughout: a Collection's, Folder's or Request's description is dropped and
-    // counted, and a header's, Param's, path variable's or body field's is dropped without a note
+    // Differs from Bruno throughout: a Collection's or Folder's description is dropped and counted, a Request's
+    // is its Docs, and a header's, Param's, path variable's or body field's is dropped without a note
     // (`response`, `description`). Bruno keeps them as docs.
     static let transformDescription: [PostmanFixture] = [
         PostmanFixture("should handle null and undefined descriptions", #"""
@@ -2680,7 +2680,7 @@ enum BrunoPostmanFixtures {
                 }
               ]
             }
-            """#, plan: imported("Test Collection", [planned(1, "Test Request", "GET", "https://api.example.com/test")], notes: [note(.descriptionsDropped, "Test Request")])),
+            """#, plan: imported("Test Collection", [planned(1, "Test Request", "GET", "https://api.example.com/test", docs: "This is a request description in new format")])),
         PostmanFixture("should handle folder descriptions with new format", #"""
             {
               "info": {
@@ -2861,7 +2861,7 @@ enum BrunoPostmanFixtures {
                 }
               ]
             }
-            """#, plan: imported("Test Collection", [.folder(name: "Test Folder", children: [planned(1, "Test Request", "GET", "https://api.example.com/test", headers: rows(("Content-Type", "application/json")))])], notes: [note(.descriptionsDropped, "Test Collection", "Test Folder", "Test Request")])),
+            """#, plan: imported("Test Collection", [.folder(name: "Test Folder", children: [planned(1, "Test Request", "GET", "https://api.example.com/test", headers: rows(("Content-Type", "application/json")), docs: "Request with string description")])], notes: [note(.descriptionsDropped, "Test Collection", "Test Folder")])),
         PostmanFixture("should handle edge cases like empty strings and special characters", #"""
             {
               "info": {
@@ -2880,7 +2880,7 @@ enum BrunoPostmanFixtures {
                 }
               ]
             }
-            """#, plan: imported("Test Collection", [planned(1, "Test Request", "GET", "https://api.example.com/test")], notes: [note(.descriptionsDropped, "Test Request")])),
+            """#, plan: imported("Test Collection", [planned(1, "Test Request", "GET", "https://api.example.com/test", docs: "Description with special chars: !@#$%^&*()")])),
     ]
 
     // bruno/packages/bruno-converters/tests/postman/postman-env-to-bruno-env.spec.js
