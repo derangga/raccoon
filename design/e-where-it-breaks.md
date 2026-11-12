@@ -309,6 +309,8 @@ Sending loader
                            the loader. No alert, no banner, nothing shown. Read once, on the
                            first send that needs it; the result, nil included, is kept
   ⚠ the body area under 296 pt high → not an error: the loader is hidden, the text stays
+  ⚠ a bitmap added to the JSON (an image asset or layer) → DIE at test time, not at run time:
+                           SendingLoaderAssetTests fails, because a bitmap would blur when scaled
   ⚠ the state is anything but .sending (Cancel, failure, time-out, a received Response) → not
                            an error: the view is removed on that frame, mid-loop
   ⚠ the selected Tab changes → not an error: the one player rebinds; a Tab that is not

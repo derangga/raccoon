@@ -23,6 +23,8 @@ final class SendingLoaderView: NSView {
         alphaValue = 0
 
         player.contentMode = .scaleAspectFit
+        // Stays vector: never flattened to a bitmap while idle (Lottie's option, off by default).
+        player.shouldRasterizeWhenIdle = false
         player.backgroundBehavior = .continuePlaying
         player.loopMode = .loop
         // Decorative: the status line's "Sending…" and the text say the state.

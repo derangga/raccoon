@@ -609,6 +609,11 @@ area, all on `backgroundRecessed`.
     redrawn. 240 × 240 pt (the art is about 195 pt of it), centred in the same centre-gravity
     area of the stack as the text, so the pair is centred in the body area, 8 pt above it. Its
     background is transparent. Motion and timing: surfaces.md §7.
+  - *Vector*: it stays vector at any size and on any display. The file holds paths only (no
+    image asset, no image layer), and a test fails if one is added. The player is Lottie's Core
+    Animation engine, which draws each path as a `CAShapeLayer`, and `shouldRasterizeWhenIdle`
+    is set off, so nothing is cached as a bitmap. The still pose is the same layers at frame 72,
+    not an image of it.
   - *Fit*: the stack needs 16 + 240 + 8 + 16 (one text line, computed, not measured) + 16 =
     296 pt of body area, and the body area is the pane less the 45 pt status line. The Response
     pane may shrink to 160 pt (Open UI Q2), where the body area is 115 pt, so the loader is
