@@ -158,12 +158,14 @@ struct DocsEditorTests {
         return text.textContainerOrigin.x + layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).minX + layout.location(forGlyphAt: glyph).x
     }
 
-    @Test func `body, heading and code lines have their own line height, and a heading its spacing`() {
+    @Test func `body, heading and code lines have their own line spacing, below the text, and a heading its spacing`() {
         let (_, text) = focused("a\n\n# H\n\n```\nx\n```")
-        #expect(paragraphStyle(text, at: 0).lineHeightMultiple == 1.45)
+        // lineSpacing, never lineHeightMultiple: the multiple adds its space above and sinks the text
+        let body = paragraphStyle(text, at: 0)
+        #expect(body.lineSpacing == 4 && body.lineHeightMultiple == 0)
         let heading = paragraphStyle(text, at: 5)
-        #expect(heading.lineHeightMultiple == 1.25 && heading.paragraphSpacingBefore == 12 && heading.paragraphSpacing == 4)
-        #expect(paragraphStyle(text, at: 14).lineHeightMultiple == 1.5)
+        #expect(heading.lineSpacing == 2 && heading.paragraphSpacingBefore == 12 && heading.paragraphSpacing == 4)
+        #expect(paragraphStyle(text, at: 13).lineSpacing == 3 && paragraphStyle(text, at: 13).lineHeightMultiple == 0)
         // none above a heading on the first line
         let (_, first) = focused("# H")
         #expect(paragraphStyle(first, at: 2).paragraphSpacingBefore == 0)
@@ -172,13 +174,16 @@ struct DocsEditorTests {
     @Test func `list items hang: the text starts 28 pt in, wrapped lines too, and numbers end together`() {
         let (_, text) = focused("- a\n* b\n9. c\n10. d")
         let style = paragraphStyle(text, at: 0)
-        #expect(style.firstLineHeadIndent == 4 && style.headIndent == 28 && style.paragraphSpacing == 2)
+        #expect(style.firstLineHeadIndent == 4 && style.headIndent == 28 && style.lineSpacing == 4)
         // the text of every item starts at the same x
         let starts = [2, 6, 11, 17].map { x(text, of: $0) }
         #expect(starts.allSatisfy { abs($0 - starts[0]) < 0.5 })
         #expect(abs(starts[0] - (text.textContainerOrigin.x + text.textContainer!.lineFragmentPadding + 28)) < 0.5)
         // 9. and 10. end together (right-aligned in the gutter)
         #expect(abs(x(text, of: 10) - x(text, of: 16)) < 0.5)
+        // tabular digits: 1. and 2. start at the same x, not shifted by a narrow 1
+        let (_, numbers) = focused("1. a\n2. b")
+        #expect(abs(x(numbers, of: 0) - x(numbers, of: 5)) < 0.5)
     }
 
     @Test func `lines are at most 720 pt long, and the container follows the pane`() {
@@ -204,20 +209,27 @@ struct DocsEditorTests {
 
     @Test func `a code block is a card whose fences show only while the caret is in it`() throws {
         let (_, text) = focused("a\n```swift\nx\n```\nb")
-        // caret at the end, outside: the fence lines have no glyphs and the card is drawn
-        #expect(text.codeBlocks == [DocsCodeBlock(region: NSRange(location: 2, length: 14), language: "swift", expanded: false)])
-        #expect(glyphProperty(text, at: 2).contains(.null) && glyphProperty(text, at: 9).contains(.null) && glyphProperty(text, at: 13).contains(.null))
+        // caret at the end, outside: the fence lines draw clear (their glyphs keep the line's height) and the card is drawn
+        func color(_ index: Int) -> NSColor? { text.textStorage?.attribute(.foregroundColor, at: index, effectiveRange: nil) as? NSColor }
+        #expect(text.codeBlocks == [DocsCodeBlock(region: NSRange(location: 2, length: 14), language: "swift", expanded: false, closed: true)])
+        #expect(color(2) == .clear && color(9) == .clear && color(13) == .clear)
         #expect(text.cardRects().count == 1)
-        let hiddenHeight = text.cardRects()[0].height
+        let hidden = text.cardRects()[0]
+        // the card holds its fence lines and the code line, inside the 8 pt gap above and below it
+        let layout = text.layoutManager!
+        func fragment(_ index: Int) -> NSRect { layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: index), effectiveRange: nil).offsetBy(dx: 0, dy: text.textContainerOrigin.y) }
+        #expect(abs(hidden.minY - (fragment(2).minY + 8)) < 0.5 && abs(hidden.maxY - (fragment(13).maxY - 8)) < 0.5)
+        #expect(hidden.contains(NSPoint(x: hidden.midX, y: fragment(11).midY)) && hidden.height >= 2 * 14 + fragment(11).height - 0.5)
         // the code line has no glyph background, inline code keeps its own
         #expect(text.textStorage?.attribute(.backgroundColor, at: 11, effectiveRange: nil) == nil)
         // the caret on the code line shows them
         text.setSelectedRange(NSRange(location: 11, length: 0))
-        #expect(text.codeBlocks[0].expanded && !glyphProperty(text, at: 2).contains(.null) && !glyphProperty(text, at: 13).contains(.null))
-        #expect(text.cardRects()[0].height > hiddenHeight)
+        #expect(text.codeBlocks[0].expanded && color(2) != .clear && color(13) != .clear)
+        // the card does not move or grow when its fences show
+        #expect(text.cardRects()[0] == hidden)
         #expect(text.textStorage?.attribute(.foregroundColor, at: 2, effectiveRange: nil) as? NSColor == theme.color(.textTertiary))
         text.setSelectedRange(NSRange(location: 0, length: 0))
-        #expect(!text.codeBlocks[0].expanded && glyphProperty(text, at: 2).contains(.null))
+        #expect(!text.codeBlocks[0].expanded && color(2) == .clear)
         // the storage is the markdown throughout
         #expect(text.string == "a\n```swift\nx\n```\nb")
     }

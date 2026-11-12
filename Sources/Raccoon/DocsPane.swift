@@ -131,6 +131,12 @@ final class DocsPane: NSView, NSTextViewDelegate {
 
     private static let body = NSFont.systemFont(ofSize: 13)
     private static let mono = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+    /// A shown fence is small so it fits the fixed fence line; a hidden one draws nothing.
+    private static let fenceFont = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular)
+    static let fenceHeight: CGFloat = 14
+    static let cardGap: CGFloat = 8
+    /// List markers: tabular digits, so 1. and 2. are the same width and line up.
+    private static let marker = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)
 
     // shortcut: restyles all of the Docs per keystroke, O(n); upgrade if Docs grow past a few pages.
     private func style() {
@@ -154,7 +160,7 @@ final class DocsPane: NSView, NSTextViewDelegate {
             case .bold, .italic, .strikethrough, .code, .link: spans.append(range)
             case .heading:
                 let line = text.lineRange(for: range)
-                storage.addAttribute(.paragraphStyle, value: Self.paragraph(multiple: 1.25, before: line.location > 0 ? 12 : 0, after: 4), range: line)
+                storage.addAttribute(.paragraphStyle, value: Self.paragraph(spacing: 2, before: line.location > 0 ? 12 : 0, after: 4), range: line)
             case .fence(let language): fences.append((range, language))
             case .mark, .quoteMark:
                 var end = NSMaxRange(range)
@@ -168,7 +174,7 @@ final class DocsPane: NSView, NSTextViewDelegate {
                 if styled.style == .quoteMark {
                     let line = text.lineRange(for: range)
                     quotes.append(line)
-                    storage.addAttribute(.paragraphStyle, value: Self.paragraph(multiple: 1.45, first: 16, head: 16), range: line)
+                    storage.addAttribute(.paragraphStyle, value: Self.paragraph(spacing: Self.bodySpacing, first: 16, head: 16), range: line)
                 }
             case .listMarker:
                 hang(range, in: storage, bullets: &bullets)
@@ -186,22 +192,19 @@ final class DocsPane: NSView, NSTextViewDelegate {
             let region = NSRange(location: openLine.location, length: end - openLine.location)
             let expanded = caret >= region.location && caret <= NSMaxRange(region)
             let lines = NSRange(location: openLine.location, length: (closeLine.map(NSMaxRange) ?? text.length) - openLine.location)
-            storage.addAttribute(.paragraphStyle, value: Self.paragraph(multiple: 1.5, first: 12, head: 12, tail: -12), range: lines)
+            storage.addAttribute(.paragraphStyle, value: Self.paragraph(spacing: 3, first: 12, head: 12, tail: -12), range: lines)
             for (fence, line, isOpen) in [(open, openLine, true)] + (close.map { [($0, closeLine!, false)] } ?? []) {
-                let spacing = isOpen ? (before: CGFloat(8), after: CGFloat(0)) : (before: 0, after: 8)
-                storage.addAttribute(.font, value: Self.mono, range: fence.range)
-                if expanded {
-                    storage.addAttributes([.foregroundColor: theme.color(.textTertiary),
-                                           .paragraphStyle: Self.paragraph(multiple: 1.5, first: 12, head: 12, tail: -12, before: spacing.before, after: spacing.after)], range: line)
-                } else {
-                    // No glyphs, and the line shrinks to the card's 12 pt padding.
-                    var visibleEnd = NSMaxRange(line)
-                    while visibleEnd > line.location, [0x0A, 0x0D].contains(text.character(at: visibleEnd - 1)) { visibleEnd -= 1 }
-                    hidden.insert(integersIn: line.location..<visibleEnd)
-                    storage.addAttribute(.paragraphStyle, value: Self.paragraph(multiple: 1, before: spacing.before, after: spacing.after, fixedHeight: 12), range: line)
-                }
+                // A fence line is the card's top or bottom padding: one fixed height shown or hidden, so
+                // the card never moves when the caret enters it. The 8 pt outside the card is its spacing.
+                let fenceStyle = Self.paragraph(spacing: 0, first: 12, head: 12, tail: -12, before: isOpen ? Self.cardGap : 0,
+                                                after: isOpen ? 0 : Self.cardGap, fixedHeight: Self.fenceHeight)
+                storage.addAttributes([.font: Self.fenceFont, .paragraphStyle: fenceStyle], range: line)
+                // Hidden fences keep their glyphs, drawn clear: a line of .null glyphs gets no fragment of
+                // its own in TextKit 1 and folds into the code line. A caret on it is inside the block,
+                // which shows the fences, so it needs no settling.
+                storage.addAttribute(.foregroundColor, value: expanded ? theme.color(.textTertiary) : NSColor.clear, range: fence.range)
             }
-            cards.append(DocsCodeBlock(region: region, language: open.language, expanded: expanded))
+            cards.append(DocsCodeBlock(region: region, language: open.language, expanded: expanded, closed: close != nil))
         }
         textView.codeBlocks = cards
         textView.hiddenMarks = hidden
@@ -230,22 +233,26 @@ final class DocsPane: NSView, NSTextViewDelegate {
         let isBullet = [0x2D, 0x2A].contains(first)
         if isBullet { bullets.insert(marker.location) }
         let shown = isBullet ? "•" : text.substring(with: marker)
-        let width = (shown as NSString).size(withAttributes: [.font: Self.body]).width
+        let width = (shown as NSString).size(withAttributes: [.font: Self.marker]).width
         let space = (" " as NSString).size(withAttributes: [.font: Self.body]).width
         let numbered = first >= 0x30 && first <= 0x39
         let start = numbered ? max(4, 28 - width - space) : 4
         let kern = numbered ? 0 : max(0, 28 - start - width - space)
         let gap = NSRange(location: NSMaxRange(marker), length: 1)
         if kern > 0, NSMaxRange(gap) <= text.length, text.character(at: gap.location) == 0x20 { storage.addAttribute(.kern, value: kern, range: gap) }
-        storage.addAttribute(.paragraphStyle, value: Self.paragraph(multiple: 1.45, first: start, head: 28, after: 2), range: line)
+        storage.addAttribute(.paragraphStyle, value: Self.paragraph(spacing: Self.bodySpacing, first: start, head: 28), range: line)
     }
 
-    private static let bodyParagraph = paragraph(multiple: 1.45)
+    private static let bodyParagraph = paragraph(spacing: DocsPane.bodySpacing)
+    /// Below each body line: SF 13's natural 15.5 pt line plus this is about 19.5 pt.
+    static let bodySpacing: CGFloat = 4
 
-    private static func paragraph(multiple: CGFloat, first: CGFloat = 0, head: CGFloat = 0, tail: CGFloat = 0,
+    /// `spacing` is added below each line: TextKit 1's lineHeightMultiple adds its extra above the
+    /// glyphs, which sinks text to the bottom of its line.
+    private static func paragraph(spacing: CGFloat, first: CGFloat = 0, head: CGFloat = 0, tail: CGFloat = 0,
                                   before: CGFloat = 0, after: CGFloat = 0, fixedHeight: CGFloat? = nil) -> NSParagraphStyle {
         let style = NSMutableParagraphStyle()
-        style.lineHeightMultiple = multiple
+        style.lineSpacing = spacing
         style.firstLineHeadIndent = first
         style.headIndent = head
         style.tailIndent = tail
@@ -267,7 +274,8 @@ final class DocsPane: NSView, NSTextViewDelegate {
         case .strikethrough: [.strikethroughStyle: NSUnderlineStyle.single.rawValue]
         case .code: [.font: Self.mono, .backgroundColor: theme.color(.backgroundRecessed)]
         case .codeBlock, .fence: [.font: Self.mono]
-        case .listMarker, .quoteMark, .quote: [.foregroundColor: theme.color(.textSecondary)]
+        case .listMarker: [.font: Self.marker, .foregroundColor: theme.color(.textSecondary)]
+        case .quoteMark, .quote: [.foregroundColor: theme.color(.textSecondary)]
         case .link(let url):
             if let url, let target = URL(string: url) {
                 [.foregroundColor: theme.color(.accent), .link: target, .toolTip: url]
@@ -284,6 +292,7 @@ struct DocsCodeBlock: Equatable {
     var region: NSRange
     var language: String?
     var expanded: Bool
+    var closed: Bool
 }
 
 /// The Docs editor: matched marks laid out with no glyphs, format commands, the placeholder
@@ -363,16 +372,22 @@ final class DocsTextView: NSTextView, NSLayoutManagerDelegate, NSPopoverDelegate
     /// The block the caret was in at the last restyle.
     var expandedBlock: Int? { codeBlocks.firstIndex(where: \.expanded) }
 
-    /// Each card's rect in this view, from its opening fence's line to its last line.
+    /// Each card's rect in this view: from its opening fence line's fragment to its last line's,
+    /// without the gap the fences keep outside it. Whole fragments, not used rects: a fence line
+    /// whose glyphs are all hidden has an empty used rect.
     func cardRects() -> [NSRect] {
         guard let layout = layoutManager, let container = textContainer, let length = textStorage?.length, length > 0 else { return [] }
         let padding = container.lineFragmentPadding
         return codeBlocks.compactMap { block in
             guard NSMaxRange(block.region) <= length else { return nil }
-            let top = layout.lineFragmentUsedRect(forGlyphAt: layout.glyphIndexForCharacter(at: block.region.location), effectiveRange: nil)
-            let bottom = layout.lineFragmentUsedRect(forGlyphAt: layout.glyphIndexForCharacter(at: max(block.region.location, NSMaxRange(block.region) - 1)), effectiveRange: nil)
-            return NSRect(x: textContainerOrigin.x + padding, y: textContainerOrigin.y + top.minY,
-                          width: container.size.width - 2 * padding, height: bottom.maxY - top.minY)
+            let top = layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: block.region.location), effectiveRange: nil)
+            let last = max(block.region.location, NSMaxRange(block.region) - 1)
+            let bottom = layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: last), effectiveRange: nil)
+            let minY = top.minY + DocsPane.cardGap
+            // An unclosed block ends on a code line, which keeps no gap below it.
+            let maxY = bottom.maxY - (block.closed ? DocsPane.cardGap : 0)
+            return NSRect(x: textContainerOrigin.x + padding, y: textContainerOrigin.y + minY,
+                          width: container.size.width - 2 * padding, height: maxY - minY)
         }
     }
 

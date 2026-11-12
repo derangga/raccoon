@@ -107,11 +107,11 @@ empty Text uses the URL; an empty URL removes the link and keeps its text.
 next number); Return in an empty item removes its marker and ends the list. Delete at the start
 of a heading, list item or quote removes its line mark, so the line becomes Normal text.
 
-**A code block shows its fences only while the caret is in it.** With the caret outside, the
-fence lines draw no glyphs and collapse into the block's top and bottom padding, and the
-opening fence's language (```` ```swift ````) shows as a label inside the block. With the caret
-inside, the fences show in `textTertiary`, so the block can be edited, renamed and left by
-moving past them. The pane restyles on every selection change for this; the text never changes.
+**A code block shows its fences only while the caret is in it.** The fence lines are the
+block's top and bottom padding, the same height either way. With the caret outside, they draw
+clear and the opening fence's language (```` ```swift ````) shows as a label inside the block;
+with the caret inside (a caret on a fence line counts), they show in `textTertiary`, so the
+block can be edited, renamed and left by moving past them. The pane restyles on every selection change for this; the text never changes.
 
 **`{{name}}` in Docs is plain text.** It is not highlighted, not counted as an Undefined
 Variable, and not shown in the Variables pane: a note may well describe a Variable by name.

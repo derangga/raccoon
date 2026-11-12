@@ -1572,27 +1572,30 @@ The Docs section's pane: one NSTextView filling it, 16 pt padding, `background`,
 numbers. **Measure**: lines are at most 720 pt long (about 90 characters of body text), from the
 pane's leading padding, never centred; a wider pane leaves the rest empty, and selection
 highlights stop at 720 pt too (decided 2026-11-12). **Rhythm**: body text is the system font
-13 pt in `text` at a line height of 1.45 (19 pt); a line that follows a blank line, a heading or
-a block gets nothing extra, the blank line itself is the gap.
+13 pt in `text`, 4 pt of line spacing below each line (about 19.5 pt a line). Spacing is always
+added below the text, never as a line-height multiple: TextKit 1 puts a multiple's extra above
+the glyphs, which sinks text to the bottom of its line. A blank line is the gap between blocks.
 
 Markdown is drawn with its marks hidden (docs.md):
-- `#` headings at 20, 17 and 15 pt semibold for levels 1, 2 and 3+, line height 1.25, 12 pt
+- `#` headings at 20, 17 and 15 pt semibold for levels 1, 2 and 3+, 2 pt line spacing, 12 pt
   above (none on the first line) and 4 pt below.
 - `**bold**` semibold; `*italic*` italic; `~~strike~~` a single strikethrough; `[text](url)`
   text in `accent`, the URL as its tooltip, ⌘-click opens an `http`/`https` URL.
 - `` `code` `` in SF Mono 12 on `backgroundRecessed`.
 - **Lists** hang: the marker sits in a 24 pt gutter starting 4 pt in, the text starts 28 pt in,
   and wrapped lines align with the text, not the marker. A bulleted item's `-` or `*` is drawn
-  as `•` in `textSecondary`; a numbered item's `1.` stays, in `textSecondary`, right-aligned in
-  the gutter so 9. and 10. line up. 2 pt between items.
+  as `•` in `textSecondary`; a numbered item's `1.` stays, in `textSecondary` with tabular
+  digits, right-aligned in the gutter so 9. and 10. line up. Items keep the body's spacing.
 - **Quotes**: `> ` hidden; the line's text starts 16 pt in, in `textSecondary`, with a 2 pt
   `border` bar at 4 pt that spans exactly the quote's own line fragments (never a neighbouring
   line, even with no blank line between them).
 - **Code blocks** are a card: `backgroundRecessed`, a 1 pt `border`, 6 pt radius, as wide as
-  the measure, 12 pt padding on every side; lines in SF Mono 12, line height 1.5, `text`. With
-  the caret outside, the fence lines are hidden and the language, if any, is a label at the
-  card's top trailing corner in SF Mono 10 `textTertiary`; with the caret inside, the fence lines
-  show in `textTertiary` at the card's top and bottom (docs.md). 8 pt above and below the card.
+  the measure, 12 pt padding at the sides; lines in SF Mono 12, 3 pt line spacing, `text`. The
+  fence lines are the card's top and bottom padding: each a fixed 14 pt line in SF Mono 10, so the
+  card never moves or grows. With the caret outside they draw clear (their glyphs stay, keeping
+  the line's height) and the language, if any, is a label at the card's top trailing corner in
+  SF Mono 10 `textTertiary`; with the caret inside they show in `textTertiary` (docs.md). 8 pt
+  above and below the card.
 
 Empty: the placeholder "Notes for this Request, in markdown." in `textDisabled`. Undo, Find (⌘F,
 the system find bar) and spelling are NSTextView's own. Esc ends editing: the editor resigns
