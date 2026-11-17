@@ -57,6 +57,13 @@ struct DocsEditTests {
         (.toggle(.bold), "a ‸ b", "a **‸** b"),
         (.toggle(.bold), "‸", "**‸**"),
         (.toggle(.strikethrough), "‸", "~~‸~~"),
+        // several lines: each line's text gets its own pair, after its line mark
+        (.toggle(.bold), "«one\ntwo»", "**«one**\n**two»**"),
+        (.toggle(.bold), "«a\n\nb»", "**«a**\n\n**b»**"),
+        (.toggle(.italic), "«- a\n- b»", "«- *a*\n- *b»*"),
+        (.toggle(.bold), "x «one\ntwo» y", "x **«one**\n**two»** y"),
+        (.toggle(.bold), "**«one**\n**two»**", "«one\ntwo»"),
+        (.toggle(.bold), "**«one**\ntwo»", "**«one**\n**two»**"),
     ])
     func `inline toggles wrap and unwrap`(command: DocsEdit.Command, input: String, output: String) {
         #expect(Self.run(command, input) == output)

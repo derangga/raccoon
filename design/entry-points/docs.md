@@ -92,7 +92,10 @@ edit and its restyle, and during input-method composition) nothing is hidden.
 **Format commands edit the markdown, through DocsEdit.** Each is one undo step. With a
 selection, an inline style (Bold, Italic, Strikethrough, Inline code) wraps it, or unwraps it
 when it is already that style; with none, it wraps the word at the caret, and with no word it
-inserts the empty pair with the caret between (shown as text until something is typed). A block
+inserts the empty pair with the caret between (shown as text until something is typed).
+Over several lines it wraps each line's selected text on its own, after that line's mark,
+because a mark only matches within its line; when every one of them already has the style, it
+unwraps them all. A block
 style (Normal text, Heading 1-3, Bulleted list, Numbered list, Quote, Code block) sets the
 caret's lines: it replaces their line mark, or removes it when they already have that style.
 With no selection the caret then goes to the end of its line, so typing continues the item;

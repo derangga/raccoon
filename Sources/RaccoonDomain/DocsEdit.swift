@@ -250,6 +250,7 @@ private struct Doc {
         if let r = found {
             return result([Edit(loc: r.location - w, old: w, new: ""), Edit(loc: NSMaxRange(r), old: w, new: "")])
         }
+        if touchedIndexes.count > 1 { return toggleLines(inline) }
         var (from, to) = (s, e)
         if s == e {
             func isWord(_ c: UInt16) -> Bool { Unicode.Scalar(c).map { CharacterSet.alphanumerics.contains($0) } ?? false }
@@ -262,10 +263,37 @@ private struct Doc {
             while b > a, Self.isBlank(u[b - 1]) { b -= 1 }
             if a < b { (from, to) = (a, b) }
         }
-        // shortcut: a selection over several lines gets one pair, which draws as text; upgrade when Docs need it.
         return result(
             [Edit(loc: from, old: 0, new: m), Edit(loc: to, old: 0, new: m, before: true)],
             selection: s < e ? NSRange(location: from + w, length: to - from) : nil)
+    }
+
+    /// A selection over several lines: each line's selected text is wrapped on its own, or all are unwrapped.
+    func toggleLines(_ inline: DocsEdit.Inline) -> DocsEdit.Result? {
+        let m = inline.marks
+        let w = m.utf16.count
+        var segments: [(from: Int, to: Int, styled: NSRange?)] = []
+        for line in touched {
+            var (from, to) = (max(s, line.start), min(e, line.end))
+            if let mk = mark(line), from < mk.end { from = mk.end }
+            while from < to, Self.isBlank(u[from]) { from += 1 }
+            while to > from, Self.isBlank(u[to - 1]) { to -= 1 }
+            // Step over inline marks that are hidden, which the selection can include at a line's ends.
+            while let r = ranges.first(where: { $0.style == .mark && $0.range.location == from }) { from = NSMaxRange(r.range) }
+            while let r = ranges.first(where: { $0.style == .mark && NSMaxRange($0.range) == to }) { to = r.range.location }
+            guard from < to else { continue }
+            let styled = ranges.first { $0.style == inline.style && $0.range.location <= from && to <= NSMaxRange($0.range) }?.range
+            segments.append((from, to, styled))
+        }
+        guard !segments.isEmpty else { return nil }
+        if segments.allSatisfy({ $0.styled != nil }) {
+            return result(segments.flatMap { seg in
+                seg.styled.map { [Edit(loc: $0.location - w, old: w, new: ""), Edit(loc: NSMaxRange($0), old: w, new: "")] } ?? []
+            })
+        }
+        return result(segments.filter { $0.styled == nil }.flatMap {
+            [Edit(loc: $0.from, old: 0, new: m), Edit(loc: $0.to, old: 0, new: m, before: true)]
+        })
     }
 
     // MARK: block
