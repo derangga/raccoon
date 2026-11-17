@@ -380,6 +380,25 @@ struct DocsEditorTests {
         #expect(text.string == "**b**" && text.selectedRange() == NSRange(location: 2, length: 0))
     }
 
+    @Test func `deleting or cutting a span's whole text takes its marks`() {
+        let (_, text) = focused("**bold**")
+        text.setSelectedRange(NSRange(location: 2, length: 4))
+        text.deleteBackward(nil)
+        #expect(text.string == "" && model.tab.definition.docs == "")
+        let (_, forward) = focused("a **b** c")
+        forward.setSelectedRange(NSRange(location: 4, length: 1))
+        forward.deleteForward(nil)
+        #expect(forward.string == "a  c" && forward.selectedRange() == NSRange(location: 2, length: 0))
+        let (_, cut) = focused("a **b** c")
+        cut.setSelectedRange(NSRange(location: 4, length: 1))
+        let board = NSPasteboard.general
+        let before = board.string(forType: .string)
+        defer { board.clearContents(); if let before { board.setString(before, forType: .string) } }
+        cut.cut(nil)
+        #expect(cut.string == "a  c")
+        #expect(board.string(forType: .string) == "b")
+    }
+
     @Test func `a restyle settles a caret that rests inside a new mark`() {
         let (pane, text) = focused("[b](https://a.io)")
         // the text moved on without a restyle (as after an undo): the caret is where the marks were not

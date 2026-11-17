@@ -512,9 +512,29 @@ final class DocsTextView: NSTextView, NSLayoutManagerDelegate, NSPopoverDelegate
     }
 
     override func deleteBackward(_ sender: Any?) {
-        guard selectedRange().length == 0, !hasMarkedText() else { return super.deleteBackward(sender) }
+        guard !hasMarkedText() else { return super.deleteBackward(sender) }
+        guard selectedRange().length == 0 else {
+            if deleteSelection() { return }
+            return super.deleteBackward(sender)
+        }
         if deleteBeforeHiddenMarks() || perform(.deleteBackward, named: "Typing") { return }
         super.deleteBackward(sender)
+    }
+
+    override func deleteForward(_ sender: Any?) {
+        if !hasMarkedText(), deleteSelection() { return }
+        super.deleteForward(sender)
+    }
+
+    override func cut(_ sender: Any?) {
+        guard selectedRange().length > 0, !hasMarkedText() else { return super.cut(sender) }
+        copy(sender)
+        if deleteSelection() { undoManager?.setActionName("Cut") } else { super.deleteBackward(sender) }
+    }
+
+    /// Deletes the selection through DocsEdit; false when there is none or it declines.
+    private func deleteSelection() -> Bool {
+        selectedRange().length > 0 && string == markedUpText && perform(.deleteSelection, named: "Typing")
     }
 
     /// With the caret right after hidden marks (`**b**|`, or `**a**~~|b~~`), Delete removes the
