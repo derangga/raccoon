@@ -18,6 +18,9 @@ public enum DocsEdit {
         case newline
         /// Delete with an empty selection.
         case deleteBackward
+        /// Delete or Cut with a selection: a span whose text is all selected loses its marks too,
+        /// and a span that keeps some text keeps both.
+        case deleteSelection
     }
 
     public struct Result: Equatable, Sendable {
@@ -56,6 +59,7 @@ public enum DocsEdit {
             return doc.touchesFence ? nil : doc.link(url.trimmingCharacters(in: .whitespacesAndNewlines), text.trimmingCharacters(in: .whitespacesAndNewlines))
         case .newline: return doc.newline()
         case .deleteBackward: return doc.deleteBackward()
+        case .deleteSelection: return doc.deleteSelection()
         }
     }
 
@@ -96,6 +100,16 @@ extension DocsEdit.Inline {
         case .italic: .italic
         case .strikethrough: .strikethrough
         case .code: .code
+        }
+    }
+}
+
+private extension DocsStyle.Style {
+    /// A style that has an opening and a closing mark around its text.
+    var isInline: Bool {
+        switch self {
+        case .bold, .italic, .strikethrough, .code, .link: true
+        default: false
         }
     }
 }
@@ -433,5 +447,33 @@ private struct Doc {
         let i = index(of: s)
         guard s == e, !inFence(i), let m = mark(lines[i]), s == m.end else { return nil }
         return result([Edit(loc: m.start, old: m.end - m.start, new: "")])
+    }
+
+    /// The selection and every span emptied by it, marks included; the marks of a span that keeps
+    /// text are never deleted. A fence is no exception: marks there are not spans.
+    func deleteSelection() -> DocsEdit.Result? {
+        guard s < e else { return nil }
+        var set = IndexSet(integersIn: s..<e)
+        let spans: [(text: Range<Int>, marks: [Range<Int>])] = ranges.compactMap { r in
+            guard r.style.isInline, let open = ranges.first(where: { $0.style == .mark && NSMaxRange($0.range) == r.range.location }),
+                  let close = ranges.first(where: { $0.style == .mark && $0.range.location == NSMaxRange(r.range) }) else { return nil }
+            return (r.range.location..<NSMaxRange(r.range), [open.range.location..<NSMaxRange(open.range), close.range.location..<NSMaxRange(close.range)])
+        }
+        var changed = true
+        while changed {
+            changed = false
+            for span in spans where set.contains(integersIn: span.text) {
+                for mark in span.marks where !set.contains(integersIn: mark) {
+                    set.insert(integersIn: mark)
+                    changed = true
+                }
+            }
+        }
+        for span in spans where !set.contains(integersIn: span.text) {
+            for mark in span.marks { set.remove(integersIn: mark) }
+        }
+        guard !set.isEmpty else { return nil }
+        return result(set.rangeView.map { Edit(loc: $0.lowerBound, old: $0.count, new: "") },
+                      selection: NSRange(location: s - set.count(in: 0..<s), length: 0))
     }
 }

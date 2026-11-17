@@ -86,8 +86,12 @@ settles once the same way. Copy gives the markdown of the selection, marks inclu
 **Delete never removes a hidden character on its own.** Right after a hidden closing mark,
 Delete removes the visible character before it (a whole emoji, not half), and the span's
 opening and closing marks too when that empties it. Each span is judged by its own marks, never
-by a neighbour's that happens to touch it. While the text and its styling disagree (between an
-edit and its restyle, and during input-method composition) nothing is hidden.
+by a neighbour's that happens to touch it. Every other delete (a selection with Delete or Cut,
+Forward Delete, ⌥⌫, ⌥⌦, ⌘⌫) follows one rule, `DocsEdit`'s `.deleteSelection`: a span whose
+text is all deleted loses its marks with it, and a span that keeps some text keeps both marks.
+Forward Delete before hidden marks removes the visible character after them. While the text and
+its styling disagree (between an edit and its restyle, and during input-method composition)
+nothing is hidden.
 
 **Format commands edit the markdown, through DocsEdit.** Each is one undo step. With a
 selection, an inline style (Bold, Italic, Strikethrough, Inline code) wraps it, or unwraps it

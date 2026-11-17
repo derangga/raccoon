@@ -218,6 +218,31 @@ struct DocsEditTests {
         #expect(Self.run(.deleteBackward, input) == nil)
     }
 
+    @Test(arguments: [
+        // a span whose text is all selected goes with its marks
+        ("**«bold»**", "‸"),
+        ("a **«b»** c", "a ‸ c"),
+        ("[«text»](u.io)", "‸"),
+        ("«a **b** c»", "‸"),
+        // a span that keeps some text keeps both marks
+        ("**«bo»ld**", "**‸ld**"),
+        ("«**bo»ld**", "‸**ld**"),
+        ("**bo«ld** x»", "**bo‸**"),
+        ("«**a**~~b»c~~", "‸~~c~~"),
+        // no span: a plain deletion
+        ("a «b» c", "a ‸ c"),
+        ("# «Title»", "# ‸"),
+        ("```\n«**x**»\n```", "```\n‸\n```"),
+    ])
+    func `deleting a selection takes an emptied span's marks and keeps the others`(input: String, output: String) {
+        #expect(Self.run(.deleteSelection, input) == output)
+    }
+
+    @Test(arguments: ["a‸", "«**»b**", "**b«**»"])
+    func `deleting nothing but a kept span's marks is nil`(input: String) {
+        #expect(Self.run(.deleteSelection, input) == nil)
+    }
+
     @Test func `a selection outside the text is nil`() {
         #expect(DocsEdit.apply(.toggle(.bold), to: "ab", selection: NSRange(location: 1, length: 5)) == nil)
         #expect(DocsEdit.apply(.toggle(.bold), to: "ab", selection: NSRange(location: NSNotFound, length: 0)) == nil)
