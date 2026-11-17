@@ -406,13 +406,25 @@ private struct Doc {
             return result([Edit(loc: line.start, old: line.end - line.start, new: "")])
         }
         var next = String(decoding: u[line.start..<m.end], as: UTF16.self)
+        var renumber: [Edit] = []
         if m.block == .numbered {
             let digits = u[m.start..<m.end].prefix { (48...57).contains($0) }
             let n = Int(String(decoding: digits, as: UTF16.self)) ?? 0
-            let delimiter = String(decoding: [u[m.start + digits.count]], as: UTF16.self)
-            next = String(decoding: u[line.start..<m.start], as: UTF16.self) + "\(n + 1)\(delimiter) "
+            let delimiter = u[m.start + digits.count]
+            let indent = u[line.start..<m.start]
+            next = String(decoding: indent, as: UTF16.self) + "\(n + 1)\(String(decoding: [delimiter], as: UTF16.self)) "
+            // The numbered items right below that counted on from this one go up by one.
+            var expected = n + 1
+            for j in i + 1..<lines.count {
+                let below = lines[j]
+                guard !inFence(j), let bm = mark(below), bm.block == .numbered, u[below.start..<bm.start] == indent else { break }
+                let bd = u[bm.start..<bm.end].prefix { (48...57).contains($0) }
+                guard u[bm.start + bd.count] == delimiter, Int(String(decoding: bd, as: UTF16.self)) == expected else { break }
+                renumber.append(Edit(loc: bm.start, old: bd.count, new: "\(expected + 1)"))
+                expected += 1
+            }
         }
-        return result([Edit(loc: s, old: 0, new: "\n" + next)])
+        return result([Edit(loc: s, old: 0, new: "\n" + next)] + renumber)
     }
 
     func deleteBackward() -> DocsEdit.Result? {

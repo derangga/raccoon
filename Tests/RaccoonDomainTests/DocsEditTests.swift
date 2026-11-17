@@ -178,6 +178,13 @@ struct DocsEditTests {
         ("- ‸", "‸"),
         ("1. ‸", "‸"),
         ("x\n1) ‸", "x\n‸"),
+        // the items below count on
+        ("1. a‸\n2. b", "1. a\n2. ‸\n3. b"),
+        ("1. a‸\n2. b\n3. c\n\n4. d", "1. a\n2. ‸\n3. b\n4. c\n\n4. d"),
+        ("9) a‸\n10) b", "9) a\n10) ‸\n11) b"),
+        // a list that did not count on is left as written
+        ("1. a‸\n1. b", "1. a\n2. ‸\n1. b"),
+        ("1. a‸\n  2. b", "1. a\n2. ‸\n  2. b"),
     ])
     func `return continues a list and ends it on an empty item`(input: String, output: String) {
         #expect(Self.run(.newline, input) == output)

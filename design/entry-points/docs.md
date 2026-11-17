@@ -110,7 +110,7 @@ mark written there would show as text. Code block does nothing when the selectio
 outside a block and reaches into one.
 
 **Return and Delete follow the list.** Return in a list item starts the next one (`- `, or the
-next number); Return in an empty item removes its marker and ends the list. Delete at the start
+next number, and the numbered items directly below it go up by one while they counted on from it); Return in an empty item removes its marker and ends the list. Delete at the start
 of a heading, list item or quote removes its line mark, so the line becomes Normal text.
 
 **A code block shows its fences only while the caret is in it.** The fence lines are the
