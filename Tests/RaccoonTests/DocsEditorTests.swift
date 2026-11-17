@@ -399,6 +399,42 @@ struct DocsEditorTests {
         #expect(board.string(forType: .string) == "b")
     }
 
+    @Test func `Forward Delete before hidden marks removes the visible character after them`() {
+        let (_, one) = focused("**b**c")
+        one.setSelectedRange(NSRange(location: 0, length: 0))
+        one.deleteForward(nil)
+        #expect(one.string == "c" && one.selectedRange() == NSRange(location: 0, length: 0))
+        let (_, two) = focused("**bc**")
+        two.setSelectedRange(NSRange(location: 0, length: 0))
+        two.deleteForward(nil)
+        #expect(two.string == "**c**")
+        // plain text is NSTextView's own
+        let (_, plain) = focused("ab")
+        plain.setSelectedRange(NSRange(location: 0, length: 0))
+        plain.deleteForward(nil)
+        #expect(plain.string == "b")
+        // nothing after the caret
+        let (_, end) = focused("**b**")
+        end.setSelectedRange(NSRange(location: 5, length: 0))
+        end.deleteForward(nil)
+        #expect(end.string == "**b**" && end.selectedRange() == NSRange(location: 5, length: 0))
+    }
+
+    @Test func `word and line deletes never leave half a pair of marks`() {
+        let (_, word) = focused("**bold** x")
+        word.setSelectedRange(NSRange(location: 8, length: 0))
+        word.deleteWordBackward(nil)
+        #expect(word.string == " x")
+        let (_, line) = focused("## Title")
+        line.setSelectedRange(NSRange(location: 5, length: 0))
+        line.deleteToBeginningOfLine(nil)
+        #expect(line.string == "## tle")
+        let (_, ahead) = focused("x **bold**")
+        ahead.setSelectedRange(NSRange(location: 2, length: 0))
+        ahead.deleteWordForward(nil)
+        #expect(ahead.string == "x ")
+    }
+
     @Test func `a restyle settles a caret that rests inside a new mark`() {
         let (pane, text) = focused("[b](https://a.io)")
         // the text moved on without a restyle (as after an undo): the caret is where the marks were not

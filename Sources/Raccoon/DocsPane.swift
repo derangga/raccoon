@@ -522,8 +522,42 @@ final class DocsTextView: NSTextView, NSLayoutManagerDelegate, NSPopoverDelegate
     }
 
     override func deleteForward(_ sender: Any?) {
-        if !hasMarkedText(), deleteSelection() { return }
+        if deleteSelection() || delete(extendingWith: moveForwardAndModifySelection) { return }
         super.deleteForward(sender)
+    }
+
+    override func deleteWordBackward(_ sender: Any?) {
+        if deleteSelection() || delete(extendingWith: moveWordBackwardAndModifySelection) { return }
+        super.deleteWordBackward(sender)
+    }
+
+    override func deleteWordForward(_ sender: Any?) {
+        if deleteSelection() || delete(extendingWith: moveWordForwardAndModifySelection) { return }
+        super.deleteWordForward(sender)
+    }
+
+    override func deleteToBeginningOfLine(_ sender: Any?) {
+        if deleteSelection() || delete(extendingWith: moveToBeginningOfLineAndModifySelection) { return }
+        super.deleteToBeginningOfLine(sender)
+    }
+
+    /// A delete with no selection: selects what `extend` reaches, then deletes it through DocsEdit.
+    /// A selection of nothing but a kept span's marks is extended again. False (and the caret put
+    /// back) when nothing can be deleted this way.
+    private func delete(extendingWith extend: (Any?) -> Void) -> Bool {
+        guard selectedRange().length == 0, !hasMarkedText(), string == markedUpText, !hiddenMarks.isEmpty else { return false }
+        let caret = selectedRange()
+        var last = caret
+        // Bounded: each pass must grow the selection.
+        for _ in 0..<8 {
+            extend(nil)
+            let now = selectedRange()
+            guard now != last else { break }
+            last = now
+            if perform(.deleteSelection, named: "Typing") { return true }
+        }
+        setSelectedRange(caret)
+        return false
     }
 
     override func cut(_ sender: Any?) {
