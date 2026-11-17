@@ -1583,7 +1583,7 @@ Markdown is drawn with its marks hidden (docs.md):
   text in `accent`, the URL as its tooltip, ⌘-click opens an `http`/`https` URL.
 - `` `code` `` in SF Mono 12 on `backgroundRecessed`.
 - **Lists** hang: the marker sits in a 24 pt gutter starting 4 pt in, the text starts 28 pt in,
-  and wrapped lines align with the text, not the marker. A bulleted item's `-` or `*` is drawn
+  and wrapped lines align with the text, not the marker. A bulleted item's `-`, `*` or `+` is drawn
   as `•` in `textSecondary`; a numbered item's `1.` stays, in `textSecondary` with tabular
   digits, right-aligned in the gutter so 9. and 10. line up. Items keep the body's spacing.
 - **Quotes**: `> ` hidden; the line's text starts 16 pt in, in `textSecondary`, with a 2 pt

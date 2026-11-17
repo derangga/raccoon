@@ -68,6 +68,16 @@ struct DocsEditorTests {
         #expect(layout.cgGlyph(at: 4) != bullet)
     }
 
+    @Test func `a list's plus is drawn as a bullet`() throws {
+        let (_, text) = focused("+ x")
+        let layout = try #require(text.layoutManager)
+        layout.ensureGlyphs(forCharacterRange: NSRange(location: 0, length: 3))
+        var dot: UniChar = 0x2022, bullet = CGGlyph()
+        CTFontGetGlyphsForCharacters(try #require(text.textStorage?.attribute(.font, at: 0, effectiveRange: nil) as? NSFont), &dot, &bullet, 1)
+        #expect(layout.cgGlyph(at: 0) == bullet && bullet != 0)
+        #expect(text.string == "+ x")
+    }
+
     @Test func `strikethrough is single, and a link's URL is its tooltip`() throws {
         let (_, text) = focused("~~s~~ [l](https://a.io)")
         let storage = try #require(text.textStorage)

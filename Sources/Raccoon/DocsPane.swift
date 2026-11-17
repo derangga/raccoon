@@ -230,7 +230,7 @@ final class DocsPane: NSView, NSTextViewDelegate {
         let text = storage.string as NSString
         let line = text.lineRange(for: marker)
         let first = text.character(at: marker.location)
-        let isBullet = [0x2D, 0x2A].contains(first)
+        let isBullet = [0x2D, 0x2A, 0x2B].contains(first)
         if isBullet { bullets.insert(marker.location) }
         let shown = isBullet ? "•" : text.substring(with: marker)
         let width = (shown as NSString).size(withAttributes: [.font: Self.marker]).width
