@@ -274,6 +274,18 @@ struct DocsEditorTests {
         #expect(pane.toolbar.styleTitle == "Normal text")
     }
 
+    @Test func `in a code block only Code block is enabled, and a command changes nothing`() {
+        let (pane, text) = focused("a\n```\ncode\n```")
+        text.setSelectedRange(NSRange(location: 8, length: 0))
+        #expect(pane.toolbar.buttons[.bold]?.isEnabled == false && pane.toolbar.buttons[.link]?.isEnabled == false)
+        #expect(pane.toolbar.buttons[.codeBlock]?.isEnabled == true)
+        #expect(pane.toolbar.isStyleEnabled == false)
+        text.applyFormat(item(.bold))
+        #expect(text.string == "a\n```\ncode\n```" && !model.tab.isDirty)
+        text.setSelectedRange(NSRange(location: 1, length: 0))
+        #expect(pane.toolbar.buttons[.bold]?.isEnabled == true && pane.toolbar.isStyleEnabled == true)
+    }
+
     @Test func `Return continues a list and ends it on an empty item`() {
         let (_, text) = focused("- a")
         text.setSelectedRange(NSRange(location: 3, length: 0))

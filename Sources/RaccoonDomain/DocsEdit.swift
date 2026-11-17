@@ -49,11 +49,11 @@ public enum DocsEdit {
     public static func apply(_ command: Command, to text: String, selection: NSRange) -> Result? {
         guard let doc = Doc(text, selection) else { return nil }
         switch command {
-        case .toggle(let inline): return doc.toggle(inline)
+        case .toggle(let inline): return doc.touchesFence ? nil : doc.toggle(inline)
         case .block(.codeBlock): return doc.codeBlock()
-        case .block(let block): return doc.setBlock(block)
+        case .block(let block): return doc.touchesFence ? nil : doc.setBlock(block)
         case .link(let url, let text):
-            return doc.link(url.trimmingCharacters(in: .whitespacesAndNewlines), text.trimmingCharacters(in: .whitespacesAndNewlines))
+            return doc.touchesFence ? nil : doc.link(url.trimmingCharacters(in: .whitespacesAndNewlines), text.trimmingCharacters(in: .whitespacesAndNewlines))
         case .newline: return doc.newline()
         case .deleteBackward: return doc.deleteBackward()
         }
@@ -164,10 +164,15 @@ private struct Doc {
         fences.contains { $0.open <= line && line <= $0.close ?? lines.count - 1 }
     }
 
-    /// The lines the selection touches; a selection ending right after a line break leaves the next out.
-    var touched: [Line] {
-        lines[index(of: s)...index(of: e > s && u[e - 1] == 10 ? e - 1 : e)].map { $0 }
+    /// The indexes of the lines the selection touches; a selection ending right after a line break leaves the next out.
+    var touchedIndexes: ClosedRange<Int> {
+        index(of: s)...index(of: e > s && u[e - 1] == 10 ? e - 1 : e)
     }
+
+    var touched: [Line] { lines[touchedIndexes].map { $0 } }
+
+    /// Whether any line the selection touches is in a code block, its fence lines included.
+    var touchesFence: Bool { touchedIndexes.contains(where: inFence) }
 
     func indentEnd(_ line: Line) -> Int {
         var i = line.start
@@ -312,6 +317,8 @@ private struct Doc {
             let line = first <= fence.open ? fence.open : fence.close.map { first >= $0 ? max($0 - 2, fence.open) : first - 1 } ?? first - 1
             return caretAtLineEnd(result([drop(open, after: nil)] + (close.map { [drop($0, after: open)] } ?? [])), line: line)
         }
+        // The selection starts outside a block and reaches into one: new fences would pair with its.
+        guard !touchesFence else { return nil }
         let all = touched
         // The caret goes to the end of the first content line, below the opening fence.
         return caretAtLineEnd(result([

@@ -198,11 +198,17 @@ final class DocsToolbar: NSView {
 
     /// The buttons show the caret's state; the pull-down, the caret line's block.
     func update(_ state: DocsEdit.State) {
-        for (format, button) in buttons { button.isOn = format.isOn(in: state) }
+        for (format, button) in buttons {
+            button.isOn = format.isOn(in: state)
+            // A code block's lines are code: only Code block, which removes the fences, applies.
+            button.isEnabled = state.block != .codeBlock || format == .codeBlock
+        }
+        styleButton.isEnabled = state.block != .codeBlock
         styleButton.show(Self.title(of: state.block), checked: state.block)
     }
 
     var styleTitle: String { styleButton.shownTitle }
+    var isStyleEnabled: Bool { styleButton.isEnabled }
     var styleItems: [NSMenuItem] { Array(styleButton.menu?.items.dropFirst() ?? []) }
 
     static func title(of block: DocsEdit.Block) -> String {
@@ -335,7 +341,7 @@ final class StylePullDown: NSPopUpButton {
             theme.color(.rowHover).setFill()
             NSBezierPath(roundedRect: bounds, xRadius: 4, yRadius: 4).fill()
         }
-        let title = NSAttributedString(string: shownTitle, attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: theme.color(.text)])
+        let title = NSAttributedString(string: shownTitle, attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: theme.color(isEnabled ? .text : .textDisabled)])
         let height = title.size().height
         title.draw(in: NSRect(x: 8, y: bounds.midY - height / 2, width: bounds.width - 8 - 10 - 8 - 4, height: height))
         let configuration = NSImage.SymbolConfiguration(pointSize: 10, weight: .regular).applying(.init(paletteColors: [theme.color(.textSecondary)]))

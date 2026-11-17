@@ -115,6 +115,23 @@ struct DocsEditTests {
     }
 
     @Test(arguments: [
+        (DocsEdit.Command.toggle(.bold), "```\n«code»\n```"),
+        (.toggle(.code), "```\nco‸de\n```"),
+        (.toggle(.italic), "```\nco‸de"),
+        (.toggle(.bold), "``‸`\ncode\n```"),
+        (.toggle(.bold), "«a\n```\nb»\n```"),
+        (.block(.heading(1)), "```\nco‸de\n```"),
+        (.block(.bullet), "```\nco‸de\n```"),
+        (.block(.paragraph), "```\n# co‸de\n```"),
+        (.block(.quote), "«a\n```\nb»\n```"),
+        (.link(url: "u.io", text: "t"), "```\nco‸de\n```"),
+        (.block(.codeBlock), "a\n«b\n```\nc\n```»"),
+    ])
+    func `a format command in a code block is nil`(command: DocsEdit.Command, input: String) {
+        #expect(Self.run(command, input) == nil)
+    }
+
+    @Test(arguments: [
         // over the selection; an empty Text uses the URL as written
         ("u.io", "b", "a «b» c", "a [b](u.io)‸ c"),
         ("u.io", "", "a «b» c", "a [u.io](u.io)‸ c"),

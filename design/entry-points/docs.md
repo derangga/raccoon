@@ -102,6 +102,9 @@ Link opens the Link popover under the selection (design-system §6) with two fie
 Text, Text prefilled with the selection: `.link(url:text:)` writes `[text](url)` over the
 selection, or over the link the caret is in, so it both edits a link's URL and renames it. An
 empty Text uses the URL; an empty URL removes the link and keeps its text.
+Inside a code block every command except Code block does nothing: its lines are code, and a
+mark written there would show as text. Code block does nothing when the selection starts
+outside a block and reaches into one.
 
 **Return and Delete follow the list.** Return in a list item starts the next one (`- `, or the
 next number); Return in an empty item removes its marker and ends the list. Delete at the start
