@@ -24,6 +24,9 @@ struct DocsStyleTests {
         // a link: only http and https carry a URL to open
         ("[docs](https://a.io/x)", [r(0, 1, .mark), r(1, 4, .link(url: "https://a.io/x")), r(5, 17, .mark)]),
         ("[mail](mailto:a@b.io)", [r(0, 1, .mark), r(1, 4, .link(url: nil)), r(5, 16, .mark)]),
+        // the text ends at the `]` that `(` follows
+        ("[a]b](https://x.y)", [r(0, 1, .mark), r(1, 3, .link(url: "https://x.y")), r(4, 14, .mark)]),
+        ("[x] and [y](https://x.y)", [r(8, 1, .mark), r(9, 1, .link(url: "https://x.y")), r(10, 14, .mark)]),
         // CRLF: the CR belongs to no range
         ("# T\r\n- a", [r(0, 1, .mark), r(2, 1, .heading(level: 1)), r(5, 1, .listMarker)]),
     ])

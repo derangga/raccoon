@@ -384,6 +384,8 @@ private struct Doc {
         let found = link()
         let target = found.map { NSRange(location: $0.text.location - 1, length: NSMaxRange($0.mark) - $0.text.location + 1) }
             ?? NSRange(location: s, length: e - s)
+        // A link is one line: the marks would not match across a line break.
+        if u[target.location..<NSMaxRange(target)].contains(10) { return nil }
         let new: String
         if url.isEmpty {
             guard let found else { return nil }

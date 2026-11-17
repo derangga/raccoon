@@ -184,8 +184,9 @@ public enum DocsStyle {
 
         /// `[text](url)` from the `[` at `i`: the index to go on from.
         private mutating func link(at i: Int, _ to: Int) -> Int {
-            guard let textEnd = (i + 1..<to).first(where: { u[$0] == char("]") }),
-                  textEnd > i + 1, textEnd + 1 < to, u[textEnd + 1] == char("("),
+            // The text ends at the first `]` that a `(` follows, so a `]` inside the text is text.
+            guard let textEnd = (i + 1..<to).first(where: { u[$0] == char("]") && $0 + 1 < to && u[$0 + 1] == char("(") }),
+                  textEnd > i + 1, !(i + 1..<textEnd).contains(where: { u[$0] == char("[") }),
                   let urlEnd = (textEnd + 2..<to).first(where: { u[$0] == char(")") }),
                   urlEnd > textEnd + 2, !(textEnd + 2..<urlEnd).contains(where: isBlank)
             else { return i + 1 }

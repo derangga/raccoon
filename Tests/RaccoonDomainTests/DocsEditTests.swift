@@ -156,9 +156,14 @@ struct DocsEditTests {
         // an empty URL removes the link and keeps its text, whatever Text says
         ("", "ignored", "[a‸](x.io)", "a‸"),
         ("", "", "z [«ab»](x.io) z", "z ab‸ z"),
+        ("u.io", "a]b", "x‸", "x[a]b](u.io)‸"),
     ])
     func `link writes text and URL over the selection or the link`(url: String, text: String, input: String, output: String) {
         #expect(Self.run(.link(url: url, text: text), input) == output)
+    }
+
+    @Test func `a link over several lines is nil`() {
+        #expect(Self.run(.link(url: "u.io", text: "t"), "«one\ntwo»") == nil)
     }
 
     @Test(arguments: ["a «b» c", "x‸"])
@@ -234,6 +239,7 @@ struct DocsEditTests {
         ("a ~~«b»~~ `c`", .init(block: .paragraph, inline: [.strikethrough], link: nil)),
         ("«a **b**»", .init(block: .paragraph, inline: [], link: nil)),
         ("[a‸](x.io)", .init(block: .paragraph, inline: [], link: "x.io", linkText: "a")),
+        ("[a]b‸](x.io)", .init(block: .paragraph, inline: [], link: "x.io", linkText: "a]b")),
         ("[a‸](x.io/y%20z%281%29)", .init(block: .paragraph, inline: [], link: "x.io/y%20z%281%29", linkText: "a")),
         ("«a\n- b»", .init(block: .paragraph, inline: [], link: nil)),
         ("", .init(block: .paragraph, inline: [], link: nil)),
