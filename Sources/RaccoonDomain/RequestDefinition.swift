@@ -154,11 +154,14 @@ public struct Request: Equatable, Sendable {
     public let id: RequestID
     public var name: String
     public var definition: RequestDefinition
+    /// Beside the definition, never in it: a Request Tab does not hold them (examples.md).
+    public var examples: [Example]
 
-    public init(id: RequestID, name: String, definition: RequestDefinition) {
+    public init(id: RequestID, name: String, definition: RequestDefinition, examples: [Example] = []) {
         self.id = id
         self.name = name
         self.definition = definition
+        self.examples = examples
     }
 }
 

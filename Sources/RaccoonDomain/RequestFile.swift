@@ -18,8 +18,10 @@ public enum RequestFile {
         var id: UUID
         var name: String
         var definition: DefinitionJSON
+        /// Left out when empty, so no file written before Examples gains a line.
+        var examples: [ExampleJSON]?
 
-        private enum Keys: String, CodingKey { case version, id, name }
+        private enum Keys: String, CodingKey { case version, id, name, examples }
 
         func encode(to encoder: any Encoder) throws {
             try definition.encode(to: encoder)
@@ -27,6 +29,7 @@ public enum RequestFile {
             try container.encode(version, forKey: .version)
             try container.encode(id, forKey: .id)
             try container.encode(name, forKey: .name)
+            try container.encodeIfPresent(examples, forKey: .examples)
         }
     }
 
@@ -36,8 +39,10 @@ public enum RequestFile {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted, .withoutEscapingSlashes]
         // Only strings, numbers and bools: encoding cannot fail.
-        return try! encoder.encode(File(id: request.id.rawValue, name: request.name, definition: DefinitionJSON(request.definition)))
-            + Data("\n".utf8)
+        let file = File(
+            id: request.id.rawValue, name: request.name, definition: DefinitionJSON(request.definition),
+            examples: request.examples.isEmpty ? nil : request.examples.map(ExampleJSON.init))
+        return try! encoder.encode(file) + Data("\n".utf8)
     }
 
     /// `version` is read first: an unknown one is an error, never guessed at.
@@ -56,7 +61,8 @@ public enum RequestFile {
             guard version == 1 else { throw RequestFileError.unknownVersion(version) }
             let identity = try JSONDecoder().decode(Identity.self, from: data)
             let definition = try JSONDecoder().decode(DefinitionJSON.self, from: data).definition()
-            return Request(id: RequestID(identity.id), name: identity.name, definition: definition)
+            let examples = try ExampleJSON.examples(in: data)
+            return Request(id: RequestID(identity.id), name: identity.name, definition: definition, examples: examples)
         } catch let error as RequestFileError {
             throw error
         } catch let error as Malformed {

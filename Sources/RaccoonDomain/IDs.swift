@@ -7,6 +7,12 @@ public struct RequestID: Hashable, Sendable {
     public init(_ rawValue: UUID) { self.rawValue = rawValue }
 }
 
+/// Which Example of a Request a file entry is, written inside it.
+public struct ExampleID: Hashable, Sendable {
+    public let rawValue: UUID
+    public init(_ rawValue: UUID) { self.rawValue = rawValue }
+}
+
 public struct TabID: Hashable, Sendable {
     public let rawValue: UUID
     public init(_ rawValue: UUID) { self.rawValue = rawValue }
