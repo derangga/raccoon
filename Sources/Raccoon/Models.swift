@@ -423,6 +423,13 @@ enum SecretEditError: Error, Equatable {
     case secret(SecretError)
 }
 
+/// Why a write of a Request file did not happen: the Request has no file in the tree, or the
+/// file could not be read, was another Request's, or could not be written.
+enum ExampleWriteError: Error, Equatable {
+    case requestGone
+    case failed(reason: String)
+}
+
 /// The window's Tabs and the ports that touch the Data Folder, the Session and the Keychain.
 @Observable
 final class WindowModel {
@@ -1447,22 +1454,76 @@ final class WindowModel {
             model.notice = .notSaved(file: Self.fileName(broken), reason: "it can't be read, and Raccoon won't change it")
             return
         }
-        guard let store, let path = index.path(of: requestID), let name = index.name(of: requestID) else { return }
-        let data = RequestFile.encode(Request(id: requestID, name: name, definition: model.tab.definition))
-        do throws(StoreError) {
-            try store.write(data, to: path)
+        do throws(ExampleWriteError) {
+            try modifyRequestFile(requestID) { $0.definition = model.tab.definition }
         } catch {
             switch error {
-            case .unwritable(_, let reason), .unreadable(_, let reason), .undecodable(_, let reason):
-                model.notice = .notSaved(file: Self.fileName(path), reason: reason)
+            case .requestGone: return
+            case .failed(let reason):
+                model.notice = .notSaved(file: fileName(of: model.tab) ?? "", reason: reason)
+                return
             }
-            return
         }
-        ledger.record(path, data)
-        lastScan.files[path] = data
         model.tab.baseline = model.tab.definition
         model.tab.isChangedOnDisk = false
         model.notice = nil
+    }
+
+    /// Append an Example to the Request's file, whatever its Tab holds (examples.md).
+    func addExample(_ example: Example, to requestID: RequestID) throws(ExampleWriteError) {
+        try modifyRequestFile(requestID) { $0.examples.append(example) }
+    }
+
+    /// Change the Example with that id in the file; one that is not there is left missing.
+    func updateExample(_ requestID: RequestID, _ id: ExampleID, _ change: (inout Example) -> Void) throws(ExampleWriteError) {
+        try modifyRequestFile(requestID) { request in
+            if let at = request.examples.firstIndex(where: { $0.id == id }) { change(&request.examples[at]) }
+        }
+    }
+
+    /// Replace the Example with this id, or append it again, same id, when the file lost it.
+    func updateExample(_ requestID: RequestID, _ example: Example) throws(ExampleWriteError) {
+        try modifyRequestFile(requestID) { request in
+            if let at = request.examples.firstIndex(where: { $0.id == example.id }) {
+                request.examples[at] = example
+            } else {
+                request.examples.append(example)
+            }
+        }
+    }
+
+    /// Remove the Example with that id; one that is not there needs no removing.
+    func removeExample(_ requestID: RequestID, _ id: ExampleID) throws(ExampleWriteError) {
+        try modifyRequestFile(requestID) { $0.examples.removeAll { $0.id == id } }
+    }
+
+    /// The one way the window writes a Request file: read it, change what the caller owns, write
+    /// it back, so the definition and the Examples survive each other. A file that does not read,
+    /// or is not this Request any more, is never written. No Tab is touched.
+    private func modifyRequestFile(_ requestID: RequestID, _ change: (inout Request) -> Void) throws(ExampleWriteError) {
+        guard let store, let path = index.path(of: requestID) else { throw .requestGone }
+        let bytes: Data
+        do throws(StoreError) {
+            bytes = try store.read(path)
+        } catch {
+            throw .failed(reason: error.reason)
+        }
+        var request: Request
+        do throws(RequestFileError) {
+            request = try RequestFile.decode(bytes)
+        } catch {
+            throw .failed(reason: error.reason)
+        }
+        guard request.id == requestID else { throw .failed(reason: "the file is another Request now") }
+        change(&request)
+        let data = RequestFile.encode(request)
+        do throws(StoreError) {
+            try store.write(data, to: path)
+        } catch {
+            throw .failed(reason: error.reason)
+        }
+        ledger.record(path, data)
+        lastScan.files[path] = data
     }
 
     /// The sheet's default Location: where the last Draft was saved. Not kept across relaunch.

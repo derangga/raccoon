@@ -85,7 +85,7 @@ ExampleBody           .text(String) · .bytes(Data)
 -> edit name, status, delay, a header, the body  TabModel.edit, one undo step per edit,
                                                  Dirty when content differs from baseline
 -> ⌘S on an Example Tab
-  -> window.updateExample(requestID, id) { $0 = tab's example }
+  -> window.updateExample(requestID, tab's example)   replaces by id, else appends again
                                                  read-modify-write; the Request Tab, if open,
                                                  is untouched
                                                  E: the Request file is gone -> escape: stays
