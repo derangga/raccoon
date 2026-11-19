@@ -128,7 +128,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             windowController?.split.revealSidebar()
             sidebar?.reveal(path: path)
         }
-        let content = ContentViewController(strip: strip, breadcrumb: breadcrumb, tab: tabController, banner: tabBanner,
+        let content = ContentViewController(strip: strip, breadcrumb: breadcrumb, tab: tabController,
+                                            examplePane: ExamplePane(model: tabController.model, theme: theme), banner: tabBanner,
                                             emptyState: EmptyStateView(theme: theme, menu: NSApp.mainMenu))
         windowController.split.showTab(content)
         self.content = content
@@ -157,12 +158,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in self?.showSelectedTab() }
         }
         if let selected { tabController.bind(selected) }
-        content?.showsTab(selected != nil, editor: selected?.tab.example == nil)
+        let isExample = selected?.tab.example != nil
+        if let selected, isExample { content?.examplePane.bind(selected) }
+        content?.showsTab(selected != nil, example: isExample)
     }
 
     @objc func newTab(_ sender: Any?) { windowModel?.newTab() }
     @objc func newCollection(_ sender: Any?) { sidebar?.newCollection(sender) }
-    @objc func save(_ sender: Any?) { if let tab = windowModel?.selectedTab { saver?.save(tab) } }
+    /// A field being typed in is committed first, so ⌘S saves what is on screen.
+    @objc func save(_ sender: Any?) {
+        guard let tab = windowModel?.selectedTab else { return }
+        if tab.tab.example != nil { windowController?.window?.makeFirstResponder(nil) }
+        saver?.save(tab)
+    }
     /// File ▸ Save Response Body…, the body's and the image's context menu, and the Hex view's
     /// button: a save panel on the window, then the bytes the viewer holds. Cancel writes nothing.
     @objc func saveResponseBody(_ sender: Any?) {

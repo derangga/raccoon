@@ -32,10 +32,31 @@ public struct Example: Equatable, Sendable {
     }
 }
 
+extension Example {
+    /// The `Content-Type` header's value: the first enabled row of that name, in any case.
+    public var contentType: String? {
+        headers.first { $0.isEnabled && $0.name.caseInsensitiveCompare("Content-Type") == .orderedSame }?.value
+    }
+
+    /// What colours a text body: JSON for `json` and `+json` subtypes, XML for `xml` and `+xml`, else plain.
+    public var bodySyntax: RawKind {
+        guard let media = contentType?.split(separator: ";").first else { return .text }
+        let subtype = media.lowercased().split(separator: "/").last.map(String.init) ?? ""
+        if subtype == "json" || subtype.hasSuffix("+json") { return .json }
+        if subtype == "xml" || subtype.hasSuffix("+xml") { return .xml }
+        return .text
+    }
+}
+
 /// `.text` when the bytes are UTF-8, `.bytes` otherwise.
 public enum ExampleBody: Equatable, Sendable {
     case text(String)
     case bytes(Data)
+
+    /// Total: the UTF-8 rule for a Response, and for a file read to replace a body.
+    public init(bytes data: Data) {
+        self = String(data: data, encoding: .utf8).map(Self.text) ?? .bytes(data)
+    }
 }
 
 /// An Example as JSON: in a Request file's `examples`, and later in the Session. Every wrong

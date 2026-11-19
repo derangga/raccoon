@@ -98,3 +98,27 @@ final class IconButton: NSButton {
         glyph.contentTintColor = theme.color(!isEnabled ? .textDisabled : hovered || pressed ? .text : .textSecondary)
     }
 }
+
+/// A 24 pt bordered text button on `background`: the Response viewer's fix button, and the
+/// buttons of the Example pane's Body toolbar.
+enum FixButton {
+    static func style(_ button: NSButton, title: String, theme: ThemeEnvironment) {
+        button.isBordered = false
+        button.wantsLayer = true
+        button.layer?.cornerRadius = 6
+        button.layer?.borderWidth = 1
+        button.title = title
+        theme.paint(button) { button, theme in
+            button.layer?.borderColor = theme.color(.border).cgColor
+            button.layer?.backgroundColor = theme.color(.background).cgColor
+            button.attributedTitle = NSAttributedString(string: button.title, attributes: [
+                .font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text),
+            ])
+        }
+        button.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            button.heightAnchor.constraint(equalToConstant: 24),
+            button.widthAnchor.constraint(equalToConstant: button.attributedTitle.size().width.rounded(.up) + 20),
+        ])
+    }
+}

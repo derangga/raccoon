@@ -35,6 +35,9 @@ final class BodyTextEditor: NSView, NSTextViewDelegate {
     /// The Variables the storage is coloured by; a new Active Environment recolours it.
     private var kinds = VariableKinds(active: nil, globals: Globals(entries: []))
     private var coloredKinds: VariableKinds?
+    /// False for a body that is not a template, an Example's: `{{name}}` is plain text there, with no
+    /// colour, popover or suggestion.
+    var highlightsVariables = true
     /// The user typed: the text now in the editor.
     var onChange: (String) -> Void = { _ in }
 
@@ -59,14 +62,16 @@ final class BodyTextEditor: NSView, NSTextViewDelegate {
         super.init(frame: .zero)
         textView.variableHover = VariableHover(
             layout: { [weak self] in self.map { TextLayout(storage: $0.storage, manager: $0.layoutManager, origin: $0.textView.textContainerOrigin, space: $0.textView) } },
-            kinds: { [weak self] in self?.kinds }, theme: { [weak self] in self?.theme }
+            kinds: { [weak self] in self?.shownKinds }, theme: { [weak self] in self?.theme }
         )
-        textView.suggestions = VariableSuggestions(kinds: { [weak self] in self?.kinds }, theme: { [weak self] in self?.theme })
+        textView.suggestions = VariableSuggestions(kinds: { [weak self] in self?.shownKinds }, theme: { [weak self] in self?.theme })
         build()
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    private var shownKinds: VariableKinds? { highlightsVariables ? kinds : nil }
 
     private func build() {
         textView.delegate = self
@@ -148,7 +153,7 @@ final class BodyTextEditor: NSView, NSTextViewDelegate {
             storage.addAttribute(.foregroundColor, value: theme.color(range.token), range: range.range)
         }
         // On top of the syntax colours, as the Highlighter leaves `{{name}}` alone.
-        VariableStyle.apply(kinds, to: storage, disabled: false, theme: theme)
+        if highlightsVariables { VariableStyle.apply(kinds, to: storage, disabled: false, theme: theme) }
         storage.endEditing()
         coloredKinds = kinds
     }

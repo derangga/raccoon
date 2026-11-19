@@ -492,20 +492,24 @@ struct OpenExampleTests {
         #expect(TabBanner.content(notice: .exampleDeletedOnDisk, changedOnDisk: nil)?.lead == "Deleted on disk.")
     }
 
-    @Test func `an Example Tab shows no editor in the content area`() throws {
+    @Test func `an Example Tab shows the Example pane in place of the URL bar, editor and Response viewer`() throws {
         let (window, tab) = try openFirst()
         let content = ContentViewController(strip: TabStripView(window: window, theme: theme),
                                             breadcrumb: BreadcrumbBinding(window: window, theme: theme, select: { _ in }),
                                             tab: TabViewController(model: tab, theme: theme),
+                                            examplePane: ExamplePane(model: tab, theme: theme),
                                             banner: TabBannerBinding(window: window, theme: theme, reduceMotion: { true }),
                                             emptyState: EmptyStateView(theme: theme, menu: nil))
         content.view.frame = NSRect(x: 0, y: 0, width: 900, height: 600)
 
-        content.showsTab(true, editor: false)
-        #expect(content.tab.view.isHidden && !content.breadcrumb.bar.isHidden)
+        content.showsTab(true, example: true)
+        #expect(content.tab.view.isHidden && !content.examplePane.isHidden && !content.breadcrumb.bar.isHidden)
 
-        content.showsTab(true, editor: true)
-        #expect(!content.tab.view.isHidden)
+        content.showsTab(true)
+        #expect(!content.tab.view.isHidden && content.examplePane.isHidden)
+
+        content.showsTab(false, example: true)
+        #expect(content.tab.view.isHidden && content.examplePane.isHidden)
     }
 }
 

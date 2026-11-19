@@ -382,14 +382,18 @@ final class ContentViewController: NSViewController {
     let strip: TabStripView
     let breadcrumb: BreadcrumbBinding
     let tab: TabViewController
+    /// In place of `tab`'s views on an Example Tab.
+    let examplePane: ExamplePane
     let banner: TabBannerBinding
     /// In place of the Breadcrumb, banner and editor while no Tab is open (tabs.md, the empty state).
     let emptyState: EmptyStateView
 
-    init(strip: TabStripView, breadcrumb: BreadcrumbBinding, tab: TabViewController, banner: TabBannerBinding, emptyState: EmptyStateView) {
+    init(strip: TabStripView, breadcrumb: BreadcrumbBinding, tab: TabViewController, examplePane: ExamplePane,
+         banner: TabBannerBinding, emptyState: EmptyStateView) {
         self.strip = strip
         self.breadcrumb = breadcrumb
         self.tab = tab
+        self.examplePane = examplePane
         self.banner = banner
         self.emptyState = emptyState
         super.init(nibName: nil, bundle: nil)
@@ -401,7 +405,7 @@ final class ContentViewController: NSViewController {
     override func loadView() {
         let root = NSView()
         addChild(tab)
-        for part in [strip, breadcrumb.bar, banner.view, tab.view, emptyState] {
+        for part in [strip, breadcrumb.bar, banner.view, tab.view, examplePane, emptyState] {
             part.translatesAutoresizingMaskIntoConstraints = false
             root.addSubview(part)
         }
@@ -422,6 +426,10 @@ final class ContentViewController: NSViewController {
             tab.view.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             tab.view.trailingAnchor.constraint(equalTo: root.trailingAnchor),
             tab.view.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+            examplePane.topAnchor.constraint(equalTo: banner.view.bottomAnchor),
+            examplePane.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            examplePane.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            examplePane.bottomAnchor.constraint(equalTo: root.bottomAnchor),
             emptyState.topAnchor.constraint(equalTo: strip.bottomAnchor),
             emptyState.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             emptyState.trailingAnchor.constraint(equalTo: root.trailingAnchor),
@@ -433,14 +441,19 @@ final class ContentViewController: NSViewController {
 
     /// With no Tab, only the strip stays; focus inside the editor leaves it first, so no hidden
     /// field keeps typing or the editor's menu items.
-    /// `editor` is false for an Example Tab, which has no URL bar, editor or Response viewer: its
-    /// content area stays empty until the Example pane exists.
-    func showsTab(_ shown: Bool, editor: Bool = true) {
-        if !shown, let window = view.window, let focused = window.firstResponder as? NSView, focused.isDescendant(of: view) {
+    /// `example` is true for an Example Tab, which has no URL bar, editor or Response viewer: the
+    /// Example pane shows in their place.
+    func showsTab(_ shown: Bool, example: Bool = false) {
+        let showsEditor = shown && !example
+        let showsExample = shown && example
+        let hidden = [(tab.view, !showsEditor), (examplePane, !showsExample)].filter { $1 }.map(\.0)
+        if let window = view.window, let focused = window.firstResponder as? NSView,
+           hidden.contains(where: { focused.isDescendant(of: $0) }) || (!shown && focused.isDescendant(of: view)) {
             window.makeFirstResponder(nil)
         }
         for part in [breadcrumb.bar, banner.view] { part.isHidden = !shown }
-        tab.view.isHidden = !(shown && editor)
+        tab.view.isHidden = !showsEditor
+        examplePane.isHidden = !showsExample
         emptyState.isHidden = shown
     }
 }

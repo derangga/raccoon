@@ -353,23 +353,7 @@ final class ResponseViewer: NSView {
     }
 
     private func styleAsFixButton(_ button: NSButton, title: String) {
-        button.isBordered = false
-        button.wantsLayer = true
-        button.layer?.cornerRadius = 6
-        button.layer?.borderWidth = 1
-        button.title = title
-        theme.paint(button) { button, theme in
-            button.layer?.borderColor = theme.color(.border).cgColor
-            button.layer?.backgroundColor = theme.color(.background).cgColor
-            button.attributedTitle = NSAttributedString(string: button.title, attributes: [
-                .font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text),
-            ])
-        }
-        button.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            button.heightAnchor.constraint(equalToConstant: 24),
-            button.widthAnchor.constraint(equalToConstant: button.attributedTitle.size().width.rounded(.up) + 20),
-        ])
+        FixButton.style(button, title: title, theme: theme)
     }
 
     private func buildHeaders() {

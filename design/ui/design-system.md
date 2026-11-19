@@ -1693,4 +1693,8 @@ header row, 12 pt side padding: the name field (fills), "Status" with a 64 pt nu
 Under it a Section bar: Headers (with its count) · Body. Headers is the key/value table. Body
 is the raw text editor, coloured by the Example's Content-Type (JSON, XML, else plain); a
 `.bytes` body is the Hex view, read-only, with "Replace from File…" and "Save Body…" in its
-toolbar. A status out of range is clamped when the field ends editing.
+toolbar. A status out of range is clamped when the field ends editing. The pane opens on Body.
+A `{{name}}` in an Example body is not coloured and has no hover or suggestions: the Mock Server
+serves the body literally, so it is not a template. "Save Body…" is File ▸ Save Response Body…
+for the Example's bytes. A text body has neither button, so a Replace from File… that reads UTF-8
+leaves the Hex view for good.

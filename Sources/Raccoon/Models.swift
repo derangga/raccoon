@@ -36,6 +36,8 @@ final class TabModel {
 
     struct ViewState {
         var section = EditorSection.params
+        /// The Example pane's section, for an Example Tab.
+        var exampleSection = ExampleSection.body
         var body = TextPlace()
         var response = TextPlace()
     }
@@ -197,6 +199,38 @@ final class TabModel {
         tab.definition = definition
     }
 
+    // MARK: Example Tab (examples.md §Open and edit an Example)
+
+    func setExampleName(_ name: String, undo: UndoManager? = nil) { editExample(\.name, to: name, action: "Name", undo: undo) }
+    /// The Example clamps it; the field redraws with what stayed.
+    func setExampleStatus(_ status: Int, undo: UndoManager? = nil) { editExample(\.status, to: status, action: "Status", undo: undo) }
+    func setExampleDelay(_ milliseconds: Int, undo: UndoManager? = nil) {
+        editExample(\.delayMilliseconds, to: milliseconds, action: "Delay", undo: undo)
+    }
+    func setExampleHeaders(_ rows: [Row], undo: UndoManager? = nil) { editExample(\.headers, to: rows, action: "Headers", undo: undo) }
+    /// Typing in the raw editor passes no manager: the text view's own typing undo is the step.
+    func setExampleBody(_ body: ExampleBody, undo: UndoManager? = nil) { editExample(\.body, to: body, action: "Body", undo: undo) }
+
+    /// Replace from File…: the file's bytes by the Response's UTF-8 rule. A file that does not read
+    /// leaves the body as it was.
+    func replaceExampleBody(fromFile path: String, undo: UndoManager? = nil) throws(StoreError) {
+        setExampleBody(ExampleBody(bytes: try files.read(path)), undo: undo)
+    }
+
+    /// Nothing on a Draft or a Request Tab, and nothing for a value the Example already holds
+    /// after clamping, so no empty undo step. One step: the old value comes back, and undoing
+    /// registers the redo.
+    private func editExample<Value: Equatable>(_ field: WritableKeyPath<Example, Value>, to value: Value, action: String, undo: UndoManager?) {
+        guard var example = tab.example else { return }
+        let old = example[keyPath: field]
+        example[keyPath: field] = value
+        guard example[keyPath: field] != old else { return }
+        tab.content = .example(example)
+        nonisolated(unsafe) let field = field
+        undo?.registerUndo(withTarget: self) { $0.editExample(field, to: old, action: action, undo: undo) }
+        undo?.setActionName(action)
+    }
+
     var now: ContinuousClock.Instant { instants.now }
 
     /// Read again once 150 ms have passed; Observation does not see time move.
@@ -310,6 +344,8 @@ final class TabModel {
 
     /// Save Response Body is offered for a received Response with bytes in it.
     var canSaveBody: Bool {
+        // An Example Tab offers a body it cannot edit: bytes, never text.
+        if let example = tab.example, case .bytes(let data) = example.body { return !data.isEmpty }
         guard case .received(let response) = tab.response else { return false }
         return response.byteCount > 0
     }
@@ -332,6 +368,11 @@ final class TabModel {
     /// Taken once when the save panel opens, so a send that lands while it is up cannot pair
     /// this name with another Response's bytes. Nil when there is no received Response.
     var bodyToSave: BodyToSave? {
+        if let example = tab.example {
+            guard canSaveBody, case .bytes(let data) = example.body else { return nil }
+            let headers = example.headers.filter(\.isEnabled).map { Response.Header(name: $0.name, value: $0.value) }
+            return BodyToSave(name: ResponseFileName.suggest(headers: headers, url: nil), body: data)
+        }
         guard case .received(let response) = tab.response else { return nil }
         return BodyToSave(name: ResponseFileName.suggest(headers: response.headers, url: response.url), body: response.body)
     }
