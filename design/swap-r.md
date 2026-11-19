@@ -17,7 +17,7 @@ SecretStore.keychain                   SecretStore.inMemory     → a dictionary
 SessionStore(appSupport, root)         SessionStore(temp dir, root)
 ClipboardWriter.general                ClipboardWriter.recording → keeps the last string
 InstantSource.continuous               InstantSource.fixed
-MockListening.network                  MockListening.scripted   → the test hands it heads and
+NetworkMockListening                   ScriptedMockListening    → the test hands it heads and
   (RaccoonData, NWListener)              (RaccoonTesting)         reads the MockReply back; one
                                                                   live test binds 127.0.0.1 and
                                                                   sends with URLSession

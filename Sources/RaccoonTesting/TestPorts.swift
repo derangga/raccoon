@@ -133,3 +133,42 @@ public struct FixedInstantSource: InstantSource {
         self.now = now
     }
 }
+
+/// No socket: the test hands `answer` a head and reads the MockReply back from the handler
+/// `listen` was given. Records every requested port, can fail the way a bind fails, and counts
+/// `stop()` calls.
+public final class ScriptedMockListening: MockListening {
+    private let failure: MockError?
+    private let picked: UInt16
+    private let state = Mutex<(ports: [UInt16?], handler: (@Sendable (MockRequestHead) async -> MockReply)?, stops: Int)>(([], nil, 0))
+
+    /// `picked` is the port reported for a `listen(port: nil)`.
+    public init(failing failure: MockError? = nil, picked: UInt16 = 50_000) {
+        self.failure = failure
+        self.picked = picked
+    }
+
+    /// The `port` of every `listen`, in order, failed or not.
+    public var requestedPorts: [UInt16?] { state.withLock { $0.ports } }
+
+    /// How many times a listener this one returned was stopped.
+    public var stops: Int { state.withLock { $0.stops } }
+
+    public func listen(
+        port: UInt16?,
+        handler: @escaping @Sendable (MockRequestHead) async -> MockReply
+    ) async throws(MockError) -> MockListener {
+        state.withLock {
+            $0.ports.append(port)
+            if failure == nil { $0.handler = handler }
+        }
+        if let failure { throw failure }
+        return MockListener(port: port ?? picked, stop: { [self] in state.withLock { $0.stops += 1 } })
+    }
+
+    /// The reply the handler gives `head`; nil before a `listen` has succeeded.
+    public func answer(_ head: MockRequestHead) async -> MockReply? {
+        guard let handler = state.withLock({ $0.handler }) else { return nil }
+        return await handler(head)
+    }
+}
