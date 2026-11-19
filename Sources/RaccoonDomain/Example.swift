@@ -33,6 +33,18 @@ public struct Example: Equatable, Sendable {
 }
 
 extension Example {
+    /// Save as Example (examples.md): "200 OK", the status, the headers and the body as the Response
+    /// holds them. URLSession decoded the body and the Mock Server frames its own reply, so the four
+    /// framing headers would lie. The Response's redirects are not kept: only the final one is saved.
+    public static func from(_ response: Response, id: ExampleID) -> Example {
+        let reason = StatusLine(status: response.status, elapsed: .zero, byteCount: 0).reason
+        let framing: Set<String> = ["content-encoding", "content-length", "transfer-encoding", "connection"]
+        return Example(
+            id: id, name: reason.isEmpty ? "\(response.status)" : "\(response.status) \(reason)", status: response.status,
+            headers: response.headers.filter { !framing.contains($0.name.lowercased()) }.map { Row(name: $0.name, value: $0.value) },
+            body: ExampleBody(bytes: response.body))
+    }
+
     /// The `Content-Type` header's value: the first enabled row of that name, in any case.
     public var contentType: String? {
         headers.first { $0.isEnabled && $0.name.caseInsensitiveCompare("Content-Type") == .orderedSame }?.value

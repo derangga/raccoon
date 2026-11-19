@@ -35,11 +35,14 @@ final class ResponseViewer: NSView {
     let mode: SegmentedControl
     let section: SegmentedControl
 
-    /// Under the status line in the Body section: Pretty | Raw and its note, then Search and Copy.
+    /// Under the status line in the Body section: Pretty | Raw and its note, then Search, Copy and Save as Example.
     let bodyToolbar = NSView()
     private let toolbarRule = NSBox()
     let searchButton: IconButton
     let copyButton: IconButton
+    let exampleButton: IconButton
+    /// A failed Save as Example, in `error`, until the next send.
+    let exampleNote = NSTextField(labelWithString: "")
     let findPanel: FindPanel
     /// `Chrome.bodyTop` under the status line alone, `bodyTopWithToolbar` under the Body toolbar too.
     private var scrollTop: NSLayoutConstraint!
@@ -56,6 +59,8 @@ final class ResponseViewer: NSView {
     private let scroll = NSScrollView()
     let voidTitle = NSTextField(labelWithString: "")
     let voidText = NSTextField(wrappingLabelWithString: "")
+    /// The failed Save as Example's note, under the void message where the Body toolbar is not drawn.
+    let exampleVoidNote = NSTextField(wrappingLabelWithString: "")
     let keycap = NSTextField(labelWithString: "⌘↩")
     let failureGlyph = NSImageView()
     /// The one fix, when a failure has one; only an untrusted certificate does.
@@ -83,6 +88,8 @@ final class ResponseViewer: NSView {
     private var wantsPretty = true
     /// The chosen section (Body, Headers, Timeline), kept across sends.
     private var wantsSection = Section.body
+    /// The failed saves this Tab's viewer has already acted on.
+    private var seenFailures: (model: ObjectIdentifier, count: Int)?
 
     private enum Section: Int { case body, headers, timeline }
 
@@ -135,6 +142,7 @@ final class ResponseViewer: NSView {
         section = SegmentedControl(labels: ["Body", "Headers", "Timeline"], style: .track, theme: theme)
         searchButton = IconButton(symbol: "magnifyingglass", label: "Find (⌘F)", theme: theme)
         copyButton = IconButton(symbol: "doc.on.doc", label: "Copy Response Body", theme: theme)
+        exampleButton = IconButton(symbol: "square.and.arrow.down.on.square", label: "Save as Example", theme: theme)
         findPanel = FindPanel(theme: theme)
         super.init(frame: .zero)
         wantsLayer = true
@@ -208,13 +216,14 @@ final class ResponseViewer: NSView {
     }
 
     private func buildBodyToolbar() {
-        for note in [prettyNote, hexNote, imageNote] {
+        for note in [prettyNote, hexNote, imageNote, exampleNote] {
             note.font = .systemFont(ofSize: 11)
             note.lineBreakMode = .byTruncatingTail
             // The note is what gives way at a narrow width.
             note.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-            theme.paint(note) { $0.textColor = $1.color(.textDisabled) }
         }
+        for note in [prettyNote, hexNote, imageNote] { theme.paint(note) { $0.textColor = $1.color(.textDisabled) } }
+        theme.paint(exampleNote) { $0.textColor = $1.color(.error) }
         mode.selectedSegment = 0
         mode.target = self
         mode.action = #selector(modeChanged)
@@ -223,12 +232,15 @@ final class ResponseViewer: NSView {
         searchButton.action = #selector(openFind)
         copyButton.target = self
         copyButton.action = #selector(copyBody)
+        // No target: the app takes it up the responder chain, as the Response ▸ Save as Example menu item does.
+        exampleButton.action = #selector(AppDelegate.saveAsExample(_:))
 
         let spacer = NSView()
         spacer.setContentHuggingPriority(.init(1), for: .horizontal)
-        let row = NSStackView(views: [mode, prettyNote, hexNote, saveButton, imageNote, spacer, searchButton, copyButton])
+        let row = NSStackView(views: [mode, prettyNote, hexNote, saveButton, imageNote, exampleNote, spacer, searchButton, copyButton, exampleButton])
         row.spacing = 10
         row.setCustomSpacing(4, after: searchButton)
+        row.setCustomSpacing(4, after: copyButton)
         row.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
         toolbarRule.boxType = .custom
         toolbarRule.borderWidth = 0
@@ -261,6 +273,12 @@ final class ResponseViewer: NSView {
         scrollTop.constant = Chrome.bodyTopWithToolbar
         searchButton.isEnabled = searchable
         copyButton.isEnabled = searchable
+        // A binary body or an image is saved as bytes, so only a Draft, which has no file, is refused.
+        exampleButton.isEnabled = model.canSaveAsExample
+        exampleButton.toolTip = model.tab.source == .draft ? "Save the Request first" : "Save as Example (⌥⌘E)"
+        exampleNote.stringValue = model.exampleNote ?? ""
+        exampleNote.toolTip = model.exampleNote
+        exampleNote.isHidden = model.exampleNote == nil
     }
 
     private func hideToolbar() {
@@ -296,6 +314,9 @@ final class ResponseViewer: NSView {
         voidText.font = .systemFont(ofSize: 12)
         voidText.alignment = .center
         voidText.preferredMaxLayoutWidth = 440
+        exampleVoidNote.font = .systemFont(ofSize: 11)
+        exampleVoidNote.alignment = .center
+        exampleVoidNote.preferredMaxLayoutWidth = 440
         keycap.font = .systemFont(ofSize: 11)
         keycap.wantsLayer = true
         keycap.layer?.borderWidth = 1
@@ -318,7 +339,7 @@ final class ResponseViewer: NSView {
         // No target: Save Response Body goes up the responder chain to the AppDelegate.
         styleAsFixButton(saveButton, title: "Save to File…")
         saveButton.action = #selector(AppDelegate.saveResponseBody(_:))
-        voidStack.setViews([failureGlyph, voidTitle, voidText, keycap, fixButton], in: .center)
+        voidStack.setViews([failureGlyph, voidTitle, voidText, exampleVoidNote, keycap, fixButton], in: .center)
         voidStack.orientation = .vertical
         voidStack.spacing = 8
 
@@ -603,6 +624,8 @@ final class ResponseViewer: NSView {
         hexNote.isHidden = true
         saveButton.isHidden = true
         imageNote.isHidden = true
+        exampleNote.isHidden = true
+        exampleVoidNote.isHidden = true
         imageView.isHidden = true
         mode.isHidden = true
         section.isHidden = true
@@ -636,11 +659,21 @@ final class ResponseViewer: NSView {
             [redirectsDot, redirectsLabel].forEach { $0.isHidden = line.redirects.isEmpty }
             section.isHidden = false
             section.setCount(response.headers.count, forSegment: 1)
+            // A failed save is said in the Body toolbar, so a new one brings the Body section back.
+            let failures = (ObjectIdentifier(model), model.exampleFailures)
+            if model.exampleNote != nil, seenFailures.map({ $0 != failures }) ?? true { wantsSection = .body }
+            seenFailures = failures
             section.selectedSegment = wantsSection.rawValue
             switch wantsSection {
             case .body: drawBody(response)
             case .headers: drawHeaders(response.headers)
             case .timeline: drawTimeline(response)
+            }
+            // The toolbar is not drawn for an empty or a not yet shown binary body: the void says it.
+            if wantsSection == .body, bodyToolbar.isHidden, let note = model.exampleNote {
+                exampleVoidNote.stringValue = note
+                exampleVoidNote.textColor = theme.color(.error)
+                exampleVoidNote.isHidden = false
             }
         case .failed(let error, let after):
             setStatus(("Failed", "", .statusFailed))

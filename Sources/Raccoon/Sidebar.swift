@@ -427,12 +427,19 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
             }
         }
         guard item(path: path) != nil else { return false }
-        for ancestor in SidebarPath.ancestors(of: path) { item(path: ancestor).map { outline.expandItem($0) } }
+        // From the tree, not the path: an Example's row sits under its Request's, which a path split would miss.
+        for ancestor in Self.lineage(of: path, in: items).dropLast() { outline.expandItem(ancestor) }
         guard let item = item(path: path) else { return false }
         let row = outline.row(forItem: item)
         outline.selectRowIndexes([row], byExtendingSelection: false)
         outline.scrollRowToVisible(row)
         return true
+    }
+
+    /// The rows from a top one down to the row at `path`, outermost first; empty when no row has it.
+    private static func lineage(of path: String, in items: [SidebarItem]) -> [SidebarItem] {
+        guard let top = items.first(where: { $0.contains(path) }) else { return [] }
+        return [top] + (top.path == path ? [] : lineage(of: path, in: top.children))
     }
 
     /// After Postman Import: `reveal(path:)`, then focus in the outline.

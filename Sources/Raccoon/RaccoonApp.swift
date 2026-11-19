@@ -15,7 +15,7 @@ enum RaccoonApp {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var windowModel: WindowModel?
+    var windowModel: WindowModel?
     var windowController: MainWindowController?
     private var tabController: TabViewController?
     private var content: ContentViewController?
@@ -193,6 +193,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
     }
+    /// Response ▸ Save as Example and the Body toolbar's button: the selected Tab's Response becomes an
+    /// Example of its Request, and the sidebar opens the Request's row on it. A failure is the Tab's note.
+    @objc func saveAsExample(_ sender: Any?) {
+        guard windowController?.window?.attachedSheet == nil,
+              let id = windowModel?.selected, let row = windowModel?.saveAsExample(id) else { return }
+        sidebar?.reveal(path: row)
+    }
     @objc func closeTab(_ sender: Any?) { if let tab = windowModel?.selectedTab { closer?.close(tab) } }
     @objc func forceCloseTab(_ sender: Any?) { if let tab = windowModel?.selectedTab { closer?.close(.tab, of: tab, force: true) } }
     /// File ▸ Always Discard Unsaved Changes: the way back from the close sheet's checkbox.
@@ -270,6 +277,8 @@ extension AppDelegate: NSMenuItemValidation {
             return windowModel?.selectedTab != nil
         case #selector(saveResponseBody(_:)):
             return windowModel?.selectedTab?.canSaveBody == true && windowController?.window?.attachedSheet == nil
+        case #selector(saveAsExample(_:)):
+            return windowModel?.selectedTab?.canSaveAsExample == true && windowController?.window?.attachedSheet == nil
         case #selector(exportCollection(_:)):
             return Self.canExportCollection(selected: sidebar?.selectedCollection, sheetUp: windowController?.window?.attachedSheet != nil)
         case #selector(showTab(_:)):

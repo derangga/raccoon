@@ -155,4 +155,34 @@ struct ExampleRowsTests {
         #expect(sidebar.outline.isExpandable(try #require(sidebar.item(path: path))))
         #expect(names(sidebar) == ["Payments API", "Create charge", "Ping"])
     }
+
+    @Test func `revealing an Example just added opens its Request and selects its row, leaving the Tabs and the other rows alone`() throws {
+        let (window, sidebar) = try sidebar()
+        let tabs = window.tabs.map(\.tab.id)
+        let new = example(3, "200 OK", status: 200)
+        try window.addExample(new, to: requestID)
+
+        #expect(sidebar.reveal(path: new.path))
+
+        #expect(names(sidebar) == ["Payments API", "Create charge", "Created", "Card declined", "200 OK", "Ping"])
+        #expect(sidebar.outline.isItemExpanded(try #require(sidebar.item(path: path))))
+        #expect((sidebar.outline.item(atRow: sidebar.outline.selectedRow) as? SidebarItem)?.path == new.path)
+        #expect(window.tabs.map(\.tab.id) == tabs)
+    }
+
+    @Test func `revealing an Example under a collapsed Collection opens the Collection too`() throws {
+        let (_, sidebar) = try sidebar()
+        sidebar.outline.collapseItem(nil, collapseChildren: true)
+        let first = example(1, "", status: 0)
+
+        #expect(sidebar.reveal(path: first.path))
+
+        #expect(["Payments API", path].allSatisfy { sidebar.item(path: $0).map(sidebar.outline.isItemExpanded) == true })
+        #expect((sidebar.outline.item(atRow: sidebar.outline.selectedRow) as? SidebarItem)?.name == "Created")
+    }
+}
+
+private extension Example {
+    /// Its sidebar row, under the Request that `ExampleRowsTests` writes.
+    var path: String { ExampleSummary(self).path(in: "Payments API/Create charge.json") }
 }

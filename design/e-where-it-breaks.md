@@ -284,7 +284,11 @@ GraphQL
 Examples
   ⚠ Save as Example, the Request file unreadable, undecodable or unwritable → escape: the Body
                            toolbar's note "Couldn't save the Example: <reason>." Nothing written,
-                           a file Raccoon failed to read is never rewritten (collections.md)
+                           a file Raccoon failed to read is never rewritten (collections.md). A
+                           Request deleted meanwhile reads "Couldn't save the Example: its Request
+                           was deleted." The note shows in whichever Response section was open:
+                           a failed save switches the viewer to Body, and an empty or binary void
+                           shows the note under its message. It stays until the next send
   ⚠ a Request ⌘S whose file has Examples → not an error: read-modify-write keeps them. The file
                            unreadable now -> the existing "Not saved" path
   ⚠ an Example ⌘S, its Request file gone → escape: stays Dirty, "Not saved. Its Request was

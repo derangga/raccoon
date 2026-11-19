@@ -34,7 +34,10 @@ ExampleBody           .text(String) · .bytes(Data)
                                                  on a Request Tab with .received(Response);
                                                  disabled on a Draft, which has no file
   -> Example.from(response, id: ExampleID())     pure        R: none   E: none, total
-     -> name = "<status> <reason>"               "200 OK"; HTTPURLResponse's reason phrase
+     -> name = "<status> <reason>"               "200 OK"; the reason is StatusLine's IANA phrase,
+                                                 the one the status line shows; a code with none
+                                                 is just "<status>"
+
      -> status = response.status
      -> headers = response.headers minus Content-Encoding, Content-Length,
         Transfer-Encoding and Connection     the body was decoded by URLSession and the
@@ -54,6 +57,9 @@ ExampleBody           .text(String) · .bytes(Data)
                                                  expanded, the new row selected
   -> the Request Tab is not touched              a Dirty Tab stays Dirty, its edits intact
 ```
+
+The menu is a **Response** menu between View and Window, with the one item for now. It works
+whichever Response section is showing, and is disabled where the button is.
 
 ## New Example, Rename, Duplicate, Delete
 

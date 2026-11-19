@@ -31,6 +31,20 @@ final class TabModel {
     /// A Tab banner the user dismisses; never written to the Session.
     var notice: TabNotice?
 
+    /// A failed Save as Example, as the Response viewer's Body toolbar says it, until the next send.
+    var exampleNote: String? {
+        didSet { if exampleNote != nil { exampleFailures += 1 } }
+    }
+
+    /// Counts failed saves, so the viewer can tell a new failure from a note it already showed.
+    private(set) var exampleFailures = 0
+
+    /// Save as Example is offered for a received Response of a Request Tab: a Draft has no file.
+    var canSaveAsExample: Bool {
+        guard case .request = tab.source, case .received = tab.response else { return false }
+        return true
+    }
+
     /// Where the one editor was when this Tab was last shown, so switching back restores it.
     var viewState = ViewState()
 
@@ -289,6 +303,7 @@ final class TabModel {
     func send() {
         // An Example Tab has no request to send.
         guard inFlight == nil, tab.example == nil else { return }
+        exampleNote = nil
         message = message?.afterSendOrPaste
         missingFile = nil
         let resolved: ResolvedRequest
@@ -1600,6 +1615,28 @@ final class WindowModel {
     /// Append an Example to the Request's file, whatever its Tab holds (examples.md).
     func addExample(_ example: Example, to requestID: RequestID) throws(ExampleWriteError) {
         try modifyRequestFile(requestID) { $0.examples.append(example) }
+    }
+
+    /// Save as Example: the Tab's received Response, final one only, becomes an Example of its Request
+    /// (examples.md). Returns the new sidebar row's path. A Draft or a Tab with no received Response
+    /// does nothing; a failure is the Tab's note and writes nothing. The Request Tab is not touched.
+    @discardableResult
+    func saveAsExample(_ id: TabID) -> String? {
+        guard let model = tabs.first(where: { $0.tab.id == id }), model.canSaveAsExample,
+              case .request(let requestID) = model.tab.source, case .received(let response) = model.tab.response else { return nil }
+        let example = Example.from(response, id: ExampleID(UUID()))
+        do throws(ExampleWriteError) {
+            try addExample(example, to: requestID)
+        } catch {
+            let reason = switch error {
+            case .requestGone: "its Request was deleted."
+            case .failed(let reason): reason.hasSuffix(".") ? reason : reason + "."
+            }
+            model.exampleNote = "Couldn't save the Example: " + reason
+            return nil
+        }
+        model.exampleNote = nil
+        return index.path(of: requestID).map(ExampleSummary(example).path(in:))
     }
 
     /// Change the Example with that id in the file; one that is not there is left missing.
