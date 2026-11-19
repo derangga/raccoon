@@ -21,6 +21,18 @@ public enum MessageLine: Equatable, Sendable {
     public static func undefined(_ names: [VariableName], in environment: String?) -> MessageLine {
         .error("Not sent. " + VariableName.notDefined(names, in: environment))
     }
+
+    /// "Not sent. Variables is not a JSON object: line 3, column 14."
+    public static func graphqlVariables(line: Int, column: Int) -> MessageLine {
+        .error("Not sent. " + ResolveError.variablesNotAnObject(line: line, column: column))
+    }
+}
+
+extension ResolveError {
+    /// The sentence the blocked send's line, the Response pane and the Curl pane share.
+    public static func variablesNotAnObject(line: Int, column: Int) -> String {
+        "Variables is not a JSON object: line \(line), column \(column)."
+    }
 }
 
 extension VariableName {

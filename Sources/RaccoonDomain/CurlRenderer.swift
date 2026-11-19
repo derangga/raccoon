@@ -14,7 +14,7 @@ public enum CurlRenderer {
             flags.append("-b " + quoted(definition.cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")))
         }
         switch definition.body {
-        // The resolver lowers a GraphQL body to raw JSON; a later change fills it in.
+        // The resolver lowers a GraphQL body to raw JSON, so it never reaches here.
         case .none, .graphql:
             break
         case .raw(_, let text):
@@ -68,6 +68,8 @@ public enum CurlPreview: Equatable, Sendable {
     case noURL
     /// The URL after substitution.
     case invalidURL(String)
+    /// A GraphQL body's Variables, after substitution, are not a JSON object.
+    case graphqlVariables(line: Int, column: Int)
 
     public init(_ definition: RequestDefinition, scope: VariableScope) {
         guard !definition.url.allSatisfy(\.isWhitespace) else {
@@ -80,6 +82,7 @@ public enum CurlPreview: Equatable, Sendable {
             switch error {
             case .undefined(let names): self = .undefined(names)
             case .invalidURL(let text): self = .invalidURL(text)
+            case .graphqlVariables(let line, let column): self = .graphqlVariables(line: line, column: column)
             }
         }
     }

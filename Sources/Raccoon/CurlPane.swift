@@ -131,6 +131,8 @@ final class CurlPaneView: NSView {
             (voidTitle, voidText) = ("No curl command yet", VariableName.notDefined(names, in: environment))
         case .invalidURL(let url):
             (voidTitle, voidText) = ("No curl command yet", "After substitution the URL was \(url).")
+        case .graphqlVariables(let line, let column):
+            (voidTitle, voidText) = ("No curl command yet", ResolveError.variablesNotAnObject(line: line, column: column))
         }
         note = command.map { _ in "Resolved with \(environment ?? "Globals"). Disabled Rows are left out." }
 

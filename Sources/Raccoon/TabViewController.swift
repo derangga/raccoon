@@ -85,7 +85,7 @@ final class TabViewController: NSViewController, NSMenuItemValidation {
         let result = model.curl(includeSecrets: false)
         item.title = switch result {
         case .failure(.undefined(let names)): "Copy as Curl (\(VariableName.phrase(names)) \(names.count == 1 ? "is" : "are") not defined)"
-        case .success, .failure(.invalidURL): "Copy as Curl"
+        case .success, .failure(.invalidURL), .failure(.graphqlVariables): "Copy as Curl"
         }
         if case .success = result { return true }
         return false

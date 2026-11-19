@@ -669,6 +669,9 @@ final class ResponseViewer: NSView {
         case .notSent(.invalidURL(let text)):
             setStatus(("Not sent", "", .statusFailed))
             showVoid(title: "Invalid URL", text: "After substitution the URL was \(text).", keycap: false, failed: true)
+        case .notSent(.graphqlVariables(let line, let column)):
+            setStatus(("Not sent", "", .statusFailed))
+            showVoid(title: "Invalid Variables", text: ResolveError.variablesNotAnObject(line: line, column: column), keycap: false, failed: true)
         case .notSent(.undefined(let names)):
             setStatus(("Not sent", "", .statusFailed))
             showVoid(title: "Not defined", text: names.map(\.rawValue).joined(separator: ", "), keycap: false, failed: true)

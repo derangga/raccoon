@@ -92,6 +92,8 @@ Curl pane
   ⚠ undefined(names)     → escape: "No curl command yet" and every name, Copy disabled
   ⚠ invalidURL           → escape: "No curl command yet" and the URL after substitution,
                            Copy disabled. Nothing is outlined: nothing was sent
+  ⚠ graphqlVariables     → escape: "No curl command yet" and "Variables is not a JSON object: line L,
+                           column C.", Copy disabled
   ⚠ Keychain unreadable  → the preview never reads it. With Include secrets, Copy resolves
                            it as undefined and copies nothing
 Postman Import

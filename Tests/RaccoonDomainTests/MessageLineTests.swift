@@ -40,4 +40,8 @@ struct MessageLineTests {
         #expect(VariableName.notDefined(names, in: "Staging") == "charge_id and tenant_id are not defined in Staging or in Globals.")
         #expect(VariableName.notDefined([names[0]], in: nil) == "charge_id is not defined in Globals.")
     }
+
+    @Test func `invalid GraphQL Variables name the line and the column`() {
+        #expect(MessageLine.graphqlVariables(line: 3, column: 14) == .error("Not sent. Variables is not a JSON object: line 3, column 14."))
+    }
 }

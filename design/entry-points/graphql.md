@@ -66,7 +66,10 @@ Setting GET by hand afterwards is allowed. The send then fails as any GET with a
                                                  keys in that order, no added whitespace
   -> the ResolvedRequest's body is .raw(.json, payload)
                                                  so the transport, AutomaticHeaders, Copy as
-                                                 Curl and the Curl pane need no new case
+                                                 Curl and the Curl pane learn no new Body
+                                                 case. They do meet the new ResolveError:
+                                                 the send is .notSent, Copy as Curl is
+                                                 disabled and the Curl pane says why
 ```
 
 **The resolver lowers GraphQL to raw JSON.** `ResolvedRequest` is what the transport sends and
@@ -76,7 +79,9 @@ of them learns a new Body case, and Copy as Curl shows exactly the bytes that go
 **Variables must be a JSON object, checked after substitution.** `{"id": {{id}}}` is valid
 only once `{{id}}` is a number, so the check runs on the resolved text. While editing, nothing
 checks the Variables except Format, which reads `{{name}}` as one value as it does for a JSON
-body (editing.md).
+body (editing.md). The check after substitution is strict: a `{{` left outside a JSON string
+(a name that is not a Variable, or a value that is itself `{{y}}`) is not JSON and is reported at
+its position, as is any text after the object.
 
 **`{{name}}` inside the Query is substituted as text.** GraphQL's own `$variables` are the
 right tool, but a `{{baseFragment}}` in a query is the user's choice, and Raccoon resolves it

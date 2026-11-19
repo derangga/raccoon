@@ -145,6 +145,7 @@ and every place they disagree is a command split inside a quote.
                                                  Edit ▸ Copy as Curl (⇧⌘C) and the URL bar's
                                                  menu, both on the selected Tab
                                                  E: invalidURL -> the item is disabled
+                                                 E: graphqlVariables -> the item is disabled
   -> VariableResolver.resolve(definition, scope, secrets: includeSecrets)
                                                  pure        E: undefined -> escape, the
                                                  menu item says which Variable is missing
@@ -192,6 +193,9 @@ The inspector's Curl pane is Copy as Curl rendered live for the selected Tab.
                                                  disabled
                                                  E: invalidURL -> escape: the pane quotes the
                                                  URL after substitution, Copy is disabled
+                                                 E: graphqlVariables -> escape: the pane says
+                                                 "Variables is not a JSON object: line L,
+                                                 column C.", Copy is disabled
     -> CurlRenderer.render(resolved)             pure, the same renderer as Copy as Curl
   -> Highlighter.curl(command)                   pure        R: none, never fails: half a
                                                  command colors what it recognises

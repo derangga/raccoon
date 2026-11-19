@@ -264,6 +264,9 @@ final class TabModel {
             case .invalidURL:
                 tab.response = .notSent(error)
                 isURLInvalid = true
+            case .graphqlVariables(let line, let column):
+                tab.response = .notSent(error)
+                message = .graphqlVariables(line: line, column: column)
             }
             return
         }

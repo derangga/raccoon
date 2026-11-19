@@ -5,10 +5,12 @@ import Foundation
 /// it is. Hand-written, because a decode and re-encode through Foundation reorders keys and
 /// respells numbers (`1.50` → `1.5`).
 public enum BodyFormatter {
-    public static func format(_ text: String, kind: RawKind) throws(FormatError) -> String {
+    /// `allowsVariables` is off for text whose `{{name}}` marks are already substituted: one that is
+    /// left is then not JSON, and is reported at its position.
+    public static func format(_ text: String, kind: RawKind, allowsVariables: Bool = true) throws(FormatError) -> String {
         switch kind {
         case .json:
-            var formatter = JSONFormatter(Array(text))
+            var formatter = JSONFormatter(Array(text), allowsVariables: allowsVariables)
             return try formatter.document()
         case .xml:
             return try XMLFormatter.format(Array(text))
@@ -29,11 +31,13 @@ public enum BodyFormatter {
 
 private struct JSONFormatter {
     let chars: [Character]
+    let allowsVariables: Bool
     var i = 0
     var out = ""
 
-    init(_ chars: [Character]) {
+    init(_ chars: [Character], allowsVariables: Bool) {
         self.chars = chars
+        self.allowsVariables = allowsVariables
     }
 
     mutating func document() throws(FormatError) -> String {
@@ -57,7 +61,9 @@ private struct JSONFormatter {
         skipSpace()
         guard let char = current else { throw fail() }
         switch char {
-        case "{" where i + 1 < chars.count && chars[i + 1] == "{": try variable()
+        case "{" where i + 1 < chars.count && chars[i + 1] == "{":
+            guard allowsVariables else { throw fail() }
+            try variable()
         case "{": try container(close: "}", depth: depth, isObject: true)
         case "[": try container(close: "]", depth: depth, isObject: false)
         case "\"": try string()
@@ -86,7 +92,7 @@ private struct JSONFormatter {
             if isObject {
                 switch current {
                 case "\"": try string()
-                case "{": try variable()
+                case "{" where allowsVariables: try variable()
                 default: throw fail()
                 }
                 skipSpace()

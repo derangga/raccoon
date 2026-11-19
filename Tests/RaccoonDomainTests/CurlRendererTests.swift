@@ -105,6 +105,12 @@ struct CurlRendererTests {
         )
         #expect(text == "curl 'https://h/?on=1'")
     }
+
+    @Test func `a GraphQL body is --data-raw with the payload`() throws {
+        let body = Body.graphql(GraphQLBody(query: "{ me { id } }", variables: #"{"id": 1}"#, operationName: ""))
+        let command = try render("POST", body: body)
+        #expect(command == "curl -X POST 'https://h/' \\\n  --data-raw '" + #"{"query":"{ me { id } }","variables":{"id": 1}}"# + "'")
+    }
 }
 
 /// The Curl pane's states (curl.md §The Curl pane): a command, or why there is none.
@@ -112,8 +118,8 @@ struct CurlPreviewTests {
     let host = VariableName("host")!
     let id = VariableName("charge_id")!
 
-    func preview(_ url: String, headers: [Row] = [], values: [VariableName: String] = [:]) -> CurlPreview {
-        CurlPreview(RequestDefinition(method: "GET", url: url, params: [], headers: headers, cookies: [], body: .none, auth: .none,
+    func preview(_ url: String, headers: [Row] = [], body: Body = .none, values: [VariableName: String] = [:]) -> CurlPreview {
+        CurlPreview(RequestDefinition(method: "GET", url: url, params: [], headers: headers, cookies: [], body: body, auth: .none,
                                       settings: RequestSettings(allowsInsecureTLS: false, followsRedirects: false)), scope: VariableScope(values: values))
     }
 
@@ -132,5 +138,10 @@ struct CurlPreviewTests {
 
     @Test func `a URL that is not one after substitution is quoted`() {
         #expect(preview("{{host}}/a", values: [host: "localhost:4000"]) == .invalidURL("localhost:4000/a"))
+    }
+
+    @Test func `Variables that are not an object leave no curl command and say where`() {
+        let body = Body.graphql(GraphQLBody(query: "{ me }", variables: "[1]", operationName: ""))
+        #expect(preview("https://h/", body: body) == .graphqlVariables(line: 1, column: 1))
     }
 }

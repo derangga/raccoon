@@ -181,4 +181,31 @@ struct TabModelSendTests {
         model.typeInURLBar("http://localhost/")
         #expect(!model.isURLInvalid)
     }
+
+    @Test func `Variables that are not a JSON object send nothing and say where`() {
+        let transport = ScriptedTransport(.success(response))
+        let model = makeTab(transport, url: "http://localhost:8080/graphql")
+        model.tab.definition.method = "POST"
+        model.tab.definition.body = .graphql(GraphQLBody(query: "{ me }", variables: "[1]", operationName: ""))
+
+        model.send()
+
+        #expect(model.tab.response == .notSent(.graphqlVariables(line: 1, column: 1)))
+        #expect(model.message == .error("Not sent. Variables is not a JSON object: line 1, column 1."))
+        #expect(model.inFlight == nil)
+        #expect(!model.isURLInvalid)
+        #expect(transport.requests.isEmpty)
+    }
+
+    @Test func `a GraphQL body goes out as raw JSON`() async {
+        let transport = ScriptedTransport(.success(response))
+        let model = makeTab(transport, url: "http://localhost:8080/graphql")
+        model.tab.definition.method = "POST"
+        model.tab.definition.body = .graphql(GraphQLBody(query: "{ me }", variables: #"{"a": 1}"#, operationName: ""))
+
+        model.send()
+        await model.inFlight?.value
+
+        #expect(transport.requests.map(\.definition.body) == [.raw(.json, #"{"query":"{ me }","variables":{"a": 1}}"#)])
+    }
 }

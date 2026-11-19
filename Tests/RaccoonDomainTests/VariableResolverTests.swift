@@ -269,4 +269,47 @@ struct VariableResolverTests {
         request.pathVariables = ["id": "7"]
         #expect(try VariableResolver.resolve(request).definition.url == "http://h/7")
     }
+
+    func graphql(_ query: String, variables: String = "", operationName: String = "") -> RequestDefinition {
+        var request = definition("POST", "http://h/graphql")
+        request.body = .graphql(GraphQLBody(query: query, variables: variables, operationName: operationName))
+        return request
+    }
+
+    @Test func `a GraphQL body resolves to raw JSON with every field substituted and a number left a number`() throws {
+        let request = graphql("query { user(id: {{id}}) { name } } # {{note}}", variables: #"{"id": {{id}}, "who": "{{who}}"}"#, operationName: "{{op}}")
+        let resolved = try VariableResolver.resolve(request, scope: scope(["id": "42", "who": "ada", "op": "Q", "note": "a\"b"]))
+
+        #expect(resolved.definition.body == .raw(.json, #"{"query":"query { user(id: 42) { name } } # a\"b","variables":{"id": 42, "who": "ada"},"operationName":"Q"}"#))
+    }
+
+    @Test func `Undefined Variables in the query, the variables and the operation name are listed together with the rest`() {
+        var request = graphql("{ {{q}} }", variables: #"{"a": {{v}}}"#, operationName: "{{o}}")
+        request.url = "{{base}}/graphql"
+
+        #expect(throws: ResolveError.undefined([name("base"), name("q"), name("v"), name("o")])) {
+            try VariableResolver.resolve(request, scope: scope([:]))
+        }
+    }
+
+    @Test func `Variables that are not a JSON object after substitution throw their position`() {
+        #expect(throws: ResolveError.graphqlVariables(line: 1, column: 1)) {
+            try VariableResolver.resolve(graphql("{ me }", variables: "{{v}}"), scope: scope(["v": "[1]"]))
+        }
+        #expect(throws: ResolveError.graphqlVariables(line: 1, column: 8)) {
+            try VariableResolver.resolve(graphql("{ me }", variables: #"{"id": {{v}}}"#), scope: scope(["v": ""]))
+        }
+    }
+
+    @Test func `a Variable whose value is {{y}} leaves invalid JSON, so it throws and does not go out`() {
+        #expect(throws: ResolveError.graphqlVariables(line: 1, column: 7)) {
+            try VariableResolver.resolve(graphql("{ me }", variables: #"{"a": {{v}}}"#), scope: scope(["v": "{{y}}"]))
+        }
+    }
+
+    @Test func `an Undefined Variable wins over invalid Variables`() {
+        #expect(throws: ResolveError.undefined([name("q")])) {
+            try VariableResolver.resolve(graphql("{ {{q}} }", variables: "[1]"), scope: scope([:]))
+        }
+    }
 }

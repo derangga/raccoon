@@ -13,6 +13,10 @@ One slice of [DESIGN.md](../../DESIGN.md) §2. Failures are read in
                                                              last Response stays
                                                              E: invalidURL -> escape:
                                                              .notSent, nothing is sent
+                                                             E: graphqlVariables -> escape:
+                                                             .notSent and the message line
+                                                             "Not sent. Variables is not a
+                                                             JSON object: line L, column C."
   -> tab.response = .sending(now)                            R: InstantSource
   -> HTTPTransport.send(resolved)                boundary    R: HTTPTransport
     -> read every multipart file part            boundary    R: FileReading, given to

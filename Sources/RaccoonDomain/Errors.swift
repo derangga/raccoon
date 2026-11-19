@@ -10,6 +10,9 @@ public enum ResolveError: Error, Equatable, Sendable {
     case undefined([VariableName])
     /// The URL text after substitution, because that is the one that failed.
     case invalidURL(String)
+    /// A GraphQL body's Variables, after substitution, are not a JSON object. 1-based, in the
+    /// substituted text: the first character that is not valid JSON, or the first one that is not `{`.
+    case graphqlVariables(line: Int, column: Int)
 }
 
 public enum SendError: Error, Equatable, Sendable {

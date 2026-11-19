@@ -26,7 +26,7 @@ public enum VariableResolver {
         case .none: .none
         case .raw(let kind, let body): .raw(kind, text(body))
         case .formURLEncoded(let form): .formURLEncoded(rows(form))
-        // Placeholder: a later change lowers a GraphQL body to raw JSON here.
+        // Encoded after the undefined check below, so an Undefined Variable wins over invalid Variables.
         case .graphql(let graphql): .graphql(GraphQLBody(
             query: text(graphql.query), variables: text(graphql.variables), operationName: text(graphql.operationName)))
         case .multipart(let parts): .multipart(parts.filter(\.isEnabled).map { part in
@@ -42,6 +42,10 @@ public enum VariableResolver {
         case .bearer(let token): .bearer(token: text(token))
         }
         guard undefined.isEmpty else { throw .undefined(undefined) }
+        if case .graphql(let graphql) = resolved.body {
+            resolved.body = .raw(.json, try GraphQLPayload.encode(
+                query: graphql.query, variables: graphql.variables, operationName: graphql.operationName))
+        }
         // Rows are enabled only by now; a repeated name would be joined into one header at send.
         if !resolved.headers.contains(where: \.winsOverAuth) { resolved.headers += authorization(auth) }
         resolved.auth = .none

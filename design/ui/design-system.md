@@ -667,7 +667,7 @@ area, all on `backgroundRecessed`.
   button "Allow insecure TLS for this request", which flips the Request Setting and does not
   send), "No response after 60 s" (or the Request Timeout the send used), "Too many
   redirects" naming how many were followed, URLError's description plus the code and host for
-  transport errors, "Invalid URL" quoting the URL after substitution (status line "Not sent").
+  transport errors, "Invalid URL" quoting the URL after substitution, "Invalid Variables" with "Variables is not a JSON object: line L, column C." (status line "Not sent" for both).
 - **binary**: the Hex view, in the body's text view, SF Mono 12 `text`: the `hexdump -C`
   layout (`00000000  7b 22 69 64 …  |{"id…|`). No Gutter numbers (the offset column is the
   address), no Pretty | Raw, no folds. Above 1 MB the Body toolbar holds "Showing the first
@@ -1358,6 +1358,8 @@ in UserDefaults (decided, Q14).
   sentence naming every missing Variable ("charge_id and tenant_id are not defined in Staging
   or in Globals."); Copy disabled.
 - An invalid URL: the same, with "After substitution the URL was <url>." as the sentence.
+- GraphQL Variables that are not a JSON object: the same, with "Variables is not a JSON object:
+  line L, column C." as the sentence.
 - An empty Draft (a blank URL): "Type a URL to see the curl command." in `textTertiary`.
 
 ### View ▸ Theme menu (native)
@@ -1378,6 +1380,7 @@ Every entry of [e-where-it-breaks.md](../e-where-it-breaks.md) with a visible pl
 | tooManyRedirects(followed) | Response pane: "Too many redirects", naming how many were followed | failed |
 | untrustedCertificate | Response pane, host named, "Allow insecure TLS for this request" | failed |
 | invalidURL | URL field outlined in `error`; Response pane quotes the substituted URL | URL bar, failed |
+| graphqlVariables(line, column) | message line and Response pane say "Variables is not a JSON object: line L, column C."; nothing outlined | URL bar, failed |
 | fileMissing(path) | the multipart chip marked; message line names the path | Body editor |
 | transport(code) | Response pane: description plus the code and host | failed |
 | resolve: undefined(names) | red underlines already on screen; message line names every one; no spinner | URL bar, key/value table |
