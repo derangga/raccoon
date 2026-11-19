@@ -81,7 +81,7 @@ struct ExampleRowsTests {
         #expect(cell.more.isHidden)
     }
 
-    @Test func `an Example row opens its Tab on a click and on Return, and has no menu yet`() throws {
+    @Test func `an Example row opens its Tab on a click and on Return`() throws {
         let (window, sidebar) = try sidebar()
         try expandRequest(sidebar)
 
@@ -90,7 +90,6 @@ struct ExampleRowsTests {
 
         guard case .example = window.selectedTab?.tab.source else { Issue.record("no Example Tab"); return }
         #expect(window.tabs.filter { $0.tab.example != nil }.count == 1)
-        #expect(sidebar.contextMenu(row: 2).items.isEmpty)
     }
 
     @Test func `a filter on an Example's name shows its Request open with only that Example, highlighted`() throws {

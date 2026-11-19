@@ -45,6 +45,11 @@ extension Example {
             body: ExampleBody(bytes: response.body))
     }
 
+    /// Duplicate (examples.md): the same Example under a new id, " 2" appended to the name as it stands.
+    public func duplicate(id: ExampleID) -> Example {
+        Example(id: id, name: name + " 2", status: status, headers: headers, body: body, delayMilliseconds: delayMilliseconds)
+    }
+
     /// The `Content-Type` header's value: the first enabled row of that name, in any case.
     public var contentType: String? {
         headers.first { $0.isEnabled && $0.name.caseInsensitiveCompare("Content-Type") == .orderedSame }?.value

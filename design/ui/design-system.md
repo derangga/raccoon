@@ -775,7 +775,9 @@ and `warning` Theme tokens, secondary label). The cell reads `backgroundStyle ==
 - **Example** (a child of a Request row, one level deeper): the status code in SF Mono bold
   9.5 pt where a Request's method badge sits, coloured `status2xx` … `status5xx` by class, as the
   Response's status line, then the Example's name. A Request with Examples gets a
-  disclosure triangle; collapsed by default, expanded when Save as Example adds one.
+  disclosure triangle; collapsed by default, expanded when Save as Example or New Example adds
+  one. It shows the `⋯` More actions button like any row; its menu is Rename…, Duplicate, Delete…
+  (examples.md).
 - **Mock indicator**: on a Collection row whose Mock Server runs, an 8 pt `success` dot before
   the More actions button, tooltip "Mock Server on http://127.0.0.1:<port>".
 - **Empty**: "No Collections yet. Create one, or save a Draft into one with ⌘S." plus the Data

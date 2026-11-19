@@ -80,6 +80,17 @@ whichever Response section is showing, and is disabled where the button is.
   -> an open Example Tab for it                  becomes "Deleted on disk", as below
 ```
 
+**The menus.** A Request's menu gains New Example after New Folder…, with no ellipsis because it
+asks nothing. An Example row's menu is Rename…, Duplicate, a separator, Delete…, and its `⋯` button
+opens the same menu. New Example opens the new Example's Tab and shows its row (the Request
+expanded, the row selected). Duplicate selects the copy and opens no Tab, and appends " 2"
+literally, so a copy of "Created 2" is "Created 2 2". Delete… is a native alert sheet: "Delete the
+Example “<name>”?", "It is removed from its Request's file, not moved to the Trash. This can't be
+undone.", Cancel (default, also Esc) and Delete. ⌫ or Forward Delete, with no modifier, on a
+selected Example row asks the same; ⌫ on any other row does nothing. A write that fails shows an
+alert sheet: "Couldn't create an Example: <reason>." (or "Couldn't rename / duplicate / delete the
+Example “<name>”: <reason>."), and nothing is written.
+
 ## Open and edit an Example
 
 ```

@@ -84,13 +84,15 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     var chooseNewWorkspace: () async -> String? = { nil }
     /// An alert sheet in the app, for an operation that failed.
     var showError: (String) -> Void = { _ in }
+    /// The confirmation before an Example is deleted: its name, and whether to go on. No answer means no.
+    var confirmDeleteExample: (_ name: String, _ reply: @escaping (Bool) -> Void) -> Void = { _, reply in reply(false) }
     /// The + menu's Import from Postman…: the app's open panel, then the Import sheet.
     var importFromPostman: () -> Void = {}
     /// A Collection row's Export…: the app's Collection Export sheet, for the Collection named.
     var exportCollection: (String) -> Void = { _ in }
     /// The pop-up's Manage Workspaces…: the Workspaces sheet.
     var manageWorkspaces: () -> Void = {}
-    let outline = NSOutlineView()
+    let outline = SidebarOutline()
     let empty = NSStackView()
     let emptyText = NSTextField(wrappingLabelWithString: "No Collections yet. Create one, or save a Draft into one with ⌘S.")
     let emptyPath = NSTextField(wrappingLabelWithString: "")
@@ -147,6 +149,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         outline.setAccessibilityLabel("Collections")
         outline.menu = NSMenu()
         outline.menu?.delegate = self
+        outline.onDelete = { [weak self] row in self?.deleteKey(row: row) }
 
         addMenu.addItem(NSMenuItem(title: "New Collection", action: #selector(newCollection(_:)), keyEquivalent: ""))
         addMenu.addItem(NSMenuItem(title: "New Folder", action: #selector(newFolder(_:)), keyEquivalent: ""))
@@ -477,15 +480,23 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     }
 
     private func fill(_ menu: NSMenu, row: Int) {
-        // An Example's menu comes with its actions; until then there is none.
-        guard let item = outline.item(atRow: row) as? SidebarItem, !item.isExample else { return }
+        guard let item = outline.item(atRow: row) as? SidebarItem else { return }
         func add(_ title: String, _ action: Selector, _ object: Any) {
             let entry = NSMenuItem(title: title, action: action, keyEquivalent: "")
             entry.target = self
             entry.representedObject = object
             menu.addItem(entry)
         }
+        // An Example has no file: no Move, Trash or Reveal. Delete… is set apart, last.
+        if item.isExample {
+            add("Rename…", #selector(renameItem), item)
+            add("Duplicate", #selector(duplicateExample), item)
+            menu.addItem(.separator())
+            add("Delete…", #selector(deleteExample), item)
+            return
+        }
         add("New Folder…", #selector(newFolderHere), folder(of: item))
+        if case .request = item.kind { add("New Example", #selector(newExample), item) }
         if case .unreadable = item.kind {} else { add("Rename…", #selector(renameItem), item) }
         if item.kind == .collection { add("Export…", #selector(exportItem), item) }
         if item.kind != .collection {
@@ -521,7 +532,48 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         guard let item = sender.representedObject as? SidebarItem else { return }
         askName("Rename", item.name, "Rename") { [weak self] name in
             guard let self, let name else { return }
-            perform({ "Couldn't rename “\(item.name)”: \($0)." }) { () throws(StoreError) in try self.window.rename(item.path, to: name) }
+            if case .example(let requestID, let id, _) = item.kind {
+                performExample({ "Couldn't rename the Example “\(item.name)”: \($0)" }) { () throws(ExampleWriteError) in
+                    try self.window.updateExample(requestID, id) { $0.name = name }
+                }
+            } else {
+                perform({ "Couldn't rename “\(item.name)”: \($0)." }) { () throws(StoreError) in try self.window.rename(item.path, to: name) }
+            }
+        }
+    }
+
+    /// A Request row's New Example: its Tab opens, and the sidebar shows the new row selected.
+    @objc private func newExample(_ sender: NSMenuItem) {
+        guard let item = sender.representedObject as? SidebarItem, case .request(let id, _) = item.kind else { return }
+        performExample({ "Couldn't create an Example: \($0)" }) { () throws(ExampleWriteError) in
+            if let row = try self.window.newExample(id) { self.reveal(path: row) }
+        }
+    }
+
+    /// The copy sits after the original and is selected; no Tab opens.
+    @objc private func duplicateExample(_ sender: NSMenuItem) {
+        guard let item = sender.representedObject as? SidebarItem, case .example(let requestID, let id, _) = item.kind else { return }
+        performExample({ "Couldn't duplicate the Example “\(item.name)”: \($0)" }) { () throws(ExampleWriteError) in
+            if let row = try self.window.duplicateExample(requestID, id) { self.reveal(path: row) }
+        }
+    }
+
+    @objc private func deleteExample(_ sender: NSMenuItem) {
+        if let item = sender.representedObject as? SidebarItem { confirmDelete(item) }
+    }
+
+    /// ⌫ and Forward Delete in the outline: an Example row asks to delete; no other row has a key for it.
+    private func deleteKey(row: Int) {
+        if let item = outline.item(atRow: row) as? SidebarItem { confirmDelete(item) }
+    }
+
+    private func confirmDelete(_ item: SidebarItem) {
+        guard case .example(let requestID, let id, _) = item.kind else { return }
+        confirmDeleteExample(item.name) { [weak self] confirmed in
+            guard let self, confirmed else { return }
+            performExample({ "Couldn't delete the Example “\(item.name)”: \($0)" }) { () throws(ExampleWriteError) in
+                try self.window.removeExample(requestID, id)
+            }
         }
     }
 
@@ -560,6 +612,15 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
             switch error {
             case .unwritable(_, let reason), .unreadable(_, let reason), .undecodable(_, let reason): showError(failure(reason))
             }
+        }
+    }
+
+    /// `perform` for an Example write: the same alert with the reason, and nothing changes.
+    private func performExample(_ failure: (String) -> String, _ operation: () throws(ExampleWriteError) -> Void) {
+        do throws(ExampleWriteError) {
+            try operation()
+        } catch {
+            showError(failure(error.sentence))
         }
     }
 
@@ -615,12 +676,8 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
             cell.show(name: item.name, badge: method, token: .method(method), match: matches[item.path]?.ranges ?? [], theme: theme)
             return cell
         case .example(_, _, let status):
-            // The Request row's cell, with the status where the method sits and no More actions yet.
-            let cell: RequestCell = reuse(RequestCell.exampleIdentifier) {
-                let cell = RequestCell(target: self, action: #selector(moreClicked))
-                cell.offersMore = false
-                return cell
-            }
+            // The Request row's cell, with the status where the method sits.
+            let cell: RequestCell = reuse(RequestCell.exampleIdentifier) { RequestCell(target: self, action: #selector(moreClicked)) }
             // The Response status line's own class-to-token rule.
             let token = StatusLine(status: status, elapsed: .zero, byteCount: 0).token
             cell.show(name: item.name, badge: "\(status)", token: token, match: matches[item.path]?.ranges ?? [], theme: theme)
@@ -659,6 +716,18 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     /// The ⋯ shows on the selected row: every cell lays out again to ask.
     func outlineViewSelectionDidChange(_ notification: Notification) {
         outline.enumerateAvailableRowViews { rowView, _ in (rowView.view(atColumn: 0) as? MoreActionsCell)?.needsLayout = true }
+    }
+}
+
+/// The outline, with ⌫ and Forward Delete handed to the sidebar for the selected row.
+final class SidebarOutline: NSOutlineView {
+    var onDelete: (Int) -> Void = { _ in }
+
+    override func keyDown(with event: NSEvent) {
+        // 51 is delete, 117 forward delete; ⌘⌫, ⌥⌫, ⇧⌫ and ⌃⌫ are not this.
+        let plain = event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty
+        if plain, event.keyCode == 51 || event.keyCode == 117, selectedRow >= 0 { return onDelete(selectedRow) }
+        super.keyDown(with: event)
     }
 }
 
@@ -793,9 +862,6 @@ final class NodeCell: MoreActionsCell {
 final class RequestCell: MoreActionsCell, ThemedRow {
     static let identifier = NSUserInterfaceItemIdentifier("request")
     static let exampleIdentifier = NSUserInterfaceItemIdentifier("example")
-    /// False on an Example row, which has no menu yet.
-    var offersMore = true
-    override var showsMore: Bool { offersMore && super.showsMore }
     let badge = NSTextField(labelWithString: "")
     let name = NSTextField(labelWithString: "")
     private var badgeText = ""

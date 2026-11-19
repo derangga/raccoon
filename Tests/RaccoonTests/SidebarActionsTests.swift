@@ -29,7 +29,7 @@ struct SidebarActionsTests {
     @Test func `a Request's context menu, with Move To listing the other places`() throws {
         let (_, sidebar) = try sidebar()
         let menu = sidebar.contextMenu(row: try row(sidebar, "Create charge"))
-        #expect(menu.items.filter { !$0.isSeparatorItem }.map(\.title) == ["New Folder…", "Rename…", "Move To", "Move to Trash", "Reveal in Finder"])
+        #expect(menu.items.filter { !$0.isSeparatorItem }.map(\.title) == ["New Folder…", "New Example", "Rename…", "Move To", "Move to Trash", "Reveal in Finder"])
         #expect(menu.item(withTitle: "Move To")?.submenu?.items.map(\.title) == ["Orders", "Payments API"])
     }
 

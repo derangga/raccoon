@@ -109,6 +109,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.messageText = message
             alert.beginSheetModal(for: window)
         }
+        sidebar.confirmDeleteExample = { [weak windowController] name, reply in
+            guard let window = windowController?.window else { return reply(false) }
+            DeleteExampleConfirm.ask(name: name, in: window, reply: reply)
+        }
         sidebar.importFromPostman = { [weak self] in self?.importFromPostman(nil) }
         sidebar.exportCollection = { [weak self] name in self?.exportCollection(named: name) }
         sidebar.manageWorkspaces = { [weak windowController, windowModel] in

@@ -489,6 +489,14 @@ enum SecretEditError: Error, Equatable {
 enum ExampleWriteError: Error, Equatable {
     case requestGone
     case failed(reason: String)
+
+    /// The end of a note that says what was not done: "Couldn't save the Example: <this>".
+    var sentence: String {
+        switch self {
+        case .requestGone: "its Request was deleted."
+        case .failed(let reason): reason.hasSuffix(".") ? reason : reason + "."
+        }
+    }
 }
 
 /// The window's Tabs and the ports that touch the Data Folder, the Session and the Keychain.
@@ -1628,15 +1636,36 @@ final class WindowModel {
         do throws(ExampleWriteError) {
             try addExample(example, to: requestID)
         } catch {
-            let reason = switch error {
-            case .requestGone: "its Request was deleted."
-            case .failed(let reason): reason.hasSuffix(".") ? reason : reason + "."
-            }
-            model.exampleNote = "Couldn't save the Example: " + reason
+            model.exampleNote = "Couldn't save the Example: " + error.sentence
             return nil
         }
         model.exampleNote = nil
         return index.path(of: requestID).map(ExampleSummary(example).path(in:))
+    }
+
+    /// New Example on a Request row: 200, empty, appended and opened in its Tab. Returns the new
+    /// sidebar row's path. A failure writes nothing and opens no Tab.
+    @discardableResult
+    func newExample(_ requestID: RequestID) throws(ExampleWriteError) -> String? {
+        let example = Example(id: ExampleID(UUID()), name: "New Example", status: 200, headers: [], body: .text(""))
+        try addExample(example, to: requestID)
+        openExample(requestID, example.id)
+        return index.path(of: requestID).map(ExampleSummary(example).path(in:))
+    }
+
+    /// Duplicate on an Example row: a copy straight after the original, no Tab opened. Returns the
+    /// copy's sidebar row path; nil, with the file as it was, when the Example is not in the file.
+    @discardableResult
+    func duplicateExample(_ requestID: RequestID, _ id: ExampleID) throws(ExampleWriteError) -> String? {
+        var copy: Example?
+        try modifyRequestFile(requestID) { request in
+            guard let at = request.examples.firstIndex(where: { $0.id == id }) else { return }
+            let made = request.examples[at].duplicate(id: ExampleID(UUID()))
+            request.examples.insert(made, at: at + 1)
+            copy = made
+        }
+        guard let copy else { return nil }
+        return index.path(of: requestID).map(ExampleSummary(copy).path(in:))
     }
 
     /// Change the Example with that id in the file; one that is not there is left missing.
