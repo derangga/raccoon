@@ -187,11 +187,14 @@ final class TabModel {
         tab.definition.method = method
     }
 
-    /// The body converts (editing.md §Body Type) and the visible Content-Type row follows it.
+    /// The body converts (editing.md §Body Type), the visible Content-Type row follows it, and
+    /// GraphQL turns GET and HEAD into POST. One assignment, so a caller snapshots once.
     func pickBodyType(_ type: BodyType) {
-        let old = tab.definition.body.type
-        tab.definition.headers = Headers.contentType(tab.definition.headers, from: old, to: type)
-        tab.definition.body = BodyConversion.convert(tab.definition.body, to: type)
+        var definition = tab.definition
+        definition.headers = Headers.contentType(definition.headers, from: definition.body.type, to: type)
+        definition.body = BodyConversion.convert(definition.body, to: type)
+        if type == .graphql { definition.method = GraphQLMethod.forPick(definition.method) }
+        tab.definition = definition
     }
 
     var now: ContinuousClock.Instant { instants.now }

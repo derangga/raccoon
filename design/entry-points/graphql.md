@@ -14,11 +14,15 @@ completion: what the user typed is what goes out, encoded as JSON.
 ```
 -> pickBodyType(.graphql)                        editing.md, one more case
   -> BodyConversion.convert(body, to: .graphql)  pure
-     raw json -> graphql                         parse the text; a top-level object lifts
-                                                 `query` (string), `variables` (any JSON,
-                                                 re-printed with 2-space indent) and
-                                                 `operationName` (string). Anything else,
-                                                 or text that does not parse: start empty
+     raw json -> graphql                         the text is formatted by BodyFormatter (so a
+                                                 `{{name}}` stays a value) and the top-level
+                                                 members are read from its output; a top-level
+                                                 object lifts `query` (string), `variables`
+                                                 (any JSON, re-printed with 2-space indent;
+                                                 `null` lifts as empty) and `operationName`
+                                                 (string). A key spelled with escapes is not
+                                                 recognised. Anything else, or text that does
+                                                 not parse: start empty
      graphql -> raw json                         GraphQLPayload.text(body): the JSON the send
                                                  would carry, before resolution
      graphql -> none                             keep nothing; the old body is in undo

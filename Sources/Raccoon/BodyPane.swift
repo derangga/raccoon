@@ -266,21 +266,26 @@ final class BodyPane: NSView, NSTextViewDelegate {
 
     @objc private func pickKind(_ item: NSMenuItem) { pick(.raw(Self.kinds[item.tag].1)) }
 
-    /// Body and headers both change, so one undo puts both back: switching to none keeps
-    /// nothing, but the old body is in undo (editing.md).
+    /// Body, headers and, for GraphQL, the method change, so one undo puts them all back:
+    /// switching to none keeps nothing, but the old body is in undo (editing.md).
     private func pick(_ type: BodyType) {
         let before = (model.tab.definition.body, model.tab.definition.headers)
+        let method = model.tab.definition.method
         model.pickBodyType(type)
         showFormatError(nil)
-        registerUndo(restoring: before, name: "Body Type")
+        // Only a GraphQL pick can change the method, so any other pick leaves a hand-set one alone in undo.
+        registerUndo(restoring: before, method: type == .graphql ? method : nil, name: "Body Type")
     }
 
-    private func registerUndo(restoring state: (body: Body, headers: [Row]), name: String) {
+    /// `method` is nil for a change that leaves the method alone, such as Format.
+    private func registerUndo(restoring state: (body: Body, headers: [Row]), method: String? = nil, name: String) {
         undoManager?.registerUndo(withTarget: self) { pane in
             let now = (pane.model.tab.definition.body, pane.model.tab.definition.headers)
+            let nowMethod = method == nil ? nil : pane.model.tab.definition.method
             pane.model.tab.definition.body = state.body
             pane.model.tab.definition.headers = state.headers
-            pane.registerUndo(restoring: now, name: name)
+            if let method { pane.model.tab.definition.method = method }
+            pane.registerUndo(restoring: now, method: nowMethod, name: name)
         }
         undoManager?.setActionName(name)
     }
