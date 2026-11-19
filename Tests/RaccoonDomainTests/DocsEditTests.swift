@@ -64,6 +64,17 @@ struct DocsEditTests {
         (.toggle(.bold), "x «one\ntwo» y", "x **«one**\n**two»** y"),
         (.toggle(.bold), "**«one**\n**two»**", "«one\ntwo»"),
         (.toggle(.bold), "**«one**\ntwo»", "**«one**\n**two»**"),
+        // styles nest: Bold then Italic, or Italic then Bold, writes the same, and each unwraps alone
+        (.toggle(.italic), "a **«b»** c", "a ***«b»*** c"),
+        (.toggle(.bold), "a *«b»* c", "a ***«b»*** c"),
+        (.toggle(.bold), "a ***«b»*** c", "a *«b»* c"),
+        (.toggle(.italic), "a ***«b»*** c", "a **«b»** c"),
+        // an Italic on the last word of a Bold, and its unwrap
+        (.toggle(.italic), "**a «b»**", "**a *«b»***"),
+        (.toggle(.italic), "**a *b‸***", "**a b‸**"),
+        (.toggle(.bold), "**a *b‸***", "a *b‸*"),
+        // a link whose text holds a style is still one link
+        (.link(url: "", text: ""), "[**‸b**](https://x.y)", "**b**‸"),
     ])
     func `inline toggles wrap and unwrap`(command: DocsEdit.Command, input: String, output: String) {
         #expect(Self.run(command, input) == output)
@@ -227,6 +238,10 @@ struct DocsEditTests {
         // a span that keeps some text keeps both marks
         ("**«bo»ld**", "**‸ld**"),
         ("«**bo»ld**", "‸**ld**"),
+        // nested: the span that is emptied takes its own marks, and the one that keeps text keeps its
+        ("***«w»***", "‸"),
+        ("**a *«b»***", "**a ‸**"),
+        ("**«a *b*»**", "‸"),
         ("**bo«ld** x»", "**bo‸**"),
         ("«**a**~~b»c~~", "‸~~c~~"),
         // no span: a plain deletion
@@ -263,6 +278,10 @@ struct DocsEditTests {
         ("a **b‸** c", .init(block: .paragraph, inline: [.bold], link: nil)),
         ("a ~~«b»~~ `c`", .init(block: .paragraph, inline: [.strikethrough], link: nil)),
         ("«a **b**»", .init(block: .paragraph, inline: [], link: nil)),
+        ("***b‸***", .init(block: .paragraph, inline: [.bold, .italic], link: nil)),
+        ("**a *b‸***", .init(block: .paragraph, inline: [.bold, .italic], link: nil)),
+        ("**a‸ *b***", .init(block: .paragraph, inline: [.bold], link: nil)),
+        ("**a `b‸`**", .init(block: .paragraph, inline: [.bold, .code], link: nil)),
         ("[a‸](x.io)", .init(block: .paragraph, inline: [], link: "x.io", linkText: "a")),
         ("[a]b‸](x.io)", .init(block: .paragraph, inline: [], link: "x.io", linkText: "a]b")),
         ("[a‸](x.io/y%20z%281%29)", .init(block: .paragraph, inline: [], link: "x.io/y%20z%281%29", linkText: "a")),
@@ -272,5 +291,11 @@ struct DocsEditTests {
     func `state is what the toolbar shows`(input: String, state: DocsEdit.State) {
         let (text, selection) = Self.parse(input.isEmpty ? "‸" : input)
         #expect(DocsEdit.state(text, selection: selection) == state)
+    }
+
+    @Test func `a link whose text holds a style still reports its URL and text`() {
+        let (text, selection) = Self.parse("[**‸b**](https://x.y)")
+        let state = DocsEdit.state(text, selection: selection)
+        #expect(state.link == "https://x.y" && state.linkText == "**b**" && state.inline == [.bold])
     }
 }

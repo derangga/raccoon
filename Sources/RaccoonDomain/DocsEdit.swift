@@ -373,11 +373,12 @@ private struct Doc {
 
     /// The link the selection is in: its text and its `](url)`.
     func link() -> (text: NSRange, mark: NSRange)? {
-        for (i, r) in ranges.enumerated() {
+        for r in ranges {
+            // The styles inside the link's text come after it, so its `](url)` is found by place.
             guard case .link = r.style, r.range.location <= s, e <= NSMaxRange(r.range),
-                  i + 1 < ranges.count, ranges[i + 1].style == .mark, ranges[i + 1].range.location == NSMaxRange(r.range)
+                  let close = ranges.first(where: { $0.style == .mark && $0.range.location == NSMaxRange(r.range) })
             else { continue }
-            return (r.range, ranges[i + 1].range)
+            return (r.range, close.range)
         }
         return nil
     }

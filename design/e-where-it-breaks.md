@@ -264,6 +264,8 @@ Docs
   ⚠ markdown that does not parse as the user meant → not an error: DocsStyle.ranges is total;
                            unmatched marks are drawn as text and only matched marks are hidden.
                            The characters are never changed by drawing
+  ⚠ nested marks that cross (`***a** b*`) → not an error: the pair that closes first matches and
+                           the rest is drawn as text
   ⚠ a format command that does not apply (Delete at the start of a plain line, Return on a
                            plain line, any command but Code block inside a code block) → not an
                            error: DocsEdit.apply returns nil and the editor does its own Delete

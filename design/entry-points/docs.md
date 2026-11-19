@@ -76,6 +76,16 @@ hiding is a layout decision on the same storage, so nothing is lost on save (dec
 `## ` turns its line into Heading 2 the moment the space is typed, `**b**` turns bold when the
 closing `**` is typed. A mark that does not match yet (`**b` alone) shows as text.
 
+**Inline styles nest.** Bold, Italic and Strikethrough hold other inline styles, and a link's
+text holds them too: `**a `code` [b](https://x.y)**` and `[**b**](https://x.y)` hide every
+mark. Inline code holds nothing; its text is literal. `***w***` is Bold and Italic at once, so
+Bold then Italic on a word writes it and Italic then Bold writes the same. Where a run of
+three `*` closes both (`**a *b***`), the first `*` closes the Italic and the last two close the
+Bold. Each style is judged by its own marks, so unwrapping one leaves the other
+(`***w***` -> `**w**` or `*w*`). The editor draws bold and italic over the same text as one
+font, semibold and italic. `DocsStyle.ranges` returns a parent's range, then its children's,
+then the parent's closing mark.
+
 **The caret never stops inside a hidden mark.** A selection change that lands inside one moves
 to its edge in the direction of travel; at the end of `**bold**` the caret is after the closing
 mark, so typing there is plain. Each end of a selection settles the same way. A line's own mark

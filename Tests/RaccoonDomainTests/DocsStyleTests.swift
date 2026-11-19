@@ -57,6 +57,27 @@ struct DocsStyleTests {
         ])
     }
 
+    @Test(arguments: [
+        // a run of three is Bold and Italic at once: one mark, two styles on the same text
+        ("***w***", [r(0, 3, .mark), r(3, 1, .bold), r(3, 1, .italic), r(4, 3, .mark)]),
+        // a run of three that closes both: the first `*` closes the Italic, the last two the Bold
+        ("**a *b***", [r(0, 2, .mark), r(2, 5, .bold), r(4, 1, .mark), r(5, 1, .italic), r(6, 1, .mark), r(7, 2, .mark)]),
+        ("*a **b***", [r(0, 1, .mark), r(1, 7, .italic), r(3, 2, .mark), r(5, 1, .bold), r(6, 2, .mark), r(8, 1, .mark)]),
+        // code and a link inside bold, bold inside a link's text: every mark is a mark
+        ("**a `c`**", [r(0, 2, .mark), r(2, 5, .bold), r(4, 1, .mark), r(5, 1, .code), r(6, 1, .mark), r(7, 2, .mark)]),
+        ("**[a](https://x.y)**", [
+            r(0, 2, .mark), r(2, 16, .bold), r(2, 1, .mark), r(3, 1, .link(url: "https://x.y")), r(4, 14, .mark), r(18, 2, .mark),
+        ]),
+        ("[**b**](https://x.y)", [
+            r(0, 1, .mark), r(1, 5, .link(url: "https://x.y")), r(1, 2, .mark), r(3, 1, .bold), r(4, 2, .mark), r(6, 14, .mark),
+        ]),
+        // inline code holds nothing: its text is literal
+        ("`**x**`", [r(0, 1, .mark), r(1, 5, .code), r(6, 1, .mark)]),
+    ])
+    func `inline styles nest`(text: String, ranges: [DocsStyleRange]) {
+        #expect(DocsStyle.ranges(text) == ranges)
+    }
+
     @Test func `strikethrough is styled between its marks`() {
         #expect(DocsStyle.ranges("a ~~b~~ c") == [Self.r(2, 2, .mark), Self.r(4, 1, .strikethrough), Self.r(5, 2, .mark)])
     }
@@ -73,7 +94,7 @@ struct DocsStyleTests {
         #expect(DocsStyle.ranges("Send {{token}} as the bearer").isEmpty)
     }
 
-    @Test(arguments: ["**é** 😀 `x` [a](http://b)", "```\n\u{0}\r\n*", "> *a\n- **b\n# `c", "[a]\n(b)", "\u{2028}*x*"])
+    @Test(arguments: ["**é** 😀 `x` [a](http://b)", "```\n\u{0}\r\n*", "> *a\n- **b\n# `c", "[a]\n(b)", "\u{2028}*x*", "***a** b*", "****", "***", "**a *b***", "[**b**](u)", "**`a`"])
     func `every range lies inside the text`(text: String) {
         let length = text.utf16.count
         for range in DocsStyle.ranges(text) {

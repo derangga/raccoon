@@ -13,7 +13,8 @@ public struct DocsStyleRange: Equatable, Sendable {
 
 /// Styled ranges for the Docs editor (docs.md). Total: the editor styles half-typed text, so an
 /// unmatched mark is plain text and nothing here ever changes a character. Ranges come in text
-/// order; where two overlap, the later one is drawn over the earlier.
+/// order, a style's range before the ranges inside it and its closing mark after them; where two
+/// overlap, the later one is drawn over the earlier.
 public enum DocsStyle {
     public enum Style: Equatable, Sendable {
         /// `#`, `**`, `*`, `~~`, a backtick, `[` and `](url)`: dimmed, never removed.
@@ -139,8 +140,7 @@ public enum DocsStyle {
             return j < to && isBlank(j) ? j : from
         }
 
-        // shortcut: no nesting (italic inside bold, code inside a link) and no `_` emphasis, which
-        // snake_case names in Docs would trip; upgrade when Docs need them.
+        // shortcut: no `_` emphasis, which snake_case names in Docs would trip; upgrade when Docs need it.
         private mutating func inline(_ from: Int, _ to: Int) {
             var i = from
             while i < to {
@@ -164,22 +164,52 @@ public enum DocsStyle {
             }
         }
 
-        /// `**bold**`, `*italic*` or `~~strikethrough~~` from the `*` or `~` at `i`: the index to go on from.
+        /// `***both***`, `**bold**`, `*italic*` or `~~strikethrough~~` from the `*` or `~` at `i`, and
+        /// the styles inside it: the index to go on from.
         private mutating func emphasis(at i: Int, _ to: Int) -> Int {
             let mark = u[i]
-            let width = i + 1 < to && u[i + 1] == mark ? 2 : 1
-            if mark == char("~"), width == 1 { return i + 1 }
-            let open = i + width
+            var run = 1
+            while i + run < to, u[i + run] == mark { run += 1 }
+            if mark == char("~"), run == 1 { return i + 1 }
+            var width = run == 3 && mark == char("*") ? 3 : run >= 2 ? 2 : 1
+            var open = i + width
             guard open < to, !isBlank(open) else { return open }
-            let close = (open + 1..<max(to, open + 1)).first { j in
-                guard u[j] == mark, !isBlank(j - 1) else { return false }
-                return width == 2 ? j + 1 < to && u[j + 1] == mark : !(j + 1 < to && u[j + 1] == mark)
+            var found = close(of: mark, width: width, after: open, to)
+            // `***` that does not close as one is a Bold with a lone `*` in it.
+            if found == nil, width == 3 {
+                (width, open) = (2, i + 2)
+                found = close(of: mark, width: 2, after: open, to)
             }
-            guard let close else { return open }
+            guard let found else { return open }
             add(i, open, .mark)
-            add(open, close, width == 1 ? .italic : mark == char("~") ? .strikethrough : .bold)
-            add(close, close + width, .mark)
-            return close + width
+            let styles: [Style] = width == 3 ? [.bold, .italic] : [width == 1 ? .italic : mark == char("~") ? .strikethrough : .bold]
+            for style in styles { add(open, found.start, style) }
+            inline(open, found.start)
+            add(found.start, found.start + found.width, .mark)
+            return found.start + found.width
+        }
+
+        /// The closing mark for an opening one that ends at `open`: where it starts and how wide it is.
+        /// A closing mark follows a non-blank. Runs of `*` count whole, so `**a *b***` closes its Italic
+        /// with the first `*` of the last three and its Bold with the other two.
+        private func close(of mark: UInt16, width: Int, after open: Int, _ to: Int) -> (start: Int, width: Int)? {
+            var j = open + 1
+            while j < to {
+                guard u[j] == mark else { j += 1; continue }
+                var run = 1
+                while j + run < to, u[j + run] == mark { run += 1 }
+                if !isBlank(j - 1) {
+                    switch (width, run) {
+                    case (1, 1): return (j, 1)
+                    case (1, 3...): return (j + run - 1, 1)
+                    case (2, 3) where mark == char("*") && (open..<j).filter({ u[$0] == mark }).count % 2 == 1: return (j + 1, 2)
+                    case (2, 2...), (3, 3...): return (j, width)
+                    default: break
+                    }
+                }
+                j += run
+            }
+            return nil
         }
 
         /// `[text](url)` from the `[` at `i`: the index to go on from.
@@ -194,6 +224,7 @@ public enum DocsStyle {
             let opens = ["http://", "https://"].contains { url.lowercased().hasPrefix($0) }
             add(i, i + 1, .mark)
             add(i + 1, textEnd, .link(url: opens ? url : nil))
+            inline(i + 1, textEnd)
             add(textEnd, urlEnd + 1, .mark)
             return urlEnd + 1
         }

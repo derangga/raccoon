@@ -149,12 +149,16 @@ final class DocsPane: NSView, NSTextViewDelegate {
         storage.setAttributes([.font: Self.body, .foregroundColor: theme.color(.text), .paragraphStyle: Self.bodyParagraph], range: all)
         for styled in DocsStyle.ranges(storage.string) where NSMaxRange(styled.range) <= text.length {
             let range = styled.range
-            // Inside a heading, emphasis keeps the heading's size: it builds on the font already there.
+            // Emphasis builds on the font already there: a heading's size, and the bold or italic of a
+            // style it sits in, so Bold and Italic over the same text draw one semibold italic font.
             let under = storage.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont
             storage.addAttributes(attributes(for: styled.style), range: range)
-            if let under, under.pointSize != Self.body.pointSize, styled.style == .bold || styled.style == .italic {
-                storage.addAttribute(.font, value: styled.style == .bold ? NSFont.systemFont(ofSize: under.pointSize, weight: .semibold)
-                                     : NSFontManager.shared.convert(under, toHaveTrait: .italicFontMask), range: range)
+            if let under, styled.style == .bold || styled.style == .italic {
+                var font = styled.style == .bold ? NSFont.systemFont(ofSize: under.pointSize, weight: .semibold) : under
+                if styled.style == .italic || under.fontDescriptor.symbolicTraits.contains(.italic) {
+                    font = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
+                }
+                storage.addAttribute(.font, value: font, range: range)
             }
             switch styled.style {
             case .bold, .italic, .strikethrough, .code, .link: spans.append(range)
@@ -591,10 +595,11 @@ final class DocsTextView: NSTextView, NSLayoutManagerDelegate, NSPopoverDelegate
             return true
         }
         var cut = text.rangeOfComposedCharacterSequence(at: start - 1)
-        // A span that this character is all of loses its marks with it.
-        if let close = markRanges.first(where: { $0.location == start && !isBlock($0) }),
-           let span = spanRanges.first(where: { NSMaxRange($0) == start && $0.location == cut.location }),
-           let open = markRanges.first(where: { NSMaxRange($0) == span.location && !isBlock($0) }) {
+        // A span that this character is all of loses its marks with it, and so does each span that
+        // span is all of (`**[x](u)**`).
+        while let close = markRanges.first(where: { $0.location == NSMaxRange(cut) && !isBlock($0) }),
+              let span = spanRanges.first(where: { NSMaxRange($0) == close.location && $0.location == cut.location }),
+              let open = markRanges.first(where: { NSMaxRange($0) == span.location && !isBlock($0) }) {
             cut = NSRange(location: open.location, length: NSMaxRange(close) - open.location)
         }
         replace(with: text.replacingCharacters(in: cut, with: ""), selection: NSRange(location: caret - cut.length, length: 0), named: "Typing")
