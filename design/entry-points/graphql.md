@@ -47,9 +47,10 @@ Setting GET by hand afterwards is allowed. The send then fails as any GET with a
   -> VariableTokens.ranges(text)                 `{{name}}` highlighted on top, as everywhere
 -> type in the Variables editor                  TabModel.edit { body.variables = text }
   -> Highlighter.ranges(text, .json)             the existing JSON colours
--> Format the Variables                          the Format button and ⇧⌥F act on Variables
-                                                 when it has focus, through BodyFormatter
-                                                 (.json); the Query has no formatter
+-> Format the Variables                          the Format button, in the Variables caption row, and
+                                                 ⇧⌥F act on Variables through BodyFormatter (.json),
+                                                 always enabled, wherever focus is; the Query has no
+                                                 formatter
 -> type in Operation Name                        TabModel.edit { body.operationName = text }
 ```
 

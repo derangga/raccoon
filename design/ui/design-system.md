@@ -225,11 +225,11 @@ A 4 pt base. Sizes used: 2, 4, 6, 8, 10, 12, 16, 24.
 | Send button | 76 pt min |
 | Message line | 16 pt line height, indented to the URL field's leading edge (104 pt) |
 | Section bar | 28 pt, 2 pt accent underline |
-| Auth pane | 16 pt padding; left column 240 pt, 1 pt rule, 16 pt gaps; "Auth type" 16 pt line, pop-up 28 pt; heading 22 pt line; None's empty state 8 pt between symbol, title and message; label column 80 pt; fields 26 pt, 320 pt max, rows 36 pt apart; stacks below 600 pt of pane width |
+| Auth pane | 16 pt padding; left column 240 pt, 1 pt rule, 16 pt gaps; "Auth type" 16 pt line, Dropdown 28 pt; heading 22 pt line; None's empty state 8 pt between symbol, title and message; label column 80 pt; fields 26 pt, 320 pt max, rows 36 pt apart; stacks below 600 pt of pane width |
 | Key/value row | 28 pt; header 24 pt; columns 30 pt / 36 % / rest / 30 pt |
 | Status line | 44 pt; the Body toolbar under it 38 pt |
 | Banner | 36 pt min, grows to two lines |
-| Split handle | 6 pt hit area, 32 × 3 pt grip |
+| Split handle | 6 pt hit area, 32 × 3 pt grip; the GraphQL Query \| Variables handle is a 16 pt gap with the grip upright, 3 × 32 pt, and no rule |
 | Radii | 4 pt small controls and chips, 6 pt fields and buttons, 8 pt cards and menus, 10 pt window |
 
 ## 5. Motion
@@ -437,28 +437,45 @@ The Params pane is two labelled tables in one scroll view.
 
 - **Body Type** pop-up: none · raw · form-urlencoded · multipart · GraphQL. When raw, a second pop-up:
   JSON · text · XML. Switching follows editing.md's conversion table; the Content-Type row it
-  writes appears in Headers like any other row.
+  writes appears in Headers like any other row. Both are Dropdowns (see Dropdown in §6), 24 pt
+  high, labelled "Body Type" and "Raw kind"; each is as wide as its title needs, reset when the
+  title changes. The Method pop-up in the URL bar is not one: it shows each method in its own
+  colour.
 - **none**: "This request has no body." in `textTertiary`, centred.
 - **raw**: an NSTextView in SF Mono 12, `background`, `border`, line numbers in
   `textTertiary`, syntax colors for JSON and XML (the same tokens as the response viewer),
   `{{name}}` highlighting on top. ⌘F opens the system find bar (Edit ▸ Find ▸ Find…).
-- **Format** (raw JSON and XML only; hidden for text, none, form and multipart): a bordered
-  button with a list glyph at the trailing end of the Body Type row, tooltip "Format JSON
-  (⇧⌥F)". It re-indents with 2 spaces in one undo step, keeps key order, number spelling and
-  every `{{name}}` as typed (editing.md). If the body does not parse, the text is left alone
-  and one 11 pt `error` line under the editor says where: "Couldn't format: not valid JSON
-  at line 3, column 14." The line goes away on the next edit.
+- **Format** (raw JSON and XML, and GraphQL; hidden for text, none, form and multipart): a bordered
+  button with a list glyph, tooltip "Format JSON (⇧⌥F)". For raw it sits at the trailing end of the
+  Body Type row; for GraphQL it sits at the trailing end of the Variables caption row and the
+  Body Type row has none, so exactly one Format button shows and owns ⇧⌥F. It re-indents with 2
+  spaces in one undo step, keeps key order, number spelling and every `{{name}}` as typed
+  (editing.md). If the body does not parse, the text is left alone and one 11 pt `error` line
+  under the editor says where: "Couldn't format: not valid JSON at line 3, column 14." The line
+  goes away on the next edit.
 - **GraphQL**: an "Operation Name" text field (placeholder "Optional", a 200 pt wide bordered box
   like the pop-ups, with an 11 pt `textTertiary` "Operation Name" label before it) on the Body Type row,
-  then the Query editor over the Variables editor, split 2 : 1 by a draggable 1 pt `border`
-  divider, each with an 11 pt `textTertiary` caption ("Query", "Variables"). Both are the raw
-  editor above: SF Mono 12, line numbers, `{{name}}` highlighting. The Query is coloured by the
+  then the Query editor and the Variables editor side by side, Query on the left, both full
+  height, split 50 : 50 on the first layout (equal widths) by a 16 pt gap that is the draggable
+  divider: it draws no rule, since the editors already have borders, only the split handle's
+  grip (see Split handle in §5) turned upright, 3 × 32 pt, in `border`, centred in the gap,
+  always visible. A drag follows the pointer 1 : 1 with the left-right resize cursor, no
+  easing, 240 pt minimum each side, no collapse. Where the pane is narrower than 2 × 240 pt
+  plus the gap, the sides stay equal and each side's minimum shrinks to half the room, so no
+  size is negative.
+  Each side has an 11 pt `textTertiary` caption row, 24 pt high ("Query", "Variables"), above
+  its editor. Both editors are the raw editor above: SF Mono 12, line numbers, `{{name}}`
+  highlighting. An empty editor draws a placeholder in `textTertiary` at the text's origin, in
+  the editor's font: `{ … }` (U+2026) in the Query and `{}` in Variables. It is not text, not
+  selectable, and goes with the first character; no animation. The Query is coloured by the
   GraphQL tokens, reusing the JSON ones: keywords (`query`, `mutation`, `subscription`,
   `fragment`, `on`) as `jsonBoolean`, field and argument names as `jsonKey`, `$variables` as
   `jsonNull` (never a `variable*` token: those mean `{{name}}`), strings and
   block strings as `jsonString`, numbers as `jsonNumber`, punctuation as `jsonPunctuation`, `#`
-  comments as `textTertiary`; the Variables as JSON. Format acts on Variables only, and is enabled only
-  while Variables has focus.
+  comments as `textTertiary`; the Variables as JSON. **Format** sits at the trailing end of
+  the Variables caption row and acts on Variables only. It is always enabled for a GraphQL
+  body, with no focus rule: ⇧⌥F works wherever focus is. The error line stays under the split,
+  across the pane, and clears on the next edit in the Query, Variables or Operation Name.
 - **form-urlencoded**: the key/value table.
 - **multipart**: the key/value table, where a value is text or a **file chip**: 20 pt,
   `backgroundRecessed`, `border`, a document glyph and the file name (full path in the
@@ -474,9 +491,8 @@ the pane's full height, top edge to bottom edge, whatever the columns hold.
 
 **Left column**, 240 pt fixed:
 - "Auth type": 12 pt semibold `textSecondary`, with nothing at its trailing end.
-- A pull-down pop-up, 28 pt, `backgroundElevated`, `border`, 6 pt radius, 13 pt `text`, the
-  system pull-down chevron, no glyph. Items "None", "Basic Auth", "Bearer Token"; the title is
-  the chosen item. It replaces the segmented control. A pick is one undo step, named "Auth
+- A Dropdown (see Dropdown in §6), 28 pt high and 240 pt wide, labelled "Auth type". Options
+  "None", "Basic Auth", "Bearer Token", the chosen one checked; the title is the chosen option. It replaces the segmented control. A pick is one undo step, named "Auth
   Type", so ⌘Z brings the old scheme back with what was typed in it.
 - Under it, 6 pt apart, a paragraph: 12 pt `textSecondary`, wrapping at the column's width.
   It says what the send does, from `AuthNote.text(auth, headers)` (sending.md):

@@ -175,7 +175,8 @@ know it: the row shows `multipart/form-data` and the transport appends `; bounda
 
 ```
 -> formatBody(tab)                               the Format button, ⇧⌥F; raw JSON or XML, or a GraphQL body's
-                                                 Variables while Variables has focus
+                                                 Variables (always, with no focus rule; the button is in
+                                                 the Variables caption row)
   -> BodyFormatter.format(text, kind)            pure        R: none
      -> each {{name}} is read as one value token by Raccoon's own lexer, so
         `"amount": {{amount}}` formats instead of failing as invalid JSON

@@ -38,10 +38,13 @@ final class BodyTextEditor: NSView, NSTextViewDelegate {
     /// The user typed: the text now in the editor.
     var onChange: (String) -> Void = { _ in }
 
-    /// Focus gained (true) or lost (false) by the text view.
-    var onFocus: (Bool) -> Void {
-        get { textView.onFocus }
-        set { textView.onFocus = newValue }
+    /// Drawn in `textTertiary` while the editor is empty; never part of the text.
+    var placeholder: String {
+        get { textView.placeholder }
+        set {
+            textView.placeholder = newValue
+            textView.setAccessibilityPlaceholderValue(newValue)
+        }
     }
 
     init(theme: ThemeEnvironment) {
@@ -81,6 +84,7 @@ final class BodyTextEditor: NSView, NSTextViewDelegate {
             editor.layer?.backgroundColor = theme.color(.background).cgColor
             editor.textView.textColor = theme.color(.text)
             editor.textView.insertionPointColor = theme.color(.text)
+            editor.textView.placeholderColor = theme.color(.textTertiary)
             editor.textView.typingAttributes = [.font: editor.font, .foregroundColor: theme.color(.text)]
             if let syntax = editor.syntax { editor.color(editor.storage, syntax: syntax) }
         }
@@ -127,6 +131,7 @@ final class BodyTextEditor: NSView, NSTextViewDelegate {
             layoutManager.replaceTextStorage(storage)
             textView.scrollToBeginningOfDocument(nil)
             gutter.lines = LineIndex(text)
+            textView.needsDisplay = true
         } else if self.syntax != syntax || coloredKinds != kinds {
             color(storage, syntax: syntax)
         }
@@ -157,22 +162,26 @@ final class BodyTextEditor: NSView, NSTextViewDelegate {
     }
 }
 
-/// The body editors' text view, which shows the Variable popover over a `{{name}}` and says when it
-/// gains or loses focus.
+/// The body editors' text view, which shows the Variable popover over a `{{name}}` and draws the
+/// placeholder while it is empty.
 final class HoverTextView: VariableTextView {
     var variableHover: VariableHover?
-    var onFocus: (Bool) -> Void = { _ in }
-
-    override func becomeFirstResponder() -> Bool {
-        let became = super.becomeFirstResponder()
-        if became { onFocus(true) }
-        return became
+    var placeholder = ""
+    var placeholderColor = NSColor.placeholderTextColor {
+        didSet { needsDisplay = true }
     }
 
-    override func resignFirstResponder() -> Bool {
-        let resigned = super.resignFirstResponder()
-        if resigned { onFocus(false) }
-        return resigned
+    /// Typing may not dirty the whole placeholder, so the view is redrawn once the text changes.
+    override func didChangeText() {
+        super.didChangeText()
+        needsDisplay = true
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard string.isEmpty, !placeholder.isEmpty, let font else { return }
+        let origin = NSPoint(x: textContainerOrigin.x + (textContainer?.lineFragmentPadding ?? 0), y: textContainerOrigin.y)
+        NSAttributedString(string: placeholder, attributes: [.font: font, .foregroundColor: placeholderColor]).draw(at: origin)
     }
 
     override func updateTrackingAreas() {

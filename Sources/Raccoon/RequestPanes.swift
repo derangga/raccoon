@@ -204,7 +204,7 @@ extension SettingsPane: NSTextFieldDelegate {
 }
 
 /// The Auth section (design-system.md §6 Auth section): a 240 pt left column with the Auth type
-/// pop-up and the paragraph saying what the send does, a 1 pt rule, and the scheme's fields on
+/// Dropdown and the paragraph saying what the send does, a 1 pt rule, and the scheme's fields on
 /// the right. Below 600 pt of its own width the columns stack. The pane keeps no values of its
 /// own: `auth` is the Tab's, so another Tab, or the same one after a switch, shows what it holds.
 final class AuthPane: NSView, NSTextFieldDelegate {
@@ -215,7 +215,7 @@ final class AuthPane: NSView, NSTextFieldDelegate {
     ]
 
     private let theme: ThemeEnvironment
-    let typeButton = PopButton()
+    let typeDropdown: Dropdown
     let note = NSTextField(wrappingLabelWithString: "")
     let heading = NSTextField(labelWithString: "")
     let username = VariableField()
@@ -236,7 +236,6 @@ final class AuthPane: NSView, NSTextFieldDelegate {
     private(set) var isStacked = false
     private var wideConstraints: [NSLayoutConstraint] = []
     private var stackedConstraints: [NSLayoutConstraint] = []
-    private let chevron = NSImageView()
     var onChange: (Auth) -> Void = { _ in }
 
     private var auth = Auth.none
@@ -244,6 +243,7 @@ final class AuthPane: NSView, NSTextFieldDelegate {
 
     init(theme: ThemeEnvironment) {
         self.theme = theme
+        typeDropdown = Dropdown(label: "Auth type", theme: theme, height: 28)
         super.init(frame: .zero)
         buildLeft()
         buildRight()
@@ -257,7 +257,6 @@ final class AuthPane: NSView, NSTextFieldDelegate {
             addSubview(view)
         }
         constrain()
-        theme.paint(self) { pane, _ in pane.restyle() }
         setAuth(.none)
     }
 
@@ -274,32 +273,16 @@ final class AuthPane: NSView, NSTextFieldDelegate {
         theme.paint(label) { $0.textColor = $1.color(.textSecondary) }
         theme.paint(note) { $0.textColor = $1.color(.textSecondary) }
 
-        typeButton.isBordered = false
-        typeButton.alignment = .left
-        typeButton.wantsLayer = true
-        typeButton.layer?.cornerRadius = 6
-        typeButton.layer?.borderWidth = 1
-        typeButton.target = self
-        typeButton.action = #selector(showTypes)
-        typeButton.setAccessibilityRole(.popUpButton)
-        typeButton.setAccessibilityLabel("Auth type")
-        chevron.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(pointSize: 9, weight: .semibold))
-        chevron.translatesAutoresizingMaskIntoConstraints = false
-        typeButton.addSubview(chevron)
-        typeButton.translatesAutoresizingMaskIntoConstraints = false
+        typeDropdown.onPick = { [weak self] in self?.pickScheme($0) }
 
         leftColumn.orientation = .vertical
         leftColumn.alignment = .leading
         leftColumn.spacing = 6
-        for view in [label, typeButton, note] { leftColumn.addArrangedSubview(view) }
+        for view in [label, typeDropdown, note] { leftColumn.addArrangedSubview(view) }
         NSLayoutConstraint.activate([
             leftColumn.widthAnchor.constraint(equalToConstant: 240),
-            typeButton.widthAnchor.constraint(equalToConstant: 240),
-            typeButton.heightAnchor.constraint(equalToConstant: 28),
+            typeDropdown.widthAnchor.constraint(equalToConstant: 240),
             note.widthAnchor.constraint(equalToConstant: 240),
-            chevron.trailingAnchor.constraint(equalTo: typeButton.trailingAnchor, constant: -8),
-            chevron.centerYAnchor.constraint(equalTo: typeButton.centerYAnchor),
         ])
     }
 
@@ -465,19 +448,7 @@ final class AuthPane: NSView, NSTextFieldDelegate {
         ])
     }
 
-    // MARK: Pop-up
-
-    var typeMenu: NSMenu {
-        let menu = NSMenu()
-        for (index, scheme) in Self.schemes.enumerated() {
-            let item = NSMenuItem(title: scheme.title, action: #selector(pickScheme), keyEquivalent: "")
-            item.target = self
-            item.tag = index
-            item.state = index == Self.index(of: auth) ? .on : .off
-            menu.addItem(item)
-        }
-        return menu
-    }
+    // MARK: Dropdown
 
     private static func index(of auth: Auth) -> Int {
         switch auth {
@@ -487,11 +458,9 @@ final class AuthPane: NSView, NSTextFieldDelegate {
         }
     }
 
-    @objc private func showTypes() { typeMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: typeButton.bounds.height + 4), in: typeButton) }
-
-    @objc private func pickScheme(_ item: NSMenuItem) {
-        let picked = Self.schemes[item.tag].auth
-        guard Self.index(of: picked) != Self.index(of: auth) else { return }
+    private func pickScheme(_ pick: DropdownPick) {
+        guard case let .option(id) = pick, let picked = Self.schemes.first(where: { $0.title == id })?.auth,
+              Self.index(of: picked) != Self.index(of: auth) else { return }
         change(to: picked)
     }
 
@@ -506,18 +475,6 @@ final class AuthPane: NSView, NSTextFieldDelegate {
 
     // MARK: Content
 
-    private func restyle() {
-        let title = NSMutableParagraphStyle()
-        title.alignment = .left
-        title.firstLineHeadIndent = 10
-        typeButton.attributedTitle = NSAttributedString(string: Self.schemes[Self.index(of: auth)].title, attributes: [
-            .font: NSFont.systemFont(ofSize: 13), .foregroundColor: theme.color(.text), .paragraphStyle: title,
-        ])
-        typeButton.layer?.borderColor = theme.color(.border).cgColor
-        typeButton.layer?.backgroundColor = theme.color(.backgroundElevated).cgColor
-        chevron.contentTintColor = theme.color(.textTertiary)
-    }
-
     private static func holdsVariable(_ text: String) -> Bool { text.contains(/\{\{[^{}]+\}\}/) }
 
     /// Shows `auth`, the Tab's, and the paragraph for it and the Headers rows. Every field is set
@@ -530,7 +487,9 @@ final class AuthPane: NSView, NSTextFieldDelegate {
         case .basic(let user, let password): (user, password, "")
         case .bearer(let token): ("", "", token)
         }
-        restyle()
+        typeDropdown.entries = Self.schemes.enumerated().map {
+            .option(id: $1.title, title: $1.title, detail: nil, isChosen: $0 == Self.index(of: auth))
+        }
         note.stringValue = AuthNote.text(auth, headers: self.headers)
         heading.stringValue = Self.schemes[Self.index(of: auth)].title
         heading.isHidden = auth == .none

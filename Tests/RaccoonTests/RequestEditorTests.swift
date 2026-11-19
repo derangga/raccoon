@@ -4,6 +4,14 @@ import RaccoonDomain
 import RaccoonTesting
 import Testing
 
+/// What a list reports and shows, read off the entries, without opening it.
+private extension Dropdown {
+    /// What the list's pick reports for the option with this title.
+    func pick(_ title: String) { onPick(.option(title)) }
+    var optionTitles: [String] { entries.compactMap { if case let .option(_, title, _, _) = $0 { title } else { nil } } }
+    var optionChecks: [Bool] { entries.compactMap { if case let .option(_, _, _, isChosen) = $0 { isChosen } else { nil } } }
+}
+
 @MainActor
 struct RequestEditorTests {
     let theme = ThemeEnvironment(catalog: ThemeCatalog.load(), isDark: false)
@@ -188,10 +196,7 @@ struct RequestEditorTests {
         #expect(pane.fields[0].control.isEnabled)
     }
 
-    func pick(_ title: String, in pane: AuthPane) {
-        let menu = pane.typeMenu
-        menu.performActionForItem(at: menu.indexOfItem(withTitle: title))
-    }
+    func pick(_ title: String, in pane: AuthPane) { pane.typeDropdown.pick(title) }
 
     func type(_ text: String, in field: NSTextField, of pane: AuthPane) {
         field.stringValue = text
@@ -209,17 +214,17 @@ struct RequestEditorTests {
 
     @Test func `Auth starts at None, which says no header is added`() {
         let pane = editor().authPane
-        #expect(pane.typeButton.attributedTitle.string == "None")
+        #expect(pane.typeDropdown.title == "None")
         #expect(pane.note.stringValue == "No Authorization header is added.")
         #expect(pane.heading.isHidden && pane.basicFields.isHidden && pane.bearerFields.isHidden)
     }
 
     @Test func `the pop-up holds three items and checks the current one`() {
         let pane = editor().authPane
-        #expect(pane.typeMenu.items.map(\.title) == ["None", "Basic Auth", "Bearer Token"])
-        #expect(pane.typeMenu.items.map(\.state) == [.on, .off, .off])
+        #expect(pane.typeDropdown.optionTitles == ["None", "Basic Auth", "Bearer Token"])
+        #expect(pane.typeDropdown.optionChecks == [true, false, false])
         pick("Bearer Token", in: pane)
-        #expect(pane.typeMenu.items.map(\.state) == [.off, .off, .on])
+        #expect(pane.typeDropdown.optionChecks == [false, false, true])
     }
 
     @Test func `Basic writes the username and password, and the section label stays Auth`() {
@@ -297,7 +302,7 @@ struct RequestEditorTests {
 
         undo.undo()
         #expect(model.tab.definition.auth == .bearer(token: "abc.def"))
-        #expect(pane.token.stringValue == "abc.def" && pane.typeButton.attributedTitle.string == "Bearer Token")
+        #expect(pane.token.stringValue == "abc.def" && pane.typeDropdown.title == "Bearer Token")
         undo.redo()
         #expect(model.tab.definition.auth == .none)
     }
@@ -375,11 +380,6 @@ struct BodyPaneTests {
         return (editor, editor.bodyPane)
     }
 
-    func pick(_ title: String, in menu: NSMenu) {
-        let item = try! #require(menu.item(withTitle: title))
-        menu.performActionForItem(at: menu.index(of: item))
-    }
-
     func type(_ text: String, in pane: BodyPane) {
         pane.textView.string = text
         pane.textView.didChangeText()
@@ -387,21 +387,23 @@ struct BodyPaneTests {
 
     @Test func `none says the request has no body`() {
         let (_, pane) = pane()
-        #expect(pane.typeButton.attributedTitle.string.hasPrefix("none"))
+        #expect(pane.typeDropdown.title == "none")
         #expect(!pane.noneNote.isHidden && pane.noneNote.stringValue == "This request has no body.")
-        #expect(pane.kindButton.isHidden && pane.textBox.isHidden && pane.formTable.isHidden)
-        #expect(pane.typeMenu.items.map(\.title) == ["none", "raw", "form-urlencoded", "multipart", "GraphQL"])
+        #expect(pane.kindDropdown.isHidden && pane.textBox.isHidden && pane.formTable.isHidden)
+        #expect(pane.typeDropdown.optionTitles == ["none", "raw", "form-urlencoded", "multipart", "GraphQL"])
+        #expect(pane.typeDropdown.optionChecks == [true, false, false, false, false])
     }
 
     @Test func `picking raw JSON opens the editor and writes the Content-Type row`() {
         let (editor, pane) = pane()
-        pick("raw", in: pane.typeMenu)
+        pane.typeDropdown.pick("raw")
         #expect(model.tab.definition.body == .raw(.json, ""))
         #expect(model.tab.definition.headers == [Row(name: "Content-Type", value: "application/json")])
         editor.render()
-        #expect(!pane.textBox.isHidden && pane.noneNote.isHidden && !pane.kindButton.isHidden)
-        #expect(pane.kindButton.attributedTitle.string.hasPrefix("JSON"))
-        #expect(pane.kindMenu.items.map(\.title) == ["JSON", "text", "XML"])
+        #expect(!pane.textBox.isHidden && pane.noneNote.isHidden && !pane.kindDropdown.isHidden)
+        #expect(pane.kindDropdown.title == "JSON")
+        #expect(pane.kindDropdown.optionTitles == ["JSON", "text", "XML"])
+        #expect(pane.kindDropdown.optionChecks == [true, false, false])
         #expect(EditorSection.body.title(in: model.tab.definition) == "Body")
     }
 
@@ -415,7 +417,7 @@ struct BodyPaneTests {
         #expect(storage.attribute(.foregroundColor, at: 1, effectiveRange: nil) as? NSColor == theme.color(.jsonKey))
         #expect(storage.attribute(.font, at: 1, effectiveRange: nil) as? NSFont == .monospacedSystemFont(ofSize: 12, weight: .regular))
 
-        pick("text", in: pane.kindMenu)
+        pane.kindDropdown.pick("text")
         editor.render()
         #expect(model.tab.definition.body == .raw(.text, #"{"a": 1}"#))
         #expect(pane.textView.textStorage!.attribute(.foregroundColor, at: 1, effectiveRange: nil) as? NSColor == theme.color(.text))
@@ -430,7 +432,7 @@ struct BodyPaneTests {
         undo.groupsByEvent = false
         for title in ["none", "raw"] {
             undo.beginUndoGrouping()
-            pick(title, in: pane.typeMenu)
+            pane.typeDropdown.pick(title)
             undo.endUndoGrouping()
         }
         #expect(model.tab.definition.body == .raw(.json, ""))
@@ -446,9 +448,9 @@ struct BodyPaneTests {
 
     @Test func `form-urlencoded edits rows in the key/value table`() {
         let (editor, pane) = pane()
-        pick("form-urlencoded", in: pane.typeMenu)
+        pane.typeDropdown.pick("form-urlencoded")
         editor.render()
-        #expect(!pane.formTable.isHidden && pane.textBox.isHidden && pane.kindButton.isHidden)
+        #expect(!pane.formTable.isHidden && pane.textBox.isHidden && pane.kindDropdown.isHidden)
         pane.formTable.onChange([Row(name: "q", value: "a b")])
         #expect(model.tab.definition.body == .formURLEncoded([Row(name: "q", value: "a b")]))
     }
@@ -590,7 +592,7 @@ struct BodyPaneTests {
 
     @Test func `a chosen or dropped file becomes a file part, and text edits keep the file parts`() {
         let (editor, pane) = pane()
-        pick("multipart", in: pane.typeMenu)
+        pane.typeDropdown.pick("multipart")
         editor.render()
         pane.partsTable.setFile("/tmp/box.jpg", at: 0)
         #expect(model.tab.definition.body == .multipart([Part(name: "", content: .file(path: "/tmp/box.jpg"))]))

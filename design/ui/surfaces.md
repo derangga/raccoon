@@ -37,8 +37,8 @@ Window                          one, native chrome
       PathVariablesTable        in the Params pane under the Query Params table, only while the
                                 URL holds a Path Variable. unit: PathVariableRow: read-only Name,
                                 editable Value; no checkbox, delete or trailing row
-      BodyEditor                Body Type picker, text editor, multipart rows
-      AuthSection               two columns, stacked below 600 pt: AuthTypePopUp (None · Basic
+      BodyEditor                Body Type and raw kind Dropdowns, text editor, GraphQL Query | Variables side by side, multipart rows
+      AuthSection               two columns, stacked below 600 pt: AuthTypeDropdown (None · Basic
                                 Auth · Bearer Token) and AuthNote on the left, the fields on the right;
                                 the rule between them runs the pane's full height. None: the right
                                 side is an empty state ("No Auth")
@@ -276,6 +276,7 @@ two cases are a binary body and a secret value, and both say why instead of show
 | Inspector show / hide | tens/day, a toolbar click or a shortcut | The system's `NSSplitViewItem` inspector collapse, unmodified: it is native chrome behaviour and already honours Reduce Motion. No custom motion |
 | Sidebar filter narrowing | every keystroke | **None.** Rows appear and vanish on the same frame as the keystroke |
 | Breadcrumb change, hover, and the sidebar revealing a row | tens/day | **None.** The segments swap on the Tab switch's frame, hover fills at once, and the row is selected and scrolled into view without animating (`scrollRowToVisible`). The sidebar showing is the system's split-view collapse, unmodified |
+| Body Type switch, and the GraphQL Query \| Variables divider | tens/day, a pick; a drag | **None.** The new Body Type's content swaps on the same frame as the pick; the divider is direct manipulation, 1 : 1 with the pointer |
 | Pretty / Raw text view, and the Body / Headers / Timeline content | tens/day | **None.** The content swaps on the same frame as the click. Only the segment indicator moves (next row) |
 | Segment indicator: the thumb of Body \| Headers \| Timeline, the underline of Pretty \| Raw | tens/day, a click | Purpose: spatial consistency, the indicator is seen going to the segment it chose. It slides, in position and width, on a critically damped spring: response 0.3 s, no overshoot, about 0.4 s to rest and most of the way there in 0.2 s. A click mid-slide retargets from the indicator's current position and velocity, so there is no jump and no restart. Only a click slides: a new Response, a Tab switch and a change of title width put it in place at once. Titles recolour on the click's frame. Reduce Motion: no slide, in place at once. The Inspector's boxed switch does not move |
 | Export sheet step checks | once per export, rare | Purpose: show that each step has really finished, as Postman's does. Each row fades in on opacity only, 150 ms ease-out (`CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)`), starting when its step finishes and no sooner than 60 ms after the previous row's start. No artificial delay: a late step shows when it finishes, and The counts, the warnings and Export… (enabled) share the third row's frame and have no motion, so nothing is clickable before the warning shows. Reduce Motion: every row at its finish, no fade |

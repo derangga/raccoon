@@ -1,17 +1,22 @@
 import AppKit
 import RaccoonDomain
 
-/// The Body section: the Body Type pop-up, the raw kind pop-up, then "no body", the raw text
-/// editor, the form table, the multipart table or the GraphQL Query and Variables editors
+/// The Body section: the Body Type Dropdown, the raw kind Dropdown, then "no body", the raw text
+/// editor, the form table, the multipart table or the GraphQL Query and Variables editors side by side
 /// (design-system.md §6 Body editor).
 final class BodyPane: NSView, NSTextFieldDelegate {
     private var model: TabModel
     private let theme: ThemeEnvironment
-    let typeButton = PopButton()
-    let kindButton = PopButton()
+    let typeDropdown: Dropdown
+    let kindDropdown: Dropdown
+    /// Each Dropdown is as wide as its title needs; set from `fittingWidth` when the title changes.
+    private let typeWidth: NSLayoutConstraint
+    private let kindWidth: NSLayoutConstraint
     let noneNote = NSTextField(labelWithString: "This request has no body.")
-    /// Raw JSON and XML, and the GraphQL Variables; manual, never on paste or save (Open UI question 15).
+    /// Raw JSON and XML, on the Body Type row; manual, never on paste or save (Open UI question 15).
     let formatButton = PopButton()
+    /// The GraphQL Variables, in their caption row; the same action, always enabled.
+    let variablesFormatButton = PopButton()
     /// "Couldn't format: …" under the editor until the next edit.
     let formatError = NSTextField(labelWithString: "")
     /// The raw body's editor.
@@ -19,7 +24,7 @@ final class BodyPane: NSView, NSTextFieldDelegate {
     var textView: NSTextView { rawEditor.textView }
     /// `background` with a 1 pt `border` and a 6 pt radius around the editor and its line numbers.
     var textBox: NSView { rawEditor }
-    /// The GraphQL body: Operation Name on the Body Type row, Query over Variables below it.
+    /// The GraphQL body: Operation Name on the Body Type row, Query beside Variables below it.
     let operationField = VariableField()
     private let operationLabel = NSTextField(labelWithString: "Operation Name")
     private let operationBox = NSView()
@@ -34,6 +39,10 @@ final class BodyPane: NSView, NSTextFieldDelegate {
     init(model: TabModel, theme: ThemeEnvironment) {
         self.model = model
         self.theme = theme
+        typeDropdown = Dropdown(label: "Body Type", theme: theme, height: 24)
+        kindDropdown = Dropdown(label: "Raw kind", theme: theme, height: 24)
+        typeWidth = typeDropdown.widthAnchor.constraint(equalToConstant: 0)
+        kindWidth = kindDropdown.widthAnchor.constraint(equalToConstant: 0)
         formTable = KeyValueTable(theme: theme)
         partsTable = KeyValueTable(theme: theme, allowsFiles: true)
         rawEditor = BodyTextEditor(theme: theme)
@@ -53,12 +62,8 @@ final class BodyPane: NSView, NSTextFieldDelegate {
         }
         queryEditor.onChange = { [weak self] text in self?.editGraphQL { $0.query = text } }
         variablesEditor.onChange = { [weak self] text in self?.editGraphQL { $0.variables = text } }
-        // Format acts on Variables only, so it is enabled while Variables has focus.
-        variablesEditor.onFocus = { [weak self] focused in
-            // A hidden Variables editor can report losing focus after the body changed; raw Format stays as it was.
-            guard let self, case .graphql = model.tab.definition.body else { return }
-            setFormatEnabled(focused)
-        }
+        queryEditor.placeholder = "{ \u{2026} }"
+        variablesEditor.placeholder = "{}"
         buildControls()
         buildEditor()
     }
@@ -74,60 +79,21 @@ final class BodyPane: NSView, NSTextFieldDelegate {
         model.tab.definition.body = .graphql(body)
     }
 
-    private func setFormatEnabled(_ enabled: Bool) {
-        formatButton.isEnabled = enabled
-        formatButton.alphaValue = enabled ? 1 : 0.4
-    }
-
     // MARK: Layout
 
     private func buildControls() {
         let label = NSTextField(labelWithString: "Body Type")
         label.font = .systemFont(ofSize: 11)
         theme.paint(label) { $0.textColor = $1.color(.textTertiary) }
-        for (button, action) in [(typeButton, #selector(showTypes)), (kindButton, #selector(showKinds))] {
-            button.isBordered = false
-            button.wantsLayer = true
-            button.layer?.cornerRadius = 6
-            button.layer?.borderWidth = 1
-            theme.paint(button) { button, theme in
-                button.layer?.borderColor = theme.color(.border).cgColor
-                button.layer?.backgroundColor = theme.color(.backgroundElevated).cgColor
-            }
-            button.target = self
-            button.action = action
-            button.setAccessibilityRole(.popUpButton)
-            button.translatesAutoresizingMaskIntoConstraints = false
-            button.heightAnchor.constraint(equalToConstant: 24).isActive = true
-        }
-        typeButton.setAccessibilityLabel("Body Type")
-        kindButton.setAccessibilityLabel("Raw kind")
+        typeWidth.isActive = true
+        kindWidth.isActive = true
+        typeDropdown.onPick = { [weak self] in self?.pickType($0) }
+        kindDropdown.onPick = { [weak self] in self?.pickKind($0) }
         noneNote.font = .systemFont(ofSize: 12)
         theme.paint(noneNote) { $0.textColor = $1.color(.textTertiary) }
 
-        formatButton.isBordered = false
-        formatButton.wantsLayer = true
-        formatButton.layer?.cornerRadius = 6
-        formatButton.layer?.borderWidth = 1
-        theme.paint(formatButton) { button, theme in
-            button.layer?.borderColor = theme.color(.border).cgColor
-            button.layer?.backgroundColor = theme.color(.background).cgColor
-            // The glyph is part of the title, so the pair centers as one and PopButton's 10 pt hold.
-            let glyph = NSTextAttachment()
-            glyph.image = NSImage(systemSymbolName: "list.bullet.indent", accessibilityDescription: nil)?
-                .withSymbolConfiguration(.init(paletteColors: [theme.color(.text)]).applying(.init(pointSize: 11, weight: .regular)))
-            let title = NSMutableAttributedString(attachment: glyph)
-            title.append(NSAttributedString(string: " Format"))
-            title.addAttributes([.font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text)], range: NSRange(location: 0, length: title.length))
-            button.attributedTitle = title
-        }
-        formatButton.setAccessibilityLabel("Format")
-        formatButton.target = self
-        formatButton.action = #selector(format)
-        // Uppercase: with Shift held, the event's charactersIgnoringModifiers is "F".
-        formatButton.keyEquivalent = "F"
-        formatButton.keyEquivalentModifierMask = [.shift, .option]
-        formatButton.refusesFirstResponder = true
+        for button in [formatButton, variablesFormatButton] { styleFormat(button) }
+        variablesFormatButton.toolTip = "Format JSON (⇧⌥F)"
         formatError.font = .systemFont(ofSize: 11)
         theme.paint(formatError) { $0.textColor = $1.color(.error) }
         formatError.isHidden = true
@@ -135,7 +101,7 @@ final class BodyPane: NSView, NSTextFieldDelegate {
         buildOperationName()
         let spacer = NSView()
         spacer.setContentHuggingPriority(.init(1), for: .horizontal)
-        let row = NSStackView(views: [label, typeButton, kindButton, operationLabel, operationBox, spacer, formatButton])
+        let row = NSStackView(views: [label, typeDropdown, kindDropdown, operationLabel, operationBox, spacer, formatButton])
         row.spacing = 8
         for view in [row, noneNote, formTable, partsTable] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
@@ -157,6 +123,32 @@ final class BodyPane: NSView, NSTextFieldDelegate {
             partsTable.trailingAnchor.constraint(equalTo: trailingAnchor),
             partsTable.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor),
         ])
+    }
+
+    /// Bordered, with a list glyph and "Format"; `setBody` gives ⇧⌥F to whichever one shows.
+    private func styleFormat(_ button: PopButton) {
+        button.isBordered = false
+        button.wantsLayer = true
+        button.layer?.cornerRadius = 6
+        button.layer?.borderWidth = 1
+        theme.paint(button) { button, theme in
+            button.layer?.borderColor = theme.color(.border).cgColor
+            button.layer?.backgroundColor = theme.color(.background).cgColor
+            // The glyph is part of the title, so the pair centers as one and PopButton's 10 pt hold.
+            let glyph = NSTextAttachment()
+            glyph.image = NSImage(systemSymbolName: "list.bullet.indent", accessibilityDescription: nil)?
+                .withSymbolConfiguration(.init(paletteColors: [theme.color(.text)]).applying(.init(pointSize: 11, weight: .regular)))
+            let title = NSMutableAttributedString(attachment: glyph)
+            title.append(NSAttributedString(string: " Format"))
+            title.addAttributes([.font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text)], range: NSRange(location: 0, length: title.length))
+            button.attributedTitle = title
+        }
+        button.setAccessibilityLabel("Format")
+        button.target = self
+        button.action = #selector(format)
+        button.keyEquivalentModifierMask = [.shift, .option]
+        button.refusesFirstResponder = true
+        button.translatesAutoresizingMaskIntoConstraints = false
     }
 
     /// A 24 pt box like the pop-ups, holding the field; hidden unless the body is GraphQL.
@@ -204,8 +196,8 @@ final class BodyPane: NSView, NSTextFieldDelegate {
             view.translatesAutoresizingMaskIntoConstraints = false
             parent.addSubview(view)
         }
-        graphqlSplit.addArrangedSubview(captioned("Query", queryEditor, top: 0, bottom: 8))
-        graphqlSplit.addArrangedSubview(captioned("Variables", variablesEditor, top: 8, bottom: 0))
+        graphqlSplit.addArrangedSubview(captioned("Query", queryEditor, trailing: nil))
+        graphqlSplit.addArrangedSubview(captioned("Variables", variablesEditor, trailing: variablesFormatButton))
         // The error line takes 20 pt from the bottom of the editors only while it shows.
         boxBottom = rawEditor.bottomAnchor.constraint(equalTo: bottomAnchor)
         splitBottom = graphqlSplit.bottomAnchor.constraint(equalTo: bottomAnchor)
@@ -224,63 +216,40 @@ final class BodyPane: NSView, NSTextFieldDelegate {
         ])
     }
 
-    /// An 11 pt `textTertiary` caption over an editor.
-    private func captioned(_ title: String, _ editor: BodyTextEditor, top: CGFloat, bottom: CGFloat) -> NSView {
+    /// An 11 pt `textTertiary` caption in a 24 pt row over an editor, with a control at the row's
+    /// trailing end.
+    private func captioned(_ title: String, _ editor: BodyTextEditor, trailing control: NSView?) -> NSView {
         let caption = NSTextField(labelWithString: title)
         caption.font = .systemFont(ofSize: 11)
         theme.paint(caption) { $0.textColor = $1.color(.textTertiary) }
         let pane = NSView()
-        for view in [caption, editor] {
+        for view in [caption, editor] + [control].compactMap({ $0 }) {
             view.translatesAutoresizingMaskIntoConstraints = false
             pane.addSubview(view)
         }
         NSLayoutConstraint.activate([
-            caption.topAnchor.constraint(equalTo: pane.topAnchor, constant: top),
+            caption.centerYAnchor.constraint(equalTo: pane.topAnchor, constant: 12),
             caption.leadingAnchor.constraint(equalTo: pane.leadingAnchor),
-            editor.topAnchor.constraint(equalTo: caption.bottomAnchor, constant: 4),
+            editor.topAnchor.constraint(equalTo: pane.topAnchor, constant: 28),
             editor.leadingAnchor.constraint(equalTo: pane.leadingAnchor),
             editor.trailingAnchor.constraint(equalTo: pane.trailingAnchor),
-            editor.bottomAnchor.constraint(equalTo: pane.bottomAnchor, constant: -bottom),
+            editor.bottomAnchor.constraint(equalTo: pane.bottomAnchor),
         ])
+        if let control {
+            NSLayoutConstraint.activate([
+                control.topAnchor.constraint(equalTo: pane.topAnchor),
+                control.trailingAnchor.constraint(equalTo: pane.trailingAnchor),
+                control.leadingAnchor.constraint(greaterThanOrEqualTo: caption.trailingAnchor, constant: 8),
+            ])
+        }
         return pane
     }
 
-    private func popTitle(_ text: String) -> NSAttributedString {
-        let title = NSMutableAttributedString(string: text, attributes: [
-            .font: NSFont.systemFont(ofSize: 12), .foregroundColor: theme.color(.text),
-        ])
-        title.append(NSAttributedString(string: "  ⌄", attributes: [
-            .font: NSFont.systemFont(ofSize: 10), .foregroundColor: theme.color(.textTertiary), .baselineOffset: 2,
-        ]))
-        return title
-    }
-
-    // MARK: Menus
+    // MARK: Dropdowns
 
     private static let types: [(String, BodyType?)] = [("none", BodyType.none), ("raw", nil), ("form-urlencoded", .formURLEncoded),
                                                        ("multipart", .multipart), ("GraphQL", .graphql)]
     private static let kinds: [(String, RawKind)] = [("JSON", .json), ("text", .text), ("XML", .xml)]
-
-    var typeMenu: NSMenu {
-        menu(Self.types.map(\.0), selected: Self.title(model.tab.definition.body.type), action: #selector(pickType))
-    }
-
-    var kindMenu: NSMenu {
-        let selected: String? = if case .raw(let kind, _) = model.tab.definition.body { Self.title(kind) } else { nil }
-        return menu(Self.kinds.map(\.0), selected: selected, action: #selector(pickKind))
-    }
-
-    private func menu(_ titles: [String], selected: String?, action: Selector) -> NSMenu {
-        let menu = NSMenu()
-        for (index, title) in titles.enumerated() {
-            let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-            item.target = self
-            item.tag = index
-            item.state = title == selected ? .on : .off
-            menu.addItem(item)
-        }
-        return menu
-    }
 
     private static func title(_ type: BodyType) -> String {
         switch type {
@@ -294,16 +263,18 @@ final class BodyPane: NSView, NSTextFieldDelegate {
 
     private static func title(_ kind: RawKind) -> String { kinds.first { $0.1 == kind }?.0 ?? "" }
 
-    @objc private func showTypes() { typeMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: typeButton.bounds.height + 4), in: typeButton) }
-    @objc private func showKinds() { kindMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: kindButton.bounds.height + 4), in: kindButton) }
-
     /// raw keeps the current kind when it is raw already, and starts as JSON otherwise.
-    @objc private func pickType(_ item: NSMenuItem) {
-        let current: RawKind = if case .raw(let kind, _) = model.tab.definition.body { kind } else { .json }
-        pick(Self.types[item.tag].1 ?? .raw(current))
+    private func pickType(_ pick: DropdownPick) {
+        guard case let .option(id) = pick, let entry = Self.types.first(where: { $0.0 == id }) else { return }
+        self.pick(entry.1 ?? .raw(currentKind))
     }
 
-    @objc private func pickKind(_ item: NSMenuItem) { pick(.raw(Self.kinds[item.tag].1)) }
+    private func pickKind(_ pick: DropdownPick) {
+        guard case let .option(id) = pick, let kind = Self.kinds.first(where: { $0.0 == id })?.1 else { return }
+        self.pick(.raw(kind))
+    }
+
+    private var currentKind: RawKind { if case .raw(let kind, _) = model.tab.definition.body { kind } else { .json } }
 
     /// Body, headers and, for GraphQL, the method change, so one undo puts them all back:
     /// switching to none keeps nothing, but the old body is in undo (editing.md).
@@ -383,15 +354,21 @@ final class BodyPane: NSView, NSTextFieldDelegate {
         formTable.setKinds(kinds)
         partsTable.setKinds(kinds)
         operationField.kinds = kinds
-        typeButton.attributedTitle = popTitle(Self.title(body.type))
-        typeButton.setAccessibilityValue(Self.title(body.type))
+        typeDropdown.entries = Self.types.map { .option(id: $0.0, title: $0.0, detail: nil, isChosen: $0.0 == Self.title(body.type)) }
+        typeWidth.constant = typeDropdown.fittingWidth
         // Each view gets its final state once. Hiding the editor box and showing it again on every
         // keystroke takes first responder away from the text view inside it.
         let rawKind: RawKind? = if case .raw(let kind, _) = body { kind } else { nil }
         let isGraphQL = body.type == .graphql
         noneNote.isHidden = body != .none
-        kindButton.isHidden = rawKind == nil
-        formatButton.isHidden = !isGraphQL && (rawKind == nil || rawKind == .text)
+        kindDropdown.entries = Self.kinds.map { .option(id: $0.0, title: $0.0, detail: nil, isChosen: $0.1 == rawKind) }
+        kindWidth.constant = kindDropdown.fittingWidth
+        kindDropdown.isHidden = rawKind == nil
+        formatButton.isHidden = rawKind == nil || rawKind == .text
+        // Exactly one Format button shows and owns ⇧⌥F. Uppercase: with Shift held, the event's
+        // charactersIgnoringModifiers is "F".
+        formatButton.keyEquivalent = isGraphQL ? "" : "F"
+        variablesFormatButton.keyEquivalent = isGraphQL ? "F" : ""
         rawEditor.isHidden = rawKind == nil
         for view in [operationLabel, operationBox, graphqlSplit] { view.isHidden = !isGraphQL }
         formTable.isHidden = body.type != .formURLEncoded
@@ -399,8 +376,6 @@ final class BodyPane: NSView, NSTextFieldDelegate {
         // A hidden editor is not coloured, so a new Flavor does not recolour a body that is not shown.
         if rawKind == nil { rawEditor.syntax = nil }
         if !isGraphQL { queryEditor.syntax = nil; variablesEditor.syntax = nil }
-        let variables = variablesEditor.textView
-        setFormatEnabled(!isGraphQL || variables.window?.firstResponder === variables)
         switch body {
         case .none:
             break
@@ -408,7 +383,6 @@ final class BodyPane: NSView, NSTextFieldDelegate {
             partsTable.setParts(parts)
             partsTable.missingFile = model.missingFile
         case .raw(let kind, let text):
-            kindButton.attributedTitle = popTitle(Self.title(kind))
             formatButton.toolTip = "Format \(Self.title(kind)) (⇧⌥F)"
             rawEditor.show(text, syntax: .raw(kind), kinds: kinds)
         case .formURLEncoded(let rows):
@@ -419,7 +393,6 @@ final class BodyPane: NSView, NSTextFieldDelegate {
                 operationField.stringValue = graphql.operationName
                 operationField.highlight()
             }
-            formatButton.toolTip = "Format JSON (⇧⌥F)"
             queryEditor.show(graphql.query, syntax: .graphql, kinds: kinds)
             variablesEditor.show(graphql.variables, syntax: .raw(.json), kinds: kinds)
         }
@@ -431,18 +404,37 @@ final class BodyPane: NSView, NSTextFieldDelegate {
     }
 }
 
-/// The Query over the Variables, split 2 : 1 by a draggable 1 pt `border` divider.
+/// Where the Query | Variables divider starts and how far it may go (design-system.md §6).
+enum GraphQLSplitLayout {
+    static let minimum: CGFloat = 240
+    /// The gap between the editors is the divider: 8 pt either side of the grip.
+    static let gap: CGFloat = 16
+
+    /// A side keeps 240 pt; in a pane narrower than two of them it keeps half the room, so no
+    /// size is negative and the sides never cross.
+    static func minimum(width: CGFloat, divider: CGFloat) -> CGFloat {
+        max(0, min(minimum, (width - divider) / 2))
+    }
+
+    /// The Query's width on the first layout: equal halves, the odd point going to Variables.
+    /// nil while the pane has no room: not placed yet.
+    static func firstPosition(width: CGFloat, divider: CGFloat) -> CGFloat? {
+        let room = width - divider
+        return room > 0 ? (room / 2).rounded(.down) : nil
+    }
+}
+
+/// The Query beside the Variables, split 50 : 50 by a draggable 16 pt gap that draws only an upright grip.
 final class GraphQLSplitView: NSSplitView, NSSplitViewDelegate {
     private let theme: ThemeEnvironment
     private var isPlaced = false
-    private static let minimum: CGFloat = 64
 
-    override var dividerColor: NSColor { theme.color(.border) }
+    override var dividerThickness: CGFloat { GraphQLSplitLayout.gap }
 
     init(theme: ThemeEnvironment) {
         self.theme = theme
         super.init(frame: .zero)
-        isVertical = false
+        isVertical = true
         dividerStyle = .thin
         delegate = self
         theme.paint(self) { split, _ in split.needsDisplay = true }
@@ -451,26 +443,32 @@ final class GraphQLSplitView: NSSplitView, NSSplitViewDelegate {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    /// The first layout with a height sets 2 : 1; after that the pointer decides.
+    /// The first layout with room sets 50 : 50; after that the pointer decides.
     override func layout() {
         super.layout()
-        guard !isPlaced, bounds.height > 2 * Self.minimum + dividerThickness else { return }
+        guard !isPlaced, let position = GraphQLSplitLayout.firstPosition(width: bounds.width, divider: dividerThickness) else { return }
         isPlaced = true
-        setPosition((bounds.height - dividerThickness) * 2 / 3, ofDividerAt: 0)
+        setPosition(position, ofDividerAt: 0)
+    }
+
+    /// No rule, the editors have borders: the split handle's grip (EditorSplitView), upright, in `border`.
+    override func drawDivider(in rect: NSRect) {
+        theme.color(.border).setFill()
+        NSBezierPath(roundedRect: NSRect(x: rect.midX - 1.5, y: rect.midY - 16, width: 3, height: 32), xRadius: 1.5, yRadius: 1.5).fill()
     }
 
     func splitView(_ splitView: NSSplitView, canCollapseSubview subview: NSView) -> Bool { false }
 
     func splitView(_ splitView: NSSplitView, constrainMinCoordinate proposed: CGFloat, ofSubviewAt index: Int) -> CGFloat {
-        proposed + Self.minimum
+        proposed + GraphQLSplitLayout.minimum(width: bounds.width, divider: dividerThickness)
     }
 
     func splitView(_ splitView: NSSplitView, constrainMaxCoordinate proposed: CGFloat, ofSubviewAt index: Int) -> CGFloat {
-        proposed - Self.minimum
+        proposed - GraphQLSplitLayout.minimum(width: bounds.width, divider: dividerThickness)
     }
 }
 
-/// A pop-up drawn as a bordered button: 10 pt either side of its title.
+/// A bordered button with 10 pt either side of its title.
 final class PopButton: NSButton {
     override var intrinsicContentSize: NSSize {
         NSSize(width: attributedTitle.size().width.rounded(.up) + 20, height: 24)
