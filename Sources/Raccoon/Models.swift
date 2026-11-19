@@ -253,7 +253,8 @@ final class TabModel {
     /// Resolution runs first, so a request that cannot be sent never shows `.sending`.
     /// One send at a time (§7): a second ⌘↩ while sending does nothing.
     func send() {
-        guard inFlight == nil else { return }
+        // An Example Tab has no request to send.
+        guard inFlight == nil, tab.example == nil else { return }
         message = message?.afterSendOrPaste
         missingFile = nil
         let resolved: ResolvedRequest
@@ -367,6 +368,10 @@ final class TabModel {
 enum TabNotice: Equatable {
     case notSaved(file: String, reason: String)
     case deletedOnDisk(file: String)
+    /// ⌘S on an Example Tab whose Request has no file any more: "Not saved. Its Request was deleted."
+    case requestDeleted
+    /// The Example, or its Request, is gone from disk; the Tab stays an Example Tab, not a Draft.
+    case exampleDeletedOnDisk
 }
 
 /// Where the Save Request sheet puts a Draft: an existing Collection or Folder, by path, or a
@@ -568,31 +573,47 @@ final class WindowModel {
         let restored = session.tabs.map { snapshot in
             let model = newTabModel()
             model.tab = restoredTab(snapshot)
+            if model.tab.example != nil, model.tab.baseline == nil { model.notice = .exampleDeletedOnDisk }
             return model
         }
         // A Session of zero Tabs restores zero: the empty state (tabs.md §relaunch).
         tabs = restored
-        assertOneTabPerRequest()
+        assertOneTabPerSource()
         selected = restored.contains { $0.tab.id == session.selected } ? session.selected : restored.first?.tab.id
     }
 
-    /// A Request Tab checked against its file (tabs.md §relaunch). loadDataFolder ran first, so
-    /// the file is in the launch scan. A Request that is gone, or no longer reads, is a Draft.
+    /// A Request or Example Tab checked against its file (tabs.md §relaunch). loadDataFolder ran
+    /// first, so the file is in the launch scan. A Request that is gone, or no longer reads, is a
+    /// Draft; an Example that is gone, or whose Request is, stays an Example Tab with no baseline.
     private func restoredTab(_ snapshot: TabSnapshot) -> Tab {
-        var tab = Tab(id: snapshot.id, source: snapshot.source, definition: snapshot.definition, baseline: snapshot.baseline)
+        var tab = Tab(id: snapshot.id, source: snapshot.source, content: snapshot.content, baseline: snapshot.baseline)
+        if case .example(let requestID, let id) = snapshot.source {
+            guard let disk = diskExample(requestID, id, in: lastScan) else {
+                tab.baseline = nil
+                return tab
+            }
+            guard .example(disk) != snapshot.baseline else { return tab }
+            if tab.isDirty {
+                tab.isChangedOnDisk = true
+            } else {
+                tab.content = .example(disk)
+            }
+            tab.baseline = .example(disk)
+            return tab
+        }
         guard case .request(let id) = snapshot.source else { return tab }
         guard let path = index.path(of: id), let data = lastScan.files[path], let disk = try? RequestFile.decode(data).definition else {
             tab.source = .draft
             tab.baseline = nil
             return tab
         }
-        guard disk != snapshot.baseline else { return tab }
+        guard .request(disk) != snapshot.baseline else { return tab }
         if tab.isDirty {
             tab.isChangedOnDisk = true
         } else {
             tab.definition = disk
         }
-        tab.baseline = disk
+        tab.baseline = .request(disk)
         return tab
     }
 
@@ -824,6 +845,10 @@ final class WindowModel {
     /// reloads or turns Changed on Disk, or becomes a Draft when its file is gone.
     private func followTabs(before: DataFolderIndex, scan: DataFolderScan) {
         for model in tabs {
+            if case .example(let requestID, let id) = model.tab.source {
+                followExample(model, requestID, id, before: before, scan: scan)
+                continue
+            }
             guard case .request(let id) = model.tab.source else { continue }
             guard let path = index.path(of: id) else {
                 guard let old = before.path(of: id) ?? unreadableFiles[id] else { continue }
@@ -841,16 +866,59 @@ final class WindowModel {
             }
             unreadableFiles[id] = nil
             // The index decoded this file a moment ago, so it decodes.
-            guard let data = scan.files[path], let disk = try? RequestFile.decode(data).definition, disk != model.tab.baseline
+            guard let data = scan.files[path], let disk = try? RequestFile.decode(data).definition, .request(disk) != model.tab.baseline
             else { continue }
             if model.tab.isDirty {
-                model.tab.baseline = disk
+                model.tab.baseline = .request(disk)
                 model.tab.isChangedOnDisk = true
             } else {
                 model.tab.definition = disk
-                model.tab.baseline = disk
+                model.tab.baseline = .request(disk)
             }
         }
+    }
+
+    /// An Example Tab after the tree changed (examples.md §Changes on disk): the Request or the
+    /// Example gone is Deleted on disk, with the content kept and no baseline; a changed Example
+    /// reloads a clean Tab silently, and a Dirty one is Changed on Disk. A file that is still there
+    /// but unreadable is left alone, as for a Request Tab.
+    private func followExample(_ model: TabModel, _ requestID: RequestID, _ id: ExampleID, before: DataFolderIndex, scan: DataFolderScan) {
+        guard let path = index.path(of: requestID) else {
+            guard let old = before.path(of: requestID) ?? unreadableFiles[requestID] else { return }
+            if scan.files[old] != nil {
+                unreadableFiles[requestID] = old
+            } else {
+                unreadableFiles[requestID] = nil
+                markExampleGone(model)
+            }
+            return
+        }
+        unreadableFiles[requestID] = nil
+        guard let data = scan.files[path], let request = try? RequestFile.decode(data) else { return }
+        guard let disk = request.examples.first(where: { $0.id == id }) else { return markExampleGone(model) }
+        guard .example(disk) != model.tab.baseline else { return }
+        // No baseline is "not on disk", and so Dirty: the Example is back, and the user chooses.
+        if model.tab.isDirty {
+            model.tab.baseline = .example(disk)
+            model.tab.isChangedOnDisk = true
+        } else {
+            model.tab.content = .example(disk)
+            model.tab.baseline = .example(disk)
+        }
+        if model.notice == .exampleDeletedOnDisk { model.notice = nil }
+    }
+
+    private func markExampleGone(_ model: TabModel) {
+        guard model.tab.baseline != nil else { return }
+        model.tab.baseline = nil
+        model.tab.isChangedOnDisk = false
+        model.notice = .exampleDeletedOnDisk
+    }
+
+    /// The Example as the scan has it; nil when its Request or it is not there, or the file does not decode.
+    private func diskExample(_ requestID: RequestID, _ id: ExampleID, in scan: DataFolderScan) -> Example? {
+        guard let path = index.path(of: requestID), let data = scan.files[path], let request = try? RequestFile.decode(data) else { return nil }
+        return request.examples.first { $0.id == id }
     }
 
     // MARK: New Collection, New Folder, rename, move, Move to Trash
@@ -1387,7 +1455,7 @@ final class WindowModel {
     /// Reload on the Changed on Disk banner: the file wins.
     func reload(_ id: TabID) {
         guard let model = tabs.first(where: { $0.tab.id == id }), let baseline = model.tab.baseline else { return }
-        model.tab.definition = baseline
+        model.tab.content = baseline
         model.tab.isChangedOnDisk = false
     }
 
@@ -1426,45 +1494,64 @@ final class WindowModel {
             selected = open.tab.id
             return
         }
-        guard let store, let path = index.path(of: id) else { return }
-        let request: Request
-        do throws(StoreError) {
-            let data = try store.read(path)
-            do throws(RequestFileError) {
-                request = try RequestFile.decode(data)
-            } catch {
-                rescan(); return
-            }
-        } catch {
-            rescan(); return
-        }
-        // Someone gave the file another id since the scan.
-        guard request.id == id else { rescan(); return }
+        guard let path = index.path(of: id) else { return }
+        // Unreadable, or someone gave the file another id since the scan.
+        guard let request = readRequest(at: path), request.id == id else { rescan(); return }
         let model = newTabModel()
         model.tab = Tab(id: model.tab.id, source: .request(id), definition: request.definition, baseline: request.definition)
         insertAfterSelected(model)
-        assertOneTabPerRequest()
+        assertOneTabPerSource()
     }
 
-    /// ⌘S on a Request Tab: through the window, which owns the index and the ledger. A failed
-    /// write leaves the Tab Dirty and says so in its banner; nothing claims a save that did not land.
+    /// A click on a sidebar Example row. One Tab per Example: an open one is selected. A file that
+    /// broke or lost the Example since the scan opens nothing; the rescan turns its row unreadable
+    /// or drops it.
+    func openExample(_ requestID: RequestID, _ id: ExampleID) {
+        if let open = tabs.first(where: { $0.tab.source == .example(requestID, id) }) {
+            selected = open.tab.id
+            return
+        }
+        guard let path = index.path(of: requestID) else { return }
+        guard let request = readRequest(at: path), request.id == requestID, let example = request.examples.first(where: { $0.id == id })
+        else { rescan(); return }
+        let model = newTabModel()
+        model.tab = Tab(id: model.tab.id, source: .example(requestID, id), content: .example(example), baseline: .example(example))
+        insertAfterSelected(model)
+        assertOneTabPerSource()
+    }
+
+    /// The Request file at `path`, read and decoded; nil when it does not, which every caller treats as a rescan.
+    private func readRequest(at path: String) -> Request? {
+        guard let store, let data = try? store.read(path) else { return nil }
+        return try? RequestFile.decode(data)
+    }
+
+    /// ⌘S on a Request or Example Tab: through the window, which owns the index and the ledger. A
+    /// failed write leaves the Tab Dirty and says so in its banner; nothing claims a save that did
+    /// not land.
     func save(_ id: TabID) {
-        guard let model = tabs.first(where: { $0.tab.id == id }), case .request(let requestID) = model.tab.source else { return }
+        guard let model = tabs.first(where: { $0.tab.id == id }), let requestID = model.tab.source.requestID else { return }
         if let broken = unreadableFiles[requestID] {
             model.notice = .notSaved(file: Self.fileName(broken), reason: "it can't be read, and Raccoon won't change it")
             return
         }
         do throws(ExampleWriteError) {
-            try modifyRequestFile(requestID) { $0.definition = model.tab.definition }
+            switch model.tab.content {
+            case .request(let definition): try modifyRequestFile(requestID) { $0.definition = definition }
+            case .example(let example): try updateExample(requestID, example)
+            }
         } catch {
             switch error {
-            case .requestGone: return
+            case .requestGone:
+                // A Request Tab whose file is gone is a Draft by now, and nothing was asked of it.
+                if model.tab.example != nil { model.notice = .requestDeleted }
+                return
             case .failed(let reason):
                 model.notice = .notSaved(file: fileName(of: model.tab) ?? "", reason: reason)
                 return
             }
         }
-        model.tab.baseline = model.tab.definition
+        model.tab.baseline = model.tab.content
         model.tab.isChangedOnDisk = false
         model.notice = nil
     }
@@ -1479,6 +1566,7 @@ final class WindowModel {
         try modifyRequestFile(requestID) { request in
             if let at = request.examples.firstIndex(where: { $0.id == id }) { change(&request.examples[at]) }
         }
+        followOpenExamples()
     }
 
     /// Replace the Example with this id, or append it again, same id, when the file lost it.
@@ -1495,6 +1583,13 @@ final class WindowModel {
     /// Remove the Example with that id; one that is not there needs no removing.
     func removeExample(_ requestID: RequestID, _ id: ExampleID) throws(ExampleWriteError) {
         try modifyRequestFile(requestID) { $0.examples.removeAll { $0.id == id } }
+        followOpenExamples()
+    }
+
+    /// An Example changed or went by a write that is not its Tab's own save: its open Tab follows
+    /// the file as it does a change from outside.
+    private func followOpenExamples() {
+        followTabs(before: index, scan: lastScan)
     }
 
     /// The one way the window writes a Request file: read it, change what the caller owns, write
@@ -1560,14 +1655,14 @@ final class WindowModel {
         // insert needs the Collection in the tree already; a new one comes from the rescan.
         if case .newCollection = location { rescan() } else { index.insert(requestID, name: name, method: model.tab.definition.method, path: path) }
         model.tab.source = .request(requestID)
-        model.tab.baseline = model.tab.definition
+        model.tab.baseline = .request(model.tab.definition)
         model.notice = nil
         lastSaveLocation = folder
     }
 
     /// The file a Request Tab is saved in, as banners name it; nil for a Draft.
     func fileName(of tab: Tab) -> String? {
-        guard case .request(let id) = tab.source, let path = index.path(of: id) else { return nil }
+        guard let id = tab.source.requestID, let path = index.path(of: id) else { return nil }
         return Self.fileName(path)
     }
 
@@ -1575,10 +1670,11 @@ final class WindowModel {
         String(path.split(separator: "/").last ?? "")
     }
 
-    /// §4 Invariants: two Tabs editing one file would each overwrite the other's save.
-    private func assertOneTabPerRequest() {
-        let ids = tabs.compactMap { if case .request(let id) = $0.tab.source { id } else { nil } }
-        precondition(Set(ids).count == ids.count, "two Tabs for one Request")
+    /// §4 Invariants: two Tabs editing one Request, or one Example, would each overwrite the
+    /// other's save.
+    private func assertOneTabPerSource() {
+        let sources = tabs.map(\.tab.source).filter { $0 != .draft }
+        precondition(Set(sources).count == sources.count, "two Tabs for one Request or Example")
     }
 
     /// ⌘T: an empty Draft after the selected Tab.
@@ -1587,9 +1683,10 @@ final class WindowModel {
     }
 
     /// Duplicate Tab: a Draft holding the same definition, right after the Tab and selected. Never
-    /// a Request Tab, which would be a second Tab on one Request.
+    /// a Request Tab, which would be a second Tab on one Request. An Example Tab has no
+    /// definition to copy, so it is refused (Duplicate on its sidebar row copies the Example).
     func duplicate(_ id: TabID) {
-        guard let index = tabs.firstIndex(where: { $0.tab.id == id }) else { return }
+        guard let index = tabs.firstIndex(where: { $0.tab.id == id }), tabs[index].tab.example == nil else { return }
         let copy = newTabModel()
         copy.tab = Tab(id: copy.tab.id, source: .draft, definition: tabs[index].tab.definition, baseline: nil)
         tabs.insert(copy, at: index + 1)

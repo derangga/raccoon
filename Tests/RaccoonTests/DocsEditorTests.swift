@@ -20,7 +20,7 @@ struct DocsEditorTests {
         editor.layoutSubtreeIfNeeded()
         editor.select(.docs)
         model.tab.definition.docs = docs
-        model.tab.baseline?.docs = docs
+        model.tab.baseline = .request(model.tab.definition)
         editor.render()
         _ = window.makeFirstResponder(editor.docsPane.textView)
         return (editor.docsPane, editor.docsPane.textView)

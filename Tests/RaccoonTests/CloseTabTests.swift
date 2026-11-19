@@ -109,7 +109,7 @@ struct CloseTabTests {
         let (empty, draft, dirty) = (window.tabs[0], window.tabs[1], window.tabs[2])
         draft.typeInURLBar("https://api.example.com/v1/webhooks")
         dirty.tab.source = .request(RequestID(UUID()))
-        dirty.tab.baseline = dirty.tab.definition
+        dirty.tab.baseline = .request(dirty.tab.definition)
         dirty.tab.definition.method = "POST"
 
         closer.close(empty)
@@ -206,7 +206,7 @@ struct CloseTabTests {
         let (empty, draft, dirty) = (window.tabs[0], window.tabs[1], window.tabs[2])
         draft.typeInURLBar("https://api.example.com/v1/webhooks")
         dirty.tab.source = .request(RequestID(UUID()))
-        dirty.tab.baseline = dirty.tab.definition
+        dirty.tab.baseline = .request(dirty.tab.definition)
         dirty.tab.definition.method = "POST"
         return (empty, draft, dirty)
     }

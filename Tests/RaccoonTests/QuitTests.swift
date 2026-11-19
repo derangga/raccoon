@@ -27,7 +27,7 @@ struct QuitTests {
         window.newTab()
         let (dirty, draft) = (window.tabs[0], window.tabs[1])
         dirty.tab.source = .request(RequestID(UUID()))
-        dirty.tab.baseline = dirty.tab.definition
+        dirty.tab.baseline = .request(dirty.tab.definition)
         dirty.typeInURLBar("https://api.example.com/charges")
         draft.typeInURLBar("https://api.example.com/v1/webhooks")
 
@@ -35,7 +35,7 @@ struct QuitTests {
 
         let session = try SessionFile.decode(try #require(try store.read()))
         #expect(session.tabs == [dirty.tab.snapshot, draft.tab.snapshot])
-        #expect(session.tabs[0].definition != session.tabs[0].baseline)
+        #expect(session.tabs[0].content != session.tabs[0].baseline)
         #expect(session.selected == draft.tab.id)
     }
 

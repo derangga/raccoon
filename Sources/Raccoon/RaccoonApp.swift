@@ -157,7 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in self?.showSelectedTab() }
         }
         if let selected { tabController.bind(selected) }
-        content?.showsTab(selected != nil)
+        content?.showsTab(selected != nil, editor: selected?.tab.example == nil)
     }
 
     @objc func newTab(_ sender: Any?) { windowModel?.newTab() }

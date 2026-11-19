@@ -43,7 +43,7 @@ struct SaveDraftTests {
         let path = "Payments API/Webhooks/Create webhook.json"
         let written = try Data(contentsOf: root.appending(path: path))
         #expect(try RequestFile.decode(written) == Request(id: id, name: "Create webhook", definition: draft.tab.definition))
-        #expect(draft.tab.baseline == draft.tab.definition)
+        #expect(draft.tab.baseline == .request(draft.tab.definition))
         #expect(!draft.tab.isDirty)
         #expect(window.index.path(of: id) == path)
         #expect(window.name(of: draft.tab) == "Create webhook")

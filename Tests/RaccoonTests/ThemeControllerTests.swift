@@ -180,7 +180,7 @@ struct ThemeControllerTests {
         for _ in 0..<2 { window.newTab() }
         for (model, method) in zip(window.tabs.dropFirst(), ["PATCH", "DELETE"]) {
             model.tab.source = .request(RequestID(UUID()))
-            model.tab.baseline = model.tab.definition
+            model.tab.baseline = .request(model.tab.definition)
             model.tab.definition.method = method
         }
         window.tabs[1].tab.isChangedOnDisk = true

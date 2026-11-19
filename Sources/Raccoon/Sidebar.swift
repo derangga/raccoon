@@ -359,19 +359,22 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         activate(row: outline.clickedRow)
     }
 
-    /// A click: a Request opens in its Tab. Anything else only selects.
+    /// A click: a Request or an Example opens in its Tab. Anything else only selects.
     func open(row: Int) {
-        guard let item = outline.item(atRow: row) as? SidebarItem, case .request(let id, _) = item.kind else { return }
-        window.openRequest(id)
+        guard let item = outline.item(atRow: row) as? SidebarItem else { return }
+        switch item.kind {
+        case .request(let id, _): window.openRequest(id)
+        case .example(let requestID, let id, _): window.openExample(requestID, id)
+        case .collection, .folder, .unreadable: break
+        }
     }
 
-    /// Double-click or Return: a Request opens, a Collection or Folder expands or collapses, an unreadable file is revealed in Finder.
+    /// Double-click or Return: a Request or an Example opens, a Collection or Folder expands or collapses, an unreadable file is revealed in Finder.
     func activate(row: Int) {
         guard let item = outline.item(atRow: row) as? SidebarItem else { return }
         switch item.kind {
-        case .request: open(row: row)
+        case .request, .example: open(row: row)
         case .unreadable: revealInFinder(window.dataFolderRoot + "/" + item.path)
-        case .example: break
         case .collection, .folder:
             if outline.isItemExpanded(item) { outline.collapseItem(item) } else { outline.expandItem(item) }
         }

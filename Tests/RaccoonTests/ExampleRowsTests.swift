@@ -81,14 +81,15 @@ struct ExampleRowsTests {
         #expect(cell.more.isHidden)
     }
 
-    @Test func `an Example row is inert: it opens nothing and has no menu`() throws {
+    @Test func `an Example row opens its Tab on a click and on Return, and has no menu yet`() throws {
         let (window, sidebar) = try sidebar()
         try expandRequest(sidebar)
 
         sidebar.open(row: 2)
         sidebar.activate(row: 2)
 
-        #expect(window.tabs.isEmpty || window.selectedTab?.tab.source == .draft)
+        guard case .example = window.selectedTab?.tab.source else { Issue.record("no Example Tab"); return }
+        #expect(window.tabs.filter { $0.tab.example != nil }.count == 1)
         #expect(sidebar.contextMenu(row: 2).items.isEmpty)
     }
 

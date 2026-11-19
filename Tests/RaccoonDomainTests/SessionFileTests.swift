@@ -103,4 +103,51 @@ struct SessionFileTests {
             if case .undecodable(path: "session.json", _) = error as? StoreError { true } else { false }
         }
     }
+
+    static let example = Example(
+        id: ExampleID(UUID()), name: "404 Not Found", status: 404, headers: [Row(name: "Content-Type", value: "application/json")],
+        body: .text(#"{"error": "gone"}"#), delayMilliseconds: 250)
+
+    @Test func `a Dirty Example Tab, one on disk and one that is not, round-trip with their content`() throws {
+        var edited = Self.example
+        edited.name = "Not here"
+        edited.body = .bytes(Data([0, 1, 2, 255]))
+        let request = RequestID(UUID())
+        let session = Session(tabs: [
+            TabSnapshot(id: TabID(UUID()), source: .example(request, Self.example.id), content: .example(edited), baseline: .example(Self.example)),
+            TabSnapshot(id: TabID(UUID()), source: .example(request, Self.example.id), content: .example(edited), baseline: nil),
+        ], selected: nil, activeEnvironment: nil)
+        #expect(try SessionFile.decode(SessionFile.encode(session)) == session)
+    }
+
+    @Test func `an Example Tab is written as an Example, in the Request file's encoding`() throws {
+        let request = RequestID(UUID())
+        let session = Session(tabs: [TabSnapshot(
+            id: TabID(UUID()), source: .example(request, Self.example.id), content: .example(Self.example), baseline: .example(Self.example))],
+            selected: nil, activeEnvironment: nil)
+        let tab = try #require((JSONSerialization.jsonObject(with: SessionFile.encode(session)) as! [String: Any])["tabs"] as? [[String: Any]])[0]
+        #expect(tab["definition"] == nil)
+        #expect(tab["requestID"] as? String == request.rawValue.uuidString)
+        #expect(tab["exampleID"] as? String == Self.example.id.rawValue.uuidString)
+        let written = try #require(tab["example"] as? [String: Any])
+        #expect(written["name"] as? String == "404 Not Found" && written["status"] as? Int == 404 && written["delayMilliseconds"] as? Int == 250)
+    }
+
+    @Test(arguments: [
+        // an Example source with no Example content
+        #"{"version": 1, "tabs": [{"id": "\#(UUID())", "requestID": "\#(UUID())", "exampleID": "\#(UUID())"}]}"#,
+        // an Example that does not decode: neither text nor base64
+        #"{"version": 1, "tabs": [{"id": "\#(UUID())", "requestID": "\#(UUID())", "exampleID": "\#(UUID())", "example": {"id": "\#(UUID())", "name": "n", "status": 200, "headers": [], "body": {}}}]}"#,
+        // an exampleID with no requestID
+        #"{"version": 1, "tabs": [{"id": "\#(UUID())", "exampleID": "\#(UUID())", "example": {"id": "\#(UUID())", "name": "n", "status": 200, "headers": [], "body": {"text": ""}}}]}"#,
+        // a Request Tab with no definition
+        #"{"version": 1, "tabs": [{"id": "\#(UUID())", "requestID": "\#(UUID())"}]}"#,
+    ])
+    func `an Example Tab without its Example, or a Tab without its definition, leaves the Session undecodable`(json: String) {
+        #expect {
+            try SessionFile.decode(Data(json.utf8))
+        } throws: { error in
+            if case .undecodable(path: "session.json", _) = error as? StoreError { true } else { false }
+        }
+    }
 }

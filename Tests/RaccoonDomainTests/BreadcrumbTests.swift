@@ -80,6 +80,24 @@ struct BreadcrumbOfTests {
         let breadcrumb = Breadcrumb.of(source: .request(Self.id(9)), title: "Share", index: Self.index([]), lastKnown: nil)
         #expect(breadcrumb.segments == [Self.seg("Share", nil)])
     }
+
+    static let exampleID = ExampleID(UUID())
+    static let inFolder = [TreeNode.folder(name: "Articles", children: [.request(id(1), name: "Share", method: "GET", path: "Sociolla/Articles/Share.json")])]
+
+    @Test func `an Example is its Request's segments, then its own title with no target`() {
+        let breadcrumb = Breadcrumb.of(source: .example(Self.id(1), Self.exampleID), title: "404 Not Found", index: Self.index(Self.inFolder), lastKnown: nil)
+        #expect(breadcrumb.segments == [
+            Self.seg("Sociolla", "Sociolla"), Self.seg("Articles", "Sociolla/Articles"), Self.seg("Share", "Sociolla/Articles/Share.json"),
+            Self.seg("404 Not Found", nil),
+        ])
+    }
+
+    @Test func `an Example whose Request has no entry keeps the Request's last known segments`() {
+        let known = Breadcrumb(segments: [Self.seg("Sociolla", "Sociolla"), Self.seg("Share", "Sociolla/Share.json")])
+        let breadcrumb = Breadcrumb.of(source: .example(Self.id(9), Self.exampleID), title: "OK", index: Self.index([]), lastKnown: known)
+        #expect(breadcrumb.segments == known.segments + [Self.seg("OK", nil)])
+        #expect(Breadcrumb.of(source: .example(Self.id(9), Self.exampleID), title: "OK", index: Self.index([]), lastKnown: nil).segments == [Self.seg("OK", nil)])
+    }
 }
 
 struct BreadcrumbFitTests {

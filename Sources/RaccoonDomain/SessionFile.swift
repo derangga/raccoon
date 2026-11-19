@@ -17,17 +17,50 @@ public enum SessionFile {
         var id: UUID
         /// Absent for a Draft.
         var requestID: UUID?
-        var definition: DefinitionJSON
+        /// With `requestID`, an Example Tab.
+        var exampleID: UUID?
+        /// A Draft's and a Request Tab's; absent for an Example Tab.
+        var definition: DefinitionJSON?
         var baseline: DefinitionJSON?
+        /// An Example Tab's, in the Request file's encoding; `exampleBaseline` absent is "not on disk".
+        var example: ExampleJSON?
+        var exampleBaseline: ExampleJSON?
+
+        init(_ tab: TabSnapshot) {
+            id = tab.id.rawValue
+            requestID = tab.source.requestID?.rawValue
+            if case .example(_, let example) = tab.source { exampleID = example.rawValue }
+            switch (tab.content, tab.baseline) {
+            case (.request(let definition), let baseline):
+                self.definition = DefinitionJSON(definition)
+                if case .request(let baseline)? = baseline { self.baseline = DefinitionJSON(baseline) }
+            case (.example(let example), let baseline):
+                self.example = ExampleJSON(example)
+                if case .example(let baseline)? = baseline { exampleBaseline = ExampleJSON(baseline) }
+            }
+        }
+
+        func snapshot() throws(Malformed) -> TabSnapshot {
+            switch (requestID, exampleID) {
+            case (nil, nil), (_?, nil):
+                guard let definition else { throw Malformed(reason: "definition") }
+                return TabSnapshot(
+                    id: TabID(id), source: requestID.map { .request(RequestID($0)) } ?? .draft,
+                    content: .request(try definition.definition()), baseline: try baseline.map { json throws(Malformed) in .request(try json.definition()) })
+            case (let request?, let exampleID?):
+                guard let example else { throw Malformed(reason: "example") }
+                return TabSnapshot(
+                    id: TabID(id), source: .example(RequestID(request), ExampleID(exampleID)),
+                    content: .example(try example.example()), baseline: try exampleBaseline.map { json throws(Malformed) in .example(try json.example()) })
+            case (nil, _?):
+                throw Malformed(reason: "exampleID")
+            }
+        }
     }
 
     public static func encode(_ session: Session) -> Data {
         let file = File(
-            tabs: session.tabs.map { tab in
-                let requestID: UUID? = if case .request(let id) = tab.source { id.rawValue } else { nil }
-                return TabJSON(id: tab.id.rawValue, requestID: requestID, definition: DefinitionJSON(tab.definition),
-                               baseline: tab.baseline.map(DefinitionJSON.init))
-            },
+            tabs: session.tabs.map(TabJSON.init),
             selected: session.selected?.rawValue,
             activeEnvironment: session.activeEnvironment
         )
@@ -44,10 +77,7 @@ public enum SessionFile {
             guard version == 1 else { throw Malformed(reason: "unknown version \(version)") }
             let file = try JSONDecoder().decode(File.self, from: data)
             return Session(
-                tabs: try (file.tabs ?? []).map { tab in
-                    TabSnapshot(id: TabID(tab.id), source: tab.requestID.map { .request(RequestID($0)) } ?? .draft,
-                                definition: try tab.definition.definition(), baseline: try tab.baseline.map { json throws(Malformed) in try json.definition() })
-                },
+                tabs: try (file.tabs ?? []).map { tab throws(Malformed) in try tab.snapshot() },
                 selected: file.selected.map(TabID.init),
                 activeEnvironment: file.activeEnvironment
             )

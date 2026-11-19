@@ -49,7 +49,7 @@ struct OpenRequestTests {
         let tab = window.tabs[1].tab
         #expect(tab.source == .request(Self.charge.id))
         #expect(tab.definition == Self.charge.definition)
-        #expect(tab.baseline == Self.charge.definition)
+        #expect(tab.baseline == .request(Self.charge.definition))
         #expect(!tab.isDirty)
         #expect(window.selected == tab.id)
         #expect(window.tabs[0].tab.id == draft)

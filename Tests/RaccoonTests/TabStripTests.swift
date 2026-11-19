@@ -56,7 +56,7 @@ struct TabStripViewTests {
     func requestTab(_ model: TabModel, url: String) {
         model.tab.definition.url = url
         model.tab.source = .request(RequestID(UUID()))
-        model.tab.baseline = model.tab.definition
+        model.tab.baseline = .request(model.tab.definition)
     }
 
     @Test func `one Tab per TabModel in order, the selected one marked, and a press selects`() async {

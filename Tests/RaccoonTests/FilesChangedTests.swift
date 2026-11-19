@@ -59,7 +59,7 @@ struct FilesChangedTests {
         await deliver([path], to: window)
 
         #expect(tab.tab.definition == pulled)
-        #expect(tab.tab.baseline == pulled)
+        #expect(tab.tab.baseline == .request(pulled))
         #expect(!tab.tab.isChangedOnDisk)
         #expect(tab.notice == nil)
     }
@@ -73,7 +73,7 @@ struct FilesChangedTests {
         await deliver([path], to: window)
 
         #expect(tab.tab.definition == mine)
-        #expect(tab.tab.baseline == pulled)
+        #expect(tab.tab.baseline == .request(pulled))
         #expect(tab.tab.isChangedOnDisk)
 
         window.reload(tab.tab.id)
@@ -92,7 +92,7 @@ struct FilesChangedTests {
         window.keepMine(tab.tab.id)
         #expect(!tab.tab.isChangedOnDisk)
         #expect(tab.tab.isDirty)
-        #expect(tab.tab.baseline == pulled)
+        #expect(tab.tab.baseline == .request(pulled))
 
         window.save(tab.tab.id)
         #expect(try RequestFile.decode(Data(contentsOf: file)).definition == mine)

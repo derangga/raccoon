@@ -34,15 +34,23 @@ public struct Breadcrumb: Equatable, Sendable {
     }
 
     /// A Draft is its Tab title alone. A Request in the index is its Collection, each Folder, then
-    /// the name inside its file. With no entry (its file is unreadable, or a rescan has not
-    /// landed) the last known segments stay, else the Tab's title alone.
+    /// the name inside its file; an Example, those and then its own `title`, which is not
+    /// clickable. With no entry (its file is unreadable, or a rescan has not landed) the last
+    /// known segments of the Request stay, else the Tab's title alone.
     public static func of(source: Tab.Source, title: String, index: DataFolderIndex, lastKnown: Breadcrumb?) -> Breadcrumb {
-        guard case .request(let id) = source else { return Breadcrumb(segments: [BreadcrumbSegment(title: title, target: nil)]) }
-        guard let path = index.path(of: id), let name = index.name(of: id) else {
-            return lastKnown ?? Breadcrumb(segments: [BreadcrumbSegment(title: title, target: nil)])
+        let own = BreadcrumbSegment(title: title, target: nil)
+        guard let id = source.requestID else { return Breadcrumb(segments: [own]) }
+        let request: [BreadcrumbSegment]
+        if let path = index.path(of: id), let name = index.name(of: id) {
+            let folders = SidebarPath.ancestors(of: path).map { BreadcrumbSegment(title: String($0.split(separator: "/").last ?? ""), target: $0) }
+            request = folders + [BreadcrumbSegment(title: name, target: path)]
+        } else if case .request = source {
+            return lastKnown ?? Breadcrumb(segments: [own])
+        } else {
+            request = lastKnown?.segments ?? []
         }
-        let folders = SidebarPath.ancestors(of: path).map { BreadcrumbSegment(title: String($0.split(separator: "/").last ?? ""), target: $0) }
-        return Breadcrumb(segments: folders + [BreadcrumbSegment(title: name, target: path)])
+        if case .example = source { return Breadcrumb(segments: request + [own]) }
+        return Breadcrumb(segments: request)
     }
 
     /// Hides middle segments, nearest the first, until first, "…" and last (and what is left of the

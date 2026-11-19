@@ -131,8 +131,11 @@ final class TabStripView: NSView {
         menu.autoenablesItems = false
         let others = item("Close Other Tabs", .closeOthers)
         others.isEnabled = windowModel.tabs.count > 1
+        // An Example Tab has no definition to copy.
+        let duplicate = item("Duplicate Tab", .duplicate)
+        duplicate.isEnabled = model.tab.example == nil
         for entry in [
-            item("New Tab", .newTab, key: "t"), item("Duplicate Tab", .duplicate), .separator(),
+            item("New Tab", .newTab, key: "t"), duplicate, .separator(),
             item("Close Tab", .close, key: "w"), item("Force Close Tab", .forceClose, key: "w", modifiers: [.option, .command]),
             others, item("Close All Tabs", .closeAll), item("Force Close All Tabs", .forceCloseAll),
         ] { menu.addItem(entry) }
@@ -430,11 +433,14 @@ final class ContentViewController: NSViewController {
 
     /// With no Tab, only the strip stays; focus inside the editor leaves it first, so no hidden
     /// field keeps typing or the editor's menu items.
-    func showsTab(_ shown: Bool) {
+    /// `editor` is false for an Example Tab, which has no URL bar, editor or Response viewer: its
+    /// content area stays empty until the Example pane exists.
+    func showsTab(_ shown: Bool, editor: Bool = true) {
         if !shown, let window = view.window, let focused = window.firstResponder as? NSView, focused.isDescendant(of: view) {
             window.makeFirstResponder(nil)
         }
-        for part in [breadcrumb.bar, banner.view, tab.view] { part.isHidden = !shown }
+        for part in [breadcrumb.bar, banner.view] { part.isHidden = !shown }
+        tab.view.isHidden = !(shown && editor)
         emptyState.isHidden = shown
     }
 }

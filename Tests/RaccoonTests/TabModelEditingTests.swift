@@ -76,7 +76,7 @@ struct TabModelEditingTests {
     @Test func `setting a value makes a Request Dirty and clearing it makes it clean again`() {
         model.typeInURLBar("http://h/:id")
         model.tab.source = .request(RequestID(UUID()))
-        model.tab.baseline = model.tab.definition
+        model.tab.baseline = .request(model.tab.definition)
         #expect(!model.tab.isDirty)
         model.setPathVariable("id", to: "7")
         #expect(model.tab.isDirty)

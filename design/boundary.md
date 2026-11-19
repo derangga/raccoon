@@ -72,7 +72,11 @@ definitions too.** Both are omitted when empty, so every existing file stays byt
 array of `{id, name, status, headers, body: {text} | {base64}, delayMilliseconds}`, the last
 omitted when 0; anything else is `.malformed("examples")` and the file `.unreadable`. A GraphQL
 body is `{"type": "graphql", "query", "variables", "operationName"}`, the last two omitted when
-empty. The Session holds an Example Tab's content in the same encoding.
+empty. The Session holds an Example Tab's content in the same encoding: a Tab with an
+`exampleID` (and its `requestID`) carries `example` and, when it is on disk, `exampleBaseline`,
+and has no `definition`. A Draft's and a Request Tab's keys are as they were, so an older Session
+decodes unchanged; an `exampleID` without `requestID`, or an Example Tab without `example`, is
+malformed.
 
 **Nothing past this list parses.** Inside the graph a `Request` is a `Request`; no node
 re-validates a URL it was handed or re-reads a file to check it.

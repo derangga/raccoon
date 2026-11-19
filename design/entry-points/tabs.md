@@ -81,6 +81,8 @@ stack for the window and its actions read whichever Tab is bound, so a switch cl
                                                  right after it and selected; no baseline, so
                                                  never a second Tab on one Request
                                                  E: tabID gone -> escape: nothing happens
+                                                 not offered for an Example Tab (greyed out), and
+                                                 the method refuses it: a Draft needs a definition
   -> Close Tab, Close Other Tabs, Close All Tabs close(scope, of: tab) below
   -> Force Close Tab                             TabModel.close(), no sheet: the quick path
   -> Force Close All Tabs                        losing = Tabs with hasLosableContent
@@ -219,3 +221,9 @@ swap, and it keeps `isCollapsed`, which is also true of an inspector open as an 
 **A relaunch compares baselines.** If a `git pull` changed a Request while Raccoon was not
 running, the Tab's Dirty edits were made against the old file. That is exactly Changed on
 Disk, so it reuses that state instead of inventing a second one.
+
+An Example Tab follows the same rule against its Example in the Request file. It is restored as
+it was when the disk matches its baseline; takes the disk's Example when it differs and the Tab is
+clean; keeps its edits with Changed on Disk when it differs and the Tab is Dirty. An Example, or
+its Request, that is gone stays an Example Tab with no baseline and the Deleted on disk banner: it
+is never turned into a Draft, because a Draft holds a definition.

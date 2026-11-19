@@ -294,6 +294,12 @@ enum TabBanner {
         case (.deletedOnDisk(let file)?, _):
             Banner(glyph: .warning, lead: "Deleted on disk.",
                    detail: [.text(" \(file) is gone. This Tab is now a Draft with your content, and ⌘S saves it again.")], buttons: [dismiss])
+        case (.requestDeleted?, _):
+            Banner(glyph: .error, lead: "Not saved.", detail: [.text(" Its Request was deleted.")], buttons: [dismiss])
+        case (.exampleDeletedOnDisk?, _):
+            Banner(glyph: .warning, lead: "Deleted on disk.",
+                   detail: [.text(" This Example is gone. The Tab keeps its content; ⌘S saves it again if its Request is still there.")],
+                   buttons: [dismiss])
         case (nil, let file?):
             Banner(glyph: .warning, lead: "Changed on Disk.",
                    detail: [.text(" \(file) was changed outside Raccoon. Your edits are kept until you choose.")],

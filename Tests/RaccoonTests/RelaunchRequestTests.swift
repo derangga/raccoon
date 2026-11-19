@@ -55,21 +55,21 @@ struct RelaunchRequestTests {
         let tab = try relaunch(definition: edited, baseline: Self.charge.definition, disk: Self.charge.definition)
         #expect(tab.tab.source == .request(Self.charge.id))
         #expect(tab.tab.definition == edited)
-        #expect(tab.tab.baseline == Self.charge.definition)
+        #expect(tab.tab.baseline == .request(Self.charge.definition))
         #expect(!tab.tab.isChangedOnDisk)
     }
 
     @Test func `the file changed and the Tab was clean: it takes the file silently`() throws {
         let tab = try relaunch(definition: Self.charge.definition, baseline: Self.charge.definition, disk: pulled)
         #expect(tab.tab.definition == pulled)
-        #expect(tab.tab.baseline == pulled)
+        #expect(tab.tab.baseline == .request(pulled))
         #expect(!tab.tab.isChangedOnDisk)
     }
 
     @Test func `the file changed under Dirty edits: they are kept, Changed on Disk`() throws {
         let tab = try relaunch(definition: edited, baseline: Self.charge.definition, disk: pulled)
         #expect(tab.tab.definition == edited)
-        #expect(tab.tab.baseline == pulled)
+        #expect(tab.tab.baseline == .request(pulled))
         #expect(tab.tab.isChangedOnDisk)
     }
 

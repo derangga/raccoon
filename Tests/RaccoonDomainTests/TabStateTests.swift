@@ -39,6 +39,42 @@ struct TabStateTests {
     }
 }
 
+struct ExampleTabStateTests {
+    static let saved = Example(id: ExampleID(UUID()), name: "200 OK", status: 200, body: .text("{}"))
+    static var edited: Example {
+        var example = saved
+        example.status = 404
+        return example
+    }
+    static let source = Tab.Source.example(RequestID(UUID()), saved.id)
+
+    @Test(arguments: [
+        // content, baseline, isDirty
+        (saved, saved as Example?, false),
+        (edited, saved, true),
+        // no baseline on an Example Tab means "not on disk": it has something to lose
+        (saved, nil, true),
+    ])
+    func `an Example Tab is Dirty against its baseline, and with none it is not on disk`(content: Example, baseline: Example?, isDirty: Bool) {
+        let tab = Tab(id: TabID(UUID()), source: Self.source, content: .example(content), baseline: baseline.map { .example($0) })
+        #expect(tab.isDirty == isDirty)
+        #expect(tab.hasLosableContent == isDirty)
+    }
+
+    @Test func `an Example Tab's definition is empty and ignores assignment`() {
+        var tab = Tab(id: TabID(UUID()), source: Self.source, content: .example(Self.saved), baseline: .example(Self.saved))
+        #expect(tab.definition == .empty)
+        tab.definition.url = "https://a.b"
+        #expect(tab.content == .example(Self.saved))
+        #expect(!tab.isDirty)
+    }
+
+    @Test func `the snapshot carries the content and the baseline`() {
+        let tab = Tab(id: TabID(UUID()), source: Self.source, content: .example(Self.edited), baseline: .example(Self.saved))
+        #expect(tab.snapshot == TabSnapshot(id: tab.id, source: Self.source, content: .example(Self.edited), baseline: .example(Self.saved)))
+    }
+}
+
 struct TabTitleTests {
     @Test(arguments: [
         // the URL as typed, the Draft's title

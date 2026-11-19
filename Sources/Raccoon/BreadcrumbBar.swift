@@ -235,15 +235,18 @@ final class BreadcrumbBinding {
         let (source, title, index, open) = withObservationTracking {
             let tab = window.selectedTab?.tab
             return (tab?.source ?? .draft, tab.map(window.name(of:)) ?? "Draft", window.index,
-                    Set(window.tabs.compactMap { tab -> RequestID? in if case .request(let id) = tab.tab.source { id } else { nil } }))
+                    Set(window.tabs.compactMap { $0.tab.source.requestID }))
         } onChange: { [weak self] in
             Task { @MainActor in self?.update() }
         }
         lastKnown = lastKnown.filter { open.contains($0.key) }
         var known: Breadcrumb?
-        if case .request(let id) = source { known = lastKnown[id] }
+        if let id = source.requestID { known = lastKnown[id] }
         let breadcrumb = Breadcrumb.of(source: source, title: title, index: index, lastKnown: known)
-        if case .request(let id) = source, index.path(of: id) != nil { lastKnown[id] = breadcrumb }
+        // Kept as the Request's own segments: an Example's ends with a segment that is not the Request's.
+        if let id = source.requestID, index.path(of: id) != nil {
+            lastKnown[id] = Breadcrumb(segments: source == .request(id) ? breadcrumb.segments : Array(breadcrumb.segments.dropLast()))
+        }
         if breadcrumb != bar.breadcrumb { bar.show(breadcrumb) }
     }
 }

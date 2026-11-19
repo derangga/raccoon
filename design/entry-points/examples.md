@@ -118,6 +118,11 @@ file through FileReading and sets `.text` or `.bytes` by the same UTF-8 rule.
     -> the Example differs, the Tab Dirty        banner Reload · Keep Mine, as for a Request
 ```
 
+Raccoon's own Example writes are in the ledger, so the watch does not report them. A rename or a
+delete of an Example through the window (`updateExample` with a closure, `removeExample`) therefore
+runs the same follow step itself, so an open Example Tab becomes Deleted on disk at once. ⌘S's
+`updateExample` does not: it would see its own Tab as differing from the old baseline.
+
 A Request Tab compares the file's **definition** with its baseline, as before, so a change to
 the file's Examples alone never raises Changed on Disk on the Request's Tab.
 

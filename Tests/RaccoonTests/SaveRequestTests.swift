@@ -47,7 +47,7 @@ struct SaveRequestTests {
         let written = try Data(contentsOf: file)
         #expect(try RequestFile.decode(written) == Request(id: OpenRequestTests.charge.id, name: "Create charge", definition: tab.tab.definition))
         #expect(!tab.tab.isDirty)
-        #expect(tab.tab.baseline == tab.tab.definition)
+        #expect(tab.tab.baseline == .request(tab.tab.definition))
         #expect(window.ledger.isOurs("Payments API/Create charge.json", written))
     }
 
