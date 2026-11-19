@@ -161,7 +161,7 @@ struct PrepareExportTests {
         window.selectedTab?.tab.definition.url = "https://changed.example"
         window.openRequest(twin.id)
         let other = try #require(window.index.collections.first { $0.name == "Other" }?.nodes.first)
-        if case .request(let id, _, _, _) = other {
+        if case .request(let id, _, _, _, _) = other {
             window.openRequest(id)
             window.selectedTab?.tab.definition.url = "https://changed.example"
         }

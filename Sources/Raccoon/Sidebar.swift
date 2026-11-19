@@ -9,6 +9,8 @@ final class SidebarItem {
         case collection
         case folder
         case request(RequestID, method: String)
+        /// A child of a Request row. Selectable, and inert: nothing opens from it yet.
+        case example(RequestID, ExampleID, status: Int)
         case unreadable(reason: String)
     }
 
@@ -25,6 +27,8 @@ final class SidebarItem {
         self.children = children
     }
 
+    var isExample: Bool { if case .example = kind { true } else { false } }
+
     /// This row's own path, or one below it.
     func contains(_ path: String) -> Bool {
         self.path == path || children.contains { $0.contains(path) }
@@ -36,8 +40,10 @@ final class SidebarItem {
                 switch node {
                 case .folder(let name, let children):
                     SidebarItem(kind: .folder, name: name, path: parent + "/" + name, children: items(children, in: parent + "/" + name))
-                case .request(let id, let name, let method, let path):
-                    SidebarItem(kind: .request(id, method: method), name: name, path: path)
+                case .request(let id, let name, let method, let path, let examples):
+                    SidebarItem(kind: .request(id, method: method), name: name, path: path, children: examples.map {
+                        SidebarItem(kind: .example(id, $0.id, status: $0.status), name: $0.name, path: $0.path(in: path))
+                    })
                 case .unreadable(let path, let reason):
                     SidebarItem(kind: .unreadable(reason: reason), name: node.name, path: path)
                 }
@@ -365,6 +371,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         switch item.kind {
         case .request: open(row: row)
         case .unreadable: revealInFinder(window.dataFolderRoot + "/" + item.path)
+        case .example: break
         case .collection, .folder:
             if outline.isItemExpanded(item) { outline.collapseItem(item) } else { outline.expandItem(item) }
         }
@@ -380,7 +387,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     private func folder(of item: SidebarItem) -> String {
         switch item.kind {
         case .collection, .folder: item.path
-        case .request, .unreadable: String(item.path[..<(item.path.range(of: "/", options: .backwards)?.lowerBound ?? item.path.endIndex)])
+        case .request, .unreadable, .example: String(item.path[..<(item.path.range(of: "/", options: .backwards)?.lowerBound ?? item.path.endIndex)])
         }
     }
 
@@ -460,7 +467,8 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     }
 
     private func fill(_ menu: NSMenu, row: Int) {
-        guard let item = outline.item(atRow: row) as? SidebarItem else { return }
+        // An Example's menu comes with its actions; until then there is none.
+        guard let item = outline.item(atRow: row) as? SidebarItem, !item.isExample else { return }
         func add(_ title: String, _ action: Selector, _ object: Any) {
             let entry = NSMenuItem(title: title, action: action, keyEquivalent: "")
             entry.target = self
@@ -558,6 +566,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
         switch (item as? SidebarItem)?.kind {
         case .collection, .folder: true
+        case .request: !((item as? SidebarItem)?.children.isEmpty ?? true)
         default: false
         }
     }
@@ -593,7 +602,18 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
             return cell
         case .request(_, let method):
             let cell = reuse(RequestCell.identifier) { RequestCell(target: self, action: #selector(moreClicked)) }
-            cell.show(name: item.name, method: method, match: matches[item.path]?.ranges ?? [], theme: theme)
+            cell.show(name: item.name, badge: method, token: .method(method), match: matches[item.path]?.ranges ?? [], theme: theme)
+            return cell
+        case .example(_, _, let status):
+            // The Request row's cell, with the status where the method sits and no More actions yet.
+            let cell: RequestCell = reuse(RequestCell.exampleIdentifier) {
+                let cell = RequestCell(target: self, action: #selector(moreClicked))
+                cell.offersMore = false
+                return cell
+            }
+            // The Response status line's own class-to-token rule.
+            let token = StatusLine(status: status, elapsed: .zero, byteCount: 0).token
+            cell.show(name: item.name, badge: "\(status)", token: token, match: matches[item.path]?.ranges ?? [], theme: theme)
             return cell
         case .unreadable(let reason):
             let cell = reuse(UnreadableCell.identifier) { UnreadableCell(target: self, action: #selector(revealClicked), moreAction: #selector(moreClicked)) }
@@ -758,13 +778,19 @@ final class NodeCell: MoreActionsCell {
     }
 }
 
-/// A Request: the left-aligned method badge, then the name 4 pt after it.
+/// A Request: the left-aligned method badge, then the name 4 pt after it. An Example is the same
+/// row with its status code as the badge.
 final class RequestCell: MoreActionsCell, ThemedRow {
     static let identifier = NSUserInterfaceItemIdentifier("request")
+    static let exampleIdentifier = NSUserInterfaceItemIdentifier("example")
+    /// False on an Example row, which has no menu yet.
+    var offersMore = true
+    override var showsMore: Bool { offersMore && super.showsMore }
     let badge = NSTextField(labelWithString: "")
     let name = NSTextField(labelWithString: "")
-    private var method = ""
-    private var methodColor = NSColor.labelColor
+    private var badgeText = ""
+    private var token = ColorToken.text
+    private var badgeColor = NSColor.labelColor
 
     override init(target: AnyObject, action: Selector) {
         super.init(target: target, action: action)
@@ -780,12 +806,13 @@ final class RequestCell: MoreActionsCell, ThemedRow {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    func show(name: String, method: String, match: [Range<String.Index>], theme: ThemeEnvironment) {
-        self.method = method
+    func show(name: String, badge text: String, token: ColorToken, match: [Range<String.Index>], theme: ThemeEnvironment) {
+        badgeText = text
+        self.token = token
         syncHover()
         shown = (name, match)
         renderName()
-        badge.setAccessibilityLabel(method)
+        badge.setAccessibilityLabel(text)
         paint(theme)
         needsLayout = true
     }
@@ -802,14 +829,14 @@ final class RequestCell: MoreActionsCell, ThemedRow {
     private func renderName() { name.attributedStringValue = highlighted(shown.0, shown.1, color: .labelColor, style: backgroundStyle) }
 
     func paint(_ theme: ThemeEnvironment) {
-        methodColor = theme.color(.method(method))
+        badgeColor = theme.color(token)
         renderBadge()
     }
 
-    /// The method colour, or the selected-text colour on an emphasized selection (design-system §6 Sidebar rows).
+    /// The badge colour, or the selected-text colour on an emphasized selection (design-system §6 Sidebar rows).
     private func renderBadge() {
-        let color = backgroundStyle == .emphasized ? NSColor.alternateSelectedControlTextColor : methodColor
-        badge.attributedStringValue = NSAttributedString(string: method, attributes: [
+        let color = backgroundStyle == .emphasized ? NSColor.alternateSelectedControlTextColor : badgeColor
+        badge.attributedStringValue = NSAttributedString(string: badgeText, attributes: [
             .paragraphStyle: Self.leftAligned,
             .font: NSFont.monospacedSystemFont(ofSize: 9.5, weight: .bold),
             .foregroundColor: color,

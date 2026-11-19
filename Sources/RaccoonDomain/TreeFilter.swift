@@ -10,7 +10,8 @@ public struct FilteredTree: Equatable, Sendable {
     }
 
     public var collections: [Collection]
-    /// By node path: a Collection's name, a Folder's path, a Request's or unreadable file's path.
+    /// By node path: a Collection's name, a Folder's path, a Request's or unreadable file's path,
+    /// an Example's `ExampleSummary.path(in:)`.
     public var matches: [String: Match]
     /// Collections and Folders holding a match, shown open.
     public var expanded: Set<String>
@@ -58,7 +59,17 @@ public enum TreeFilter {
                     if inner.hasMatch { result.expanded.insert(path) }
                     hasMatch = hasMatch || matched || inner.hasMatch
                     return ancestorMatched || matched || inner.hasMatch ? .folder(name: name, children: inner.nodes) : nil
-                case .request(_, _, _, let path), .unreadable(let path, _):
+                case .request(let id, let name, let method, let path, let examples):
+                    let matched = match(name, at: path) != nil
+                    // Every Example is tried, so a Request that matched keeps its Examples and still highlights them.
+                    let hits = examples.filter { match($0.name, at: $0.path(in: path)) != nil }
+                    hasMatch = hasMatch || matched || !hits.isEmpty
+                    // Open whenever an Example hit is counted, so every counted hit is visible.
+                    if !hits.isEmpty { result.expanded.insert(path) }
+                    if ancestorMatched || matched { return node }
+                    guard !hits.isEmpty else { return nil }
+                    return .request(id, name: name, method: method, path: path, examples: hits)
+                case .unreadable(let path, _):
                     let matched = match(node.name, at: path) != nil
                     hasMatch = hasMatch || matched
                     return ancestorMatched || matched ? node : nil

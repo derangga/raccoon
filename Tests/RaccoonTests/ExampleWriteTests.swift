@@ -1,4 +1,5 @@
 import AppKit
+import Observation
 @testable import Raccoon
 import RaccoonData
 import RaccoonDomain
@@ -160,4 +161,36 @@ struct ExampleWriteTests {
         #expect(tab.tab.isDirty)
         #expect(!tab.tab.isChangedOnDisk)
     }
+
+    @Test func `the index lists the Examples at once after each write, with no scan`() throws {
+        let (window, _) = try base.openEdited()
+        func summaries() -> [ExampleSummary] {
+            guard case .request(_, _, _, _, let examples)? = window.index.collections.first?.nodes.first else { return [] }
+            return examples
+        }
+
+        try window.addExample(example(1), to: id)
+        try window.addExample(example(2, name: "two"), to: id)
+        #expect(summaries() == [ExampleSummary(example(1)), ExampleSummary(example(2, name: "two"))])
+
+        try window.updateExample(id, example(1).id) { $0.status = 404 }
+        #expect(summaries().first?.status == 404)
+
+        try window.removeExample(id, example(1).id)
+        #expect(summaries() == [ExampleSummary(example(2, name: "two"))])
+        #expect(window.index.path(of: id) == path)
+    }
+
+    @Test func `a save of the definition alone does not rebuild the index`() throws {
+        let (window, tab) = try base.openEdited()
+        try window.addExample(example(1), to: id)
+        let flag = Flag()
+        withObservationTracking { _ = window.index } onChange: { flag.fired = true }
+
+        window.save(tab.tab.id)
+
+        #expect(!flag.fired)
+    }
 }
+
+private final class Flag: @unchecked Sendable { var fired = false }

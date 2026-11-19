@@ -182,7 +182,9 @@ and renames the file to match. Move to Trash does not ask: the Trash is the undo
            "refund", not the r and e of "Purge"; adjacent hits merged into runs
         E: neither -> escape: the node does not match
      -> a node is kept if its name matches, or an ancestor's matched as a substring;
-        .unreadable rows match by file name
+        .unreadable rows match by file name; an Example matches by its name, and a Request
+        that has a matching Example is kept, shown expanded, with just those Examples unless
+        it matched itself (examples.md)
      -> a Collection or Folder that matched only as a subsequence keeps only the
         descendants that match on their own
      -> ancestors of a kept node are kept and shown expanded

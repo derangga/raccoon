@@ -15,7 +15,7 @@ public struct DataFolderIndex: Equatable, Sendable {
             for node in nodes {
                 switch node {
                 case .folder(_, let children): gather(children)
-                case .request(let id, let name, _, let path): requests.append((id, name, path))
+                case .request(let id, let name, _, let path, _): requests.append((id, name, path))
                 case .unreadable: break
                 }
             }
@@ -31,7 +31,7 @@ public struct DataFolderIndex: Equatable, Sendable {
             nodes.map { node in
                 switch node {
                 case .folder(let name, let children): .folder(name: name, children: marked(children))
-                case .request(_, _, _, let path):
+                case .request(_, _, _, let path, _):
                     duplicates[path].map { .unreadable(path: path, reason: "Same id as \(TreeDecoder.lastComponent($0)).") } ?? node
                 case .unreadable: node
                 }
@@ -72,7 +72,7 @@ public struct DataFolderIndex: Equatable, Sendable {
         return Set(nodes.compactMap { node in
             switch node {
             case .folder: nil
-            case .request(_, _, _, let path), .unreadable(let path, _): TreeDecoder.lastComponent(path)
+            case .request(_, _, _, let path, _), .unreadable(let path, _): TreeDecoder.lastComponent(path)
             }
         })
     }

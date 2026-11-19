@@ -21,6 +21,18 @@ struct DataFolderIndexTests {
         #expect(index.name(of: Self.id(3)) == nil)
     }
 
+    @Test func `a Request keeps its Examples in the index tree, and a new one has none`() {
+        let example = ExampleSummary(id: ExampleID(UUID(uuidString: "E0000000-0000-4000-8000-000000000001")!), name: "ok", status: 200)
+        var index = DataFolderIndex([
+            Collection(name: "A", nodes: [.request(Self.id(1), name: "Old", method: "GET", path: "A/Old.json", examples: [example])]),
+        ])
+        index.insert(Self.id(2), name: "New", method: "GET", path: "A/New.json")
+        #expect(index.collections[0].nodes == [
+            .request(Self.id(2), name: "New", method: "GET", path: "A/New.json", examples: []),
+            .request(Self.id(1), name: "Old", method: "GET", path: "A/Old.json", examples: [example]),
+        ])
+    }
+
     @Test func `insert puts a Request in its Folder, sorted, and indexes it`() {
         var index = DataFolderIndex([
             Collection(name: "A", nodes: [

@@ -1153,7 +1153,7 @@ final class WindowModel {
                     switch node {
                     case .folder(let name, let children): exported.append(.folder(name: name, children: read(children)))
                     case .unreadable(let path, let reason): skipped.append(ExportSkip(path: path, reason: reason))
-                    case .request(_, _, _, let path):
+                    case .request(_, _, _, let path, _):
                         if let request = load(path, from: store, skipped: &skipped) { exported.append(.request(request)) }
                     }
                 }
@@ -1163,7 +1163,7 @@ final class WindowModel {
                 nodes.flatMap { node -> [String] in
                     switch node {
                     case .folder(_, let children): dirtyNames(children)
-                    case .request(let id, _, _, _): dirty[id].map { [$0] } ?? []
+                    case .request(let id, _, _, _, _): dirty[id].map { [$0] } ?? []
                     case .unreadable: []
                     }
                 }
@@ -1515,6 +1515,7 @@ final class WindowModel {
             throw .failed(reason: error.reason)
         }
         guard request.id == requestID else { throw .failed(reason: "the file is another Request now") }
+        let listed = request.examples.map(ExampleSummary.init)
         change(&request)
         let data = RequestFile.encode(request)
         do throws(StoreError) {
@@ -1524,6 +1525,8 @@ final class WindowModel {
         }
         ledger.record(path, data)
         lastScan.files[path] = data
+        // The sidebar lists Examples, so it follows them; a definition alone changes no row.
+        if request.examples.map(ExampleSummary.init) != listed { index = DataFolderIndex(TreeDecoder.collections(lastScan)) }
     }
 
     /// The sheet's default Location: where the last Draft was saved. Not kept across relaunch.

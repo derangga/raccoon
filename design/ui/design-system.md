@@ -1303,8 +1303,10 @@ Collections". Hidden while there are no Collections (screen 1).
 - Filters as you type, no debounce, over Request, Folder and Collection names, case- and
   diacritic-insensitive. A name matches when it contains the query, or failing that, when
   the query's characters appear in it in order with gaps (Q19): "refnd" finds "List
-  refunds". Unreadable rows match by file name.
-- A node stays if it matches; ancestors open. Everything under a Collection or Folder stays
+  refunds". Unreadable rows match by file name. An Example matches by its name, like a Request.
+- A node stays if it matches; ancestors open, and a Request opens when one of its Examples
+  matches, so every counted match is on screen. A Request kept only through an Example shows just
+  the Examples that match. Everything under a Collection or Folder stays
   only when its name contains the query. A container matched only with gaps keeps just the
   rows under it that match on their own.
 - The match is highlighted with the system find-highlight color **and** set semibold, so it
