@@ -85,6 +85,8 @@ public struct VariablesPane: Equatable, Sendable {
         case .none: []
         case .raw(_, let text): [text]
         case .formURLEncoded(let rows): texts(rows)
+        // Placeholder: a later change settles which GraphQL fields substitute.
+        case .graphql(let graphql): [graphql.query, graphql.variables, graphql.operationName]
         case .multipart(let parts):
             parts.filter(\.isEnabled).flatMap { part -> [String] in
                 switch part.content {

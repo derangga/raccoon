@@ -75,7 +75,8 @@ public final class URLSessionTransport: HTTPTransport {
         var headers = definition.headers
 
         switch definition.body {
-        case .none:
+        // The resolver lowers a GraphQL body to raw JSON; a later change fills it in.
+        case .none, .graphql:
             break
         case .raw(_, let text):
             urlRequest.httpBody = Data(text.utf8)

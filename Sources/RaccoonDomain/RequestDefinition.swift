@@ -66,6 +66,20 @@ public enum Body: Equatable, Sendable {
     case raw(RawKind, String)
     case formURLEncoded([Row])
     case multipart([Part])
+    case graphql(GraphQLBody)
+}
+
+/// A Query, its Variables as JSON text as typed, and an Operation Name, "" for none.
+public struct GraphQLBody: Equatable, Sendable {
+    public var query: String
+    public var variables: String
+    public var operationName: String
+
+    public init(query: String, variables: String, operationName: String) {
+        self.query = query
+        self.variables = variables
+        self.operationName = operationName
+    }
 }
 
 public struct Part: Equatable, Sendable {

@@ -33,7 +33,8 @@ public enum AutomaticHeaders {
             AutomaticHeader(name: "User-Agent", value: userAgent),
         ]
         switch definition.body {
-        case .none: break
+        // A later change lowers a GraphQL body to raw JSON before this runs, so it is never reached then.
+        case .none, .graphql: break
         case .multipart:
             rows += [AutomaticHeader(name: "Content-Type", value: "multipart/form-data"), AutomaticHeader(name: "Content-Length", value: nil)]
         case .raw, .formURLEncoded:

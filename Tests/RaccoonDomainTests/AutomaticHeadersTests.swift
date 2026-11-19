@@ -34,6 +34,7 @@ struct AutomaticHeadersTests {
         (Body.formURLEncoded([Row(name: "a", value: "1")]), [], [AutomaticHeader(name: "Content-Type", value: "application/x-www-form-urlencoded"), AutomaticHeader(name: "Content-Length", value: nil)]),
         (Body.multipart([]), [], [AutomaticHeader(name: "Content-Type", value: "multipart/form-data"), AutomaticHeader(name: "Content-Length", value: nil)]),
         (Body.raw(.json, "{}"), [Row(name: "content-type", value: "application/json")], [AutomaticHeader(name: "Content-Length", value: nil)]),
+        (Body.graphql(GraphQLBody(query: "{ a }", variables: "", operationName: "")), [], []),
     ])
     func `a body adds Content-Length, and Content-Type when no row sets one`(body: Body, headers: [Row], added: [AutomaticHeader]) throws {
         let rows = AutomaticHeaders.rows(for: try resolved("http://h/", method: "POST", headers: headers, body: body))

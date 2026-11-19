@@ -286,6 +286,8 @@ public enum PostmanMapping {
         case .none: break
         case .raw(_, let text): texts.append(text)
         case .formURLEncoded(let rows): texts += rows.flatMap { [$0.name, $0.value] }
+        // Placeholder: a later change settles the GraphQL mapping.
+        case .graphql(let graphql): texts += [graphql.query, graphql.variables, graphql.operationName]
         case .multipart(let parts):
             texts += parts.flatMap { part -> [String] in
                 switch part.content {

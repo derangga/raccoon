@@ -26,6 +26,9 @@ public enum VariableResolver {
         case .none: .none
         case .raw(let kind, let body): .raw(kind, text(body))
         case .formURLEncoded(let form): .formURLEncoded(rows(form))
+        // Placeholder: a later change lowers a GraphQL body to raw JSON here.
+        case .graphql(let graphql): .graphql(GraphQLBody(
+            query: text(graphql.query), variables: text(graphql.variables), operationName: text(graphql.operationName)))
         case .multipart(let parts): .multipart(parts.filter(\.isEnabled).map { part in
             switch part.content {
             case .text(let value): Part(name: text(part.name), content: .text(text(value)))

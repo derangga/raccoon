@@ -22,13 +22,17 @@ struct DefinitionJSON: Codable {
         var isEnabled: Bool?
     }
 
-    /// `type` is raw, form or multipart; the other keys belong to one of them.
+    /// `type` is raw, form, multipart or graphql; the other keys belong to one of them.
     struct BodyJSON: Codable {
         var type: String
         var kind: String?
         var text: String?
         var rows: [RowJSON]?
         var parts: [PartJSON]?
+        /// graphql: `variables` and `operationName` are left out when empty.
+        var query: String?
+        var variables: String?
+        var operationName: String?
     }
 
     /// Exactly one of `text` and `file`.
@@ -92,6 +96,10 @@ struct DefinitionJSON: Codable {
             case .file(let path): PartJSON(name: part.name, isEnabled: part.isEnabled, file: path)
             }
         })
+        case .graphql(let graphql): BodyJSON(
+            type: "graphql", query: graphql.query,
+            variables: graphql.variables.isEmpty ? nil : graphql.variables,
+            operationName: graphql.operationName.isEmpty ? nil : graphql.operationName)
         }
         let auth: AuthJSON? = switch definition.auth {
         case .none: nil
@@ -171,6 +179,8 @@ extension DefinitionJSON.BodyJSON {
                 }
                 return Part(name: part.name, isEnabled: part.isEnabled ?? true, content: content)
             })
+        case "graphql":
+            return .graphql(GraphQLBody(query: query ?? "", variables: variables ?? "", operationName: operationName ?? ""))
         default:
             throw Malformed(reason: "unknown body type \"\(type)\"")
         }

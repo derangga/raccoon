@@ -145,7 +145,8 @@ public enum PostmanExporter {
 
     private static func body(_ body: Body) -> WireBody? {
         switch body {
-        case .none:
+        // Placeholder: a later change writes a GraphQL body as Postman's graphql mode.
+        case .none, .graphql:
             return nil
         case .raw(let kind, let text):
             let language = switch kind { case .json: "json"; case .xml: "xml"; case .text: "text" }

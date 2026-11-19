@@ -67,7 +67,7 @@ struct SessionFileTests {
         #"{"version": 2, "tabs": []}"#,
         #"{"tabs": []}"#,
         #"{"version": 1, "tabs": [{"id": "nope", "definition": {"method": "GET", "url": ""}}]}"#,
-        #"{"version": 1, "tabs": [{"id": "\#(UUID())", "definition": {"method": "GET", "url": "", "body": {"type": "graphql"}}}]}"#,
+        #"{"version": 1, "tabs": [{"id": "\#(UUID())", "definition": {"method": "GET", "url": "", "body": {"type": "websocket"}}}]}"#,
         #"{"version": 1, "tabs": [{"id": "\#(UUID())", "definition": {"method": "GET", "url": "", "body": {"type": "raw"}}}]}"#,
     ])
     func `an unknown version or bytes that are not a Session are undecodable`(json: String) {

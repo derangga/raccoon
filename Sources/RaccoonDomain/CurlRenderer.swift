@@ -14,7 +14,8 @@ public enum CurlRenderer {
             flags.append("-b " + quoted(definition.cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")))
         }
         switch definition.body {
-        case .none:
+        // The resolver lowers a GraphQL body to raw JSON; a later change fills it in.
+        case .none, .graphql:
             break
         case .raw(_, let text):
             flags.append("--data-raw " + quoted(text))

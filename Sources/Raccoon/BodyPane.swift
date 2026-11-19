@@ -248,6 +248,8 @@ final class BodyPane: NSView, NSTextViewDelegate {
         case .raw: "raw"
         case .formURLEncoded: "form-urlencoded"
         case .multipart: "multipart"
+        // Placeholder: a later change adds the GraphQL pop-up item and pane.
+        case .graphql: "GraphQL"
         }
     }
 
@@ -332,7 +334,8 @@ final class BodyPane: NSView, NSTextViewDelegate {
         formTable.isHidden = body.type != .formURLEncoded
         partsTable.isHidden = body.type != .multipart
         switch body {
-        case .none:
+        // Placeholder: a later change shows the GraphQL editors.
+        case .none, .graphql:
             coloredKind = nil
         case .multipart(let parts):
             coloredKind = nil

@@ -6,6 +6,7 @@ public enum BodyType: Equatable, Sendable {
     case raw(RawKind)
     case formURLEncoded
     case multipart
+    case graphql
 }
 
 extension Body {
@@ -15,6 +16,7 @@ extension Body {
         case .raw(let kind, _): .raw(kind)
         case .formURLEncoded: .formURLEncoded
         case .multipart: .multipart
+        case .graphql: .graphql
         }
     }
 }
@@ -37,6 +39,9 @@ public enum BodyConversion {
         case (.formURLEncoded(let rows), .multipart):
             .multipart(rows.map { Part(name: $0.name, isEnabled: $0.isEnabled, content: .text($0.value)) })
         case (_, .multipart): .multipart([])
+        // Placeholder: a later change lifts a raw JSON body into the query and variables.
+        case (.graphql, .graphql): body
+        case (_, .graphql): .graphql(GraphQLBody(query: "", variables: "", operationName: ""))
         }
     }
 }
@@ -64,6 +69,7 @@ public enum Headers {
         case .raw(.xml): "application/xml"
         case .formURLEncoded: "application/x-www-form-urlencoded"
         case .multipart: "multipart/form-data"
+        case .graphql: "application/json"
         }
     }
 }
