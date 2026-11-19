@@ -45,3 +45,12 @@ struct ImportContentsTests {
         ))
     }
 }
+
+extension ImportContentsTests {
+    @Test func `a Request's Examples are written in its file`() throws {
+        var request = Self.request(1, "r")
+        request.examples = [Example(id: ExampleID(UUID()), name: "OK", status: 200, headers: [Row(name: "A", value: "1")], body: .text("b"))]
+        let file = try #require(ImportCollection(name: "C", nodes: [.request(request)]).contents.files["r.json"])
+        #expect(try RequestFile.decode(file).examples == request.examples)
+    }
+}

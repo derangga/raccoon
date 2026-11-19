@@ -89,8 +89,6 @@ public struct ImportNote: Equatable, Sendable {
         case dynamicVariable(name: String)
         /// Pre-request and test scripts, the Request's own or a Folder's or the Collection's.
         case scriptsDropped
-        /// Saved examples (`response`).
-        case examplesDropped
         /// Names the Folders and Collections whose description was dropped; a Request's is its Docs.
         case descriptionsDropped
         /// A Collection or Environment planned under another name: taken, or not a file name.
@@ -137,12 +135,12 @@ private struct Notes {
 public enum PostmanMapping {
     /// `dataFolder`, `globals` and `environments` are what the Workspace already has: the names
     /// an imported Collection, Environment or Global must not take. `newID` makes each planned
-    /// Request's RequestID. Collection variables are added to Globals before Globals files, so
+    /// Request's RequestID, `newExampleID` each Example's. Collection variables are added to Globals before Globals files, so
     /// a Collection variable wins over a Global of the same name, as in Postman. `.notPostman`
     /// files are not planned: the Import sheet lists them.
     public static func plan(
         _ files: [PostmanFile], dataFolder: DataFolderIndex, globals: Globals, environments: [Environment],
-        newID: () -> RequestID
+        newID: () -> RequestID, newExampleID: () -> ExampleID = { ExampleID(UUID()) }
     ) -> ImportPlan {
         var notes = Notes()
         var collections: [ImportCollection] = []
@@ -164,7 +162,7 @@ public enum PostmanMapping {
             if !(collection.description ?? "").isEmpty { notes.add(.descriptionsDropped, name) }
             collections.append(ImportCollection(name: name, nodes: nodes(
                 collection.items, auth: effective(collection.auth, over: nil), scripts: hasScripts(collection.events),
-                notes: &notes, newID: newID
+                notes: &notes, newID: newID, newExampleID: newExampleID
             )))
             if addGlobals(collection.variables) { notes.add(.collectionVariables, name) }
         }
@@ -200,7 +198,8 @@ public enum PostmanMapping {
     /// `auth` is what the items inherit: the nearest Folder's or the Collection's. `scripts` is
     /// whether a Folder or the Collection above them has one, which Postman runs for each.
     private static func nodes(
-        _ items: [PostmanItem], auth: PostmanAuth?, scripts: Bool, notes: inout Notes, newID: () -> RequestID
+        _ items: [PostmanItem], auth: PostmanAuth?, scripts: Bool, notes: inout Notes, newID: () -> RequestID,
+        newExampleID: () -> ExampleID
     ) -> [ImportNode] {
         items.compactMap { item in
             switch item {
@@ -208,7 +207,7 @@ public enum PostmanMapping {
                 if !(folder.description ?? "").isEmpty { notes.add(.descriptionsDropped, folder.name) }
                 let children = nodes(
                     folder.items, auth: effective(folder.auth, over: auth), scripts: scripts || hasScripts(folder.events),
-                    notes: &notes, newID: newID
+                    notes: &notes, newID: newID, newExampleID: newExampleID
                 )
                 return .folder(name: folder.name, children: children)
             case .request(let request):
@@ -217,10 +216,12 @@ public enum PostmanMapping {
                 // A Request's file name is its name, so it needs one.
                 let name = request.name.trimmingCharacters(in: .whitespaces).isEmpty
                     ? Tab.title(url: definition.url) ?? definition.method : request.name
-                let planned = Request(id: newID(), name: name, definition: definition)
+                let id = newID()
+                let planned = Request(
+                    id: id, name: name, definition: definition, examples: request.examples.map { example($0, id: newExampleID()) }
+                )
                 kinds += dynamicVariables(planned.definition).map { .dynamicVariable(name: $0) }
                 if scripts || hasScripts(request.events) { kinds.append(.scriptsDropped) }
-                if request.responseCount > 0 { kinds.append(.examplesDropped) }
                 var seen: Set<ImportNote.Kind> = []
                 for kind in kinds where seen.insert(kind).inserted { notes.add(kind, name) }
                 return .request(planned)
@@ -229,6 +230,12 @@ public enum PostmanMapping {
                 return nil
             }
         }
+    }
+
+    /// A missing or out-of-range `code` is 200, not the nearest status in range.
+    private static func example(_ entry: PostmanExample, id: ExampleID) -> Example {
+        let status = entry.code.flatMap { Example.statusRange.contains($0) ? $0 : nil } ?? 200
+        return Example(id: id, name: entry.name, status: status, headers: rows(entry.headers), body: .text(entry.body))
     }
 
     private static func definition(_ request: PostmanRequest, inherited: PostmanAuth?, notes: inout [ImportNote.Kind]) -> RequestDefinition {

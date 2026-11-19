@@ -66,8 +66,18 @@ public enum PostmanImporter {
             maxRedirects: maxRedirects(behavior["maxRedirects"]),
             followOriginalHttpMethod: behavior["followOriginalHttpMethod"] as? Bool,
             followAuthorizationHeader: behavior["followAuthorizationHeader"] as? Bool,
-            events: events(json["event"]), responseCount: (json["response"] as? [Any])?.count ?? 0
+            events: events(json["event"]), examples: examples(json["response"])
         ))
+    }
+
+    /// An entry that is not an object is skipped, like any malformed part.
+    private static func examples(_ json: Any?) -> [PostmanExample] {
+        objects(json).map { entry in
+            PostmanExample(
+                name: text(entry["name"]) ?? "", code: text(entry["code"]).flatMap { Int($0) },
+                headers: headers(entry["header"]), body: text(entry["body"]) ?? ""
+            )
+        }
     }
 
     /// `protocolProfileBehavior.maxRedirects`, or nil to leave the default in place. A fraction

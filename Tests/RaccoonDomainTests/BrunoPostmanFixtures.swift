@@ -2156,7 +2156,7 @@ enum BrunoPostmanFixtures {
               ]
             }
             """#, plan: imported("collection with numeric values", [planned(1, "request with numeric values", "POST", "https://example.com/api/:accountId", params: rows(("limit", "100"), ("offset", "0")), pathVariables: ["accountId": "0"], headers: rows(("X-Account-Id", "0"), ("X-Retry-Count", "3")) + [form], body: .formURLEncoded(rows(("timeout", "5000")))), planned(2, "request with numeric multipart form values", "POST", "https://example.com/upload", headers: [multipart], body: parts(("retries", .text("3")), ("priority", .text("0"))))])),
-        // Differs: the saved example is dropped and counted (`response`).
+        // Differs: the saved example is an Example; its originalRequest is dropped without a note.
         PostmanFixture("should convert numeric values to strings in example request and response fields", #"""
             {
               "info": {
@@ -2193,7 +2193,9 @@ enum BrunoPostmanFixtures {
                 }
               ]
             }
-            """#, plan: imported("collection with numeric example values", [planned(1, "request with numeric example", "GET", "https://example.com/api")], notes: [note(.examplesDropped, "request with numeric example")])),
+            """#, plan: imported("collection with numeric example values", [planned(1, "request with numeric example", "GET", "https://example.com/api", examples: [
+                Example(id: PostmanMappingTests.exampleID(1), name: "Example with numerics", status: 200, headers: rows(("X-RateLimit-Remaining", "0")), body: .text(#"{"ok": true}"#)),
+            ])])),
         // Differs: the API key is a header (auth `apikey`).
         PostmanFixture("should convert numeric auth values to strings (array-backed v2.1 format)", #"""
             {
@@ -2535,7 +2537,9 @@ enum BrunoPostmanFixtures {
                 }
               ]
             }
-            """#, plan: imported("collection with binary example", [planned(1, "binary upload", "POST", "https://example.com/upload")], notes: [note(.binaryBody, "binary upload"), note(.examplesDropped, "binary upload")])),
+            """#, plan: imported("collection with binary example", [planned(1, "binary upload", "POST", "https://example.com/upload", examples: [
+                Example(id: PostmanMappingTests.exampleID(1), name: "Binary upload example", status: 201, body: .text("")),
+            ])], notes: [note(.binaryBody, "binary upload")])),
         PostmanFixture("should infer contentType from the file extension of src", #"""
             {
               "info": {

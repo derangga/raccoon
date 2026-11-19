@@ -105,7 +105,7 @@ struct PostmanImport {
         PostmanMapping.plan(
             files, dataFolder: window.index, globals: window.globals,
             environments: window.environments + window.brokenEnvironments.map { Environment(name: $0.name, entries: []) },
-            newID: { RequestID(UUID()) }
+            newID: { RequestID(UUID()) }, newExampleID: { ExampleID(UUID()) }
         )
     }
 
@@ -246,8 +246,6 @@ struct PostmanImport {
                 for request in note.names where !(dynamic?.names.contains(request) ?? true) { dynamic?.names.append(request) }
             case .fileOnlyName(let path):
                 add(true, "The file “\(path)” in \(requests) has only a name, so \(one ? "it won't" : "they won't") send until you pick it again.")
-            case .examplesDropped:
-                add(true, "Saved examples in \(requests) are not imported.")
             case .descriptionsDropped:
                 add(true, "\(plural(n, "description")) \(one ? "is" : "are") not imported. Raccoon keeps no Folder or Collection descriptions.")
             case .itemsSkipped:

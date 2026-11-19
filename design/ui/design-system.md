@@ -1185,7 +1185,8 @@ Postman's export card, and the steps copy its checked steps, but only for work t
   appears (the rows' height is reserved, so nothing moves). The three rows'
   height is kept from the first frame, so rows appearing move nothing.
 - **Counts**, drawn in the same frame as the third row, 13 pt, no motion of their own:
-  “41 Requests · 11 Folders” (“1 Request · 1 Folder”, “0 Requests · 0 Folders”). The numbers are
+  “41 Requests · 11 Folders” (“1 Request · 1 Folder”, “0 Requests · 0 Folders”), then
+  “ · 6 Examples” (“ · 1 Example”) only when the Collection has Examples. The numbers are
   what the file holds; an empty Collection exports.
 - **Credentials** (only when the scan found some), under the counts: an orange
   `exclamationmark.triangle.fill` 14 pt, “18 credentials in plain text” in 13 pt semibold
@@ -1204,6 +1205,9 @@ Postman's export card, and the steps copy its checked steps, but only for work t
 - **Dirty Requests** (only when a Dirty Tab holds one of the Collection's Requests): an ⓘ and “2
   Requests have edits in Tabs. Export uses what is saved.”, 12 pt secondary; for one,
   “1 Request has edits in a Tab. Export uses what is saved.” (Dirty's Avoid line bans “unsaved”)
+- **Binary Example bodies** (only when an Example holds a `.bytes` body): an ⓘ and “2 binary
+  Example bodies written as base64”, 12 pt secondary, drawn as the Dirty Requests line is; for one,
+  “1 binary Example body written as base64”. Postman has no field for raw bytes.
 - **Failure**: an 11 pt system-red line above the buttons, “Not exported. <reason>.”, the reason
   being the StoreError's (“Not exported. The folder “Archive” is not writable.”). The sheet stays
   and Export… works for another place.

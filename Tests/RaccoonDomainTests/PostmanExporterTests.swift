@@ -234,12 +234,18 @@ extension PostmanExporterTests {
     /// Plans one Collection into an empty Workspace, RequestIDs counted from 1.
     static func plan(_ data: Data) -> ImportPlan {
         var next = 0
+        var nextExample = 0
         return PostmanMapping.plan(
-            [PostmanImporter.read(data)], dataFolder: DataFolderIndex([]), globals: Globals(entries: []), environments: []
-        ) {
-            next += 1
-            return PostmanMappingTests.id(next)
-        }
+            [PostmanImporter.read(data)], dataFolder: DataFolderIndex([]), globals: Globals(entries: []), environments: [],
+            newID: {
+                next += 1
+                return PostmanMappingTests.id(next)
+            },
+            newExampleID: {
+                nextExample += 1
+                return PostmanMappingTests.exampleID(nextExample)
+            }
+        )
     }
 
     static func node(_ node: ImportNode) -> ExportNode {
@@ -493,5 +499,60 @@ extension PostmanExporterTests {
         let again = try #require(Self.plan(Self.exportEnvironment(entries, secrets: .none, name: first.name)).environments.first)
         #expect(first.variables.count == 14)
         #expect(again.variables.map(\.entry) == entries)
+    }
+}
+
+extension PostmanExporterTests {
+    static func example(
+        _ name: String, _ status: Int = 200, headers: [Row] = [], body: ExampleBody = .text("")
+    ) -> Example {
+        Example(id: ExampleID(UUID()), name: name, status: status, headers: headers, body: body)
+    }
+
+    static func requestNode(examples: [Example]) -> ExportNode {
+        .request(Request(id: RequestID(UUID()), name: "r", definition: .empty, examples: examples))
+    }
+
+    @Test func `each Example is a response entry with name, code, status, header and body, and no originalRequest`() throws {
+        let node = Self.requestNode(examples: [
+            Self.example("Created", 201, headers: [Row(name: "A", value: "1"), Row(name: "B", value: "2", isEnabled: false)], body: .text(#"{"ok": true}"#)),
+            Self.example("Teapot", 599),
+        ])
+        let items = try #require(try Self.json(Self.export([node]))["item"] as? [NSDictionary])
+        let response = try #require(items.first?["response"])
+        #expect(try Self.same(response, #"""
+            [
+              {"name": "Created", "code": 201, "status": "Created", "header": [{"key": "A", "value": "1"}, {"key": "B", "value": "2", "disabled": true}], "body": "{\"ok\": true}"},
+              {"name": "Teapot", "code": 599, "status": "", "header": [], "body": ""}
+            ]
+            """#))
+    }
+
+    @Test func `a binary Example body is written as base64 text`() throws {
+        let node = Self.requestNode(examples: [Self.example("Bin", body: .bytes(Data([0xFF, 0x00, 0xFE])))])
+        let items = try #require(try Self.json(Self.export([node]))["item"] as? [NSDictionary])
+        let response = try #require((items.first?["response"] as? [NSDictionary])?.first)
+        #expect(response["body"] as? String == "/wD+")
+    }
+
+    @Test func `a Request with no Examples keeps an empty response`() throws {
+        let items = try #require(try Self.json(Self.export([Self.requestNode(examples: [])]))["item"] as? [NSDictionary])
+        #expect(try Self.same(try #require(items.first?["response"]), "[]"))
+    }
+
+    @Test func `Examples read again keep name, status, headers and a text body; a binary body is its base64 text`() throws {
+        let examples = [
+            Self.example("Created", 201, headers: [Row(name: "A", value: "1"), Row(name: "B", value: "2", isEnabled: false)], body: .text("héllo\n")),
+            Self.example("Teapot", 418),
+            // The documented limit: Postman has no bytes, so the body comes back as text.
+            Self.example("Bin", body: .bytes(Data([0xFF, 0x00, 0xFE]))),
+        ]
+        let plan = Self.plan(Self.export([Self.requestNode(examples: examples)]))
+        guard case .request(let again)? = plan.collections.first?.nodes.first else { throw RoundTripFailed() }
+        #expect(again.examples.map(\.name) == ["Created", "Teapot", "Bin"])
+        #expect(again.examples.map(\.status) == [201, 418, 200])
+        #expect(again.examples.map(\.headers) == [examples[0].headers, [], []])
+        #expect(again.examples.map(\.body) == [.text("héllo\n"), .text(""), .text("/wD+")])
+        #expect(plan.notes == [])
     }
 }

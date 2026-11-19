@@ -184,7 +184,7 @@ ImportNote               kind, names: what was dropped or changed, and the Reque
                          note per kind, in the order first met. Kinds:
                          .scriptsDropped · .authNotSupported(type) · .authInherited
                          · .binaryBody
-                         · .dynamicVariable(name) · .fileOnlyName(path) · .examplesDropped
+                         · .dynamicVariable(name) · .fileOnlyName(path)
                          · .descriptionsDropped · .itemsSkipped
                          · .renamed(from, to) · .globalSkipped · .collectionVariables
                          · .variableNameInvalid

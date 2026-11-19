@@ -80,15 +80,15 @@ public struct PostmanRequest: Equatable, Sendable {
     /// `protocolProfileBehavior.followAuthorizationHeader`.
     public var followAuthorizationHeader: Bool?
     public var events: [PostmanEvent]
-    /// The saved examples in `response`. Raccoon keeps none, so only their count is read.
-    public var responseCount: Int
+    /// The saved examples in `response`, in order.
+    public var examples: [PostmanExample]
 
     public init(
         name: String, description: String? = nil, method: String = "GET", url: PostmanURL = PostmanURL(),
         headers: [PostmanKeyValue] = [], body: PostmanBody? = nil, auth: PostmanAuth? = nil,
         followRedirects: Bool? = nil, strictSSL: Bool? = nil, maxRedirects: Int? = nil,
         followOriginalHttpMethod: Bool? = nil, followAuthorizationHeader: Bool? = nil,
-        events: [PostmanEvent] = [], responseCount: Int = 0
+        events: [PostmanEvent] = [], examples: [PostmanExample] = []
     ) {
         self.maxRedirects = maxRedirects
         self.followOriginalHttpMethod = followOriginalHttpMethod
@@ -103,7 +103,24 @@ public struct PostmanRequest: Equatable, Sendable {
         self.followRedirects = followRedirects
         self.strictSSL = strictSSL
         self.events = events
-        self.responseCount = responseCount
+        self.examples = examples
+    }
+}
+
+/// An entry of `response`. `originalRequest`, `cookie`, `responseTime` and
+/// `_postman_previewlanguage` are not read: Raccoon serves none of them.
+public struct PostmanExample: Equatable, Sendable {
+    public var name: String
+    /// nil when absent or not a whole number.
+    public var code: Int?
+    public var headers: [PostmanKeyValue]
+    public var body: String
+
+    public init(name: String, code: Int? = nil, headers: [PostmanKeyValue] = [], body: String = "") {
+        self.name = name
+        self.code = code
+        self.headers = headers
+        self.body = body
     }
 }
 

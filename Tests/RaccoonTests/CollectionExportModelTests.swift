@@ -9,10 +9,13 @@ struct CollectionExportModelTests {
     let model = CollectionExportModel(name: "Sociolla", folder: "~/Raccoon")
 
     func plan(
-        requests: Int = 0, folders: Int = 0, findings: [CredentialFinding] = [], skipped: [ExportSkip] = [], dirty: [String] = []
+        requests: Int = 0, folders: Int = 0, findings: [CredentialFinding] = [], skipped: [ExportSkip] = [], dirty: [String] = [],
+        examples: [Example] = []
     ) -> ExportPlan {
         ExportPlan(
-            collection: ExportCollection(name: "Sociolla", nodes: []), requests: requests, folders: folders, findings: findings,
+            collection: ExportCollection(name: "Sociolla", nodes: examples.isEmpty ? [] : [
+                .request(Request(id: RequestID(UUID()), name: "r", definition: .empty, examples: examples)),
+            ]), requests: requests, folders: folders, findings: findings,
             skipped: skipped, dirtyRequests: dirty, data: Data()
         )
     }
@@ -38,6 +41,25 @@ struct CollectionExportModelTests {
     ])
     func `the counts are what the file holds`(requests: Int, folders: Int, text: String) {
         #expect(model.counts(plan(requests: requests, folders: folders)) == text)
+    }
+
+    func example(_ body: ExampleBody) -> Example {
+        Example(id: ExampleID(UUID()), name: "e", status: 200, body: body)
+    }
+
+    @Test func `the counts add the Examples written, only when there are some`() {
+        let examples = [example(.text("a")), example(.text("b"))]
+        #expect(model.counts(plan(requests: 1, examples: examples)) == "1 Request · 0 Folders · 2 Examples")
+        #expect(model.counts(plan(requests: 1, examples: [examples[0]])) == "1 Request · 0 Folders · 1 Example")
+    }
+
+    @Test func `binary Example bodies written as base64 are counted in an info notice, only when there are some`() {
+        let bytes = example(.bytes(Data([1])))
+        #expect(model.notices(plan(examples: [bytes, example(.text("a")), bytes])) == [
+            .init(kind: .binaryExamples, headline: "2 binary Example bodies written as base64", detail: nil, names: []),
+        ])
+        #expect(model.notices(plan(examples: [bytes])).first?.headline == "1 binary Example body written as base64")
+        #expect(model.notices(plan(examples: [example(.text("a"))])) == [])
     }
 
     @Test func `credentials: the count, a line saying the file keeps them, and each Request once in tree order`() throws {

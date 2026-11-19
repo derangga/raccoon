@@ -6,7 +6,7 @@ import RaccoonDomain
 struct CollectionExportModel: Equatable {
     /// One block under the counts: a warning or an info line, and the names it applies to.
     struct Notice: Equatable {
-        enum Kind { case credentials, skipped, dirty }
+        enum Kind { case credentials, skipped, dirty, binaryExamples }
 
         var kind: Kind
         var headline: String
@@ -34,7 +34,8 @@ struct CollectionExportModel: Equatable {
     }
 
     func counts(_ plan: ExportPlan) -> String {
-        "\(PostmanImport.plural(plan.requests, "Request")) · \(PostmanImport.plural(plan.folders, "Folder"))"
+        let counts = "\(PostmanImport.plural(plan.requests, "Request")) · \(PostmanImport.plural(plan.folders, "Folder"))"
+        return plan.exampleCount == 0 ? counts : counts + " · " + PostmanImport.plural(plan.exampleCount, "Example")
     }
 
     /// Credentials, then the files left out, then the Dirty Requests; each only when there is one.
@@ -62,6 +63,14 @@ struct CollectionExportModel: Equatable {
                 kind: .dirty,
                 headline: n == 1 ? "1 Request has edits in a Tab. Export uses what is saved."
                     : "\(PostmanImport.number(n)) Requests have edits in Tabs. Export uses what is saved.",
+                detail: nil, names: []
+            ))
+        }
+        let binary = plan.binaryExampleBodies
+        if binary > 0 {
+            notices.append(Notice(
+                kind: .binaryExamples,
+                headline: "\(PostmanImport.number(binary)) binary Example \(binary == 1 ? "body" : "bodies") written as base64",
                 detail: nil, names: []
             ))
         }
@@ -124,7 +133,7 @@ final class CollectionExportSheet: NSViewController {
 
         init(_ notice: CollectionExportModel.Notice, names fitted: String) {
             super.init(frame: .zero)
-            let isInfo = notice.kind == .dirty
+            let isInfo = notice.kind == .dirty || notice.kind == .binaryExamples
             let image = NSImageView(image: NSImage(systemSymbolName: isInfo ? "info.circle" : "exclamationmark.triangle.fill", accessibilityDescription: nil)!)
             image.symbolConfiguration = .init(pointSize: 14, weight: .regular)
             image.contentTintColor = isInfo ? .secondaryLabelColor : .systemOrange

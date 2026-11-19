@@ -8,15 +8,26 @@ struct PostmanMappingTests {
         RequestID(UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", n))!)
     }
 
+    /// ExampleID n: the plan's Example ids, counted from 1 in plan order.
+    static func exampleID(_ n: Int) -> ExampleID {
+        ExampleID(UUID(uuidString: String(format: "00000000-0000-0000-0001-%012d", n))!)
+    }
+
     func plan(_ files: [PostmanFile], collections: [String] = [], globals: [VariableEntry] = [], environments: [String] = []) -> ImportPlan {
         var next = 0
+        var nextExample = 0
         return PostmanMapping.plan(
             files, dataFolder: DataFolderIndex(collections.map { Collection(name: $0, nodes: []) }), globals: Globals(entries: globals),
-            environments: environments.map { Environment(name: $0, entries: []) }
-        ) {
-            next += 1
-            return Self.id(next)
-        }
+            environments: environments.map { Environment(name: $0, entries: []) },
+            newID: {
+                next += 1
+                return Self.id(next)
+            },
+            newExampleID: {
+                nextExample += 1
+                return Self.exampleID(nextExample)
+            }
+        )
     }
 
     func plan(_ items: [PostmanItem], auth: PostmanAuth? = nil, events: [PostmanEvent] = [], description: String? = nil) -> ImportPlan {
@@ -342,11 +353,11 @@ extension PostmanMappingTests {
     }
 
     @Test(arguments: [
-        (PostmanRequest(name: "r", responseCount: 2), [ImportNote(.examplesDropped, names: ["r"])]),
+        (PostmanRequest(name: "r", examples: [PostmanExample(name: "e")]), []),
         (PostmanRequest(name: "r", description: "Lists users."), []),
         (PostmanRequest(name: "r", description: ""), []),
-    ])
-    func `saved examples are dropped and counted, and a request's description is no note`(request: PostmanRequest, notes: [ImportNote]) {
+    ] as [(PostmanRequest, [ImportNote])])
+    func `saved examples and a request's description are no note`(request: PostmanRequest, notes: [ImportNote]) {
         #expect(self.notes(request) == notes)
     }
 
@@ -502,10 +513,10 @@ extension PostmanMappingTests {
         ("Login", "https://h/login", "POST", "Login"),
     ])
     func `a Request with no name is named as its Draft Tab would be titled, else by its method`(name: String, url: String, method: String, planned: String) {
-        let plan = plan([.request(PostmanRequest(name: name, method: method, url: PostmanURL(raw: url), responseCount: 1))])
+        let plan = plan([.request(PostmanRequest(name: name, method: method, url: PostmanURL(raw: url)))])
         guard case .request(let request)? = plan.collections.first?.nodes.first else { Issue.record("no Request planned"); return }
         #expect(request.name == planned)
-        #expect(plan.notes == [ImportNote(.examplesDropped, names: [planned])])
+        #expect(plan.notes == [])
     }
 }
 
@@ -530,5 +541,41 @@ extension PostmanMappingTests {
         let definition = definition(PostmanRequest(name: "r", auth: PostmanAuth(type: "apikey", parameters: ["value": "k"])))
         #expect(definition?.headers == [])
         #expect(definition?.params == [])
+    }
+}
+
+extension PostmanMappingTests {
+    func examples(_ examples: [PostmanExample]) -> [Example] {
+        guard case .request(let planned)? = plan([.request(PostmanRequest(name: "r", examples: examples))]).collections.first?.nodes.first else { return [] }
+        return planned.examples
+    }
+
+    @Test(arguments: [
+        (PostmanExample(name: "ok", code: 201, headers: [PostmanKeyValue(key: "A", value: "1"), PostmanKeyValue(key: "B", value: "2", disabled: true)], body: "x"), 201),
+        (PostmanExample(name: "none"), 200),
+        (PostmanExample(name: "low", code: 99), 200),
+        (PostmanExample(name: "high", code: 600), 200),
+        (PostmanExample(name: "negative", code: -1), 200),
+        (PostmanExample(name: "edge", code: 599), 599),
+        (PostmanExample(name: "edge", code: 100), 100),
+    ])
+    func `an entry is an Example: its code is the status, and a missing or out-of-range one is 200`(entry: PostmanExample, status: Int) {
+        let example = examples([entry]).first
+        #expect(example?.name == entry.name)
+        #expect(example?.status == status)
+        #expect(example?.body == .text(entry.body))
+        #expect(example?.headers == entry.headers.map { Row(name: $0.key, value: $0.value, isEnabled: !$0.disabled) })
+    }
+
+    @Test func `Examples keep Postman's order, each with its own id, and make no note`() {
+        let plan = plan([.request(PostmanRequest(name: "a", examples: [PostmanExample(name: "1"), PostmanExample(name: "2")])), .request(PostmanRequest(name: "b", examples: [PostmanExample(name: "3")]))])
+        let requests = plan.collections[0].nodes.compactMap { node -> Request? in if case .request(let request) = node { request } else { nil } }
+        #expect(requests.map { $0.examples.map(\.name) } == [["1", "2"], ["3"]])
+        #expect(requests.flatMap(\.examples).map(\.id) == [Self.exampleID(1), Self.exampleID(2), Self.exampleID(3)])
+        #expect(plan.notes == [])
+    }
+
+    @Test func `a header row with neither name nor value is no row`() {
+        #expect(examples([PostmanExample(name: "e", headers: [PostmanKeyValue(key: "", value: "")])]).first?.headers == [])
     }
 }

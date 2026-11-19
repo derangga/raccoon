@@ -193,7 +193,6 @@ struct PostmanImportSheetTests {
         (ImportNote(.collectionVariables, names: ["C"]), false, "Collection variables of 1 Collection are added to Globals."),
         (ImportNote(.binaryBody, names: ["a"]), true, "1 Request has a binary body and is imported with no body."),
         (ImportNote(.fileOnlyName(path: "a.png"), names: ["a", "b"]), true, "The file “a.png” in 2 Requests has only a name, so they won't send until you pick it again."),
-        (ImportNote(.examplesDropped, names: ["a", "b"]), true, "Saved examples in 2 Requests are not imported."),
         (ImportNote(.descriptionsDropped, names: ["a"]), true, "1 description is not imported. Raccoon keeps no Folder or Collection descriptions."),
         (ImportNote(.itemsSkipped, names: ["a", "b"]), true, "2 Postman items that are neither a Request nor a Folder are skipped."),
         (ImportNote(.variableNameInvalid, names: ["base url"]), true, "1 Variable is not imported: its name can't be used as {{name}}."),

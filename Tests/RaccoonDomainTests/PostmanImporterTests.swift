@@ -145,7 +145,7 @@ extension PostmanImporterTests {
 }
 
 extension PostmanImporterTests {
-    @Test func `a request keeps its method, headers, auth, settings, scripts and the count of its examples`() {
+    @Test func `a request keeps its method, headers, auth, settings, scripts and its examples`() {
         let item = #"""
             {"name": "Create", "description": "Item notes",
              "protocolProfileBehavior": {"followRedirects": false, "strictSSL": false, "disableBodyPruning": true},
@@ -154,7 +154,7 @@ extension PostmanImporterTests {
                          "header": [{"key": "X-Foo", "value": "bar", "description": "d"}, {"key": "Off", "value": 1, "disabled": true}],
                          "auth": {"type": "apikey", "apikey": [{"key": "in", "value": "query"}, {"key": "key", "value": "api_key"}, {"key": "value", "value": "{{key}}"}]},
                          "url": "https://h/"},
-             "response": [{"name": "200"}, {"name": "404"}]}
+             "response": [{"name": "200", "code": 200, "header": [{"key": "A", "value": "1"}], "body": "ok"}, {"name": "404"}]}
             """#
 
         #expect(request(item) == PostmanRequest(
@@ -162,7 +162,11 @@ extension PostmanImporterTests {
             headers: [PostmanKeyValue(key: "X-Foo", value: "bar"), PostmanKeyValue(key: "Off", value: "1", disabled: true)],
             auth: PostmanAuth(type: "apikey", parameters: ["in": "query", "key": "api_key", "value": "{{key}}"]),
             followRedirects: false, strictSSL: false,
-            events: [PostmanEvent(listen: "test", exec: "")], responseCount: 2
+            events: [PostmanEvent(listen: "test", exec: "")],
+            examples: [
+                PostmanExample(name: "200", code: 200, headers: [PostmanKeyValue(key: "A", value: "1")], body: "ok"),
+                PostmanExample(name: "404"),
+            ]
         ))
     }
 
@@ -234,5 +238,28 @@ extension PostmanImporterTests {
     ] as [(String, [PostmanKeyValue])])
     func `a header written as a string is split at its first colon`(json: String, headers: [PostmanKeyValue]) {
         #expect(request(#"{"name": "R", "request": {"header": \#(json)}}"#)?.headers == headers)
+    }
+}
+
+extension PostmanImporterTests {
+    @Test(arguments: [
+        (#"{"name": "n", "code": 201, "status": "Created", "header": [{"key": "A", "value": 1, "disabled": true}], "body": "b"}"#,
+         PostmanExample(name: "n", code: 201, headers: [PostmanKeyValue(key: "A", value: "1", disabled: true)], body: "b")),
+        (#"{"name": "n", "code": "404", "header": "A: 1\nB: 2", "body": null}"#,
+         PostmanExample(name: "n", code: 404, headers: [PostmanKeyValue(key: "A", value: "1"), PostmanKeyValue(key: "B", value: "2")])),
+        (#"{"name": "n", "code": 20.5, "header": null}"#, PostmanExample(name: "n")),
+        (#"{"code": "ok", "body": {"a": 1}}"#, PostmanExample(name: "", body: #"{"a":1}"#)),
+        // Not read: Raccoon serves none of them.
+        (#"{"name": "n", "originalRequest": {"method": "GET"}, "cookie": [{"name": "c"}], "responseTime": 12, "_postman_previewlanguage": "json"}"#,
+         PostmanExample(name: "n")),
+    ] as [(String, PostmanExample)])
+    func `a response entry is its name, code, header rows and body as text`(json: String, example: PostmanExample) {
+        #expect(request(#"{"name": "R", "request": {}, "response": [\#(json)]}"#)?.examples == [example])
+    }
+
+    @Test func `a response entry that is not an object is skipped, and no response is no examples`() {
+        #expect(request(#"{"name": "R", "request": {}, "response": [1, "a", null, {"name": "kept"}]}"#)?.examples == [PostmanExample(name: "kept")])
+        #expect(request(#"{"name": "R", "request": {}, "response": "x"}"#)?.examples == [])
+        #expect(request(#"{"name": "R", "request": {}}"#)?.examples == [])
     }
 }

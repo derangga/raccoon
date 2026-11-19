@@ -38,6 +38,16 @@ public struct ExportPlan: Equatable, Sendable {
     }
 }
 
+extension ExportPlan {
+    /// The Examples the file holds.
+    public var exampleCount: Int { collection.requests.reduce(0) { $0 + $1.examples.count } }
+
+    /// Examples whose `.bytes` body is written as base64 text.
+    public var binaryExampleBodies: Int {
+        collection.requests.flatMap(\.examples).count { if case .bytes = $0.body { true } else { false } }
+    }
+}
+
 /// One finished step, in this order. The last carries the plan.
 public enum ExportStep: Equatable, Sendable {
     case read(count: Int)

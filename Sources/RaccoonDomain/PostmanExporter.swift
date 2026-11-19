@@ -81,7 +81,7 @@ public enum PostmanExporter {
         case .request(let request):
             let definition = request.definition
             return Item(
-                name: request.name, request: wire(definition), response: [],
+                name: request.name, request: wire(definition), response: request.examples.map(example),
                 protocolProfileBehavior: Behavior(
                     followRedirects: definition.settings.followsRedirects,
                     strictSSL: definition.settings.allowsInsecureTLS ? false : nil,
@@ -177,6 +177,21 @@ public enum PostmanExporter {
         }
     }
 
+    /// A `.bytes` body is written as base64 text: Postman's `body` is a string. Read again it is
+    /// that text, not the bytes (postman-export.md). The reason phrase is the status line's, so it
+    /// reads the same on every machine.
+    private static func example(_ example: Example) -> WireExample {
+        let body = switch example.body {
+        case .text(let text): text
+        case .bytes(let data): data.base64EncodedString()
+        }
+        return WireExample(
+            name: example.name, code: example.status,
+            status: StatusLine(status: example.status, elapsed: .zero, byteCount: 0).reason,
+            header: example.headers.map(keyValue), body: body
+        )
+    }
+
     private static func keyValue(_ row: Row) -> KeyValue {
         KeyValue(key: row.name, value: row.value, disabled: row.isEnabled ? nil : true)
     }
@@ -230,8 +245,16 @@ public enum PostmanExporter {
         var name: String
         var item: [Item]?
         var request: Req?
-        var response: [String]?
+        var response: [WireExample]?
         var protocolProfileBehavior: Behavior?
+    }
+
+    private struct WireExample: Encodable {
+        var name: String
+        var code: Int
+        var status: String
+        var header: [KeyValue]
+        var body: String
     }
 
     private struct Behavior: Encodable {
