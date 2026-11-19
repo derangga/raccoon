@@ -287,9 +287,13 @@ MockRoute                method, segments [MockSegment], requestName, examples [
                          one Request with Examples, in sidebar order
 MockSegment              .literal(String) · .wildcard              `:name` and a whole `{{name}}`
                          are .wildcard
-MockRequestHead          method, path (no query, percent-decoded per segment), headers
-                         [(name, value)], bodyLength            what MockRequestHead.parse read
+MockRequestHead          method, path [String] (the segments, no query, each percent-decoded),
+                         headers [(name, value)], bodyLength     what MockRequestHead.parse read
                          off the socket. No body: the Mock Server never reads it
+MockRequestHead.Outcome  .needMore · .head(head, consumed, bodyRemaining) ·
+                         .failure(status 400|413|501, reason)    parse is called again as bytes
+                         arrive; the listener drops `consumed` bytes, then reads and drops
+                         `bodyRemaining` more
 MockReply                status, headers [(name, value)], body Data, delay Duration
                          what MockMatch.answer returns; MockReply.bytes frames it
 MockServer               collection, port, allowsCORS, routes [MockRoute]   held by the window,

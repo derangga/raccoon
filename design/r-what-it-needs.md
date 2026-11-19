@@ -79,7 +79,8 @@ Highlighter.ranges(_, .graphql)                                   GraphQL query 
 Example.from(response)                                            Response -> Example
 ExampleFile (inside RequestFile) encode·decode                    `examples` <-> [Example]
 MockRoutes.build                                                  Requests -> [MockRoute]
-MockRequestHead.parse                                             socket bytes -> head, or 400/413/501
+MockRequestHead.parse                                             socket bytes -> head, need more
+                                                                  bytes, or 400/413/501
 MockMatch.answer                                                  routes + head + CORS -> MockReply
 MockReply.bytes                                                   MockReply -> HTTP/1.1 bytes
 ExportStepReveal.starts                                           when each step finished,
