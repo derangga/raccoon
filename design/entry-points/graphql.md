@@ -37,7 +37,7 @@ Setting GET by hand afterwards is allowed. The send then fails as any GET with a
 
 ```
 -> type in the Query editor                      TabModel.edit { body.query = text }
-  -> Highlighter.ranges(text, .graphql)          pure, off the main actor as for JSON
+  -> Highlighter.graphql(text)                   pure, off the main actor as for JSON
                                                  R: none   E: none, total: text that does
                                                  not lex is drawn plain from that point
   -> VariableTokens.ranges(text)                 `{{name}}` highlighted on top, as everywhere
