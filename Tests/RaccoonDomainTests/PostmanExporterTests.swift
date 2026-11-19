@@ -148,6 +148,10 @@ extension PostmanExporterTests {
         (.raw(.json, #"{"a": 1}"#), #"{"mode": "raw", "raw": "{\"a\": 1}", "options": {"raw": {"language": "json"}}}"#),
         (.raw(.xml, "<a/>"), #"{"mode": "raw", "raw": "<a/>", "options": {"raw": {"language": "xml"}}}"#),
         (.raw(.text, "hi"), #"{"mode": "raw", "raw": "hi", "options": {"raw": {"language": "text"}}}"#),
+        (.graphql(GraphQLBody(query: "{ me }", variables: #"{"a": 1}"#, operationName: "Me")),
+         #"{"mode": "graphql", "graphql": {"query": "{ me }", "variables": "{\"a\": 1}"}}"#),
+        (.graphql(GraphQLBody(query: "{ me }", variables: "", operationName: "")),
+         #"{"mode": "graphql", "graphql": {"query": "{ me }", "variables": ""}}"#),
         (.formURLEncoded([Row(name: "a", value: "1"), Row(name: "b", value: "2", isEnabled: false)]),
          #"{"mode": "urlencoded", "urlencoded": [{"key": "a", "value": "1"}, {"key": "b", "value": "2", "disabled": true}]}"#),
         (.multipart([
@@ -275,6 +279,8 @@ extension PostmanExporterTests {
             method: "POST", headers: [Row(name: "Content-Type", value: "multipart/form-data")],
             body: .multipart([Part(name: "t", content: .text("v")), Part(name: "f", isEnabled: false, content: .file(path: "/Users/me/a.png"))])
         ),
+        definition(method: "POST", headers: [json], body: .graphql(GraphQLBody(query: "query Q($id: ID!) { node(id: $id) { id } }", variables: "{\n  \"id\": \"{{id}}\"\n}", operationName: ""))),
+        definition(method: "POST", headers: [json], body: .graphql(GraphQLBody(query: "{ me }", variables: "", operationName: ""))),
         definition(auth: .basic(user: "u", password: "p")),
         definition(auth: .bearer(token: "{{t}}")),
         definition(insecure: true, redirects: true),

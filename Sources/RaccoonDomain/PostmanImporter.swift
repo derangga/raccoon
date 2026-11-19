@@ -112,7 +112,7 @@ public enum PostmanImporter {
             })
         case "graphql":
             let graphql = body["graphql"] as? Object ?? [:]
-            return .graphql(query: text(graphql["query"]) ?? "", variables: text(graphql["variables"]) ?? "")
+            return .graphql(query: text(graphql["query"]) ?? "", variables: variables(graphql["variables"]))
         case "file":
             return .file(src: text((body["file"] as? Object)?["src"]))
         default:
@@ -171,6 +171,13 @@ public enum PostmanImporter {
     /// The objects of an array; anything else in it, or a non-array, is skipped.
     private static func objects(_ json: Any?) -> [Object] {
         (json as? [Any])?.compactMap { $0 as? Object } ?? []
+    }
+
+    /// Text as Postman stores it; an object or array is re-printed as Format prints it.
+    private static func variables(_ json: Any?) -> String {
+        guard let compact = text(json) else { return "" }
+        guard json is Object || json is [Any] else { return compact }
+        return (try? BodyFormatter.format(compact, kind: .json)) ?? compact
     }
 
     /// Any JSON value as text: a number or bool as written, an object or array as JSON. `null` is nil.

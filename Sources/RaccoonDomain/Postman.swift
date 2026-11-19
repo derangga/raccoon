@@ -154,7 +154,7 @@ public enum PostmanBody: Equatable, Sendable {
     case raw(String, language: String?)
     case urlencoded([PostmanKeyValue])
     case formdata([PostmanFormParameter])
-    /// `variables` is the text Postman stores; an object there is written out as JSON.
+    /// `variables` is the text Postman stores; an object there is re-printed with a 2-space indent.
     case graphql(query: String, variables: String)
     /// A binary body: `file.src`, often only a file name.
     case file(src: String?)

@@ -145,9 +145,11 @@ public enum PostmanExporter {
 
     private static func body(_ body: Body) -> WireBody? {
         switch body {
-        // Placeholder: a later change writes a GraphQL body as Postman's graphql mode.
-        case .none, .graphql:
+        case .none:
             return nil
+        case .graphql(let graphql):
+            // Postman has no Operation Name field: it is not written.
+            return WireBody(mode: "graphql", graphql: WireGraphQL(query: graphql.query, variables: graphql.variables))
         case .raw(let kind, let text):
             let language = switch kind { case .json: "json"; case .xml: "xml"; case .text: "text" }
             return WireBody(mode: "raw", raw: text, options: RawOptions(raw: Language(language: language)))
@@ -273,6 +275,12 @@ public enum PostmanExporter {
         var options: RawOptions?
         var urlencoded: [KeyValue]?
         var formdata: [FormField]?
+        var graphql: WireGraphQL?
+    }
+
+    private struct WireGraphQL: Encodable {
+        var query: String
+        var variables: String
     }
 
     private struct RawOptions: Encodable { var raw: Language }

@@ -201,7 +201,10 @@ extension PostmanImporterTests {
             PostmanFormParameter(key: "none", content: .file(src: [])),
          ])),
         (#"{"mode": "graphql", "graphql": {"query": "{ me { id } }", "variables": "{\"a\": 1}"}}"#, .graphql(query: "{ me { id } }", variables: #"{"a": 1}"#)),
-        (#"{"mode": "graphql", "graphql": {"query": "q", "variables": {"a": 1}}}"#, .graphql(query: "q", variables: #"{"a":1}"#)),
+        (#"{"mode": "graphql", "graphql": {"query": "q", "variables": {"a": 1}}}"#, .graphql(query: "q", variables: "{\n  \"a\": 1\n}")),
+        (#"{"mode": "graphql", "graphql": {"query": "q", "variables": {"b": 2, "a": {"c": [1]}}}}"#,
+         .graphql(query: "q", variables: "{\n  \"a\": {\n    \"c\": [\n      1\n    ]\n  },\n  \"b\": 2\n}")),
+        (#"{"mode": "graphql", "graphql": {"query": "q"}}"#, .graphql(query: "q", variables: "")),
         (#"{"mode": "file", "file": {"src": "body.bin"}}"#, .file(src: "body.bin")),
         (#"{"mode": "file", "file": {}}"#, .file(src: nil)),
     ] as [(String, PostmanBody)])

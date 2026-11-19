@@ -286,8 +286,7 @@ public enum PostmanMapping {
         case .none: break
         case .raw(_, let text): texts.append(text)
         case .formURLEncoded(let rows): texts += rows.flatMap { [$0.name, $0.value] }
-        // Placeholder: a later change settles the GraphQL mapping.
-        case .graphql(let graphql): texts += [graphql.query, graphql.variables, graphql.operationName]
+        case .graphql(let graphql): texts += [graphql.query, graphql.variables]
         case .multipart(let parts):
             texts += parts.flatMap { part -> [String] in
                 switch part.content {
@@ -335,7 +334,9 @@ public enum PostmanMapping {
     /// Empty is none: Postman exports `{"mode": "raw", "raw": ""}` on plain GETs.
     private static func body(_ body: PostmanBody, notes: inout [ImportNote.Kind]) -> Body {
         switch body {
-        case .raw("", _), .graphql("", _):
+        case .raw("", _):
+            return .none
+        case .graphql(let query, let variables) where (query + variables).allSatisfy(\.isWhitespace):
             return .none
         case .raw(let text, let language):
             return .raw(language == "json" ? .json : language == "xml" ? .xml : .text, text)
@@ -357,10 +358,7 @@ public enum PostmanMapping {
                 }
             })
         case .graphql(let query, let variables):
-            let encoded = (try? JSONSerialization.data(withJSONObject: query, options: [.fragmentsAllowed, .withoutEscapingSlashes]))
-                .map { String(decoding: $0, as: UTF8.self) } ?? "\"\""
-            let trimmed = variables.trimmingCharacters(in: .whitespacesAndNewlines)
-            return .raw(.json, #"{"query":"# + encoded + (trimmed.isEmpty ? "" : #","variables":"# + trimmed) + "}")
+            return .graphql(GraphQLBody(query: query, variables: variables, operationName: ""))
         case .file:
             notes.append(.binaryBody)
             return .none

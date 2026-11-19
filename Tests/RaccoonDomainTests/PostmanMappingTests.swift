@@ -190,14 +190,16 @@ extension PostmanMappingTests {
             Part(name: "f", isEnabled: false, content: .file(path: "/Users/me/a.png")),
             Part(name: "f", isEnabled: false, content: .file(path: "/tmp/b.png")),
          ])),
-        (.graphql(query: "{ me }", variables: #"{"a": 1}"#), .raw(.json, #"{"query":"{ me }","variables":{"a": 1}}"#)),
-        (.graphql(query: "{ me }", variables: " "), .raw(.json, #"{"query":"{ me }"}"#)),
+        (.graphql(query: "{ me }", variables: #"{"a": 1}"#), .graphql(GraphQLBody(query: "{ me }", variables: #"{"a": 1}"#, operationName: ""))),
+        (.graphql(query: "{ me }", variables: ""), .graphql(GraphQLBody(query: "{ me }", variables: "", operationName: ""))),
+        (.graphql(query: "", variables: #"{"a": 1}"#), .graphql(GraphQLBody(query: "", variables: #"{"a": 1}"#, operationName: ""))),
         (.file(src: "/tmp/a.bin"), .none),
         // Nothing in it sends no bytes: Postman exports these on plain GETs.
         (.raw("", language: "json"), .none),
         (.urlencoded([]), .none),
         (.formdata([]), .none),
         (.graphql(query: "", variables: ""), .none),
+        (.graphql(query: "  ", variables: "\n"), .none),
     ])
     func `every body kind maps`(body: PostmanBody, expected: Body) {
         #expect(definition(PostmanRequest(name: "r", body: body))?.body == expected)
@@ -365,6 +367,8 @@ extension PostmanMappingTests {
          [ImportNote(.dynamicVariable(name: "$randomUUID"), names: ["r"]), ImportNote(.dynamicVariable(name: "$randomInt"), names: ["r"])]),
         (PostmanRequest(name: "r", body: .raw(#"{"id": "{{$guid}}", "n": "{{$guid}}"}"#, language: "json")),
          [ImportNote(.dynamicVariable(name: "$guid"), names: ["r"])]),
+        (PostmanRequest(name: "r", body: .graphql(query: "{ u(id: \"{{$guid}}\") }", variables: #"{"n": "{{$randomInt}}"}"#)),
+         [ImportNote(.dynamicVariable(name: "$guid"), names: ["r"]), ImportNote(.dynamicVariable(name: "$randomInt"), names: ["r"])]),
         (PostmanRequest(name: "r", auth: PostmanAuth(type: "bearer", parameters: ["token": "{{$randomPassword}}"])),
          [ImportNote(.dynamicVariable(name: "$randomPassword"), names: ["r"])]),
         (PostmanRequest(name: "r", url: PostmanURL(raw: "http://h/{{guid}}")), []),
