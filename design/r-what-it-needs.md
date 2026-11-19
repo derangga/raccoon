@@ -53,7 +53,12 @@ Breadcrumb.of                                                     source, title,
 Breadcrumb.fit                                                    segment widths + room -> which
                                                                   middle segments "…" stands for
 SidebarPath.ancestors(of:)                                        "A/B/C/F.json" -> ["A", "A/B", "A/B/C"]
-WorkspaceFile encode·decode                                       raccoon.json <-> WorkspaceID
+WorkspaceFile encode·decode                                       raccoon.json <-> WorkspaceID and
+                                                                  [Collection name: MockSettings]
+WorkspaceFile.settings(for:in:), .replacing(_:for:in:)            a Collection's MockSettings
+                                                                  (absent: nil, true); the file's
+                                                                  bytes with one Collection's
+                                                                  entry replaced, id kept
 WorkspaceList.titles                                              paths -> pop-up titles, a
                                                                   parent folder only on a clash
 RequestFile / EnvironmentFile / SessionFile encode·decode         Codable, versioned

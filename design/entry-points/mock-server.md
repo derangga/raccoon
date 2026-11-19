@@ -28,7 +28,9 @@ on (CORS), both listed below.
                                                  <n> is in use.", buttons Use Another Port
                                                  (listen(port: nil)) and Cancel
                                                  E: .failed(reason) -> escape: alert
-  -> remember the bound port                     raccoon.json, through WorkspaceFile; a write
+  -> remember the bound port                     raccoon.json, through WorkspaceFile.replacing
+                                                 (reads the current bytes, keeps the id and the
+                                                 other Collections' entries); a write
                                                  that fails is logged, the server still runs
   -> the window holds MockServer(collection, port, routes, task)
                                                  §8: inside withDataFolder

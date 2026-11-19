@@ -15,7 +15,9 @@ and an Active Environment per window, and there is one window.
 
 ```
 ~/Raccoon/                             a Data Folder, as collections.md lays it out
-  raccoon.json                         { "version": 1, "id": "<UUID>" }  the WorkspaceID
+  raccoon.json                         { "version": 1, "id": "<UUID>" }  the WorkspaceID, plus
+                                       "mocks": { "<Collection name>": { "port", "allowsCORS" } }
+                                       once a Mock Server has been started (mock-server.md)
   globals.json
   environments/ …
   Payments API/ …
