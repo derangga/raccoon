@@ -390,7 +390,7 @@ struct BodyPaneTests {
         #expect(pane.typeButton.attributedTitle.string.hasPrefix("none"))
         #expect(!pane.noneNote.isHidden && pane.noneNote.stringValue == "This request has no body.")
         #expect(pane.kindButton.isHidden && pane.textBox.isHidden && pane.formTable.isHidden)
-        #expect(pane.typeMenu.items.map(\.title) == ["none", "raw", "form-urlencoded", "multipart"])
+        #expect(pane.typeMenu.items.map(\.title) == ["none", "raw", "form-urlencoded", "multipart", "GraphQL"])
     }
 
     @Test func `picking raw JSON opens the editor and writes the Content-Type row`() {

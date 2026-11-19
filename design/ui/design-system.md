@@ -448,7 +448,8 @@ The Params pane is two labelled tables in one scroll view.
   every `{{name}}` as typed (editing.md). If the body does not parse, the text is left alone
   and one 11 pt `error` line under the editor says where: "Couldn't format: not valid JSON
   at line 3, column 14." The line goes away on the next edit.
-- **GraphQL**: an "Operation Name" text field (placeholder "Optional") on the Body Type row,
+- **GraphQL**: an "Operation Name" text field (placeholder "Optional", a 200 pt wide bordered box
+  like the pop-ups, with an 11 pt `textTertiary` "Operation Name" label before it) on the Body Type row,
   then the Query editor over the Variables editor, split 2 : 1 by a draggable 1 pt `border`
   divider, each with an 11 pt `textTertiary` caption ("Query", "Variables"). Both are the raw
   editor above: SF Mono 12, line numbers, `{{name}}` highlighting. The Query is coloured by the
