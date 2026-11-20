@@ -570,6 +570,7 @@ final class WindowModel {
     private let makeSecrets: (WorkspaceID?) -> any SecretStore
     private let makeTab: (any SecretStore) -> TabModel
     private let instants: any InstantSource
+    private let mockListening: any MockListening
     /// The open Workspace's: a new Tab gets these secrets.
     private var sessionStore: any SessionStore
     private var secrets: any SecretStore
@@ -617,7 +618,7 @@ final class WindowModel {
     /// Workspace's secrets; the window never hands a Tab its other stores.
     init(
         dataFolder: DataFolderLocation, folderWatch: any FolderWatch, sessionStore: @escaping (String) -> any SessionStore,
-        secrets: @escaping (WorkspaceID?) -> any SecretStore, instants: any InstantSource,
+        secrets: @escaping (WorkspaceID?) -> any SecretStore, instants: any InstantSource, mockListening: any MockListening,
         makeTab: @escaping (any SecretStore) -> TabModel
     ) {
         self.location = dataFolder
@@ -625,6 +626,7 @@ final class WindowModel {
         self.sessionStores = sessionStore
         self.makeSecrets = secrets
         self.instants = instants
+        self.mockListening = mockListening
         self.makeTab = makeTab
         let noID = secrets(nil)
         self.sessionStore = sessionStore(dataFolder.root)
@@ -745,6 +747,7 @@ final class WindowModel {
     /// unwritable Session does not stop quit.
     func quit() {
         writeSession(when: "on quit")
+        stopAllMocks()
         tabs.forEach { $0.close() }
     }
 
@@ -910,6 +913,7 @@ final class WindowModel {
     /// The old scope ends before the new one opens (§8): Tabs first, which cancels their sends,
     /// then the FolderWatch stream.
     private func endDataFolderScope() async {
+        stopAllMocks()
         tabs.forEach { $0.close() }
         watching?.cancel()
         await watching?.value
@@ -1058,7 +1062,95 @@ final class WindowModel {
     /// The last scan, kept up to date with Raccoon's own changes so they rebuild the tree with
     /// no disk scan.
     private var lastScan = DataFolderScan(files: [:], folders: []) {
-        didSet { loadVariables() }
+        didSet {
+            loadVariables()
+            refreshMocks()
+        }
+    }
+
+    // MARK: Mock Servers (mock-server.md)
+
+    /// The running Mock Servers by Collection name; one per Collection, held inside the Data Folder
+    /// scope (§8) and gone with it.
+    private(set) var mockServers: [String: MockServer] = [:]
+    /// What goes with each running one: the socket to close and the box its replies come from.
+    @ObservationIgnored private var mockHeld: [String: (listener: MockListener, answering: MockAnswering)] = [:]
+    /// Counts Data Folder scopes ended, so a start that awaited its bind across a switch knows.
+    @ObservationIgnored private var mockScope = 0
+
+    private static let mockLog = Logger(subsystem: "Raccoon", category: "Mock")
+
+    /// Start Mock Server: binds the remembered port, or any free one with `onAnotherPort`, and
+    /// remembers the port it got. A running Collection is left as it is. `.portInUse` and `.failed`
+    /// are the menu's alerts; nothing is held after either.
+    func startMock(_ collection: String, onAnotherPort: Bool = false) async throws(MockError) {
+        guard mockServers[collection] == nil, let routes = MockServing.routes(for: collection, in: lastScan) else { return }
+        let settings = MockServing.settings(for: collection, in: lastScan)
+        let answering = MockAnswering(routes: routes, allowsCORS: settings.allowsCORS)
+        let scope = mockScope
+        let listener = try await mockListening.listen(port: onAnotherPort ? nil : settings.port) { head in answering.answer(head) }
+        // The await let other work run: a switch, a trash, a rename or a second start may have won.
+        guard scope == mockScope, mockServers[collection] == nil, let current = MockServing.routes(for: collection, in: lastScan) else {
+            listener.stop()
+            return
+        }
+        answering.swap(routes: current)
+        mockHeld[collection] = (listener, answering)
+        mockServers[collection] = MockServer(collection: collection, port: listener.port, allowsCORS: settings.allowsCORS, routes: current)
+        rememberMock(collection, MockSettings(port: listener.port, allowsCORS: settings.allowsCORS))
+    }
+
+    /// Stop Mock Server: the socket, its connections and pending delays go. One not running is a no-op.
+    func stopMock(_ collection: String) {
+        mockHeld.removeValue(forKey: collection)?.listener.stop()
+        mockServers[collection] = nil
+    }
+
+    private func stopAllMocks() {
+        mockScope += 1
+        for collection in Array(mockServers.keys) { stopMock(collection) }
+    }
+
+    /// Allow Browser Requests (CORS): the next reply follows it, and raccoon.json remembers it.
+    func setMockAllowsCORS(_ collection: String, _ allows: Bool) {
+        guard var server = mockServers[collection] else { return }
+        server.allowsCORS = allows
+        mockServers[collection] = server
+        mockHeld[collection]?.answering.swap(allowsCORS: allows)
+        rememberMock(collection, MockSettings(port: server.port, allowsCORS: allows))
+    }
+
+    /// Every change to the last scan, ours or the disk's: a running Mock Server serves the files as
+    /// they are now, and stops when its Collection is renamed, moved or trashed. A Dirty Tab's edits
+    /// are not in the scan, so they are not served.
+    private func refreshMocks() {
+        for collection in Array(mockServers.keys) {
+            guard let routes = MockServing.routes(for: collection, in: lastScan) else {
+                stopMock(collection)
+                continue
+            }
+            guard mockServers[collection]?.routes != routes else { continue }
+            mockServers[collection]?.routes = routes
+            mockHeld[collection]?.answering.swap(routes: routes)
+        }
+    }
+
+    /// raccoon.json with this Collection's entry replaced, from the bytes on disk now so the id and
+    /// the other Collections' entries stay. A failure is logged: the server runs, the port is
+    /// simply not remembered.
+    private func rememberMock(_ collection: String, _ settings: MockSettings) {
+        guard let store else { return }
+        do throws(StoreError) {
+            let bytes = try WorkspaceFile.replacing(settings, for: collection, in: try store.read("raccoon.json"))
+            try store.write(bytes, to: "raccoon.json")
+            ledger.record("raccoon.json", bytes)
+            lastScan.files["raccoon.json"] = bytes
+        } catch {
+            switch error {
+            case .unwritable(let path, let reason), .unreadable(let path, let reason), .undecodable(let path, let reason):
+                Self.mockLog.error("Mock Server settings not remembered in \(path, privacy: .public): \(reason, privacy: .public)")
+            }
+        }
     }
 
     private static let variablesLog = Logger(subsystem: "Raccoon", category: "Variables")

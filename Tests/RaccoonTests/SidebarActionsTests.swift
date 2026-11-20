@@ -129,7 +129,8 @@ struct SidebarActionsTests {
         let (_, sidebar) = try sidebar()
         let titles = { (name: String) in try sidebar.contextMenu(row: row(sidebar, name)).items.filter { !$0.isSeparatorItem }.map(\.title) }
 
-        #expect(try titles("Payments API") == ["New Folder…", "Rename…", "Export…", "Move to Trash", "Reveal in Finder"])
+        #expect(try titles("Payments API") == ["New Folder…", "Rename…", "Export…", "Start Mock Server", "Move to Trash", "Reveal in Finder"])
+        #expect(try !titles("Refunds").contains("Start Mock Server"))
         #expect(try !titles("Refunds").contains("Export…"))
         #expect(try !titles("Create charge").contains("Export…"))
         #expect(try !titles("Broken.json").contains("Export…"))

@@ -26,7 +26,7 @@ struct WorkspaceSwitchTests {
                 root: open.path, workspaces: listed.map(\.path), defaultRoot: defaultRoot?.path, open: { DiskDataFolderStore(root: URL(filePath: $0)) },
                 remember: { remembered.root.append($0) }, rememberWorkspaces: { remembered.list.append($0) }),
             folderWatch: watch, sessionStore: { [temp] in DiskSessionStore(directory: temp.appending(path: "Support"), root: $0) },
-            secrets: { _ in InMemorySecretStore() }, instants: FixedInstantSource(.now),
+            secrets: { _ in InMemorySecretStore() }, instants: FixedInstantSource(.now), mockListening: ScriptedMockListening(),
             makeTab: { [transport] secrets in
                 TabModel(transport: transport, secrets: secrets, files: DictionaryFileReading([:]),
                          instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())

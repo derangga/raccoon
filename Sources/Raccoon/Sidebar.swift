@@ -235,8 +235,9 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
     /// Re-runs whenever the index or the root changes. Rows that were open stay open.
     private func render() {
-        let (collections, root, workspaces) = withObservationTracking {
-            (window.index.collections, window.dataFolderRoot, window.workspaces)
+        // mockServers is read here so a start or stop redraws the Collection rows' indicators.
+        let (collections, root, workspaces, _) = withObservationTracking {
+            (window.index.collections, window.dataFolderRoot, window.workspaces, window.mockServers)
         } onChange: { [weak self] in
             Task { @MainActor in self?.render() }
         }
@@ -510,7 +511,17 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         add("New Folder…", #selector(newFolderHere), folder(of: item))
         if case .request = item.kind { add("New Example", #selector(newExample), item) }
         if case .unreadable = item.kind {} else { add("Rename…", #selector(renameItem), item) }
-        if item.kind == .collection { add("Export…", #selector(exportItem), item) }
+        if item.kind == .collection {
+            add("Export…", #selector(exportItem), item)
+            if let mock = window.mockServers[item.name] {
+                add("Stop Mock Server", #selector(stopMockItem), item)
+                add("Copy Mock URL", #selector(copyMockURL), item)
+                add("Allow Browser Requests (CORS)", #selector(toggleMockCORS), item)
+                menu.items.last?.state = mock.allowsCORS ? .on : .off
+            } else {
+                add("Start Mock Server", #selector(startMockItem), item)
+            }
+        }
         if item.kind != .collection {
             let parent = String(item.path[..<(item.path.range(of: "/", options: .backwards)?.lowerBound ?? item.path.startIndex)])
             let targets = window.index.folders.filter { $0 != parent && $0 != item.path && !$0.hasPrefix(item.path + "/") }
@@ -606,6 +617,45 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         exportCollection(item.name)
     }
 
+    @objc private func startMockItem(_ sender: NSMenuItem) {
+        guard let item = sender.representedObject as? SidebarItem else { return }
+        startMock(item.name, onAnotherPort: false)
+    }
+
+    /// The remembered port first; a taken one asks, and Use Another Port starts again on a free one.
+    private func startMock(_ collection: String, onAnotherPort: Bool) {
+        Task {
+            do throws(MockError) {
+                try await window.startMock(collection, onAnotherPort: onAnotherPort)
+            } catch {
+                switch error {
+                case .portInUse(let port):
+                    guard let sheetWindow = view.window else { return }
+                    MockPortInUseAlert.ask(port: port, in: sheetWindow) { [weak self] useAnother in
+                        if useAnother { self?.startMock(collection, onAnotherPort: true) }
+                    }
+                case .failed(let reason):
+                    showError("Couldn't start the Mock Server: \(reason.hasSuffix(".") ? reason : reason + ".")")
+                }
+            }
+        }
+    }
+
+    @objc private func stopMockItem(_ sender: NSMenuItem) {
+        if let item = sender.representedObject as? SidebarItem { window.stopMock(item.name) }
+    }
+
+    @objc private func copyMockURL(_ sender: NSMenuItem) {
+        guard let item = sender.representedObject as? SidebarItem, let mock = window.mockServers[item.name] else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(mock.url, forType: .string)
+    }
+
+    @objc private func toggleMockCORS(_ sender: NSMenuItem) {
+        guard let item = sender.representedObject as? SidebarItem, let mock = window.mockServers[item.name] else { return }
+        window.setMockAllowsCORS(item.name, !mock.allowsCORS)
+    }
+
     /// The Collection the selected row is, or is in: File ▸ Export Collection… exports it.
     var selectedCollection: String? {
         (outline.item(atRow: outline.selectedRow) as? SidebarItem).flatMap { $0.path.split(separator: "/").first.map(String.init) }
@@ -686,7 +736,8 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         switch item.kind {
         case .collection, .folder:
             let cell = reuse(NodeCell.identifier) { NodeCell(target: self, action: #selector(moreClicked)) }
-            cell.show(item, match: matches[item.path]?.ranges ?? [])
+            cell.show(item, match: matches[item.path]?.ranges ?? [], mockURL: item.kind == .collection ? window.mockServers[item.name]?.url : nil)
+            cell.paint(theme)
             return cell
         case .request(_, let method):
             let cell = reuse(RequestCell.identifier) { RequestCell(target: self, action: #selector(moreClicked)) }
@@ -928,36 +979,66 @@ class MoreActionsCell: NSTableCellView {
 }
 
 /// A Collection or Folder: its glyph and name in system colours.
-final class NodeCell: MoreActionsCell {
+final class NodeCell: MoreActionsCell, ThemedRow {
     static let identifier = NSUserInterfaceItemIdentifier("node")
     let glyph = NSImageView()
     let name = NSTextField(labelWithString: "")
+    /// The Mock indicator: shown on a Collection whose Mock Server runs (design-system §6 Sidebar rows).
+    let mockDot = NSView()
+    private static let dotSide: CGFloat = 8
+    private var dotColor = NSColor.systemGreen
 
     override init(target: AnyObject, action: Selector) {
         super.init(target: target, action: action)
         glyph.contentTintColor = .secondaryLabelColor
         name.font = .systemFont(ofSize: 13)
         name.lineBreakMode = .byTruncatingTail
+        mockDot.wantsLayer = true
+        mockDot.layer?.cornerRadius = Self.dotSide / 2
+        mockDot.isHidden = true
+        mockDot.setAccessibilityElement(true)
+        mockDot.setAccessibilityRole(.image)
         // Not registered as textField: a source-list outline restyles that and drops the highlight.
         addSubview(glyph)
         addSubview(name)
+        addSubview(mockDot)
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    func show(_ item: SidebarItem, match: [Range<String.Index>]) {
+    /// `mockURL` is the running Mock Server's address, nil when none runs.
+    func show(_ item: SidebarItem, match: [Range<String.Index>], mockURL: String? = nil) {
         let symbol = item.kind == .collection ? "square.3.layers.3d" : "folder"
         glyph.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 12, weight: .regular))
         shown = (item.name, match)
+        let tip = mockURL.map { "Mock Server on \($0)" }
+        mockDot.isHidden = tip == nil
+        mockDot.toolTip = tip
+        mockDot.setAccessibilityLabel(tip)
         syncHover()
         renderName()
+        needsLayout = true
     }
+
+    func paint(_ theme: ThemeEnvironment) {
+        dotColor = theme.color(.success)
+        renderDot()
+    }
+
+    /// The `success` colour, or the selected-text colour on an emphasized selection, as the badges do.
+    private func renderDot() {
+        let color = backgroundStyle == .emphasized ? NSColor.alternateSelectedControlTextColor : dotColor
+        effectiveAppearance.performAsCurrentDrawingAppearance { mockDot.layer?.backgroundColor = color.cgColor }
+    }
+
+    override func viewDidChangeEffectiveAppearance() { renderDot() }
 
     private var shown: (String, [Range<String.Index>]) = ("", [])
     override var backgroundStyle: NSView.BackgroundStyle {
         didSet {
             renderName()
+            renderDot()
             glyph.contentTintColor = backgroundStyle == .emphasized ? .alternateSelectedControlTextColor : .secondaryLabelColor
         }
     }
@@ -967,7 +1048,11 @@ final class NodeCell: MoreActionsCell {
         super.layout()
         glyph.frame = NSRect(x: 0, y: (bounds.height - 14) / 2, width: 14, height: 14)
         let height = name.cell?.cellSize.height ?? 16
-        name.frame = NSRect(x: 20, y: ((bounds.height - height) / 2).rounded(), width: max(0, bounds.width - 20 - moreReserve), height: height)
+        // The dot keeps its place whether or not the button shows, 4 pt before the button's slot; the name stops 4 pt short of it.
+        let dotX = more.frame.minX - 4 - Self.dotSide
+        mockDot.frame = NSRect(x: dotX, y: ((bounds.height - Self.dotSide) / 2).rounded(), width: Self.dotSide, height: Self.dotSide)
+        let nameEnd = mockDot.isHidden ? bounds.width - moreReserve : min(bounds.width - moreReserve, dotX - 4)
+        name.frame = NSRect(x: 20, y: ((bounds.height - height) / 2).rounded(), width: max(0, nameEnd - 20), height: height)
         tipIfCut(name)
     }
 }

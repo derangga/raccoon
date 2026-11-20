@@ -27,6 +27,7 @@ enum CompositionRoot {
             // No id: raccoon.json was undecodable or could not be written.
             secrets: { (id: WorkspaceID?) -> any SecretStore in id.map { KeychainSecretStore(id: $0) } ?? NoWorkspaceIDSecretStore() },
             instants: instants,
+            mockListening: NetworkMockListening(),
             makeTab: { TabModel(transport: transport, secrets: $0, files: files, instants: instants, clipboard: clipboard) }
         )
     }

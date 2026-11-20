@@ -28,7 +28,7 @@ struct WorkspaceLoadTests {
                 log.ids.append(id)
                 return InMemorySecretStore()
             },
-            instants: FixedInstantSource(.now),
+            instants: FixedInstantSource(.now), mockListening: ScriptedMockListening(),
             makeTab: { _ in
                 TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                          instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
@@ -119,7 +119,7 @@ struct WorkspaceLoadTests {
                 root: root.path, open: { DiskDataFolderStore(root: URL(filePath: $0)) }, remember: { _ in },
                 rememberWorkspaces: { listed.append($0) }),
             folderWatch: watch, sessionStore: { [temp] in DiskSessionStore(directory: temp.appending(path: "Support"), root: $0) },
-            secrets: { _ in InMemorySecretStore() }, instants: FixedInstantSource(.now),
+            secrets: { _ in InMemorySecretStore() }, instants: FixedInstantSource(.now), mockListening: ScriptedMockListening(),
             makeTab: { _ in
                 TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
                          instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
