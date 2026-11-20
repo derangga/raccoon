@@ -123,6 +123,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             tabController?.view.window?.makeFirstResponder(tabController?.urlBar.urlField)
         }
         windowController.environmentPicker.bind(windowModel)
+        windowController.mockButton.bind(windowModel)
+        // The sheet's method colours follow the chosen Theme, so both entry points hand it ours.
+        windowController.mockButton.open = { [weak windowController, windowModel] collection in
+            guard let host = windowController?.window?.topSheet else { return }
+            MockServerSheet.present(on: host, model: windowModel, collection: collection, theme: theme)
+        }
+        sidebar.showMockSheet = { [weak windowController, windowModel] collection, failure in
+            guard let host = windowController?.window?.topSheet else { return }
+            MockServerSheet.present(on: host, model: windowModel, collection: collection, showing: failure, theme: theme)
+        }
         windowController.environmentPicker.onEdit = { [weak self] in self?.editEnvironments(nil) }
         windowController.split.showSidebar(sidebar)
         self.sidebar = sidebar

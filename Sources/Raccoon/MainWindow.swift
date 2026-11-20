@@ -10,6 +10,9 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     let sidebarToggle = MainWindowController.toggle(symbol: "sidebar.left", label: "Show Sidebar", action: #selector(NSSplitViewController.toggleSidebar(_:)))
     let inspectorToggle = MainWindowController.toggle(symbol: "sidebar.right", label: "Show Inspector", action: #selector(NSSplitViewController.toggleInspector(_:)))
     let environmentPicker: EnvironmentPicker
+    /// The Mock Server button; its toolbar item is shown only while a Mock Server runs.
+    let mockButton = MockToolbarButton()
+    private let mockItem = NSToolbarItem(itemIdentifier: MainWindowController.mockID)
 
     init(theme: ThemeEnvironment, inspector: InspectorMemory, reduceMotion: @escaping () -> Bool) {
         environmentPicker = EnvironmentPicker(theme: theme)
@@ -33,6 +36,15 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         window.titlebarSeparatorStyle = .line
         // The title is a toolbar item after the sidebar toggle; the system one would come first.
         window.titleVisibility = .hidden
+
+        // Not drawn until a server runs. Hiding the item, not the button, takes its toolbar space
+        // with it; the 12 pt before the inspector toggle is the row's, as the Environment item's is.
+        let mockRow = NSStackView(views: [mockButton])
+        mockRow.edgeInsets.right = 12
+        mockItem.view = mockRow
+        mockItem.label = "Mock Server"
+        mockItem.isHidden = true
+        mockButton.onShownChange = { [mockItem] shown in mockItem.isHidden = !shown }
 
         sidebarToggle.target = split
         inspectorToggle.target = split
@@ -60,9 +72,10 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     static let titleID = NSToolbarItem.Identifier("title")
     static let inspectorToggleID = NSToolbarItem.Identifier("inspectorToggle")
     static let environmentID = NSToolbarItem.Identifier("environment")
+    static let mockID = NSToolbarItem.Identifier("mockServer")
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [Self.sidebarToggleID, Self.titleID, .flexibleSpace, Self.environmentID, Self.inspectorToggleID]
+        [Self.sidebarToggleID, Self.titleID, .flexibleSpace, Self.environmentID, Self.mockID, Self.inspectorToggleID]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -94,6 +107,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
             item.label = "Environment"
             return item
         }
+        if identifier == Self.mockID { return mockItem }
         let button = switch identifier {
         case Self.sidebarToggleID: sidebarToggle
         case Self.inspectorToggleID: inspectorToggle
