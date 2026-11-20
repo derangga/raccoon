@@ -11,6 +11,12 @@ public enum MockRoutes {
         }
     }
 
+    /// The URL's path as the Mock Server sheet shows it: a leading `/`, then the segments as typed
+    /// (`:name` and `{{name}}` kept, no percent-decoding); `/` when there are none.
+    public static func path(of url: String) -> String {
+        "/" + segments(of: url).joined(separator: "/")
+    }
+
     /// The URL text before `?`, without its scheme and authority (or a leading `{{name}}` standing
     /// for them), split on `/`; a trailing `/` adds no segment.
     private static func segments(of url: String) -> [String] {

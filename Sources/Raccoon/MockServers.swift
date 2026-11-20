@@ -13,6 +13,13 @@ struct MockServer: Equatable {
     var url: String { "http://127.0.0.1:\(port)" }
 }
 
+/// One line of the Mock Server sheet's route list: a Request, whether or not it has an Example.
+struct MockRouteRow: Equatable {
+    let method: String
+    let path: String
+    let exampleCount: Int
+}
+
 /// What the listener answers from, off the main actor. Routes and the CORS flag are swapped as
 /// whole values under a lock, so a reply never reads a half-updated index.
 nonisolated final class MockAnswering: Sendable {
@@ -49,10 +56,14 @@ enum MockServing {
         return WorkspaceFile.settings(for: collection, in: mocks)
     }
 
-    /// The routes of the Collection's Requests in sidebar order, from the files as the scan has
-    /// them: a Dirty Tab's edits are not here. A Request that does not decode has no route. nil
-    /// when the Collection is not in the scan.
-    static func routes(for collection: String, in scan: DataFolderScan) -> [MockRoute]? {
+    /// Whether raccoon.json decodes and holds an entry for the Collection.
+    static func hasSettings(for collection: String, in scan: DataFolderScan) -> Bool {
+        scan.files["raccoon.json"].flatMap { try? WorkspaceFile.contents($0).mocks[collection] } != nil
+    }
+
+    /// The Collection's decodable Requests in sidebar order, from the files as the scan has them: a
+    /// Dirty Tab's edits are not here. nil when the Collection is not in the scan.
+    private static func requests(for collection: String, in scan: DataFolderScan) -> [Request]? {
         guard let found = TreeDecoder.collections(scan).first(where: { $0.name == collection }) else { return nil }
         func paths(_ nodes: [TreeNode]) -> [String] {
             nodes.flatMap { node -> [String] in
@@ -63,8 +74,22 @@ enum MockServing {
                 }
             }
         }
-        return MockRoutes.build(paths(found.nodes).compactMap { path in
+        return paths(found.nodes).compactMap { path in
             scan.files[path].flatMap { try? RequestFile.decode($0) }
-        })
+        }
+    }
+
+    /// The routes of the Collection's Requests in sidebar order. A Request that does not decode has
+    /// no route. nil when the Collection is not in the scan.
+    static func routes(for collection: String, in scan: DataFolderScan) -> [MockRoute]? {
+        requests(for: collection, in: scan).map(MockRoutes.build)
+    }
+
+    /// One row per Request, those with no Example too (they are listed, not served); [] when the
+    /// Collection is not in the scan.
+    static func rows(for collection: String, in scan: DataFolderScan) -> [MockRouteRow] {
+        (requests(for: collection, in: scan) ?? []).map {
+            MockRouteRow(method: $0.definition.method, path: MockRoutes.path(of: $0.definition.url), exampleCount: $0.examples.count)
+        }
     }
 }

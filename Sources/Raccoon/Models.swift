@@ -1073,6 +1073,9 @@ final class WindowModel {
     /// The running Mock Servers by Collection name; one per Collection, held inside the Data Folder
     /// scope (§8) and gone with it.
     private(set) var mockServers: [String: MockServer] = [:]
+    /// The Collections whose start is waiting on its bind: the sheet shows "Starting…", and a second
+    /// start or restart for one of them does nothing.
+    private(set) var mockStarting: Set<String> = []
     /// What goes with each running one: the socket to close and the box its replies come from.
     @ObservationIgnored private var mockHeld: [String: (listener: MockListener, answering: MockAnswering)] = [:]
     /// Counts Data Folder scopes ended, so a start that awaited its bind across a switch knows.
@@ -1084,20 +1087,25 @@ final class WindowModel {
     /// remembers the port it got. A running Collection is left as it is. `.portInUse` and `.failed`
     /// are the menu's alerts; nothing is held after either.
     func startMock(_ collection: String, onAnotherPort: Bool = false) async throws(MockError) {
-        guard mockServers[collection] == nil, let routes = MockServing.routes(for: collection, in: lastScan) else { return }
+        guard mockServers[collection] == nil, !mockStarting.contains(collection),
+              let routes = MockServing.routes(for: collection, in: lastScan) else { return }
         let settings = MockServing.settings(for: collection, in: lastScan)
         let answering = MockAnswering(routes: routes, allowsCORS: settings.allowsCORS)
         let scope = mockScope
+        mockStarting.insert(collection)
+        defer { mockStarting.remove(collection) }
         let listener = try await mockListening.listen(port: onAnotherPort ? nil : settings.port) { head in answering.answer(head) }
-        // The await let other work run: a switch, a trash, a rename or a second start may have won.
+        // The await let other work run: a switch, a trash, a rename or a CORS toggle may have won.
         guard scope == mockScope, mockServers[collection] == nil, let current = MockServing.routes(for: collection, in: lastScan) else {
             listener.stop()
             return
         }
+        let allowsCORS = MockServing.settings(for: collection, in: lastScan).allowsCORS
         answering.swap(routes: current)
+        answering.swap(allowsCORS: allowsCORS)
         mockHeld[collection] = (listener, answering)
-        mockServers[collection] = MockServer(collection: collection, port: listener.port, allowsCORS: settings.allowsCORS, routes: current)
-        rememberMock(collection, MockSettings(port: listener.port, allowsCORS: settings.allowsCORS))
+        mockServers[collection] = MockServer(collection: collection, port: listener.port, allowsCORS: allowsCORS, routes: current)
+        rememberMock(collection, MockSettings(port: listener.port, allowsCORS: allowsCORS))
     }
 
     /// Stop Mock Server: the socket, its connections and pending delays go. One not running is a no-op.
@@ -1111,13 +1119,57 @@ final class WindowModel {
         for collection in Array(mockServers.keys) { stopMock(collection) }
     }
 
-    /// Allow Browser Requests (CORS): the next reply follows it, and raccoon.json remembers it.
+    /// What raccoon.json remembers for the Collection; `.standard` when it holds no entry.
+    func mockSettings(_ collection: String) -> MockSettings {
+        MockServing.settings(for: collection, in: lastScan)
+    }
+
+    /// Whether raccoon.json holds an entry for the Collection: the sheet starts a first start
+    /// from the menu there instead of starting blind.
+    func hasMockSettings(_ collection: String) -> Bool {
+        MockServing.hasSettings(for: collection, in: lastScan)
+    }
+
+    /// The routes the files hold now, for a stopped or a running Collection; [] when it is not there.
+    func mockRoutes(_ collection: String) -> [MockRoute] {
+        MockServing.routes(for: collection, in: lastScan) ?? []
+    }
+
+    /// The sheet's list: every Request of the Collection, with the count of its Examples.
+    func mockRouteRows(_ collection: String) -> [MockRouteRow] {
+        MockServing.rows(for: collection, in: lastScan)
+    }
+
+    /// Remembers the port the next start asks for. A running server keeps its bound port until
+    /// `restartMock`. `.invalid` is refused; so is a Collection that is not there.
+    func setMockPort(_ collection: String, _ port: MockPort) {
+        guard MockServing.routes(for: collection, in: lastScan) != nil else { return }
+        let remembered = mockSettings(collection)
+        switch port {
+        case .automatic: rememberMock(collection, MockSettings(port: nil, allowsCORS: remembered.allowsCORS))
+        case .port(let number): rememberMock(collection, MockSettings(port: number, allowsCORS: remembered.allowsCORS))
+        case .invalid: return
+        }
+    }
+
+    /// Stop Mock Server, then start it on the remembered port; the errors are `startMock`'s.
+    func restartMock(_ collection: String) async throws(MockError) {
+        guard !mockStarting.contains(collection) else { return }
+        stopMock(collection)
+        try await startMock(collection)
+    }
+
+    /// Allow Browser Requests (CORS), stopped or running: raccoon.json remembers it, and a running
+    /// server's next reply follows it. The remembered port stays as it is: it may not be the bound
+    /// one yet.
     func setMockAllowsCORS(_ collection: String, _ allows: Bool) {
-        guard var server = mockServers[collection] else { return }
-        server.allowsCORS = allows
-        mockServers[collection] = server
-        mockHeld[collection]?.answering.swap(allowsCORS: allows)
-        rememberMock(collection, MockSettings(port: server.port, allowsCORS: allows))
+        guard MockServing.routes(for: collection, in: lastScan) != nil else { return }
+        if var server = mockServers[collection] {
+            server.allowsCORS = allows
+            mockServers[collection] = server
+            mockHeld[collection]?.answering.swap(allowsCORS: allows)
+        }
+        rememberMock(collection, MockSettings(port: mockSettings(collection).port, allowsCORS: allows))
     }
 
     /// Every change to the last scan, ours or the disk's: a running Mock Server serves the files as
