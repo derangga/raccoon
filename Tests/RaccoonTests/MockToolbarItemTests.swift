@@ -97,7 +97,7 @@ struct MockToolbarItemTests {
         let controller = MainWindowController(theme: ThemeController.standalone().theme, inspector: InspectorMemory(), reduceMotion: { true })
         let items = try #require(controller.window?.toolbar).items
         let mock = try #require(items.first { $0.itemIdentifier == MainWindowController.mockID })
-        #expect(items.map(\.itemIdentifier).suffix(3) == [MainWindowController.environmentID, MainWindowController.mockID, MainWindowController.inspectorToggleID])
+        #expect(items.map(\.itemIdentifier).suffix(3) == [MainWindowController.mockID, MainWindowController.environmentID, MainWindowController.inspectorToggleID])
         #expect(mock.isHidden)
 
         controller.mockButton.show([Self.server("Pets", 3000)])

@@ -12,8 +12,8 @@ what came back, without the app adding or hiding anything.
 
 ```
 Window                          one, native chrome
-  Toolbar                       native: sidebar toggle (leading), title, Environment picker,
-                                Mock Server item (only while one runs), inspector toggle (trailing)
+  Toolbar                       native: sidebar toggle (leading), title, Mock Server item
+                                (only while one runs), Environment picker, inspector toggle (trailing)
   Sidebar                       native material: the Collection tree
     WorkspacePopUp              a Dropdown at the top: the open Workspace's title
     SidebarFilter               native search field, "Filter Collections"

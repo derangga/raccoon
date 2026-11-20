@@ -115,7 +115,7 @@ disables the button and shows the system spinner after 150 ms.
 ## Where it shows that it runs
 
 ```
-Toolbar item        a green dot and "Mock Server :3000", beside the Environment picker. Two or more
+Toolbar item        a green dot and "Mock Server :3000", before the Environment picker. Two or more
                     running: "2 Mock Servers". None running: not drawn. A click opens the sheet, or
                     a menu of the running Collections first when there are several.
                     Tooltip and accessibility label: "Mock Server running on http://127.0.0.1:3000.

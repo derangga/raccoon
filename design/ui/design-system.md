@@ -869,13 +869,13 @@ A 460 pt wide sheet, as tall as its content, opened by Mock Server… and by the
 
 ### Mock Server toolbar item
 
-A borderless toolbar button, 28 pt high, between the Environment picker and the inspector toggle,
+A borderless toolbar button, 28 pt high, before the Environment picker,
 drawn only while a Mock Server runs. An 8 pt `systemGreen` dot, 6 pt gap, "Mock Server" (12 pt)
 and the port in SF Mono 11 secondary; two or more: "2 Mock Servers". It hovers and presses like
 any toolbar button. One server: a click opens its sheet. Several: a menu of their Collections,
 each with its port in secondary text, and a click on one opens its sheet. Appearing and
-vanishing take no animation. The toolbar keeps at least 12 pt clear before the inspector toggle,
-as the Environment picker does.
+vanishing take no animation. It keeps 12 pt clear after it, before the Environment label. The picker keeps its own 12 pt
+before the inspector toggle.
 
 ### Banners
 

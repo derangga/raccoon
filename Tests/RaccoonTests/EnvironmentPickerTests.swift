@@ -110,9 +110,9 @@ struct EnvironmentPickerTests {
         #expect(item.action == #selector(AppDelegate.chooseEnvironment(_:)))
     }
 
-    @Test func `the toolbar carries the picker, then the Mock Server item, before the inspector toggle`() {
+    @Test func `the toolbar carries the Mock Server item, then the picker, before the inspector toggle`() {
         let controller = MainWindowController(theme: ThemeController.standalone().theme, inspector: InspectorMemory(), reduceMotion: { false })
         let ids = controller.toolbarDefaultItemIdentifiers(NSToolbar())
-        #expect(ids.suffix(3) == [MainWindowController.environmentID, MainWindowController.mockID, MainWindowController.inspectorToggleID])
+        #expect(ids.suffix(3) == [MainWindowController.mockID, MainWindowController.environmentID, MainWindowController.inspectorToggleID])
     }
 }

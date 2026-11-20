@@ -38,7 +38,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
         window.titleVisibility = .hidden
 
         // Not drawn until a server runs. Hiding the item, not the button, takes its toolbar space
-        // with it; the 12 pt before the inspector toggle is the row's, as the Environment item's is.
+        // with it; the 12 pt after it, before the Environment label, is the row's.
         let mockRow = NSStackView(views: [mockButton])
         mockRow.edgeInsets.right = 12
         mockItem.view = mockRow
@@ -75,7 +75,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate {
     static let mockID = NSToolbarItem.Identifier("mockServer")
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [Self.sidebarToggleID, Self.titleID, .flexibleSpace, Self.environmentID, Self.mockID, Self.inspectorToggleID]
+        [Self.sidebarToggleID, Self.titleID, .flexibleSpace, Self.mockID, Self.environmentID, Self.inspectorToggleID]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
