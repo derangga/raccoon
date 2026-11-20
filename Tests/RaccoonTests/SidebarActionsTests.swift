@@ -129,11 +129,139 @@ struct SidebarActionsTests {
         let (_, sidebar) = try sidebar()
         let titles = { (name: String) in try sidebar.contextMenu(row: row(sidebar, name)).items.filter { !$0.isSeparatorItem }.map(\.title) }
 
-        #expect(try titles("Payments API") == ["New Folder…", "Rename…", "Export…", "Start Mock Server", "Move to Trash", "Reveal in Finder"])
+        #expect(try titles("Payments API") == ["New Folder…", "Rename…", "Export…", "Start Mock Server", "Mock Server…", "Move to Trash", "Reveal in Finder"])
         #expect(try !titles("Refunds").contains("Start Mock Server"))
+        #expect(try !titles("Refunds").contains("Mock Server…"))
         #expect(try !titles("Refunds").contains("Export…"))
         #expect(try !titles("Create charge").contains("Export…"))
         #expect(try !titles("Broken.json").contains("Export…"))
+    }
+
+    // MARK: Mock Server
+
+    /// "Payments API" in a window over `listening`, with `settings` remembered for it when given.
+    func mockSidebar(_ listening: ScriptedMockListening, remembered: MockSettings? = nil) throws -> (WindowModel, SidebarViewController) {
+        let url = base.root.appending(path: base.chargePath)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try RequestFile.encode(FolderOperationTests.charge).write(to: url)
+        if let remembered {
+            try WorkspaceFile.encode(WorkspaceID(UUID()), mocks: ["Payments API": remembered]).write(to: base.root.appending(path: "raccoon.json"))
+        }
+        let window = WindowModel(
+            dataFolder: .test(base.root), folderWatch: base.watch,
+            sessionStore: DiskSessionStore(directory: base.temp.appending(path: "Support"), root: base.root.path), secrets: InMemorySecretStore(),
+            instants: FixedInstantSource(.now), mockListening: listening,
+            makeTab: {
+                TabModel(transport: ScriptedTransport(.failure(.timedOut(seconds: 60))), secrets: InMemorySecretStore(), files: DictionaryFileReading([:]),
+                         instants: FixedInstantSource(.now), clipboard: RecordingClipboardWriter())
+            })
+        window.loadDataFolder()
+        let sidebar = SidebarViewController(window: window, theme: theme, reveal: { _ in })
+        sidebar.view.frame = NSRect(x: 0, y: 0, width: 232, height: 600)
+        sidebar.outline.expandItem(nil, expandChildren: true)
+        return (window, sidebar)
+    }
+
+    func mockTitles(_ sidebar: SidebarViewController) throws -> [String] {
+        try sidebar.contextMenu(row: row(sidebar, "Payments API")).items.filter { !$0.isSeparatorItem }.map(\.title)
+    }
+
+    @Test(arguments: [
+        (false, ["New Folder…", "Rename…", "Export…", "Start Mock Server", "Mock Server…", "Move to Trash", "Reveal in Finder"]),
+        (true, ["New Folder…", "Rename…", "Export…", "Stop Mock Server", "Copy Mock Server URL", "Mock Server…", "Move to Trash", "Reveal in Finder"]),
+    ] as [(Bool, [String])])
+    func `a Collection's menu titles, stopped and running`(running: Bool, titles: [String]) async throws {
+        let (window, sidebar) = try mockSidebar(ScriptedMockListening(), remembered: MockSettings(port: 8081, allowsCORS: true))
+        if running { try await window.startMock("Payments API") }
+
+        #expect(try mockTitles(sidebar) == titles)
+    }
+
+    @Test func `the first Start opens the sheet and nothing listens`() async throws {
+        let listening = ScriptedMockListening()
+        let (window, sidebar) = try mockSidebar(listening)
+        var sheets: [(String, MockError?)] = []
+        sidebar.showMockSheet = { sheets.append(($0, $1)) }
+
+        await sidebar.startMock("Payments API")
+
+        #expect(sheets.map(\.0) == ["Payments API"])
+        #expect(sheets.first?.1 == nil)
+        #expect(listening.requestedPorts.isEmpty)
+        #expect(window.mockServers.isEmpty)
+    }
+
+    @Test func `a configured Collection starts in one click, on its remembered port`() async throws {
+        let listening = ScriptedMockListening()
+        let (window, sidebar) = try mockSidebar(listening, remembered: MockSettings(port: 8081, allowsCORS: true))
+        var sheets = 0
+        sidebar.showMockSheet = { _, _ in sheets += 1 }
+
+        await sidebar.startMock("Payments API")
+
+        #expect(listening.requestedPorts == [8081])
+        #expect(window.mockServers["Payments API"]?.port == 8081)
+        #expect(sheets == 0)
+    }
+
+    @Test(arguments: [MockError.portInUse(8081), MockError.failed("Address already in use.")])
+    func `a start from the menu that fails opens the sheet showing the problem`(failure: MockError) async throws {
+        let listening = ScriptedMockListening(failing: failure)
+        let (window, sidebar) = try mockSidebar(listening, remembered: MockSettings(port: 8081, allowsCORS: true))
+        var sheets: [(String, MockError?)] = []
+        sidebar.showMockSheet = { sheets.append(($0, $1)) }
+
+        await sidebar.startMock("Payments API")
+
+        #expect(sheets.map(\.0) == ["Payments API"])
+        #expect(sheets.first?.1 == failure)
+        #expect(window.mockServers.isEmpty)
+    }
+
+    @Test func `Mock Server… opens the sheet for the Collection, and the old items are gone`() throws {
+        let (_, sidebar) = try mockSidebar(ScriptedMockListening())
+        var sheets: [(String, MockError?)] = []
+        sidebar.showMockSheet = { sheets.append(($0, $1)) }
+        let menu = sidebar.contextMenu(row: try row(sidebar, "Payments API"))
+        let item = try #require(menu.item(withTitle: "Mock Server…"))
+
+        _ = (item.target as? NSObject)?.perform(item.action, with: item)
+
+        #expect(sheets.map(\.0) == ["Payments API"])
+        #expect(menu.item(withTitle: "Allow Browser Requests (CORS)") == nil)
+    }
+
+    @Test func `Stop Mock Server stops it, and Copy Mock Server URL copies the address`() async throws {
+        let listening = ScriptedMockListening()
+        let (window, sidebar) = try mockSidebar(listening, remembered: MockSettings(port: 8081, allowsCORS: true))
+        try await window.startMock("Payments API")
+        let menu = sidebar.contextMenu(row: try row(sidebar, "Payments API"))
+        let copy = try #require(menu.item(withTitle: "Copy Mock Server URL"))
+        let stop = try #require(menu.item(withTitle: "Stop Mock Server"))
+
+        _ = (copy.target as? NSObject)?.perform(copy.action, with: copy)
+        #expect(NSPasteboard.general.string(forType: .string) == "http://127.0.0.1:8081")
+        _ = (stop.target as? NSObject)?.perform(stop.action, with: stop)
+
+        #expect(window.mockServers.isEmpty)
+    }
+
+    @Test func `a Collection row shows the dot, the port and the tooltip only while its server runs`() async throws {
+        let (window, sidebar) = try mockSidebar(ScriptedMockListening(), remembered: MockSettings(port: 3000, allowsCORS: true))
+        let item = try #require(sidebar.outline.item(atRow: try row(sidebar, "Payments API")) as? SidebarItem)
+        func cell() throws -> NodeCell { try #require(sidebar.outlineView(sidebar.outline, viewFor: nil, item: item) as? NodeCell) }
+
+        #expect(try cell().mockDot.isHidden)
+        #expect(try cell().mockPort.isHidden)
+        try await window.startMock("Payments API")
+        let running = try cell()
+
+        #expect(!running.mockDot.isHidden)
+        #expect(running.mockPort.stringValue == ":3000")
+        #expect(running.mockPort.font == .monospacedSystemFont(ofSize: 10, weight: .regular))
+        #expect(running.mockDot.toolTip == "Mock Server running on http://127.0.0.1:3000")
+        #expect(running.mockPort.toolTip == "Mock Server running on http://127.0.0.1:3000")
+        #expect(running.mockDot.accessibilityLabel() == "Mock Server running on http://127.0.0.1:3000")
     }
 
     @Test func `Export… in a Collection's menu asks the app to export that Collection`() throws {

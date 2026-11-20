@@ -90,6 +90,12 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     var importFromPostman: () -> Void = {}
     /// A Collection row's Export…: the app's Collection Export sheet, for the Collection named.
     var exportCollection: (String) -> Void = { _ in }
+    /// The Mock Server sheet for a Collection, showing the failure of a start when given: the app's
+    /// sheet on this window.
+    lazy var showMockSheet: (_ collection: String, _ failure: MockError?) -> Void = { [weak self] collection, failure in
+        guard let self, let host = view.window else { return }
+        MockServerSheet.present(on: host.topSheet, model: window, collection: collection, showing: failure)
+    }
     /// The pop-up's Manage Workspaces…: the Workspaces sheet.
     var manageWorkspaces: () -> Void = {}
     let outline = SidebarOutline()
@@ -513,14 +519,13 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         if case .unreadable = item.kind {} else { add("Rename…", #selector(renameItem), item) }
         if item.kind == .collection {
             add("Export…", #selector(exportItem), item)
-            if let mock = window.mockServers[item.name] {
+            if window.mockServers[item.name] != nil {
                 add("Stop Mock Server", #selector(stopMockItem), item)
-                add("Copy Mock URL", #selector(copyMockURL), item)
-                add("Allow Browser Requests (CORS)", #selector(toggleMockCORS), item)
-                menu.items.last?.state = mock.allowsCORS ? .on : .off
+                add("Copy Mock Server URL", #selector(copyMockURL), item)
             } else {
                 add("Start Mock Server", #selector(startMockItem), item)
             }
+            add("Mock Server…", #selector(mockServerItem), item)
         }
         if item.kind != .collection {
             let parent = String(item.path[..<(item.path.range(of: "/", options: .backwards)?.lowerBound ?? item.path.startIndex)])
@@ -619,26 +624,22 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
     @objc private func startMockItem(_ sender: NSMenuItem) {
         guard let item = sender.representedObject as? SidebarItem else { return }
-        startMock(item.name, onAnotherPort: false)
+        Task { await startMock(item.name) }
     }
 
-    /// The remembered port first; a taken one asks, and Use Another Port starts again on a free one.
-    private func startMock(_ collection: String, onAnotherPort: Bool) {
-        Task {
-            do throws(MockError) {
-                try await window.startMock(collection, onAnotherPort: onAnotherPort)
-            } catch {
-                switch error {
-                case .portInUse(let port):
-                    guard let sheetWindow = view.window else { return }
-                    MockPortInUseAlert.ask(port: port, in: sheetWindow) { [weak self] useAnother in
-                        if useAnother { self?.startMock(collection, onAnotherPort: true) }
-                    }
-                case .failed(let reason):
-                    showError("Couldn't start the Mock Server: \(reason.hasSuffix(".") ? reason : reason + ".")")
-                }
-            }
+    /// A Collection with nothing remembered opens the sheet and starts nothing; otherwise it starts
+    /// at once, and a start that fails opens the sheet showing why (mock-server.md, Start and stop).
+    func startMock(_ collection: String) async {
+        guard window.hasMockSettings(collection) else { return showMockSheet(collection, nil) }
+        do throws(MockError) {
+            try await window.startMock(collection)
+        } catch {
+            showMockSheet(collection, error)
         }
+    }
+
+    @objc private func mockServerItem(_ sender: NSMenuItem) {
+        if let item = sender.representedObject as? SidebarItem { showMockSheet(item.name, nil) }
     }
 
     @objc private func stopMockItem(_ sender: NSMenuItem) {
@@ -649,11 +650,6 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         guard let item = sender.representedObject as? SidebarItem, let mock = window.mockServers[item.name] else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(mock.url, forType: .string)
-    }
-
-    @objc private func toggleMockCORS(_ sender: NSMenuItem) {
-        guard let item = sender.representedObject as? SidebarItem, let mock = window.mockServers[item.name] else { return }
-        window.setMockAllowsCORS(item.name, !mock.allowsCORS)
     }
 
     /// The Collection the selected row is, or is in: File ▸ Export Collection… exports it.
@@ -736,7 +732,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         switch item.kind {
         case .collection, .folder:
             let cell = reuse(NodeCell.identifier) { NodeCell(target: self, action: #selector(moreClicked)) }
-            cell.show(item, match: matches[item.path]?.ranges ?? [], mockURL: item.kind == .collection ? window.mockServers[item.name]?.url : nil)
+            cell.show(item, match: matches[item.path]?.ranges ?? [], mock: item.kind == .collection ? window.mockServers[item.name] : nil)
             cell.paint(theme)
             return cell
         case .request(_, let method):
@@ -985,6 +981,8 @@ final class NodeCell: MoreActionsCell, ThemedRow {
     let name = NSTextField(labelWithString: "")
     /// The Mock indicator: shown on a Collection whose Mock Server runs (design-system §6 Sidebar rows).
     let mockDot = NSView()
+    /// ":3000", after the dot.
+    let mockPort = NSTextField(labelWithString: "")
     private static let dotSide: CGFloat = 8
     private var dotColor = NSColor.systemGreen
 
@@ -998,23 +996,31 @@ final class NodeCell: MoreActionsCell, ThemedRow {
         mockDot.isHidden = true
         mockDot.setAccessibilityElement(true)
         mockDot.setAccessibilityRole(.image)
+        mockPort.font = .monospacedSystemFont(ofSize: 10, weight: .regular)
+        mockPort.isHidden = true
+        // The dot carries the label; the port would read it twice.
+        mockPort.setAccessibilityElement(false)
         // Not registered as textField: a source-list outline restyles that and drops the highlight.
         addSubview(glyph)
         addSubview(name)
         addSubview(mockDot)
+        addSubview(mockPort)
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    /// `mockURL` is the running Mock Server's address, nil when none runs.
-    func show(_ item: SidebarItem, match: [Range<String.Index>], mockURL: String? = nil) {
+    /// `mock` is the Collection's running Mock Server, nil when none runs.
+    func show(_ item: SidebarItem, match: [Range<String.Index>], mock: MockServer? = nil) {
         let symbol = item.kind == .collection ? "square.3.layers.3d" : "folder"
         glyph.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 12, weight: .regular))
         shown = (item.name, match)
-        let tip = mockURL.map { "Mock Server on \($0)" }
-        mockDot.isHidden = tip == nil
+        let tip = mock.map(MockToolbarContent.rowTooltip)
+        mockDot.isHidden = mock == nil
+        mockPort.isHidden = mock == nil
+        mockPort.stringValue = mock.map(MockToolbarContent.portText) ?? ""
         mockDot.toolTip = tip
+        mockPort.toolTip = tip
         mockDot.setAccessibilityLabel(tip)
         syncHover()
         renderName()
@@ -1026,10 +1032,13 @@ final class NodeCell: MoreActionsCell, ThemedRow {
         renderDot()
     }
 
-    /// The `success` colour, or the selected-text colour on an emphasized selection, as the badges do.
+    /// The `success` colour, or the selected-text colour on an emphasized selection, as the badges do;
+    /// the port is secondary text, or the selected-text colour with it.
     private func renderDot() {
-        let color = backgroundStyle == .emphasized ? NSColor.alternateSelectedControlTextColor : dotColor
+        let emphasized = backgroundStyle == .emphasized
+        let color = emphasized ? NSColor.alternateSelectedControlTextColor : dotColor
         effectiveAppearance.performAsCurrentDrawingAppearance { mockDot.layer?.backgroundColor = color.cgColor }
+        mockPort.textColor = emphasized ? .alternateSelectedControlTextColor : .secondaryLabelColor
     }
 
     override func viewDidChangeEffectiveAppearance() { renderDot() }
@@ -1048,8 +1057,11 @@ final class NodeCell: MoreActionsCell, ThemedRow {
         super.layout()
         glyph.frame = NSRect(x: 0, y: (bounds.height - 14) / 2, width: 14, height: 14)
         let height = name.cell?.cellSize.height ?? 16
-        // The dot keeps its place whether or not the button shows, 4 pt before the button's slot; the name stops 4 pt short of it.
-        let dotX = more.frame.minX - 4 - Self.dotSide
+        // The port and the dot keep their place whether or not the button shows, 4 pt before the button's slot, the dot 4 pt before the port; the name stops 4 pt short.
+        let portSize = mockPort.isHidden ? .zero : (mockPort.cell?.cellSize ?? .zero)
+        let portX = more.frame.minX - 4 - ceil(portSize.width)
+        mockPort.frame = NSRect(x: portX, y: ((bounds.height - portSize.height) / 2).rounded(), width: ceil(portSize.width), height: portSize.height)
+        let dotX = portX - 4 - Self.dotSide
         mockDot.frame = NSRect(x: dotX, y: ((bounds.height - Self.dotSide) / 2).rounded(), width: Self.dotSide, height: Self.dotSide)
         let nameEnd = mockDot.isHidden ? bounds.width - moreReserve : min(bounds.width - moreReserve, dotX - 4)
         name.frame = NSRect(x: 20, y: ((bounds.height - height) / 2).rounded(), width: max(0, nameEnd - 20), height: height)
