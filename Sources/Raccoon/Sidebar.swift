@@ -723,6 +723,17 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 final class SidebarOutline: NSOutlineView {
     var onDelete: (Int) -> Void = { _ in }
 
+    /// A click on a ⋯ button that reaches past its cell into the row's inset would otherwise land on the row.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let local = convert(point, from: superview)
+        let row = row(at: local)
+        if row >= 0, let cell = view(atColumn: 0, row: row, makeIfNecessary: false) as? MoreActionsCell, !cell.more.isHidden,
+           cell.more.bounds.contains(cell.more.convert(local, from: self)) {
+            return cell.more
+        }
+        return super.hitTest(point)
+    }
+
     override func keyDown(with event: NSEvent) {
         // 51 is delete, 117 forward delete; ⌘⌫, ⌥⌫, ⇧⌫ and ⌃⌫ are not this.
         let plain = event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty
@@ -737,7 +748,11 @@ final class SidebarOutline: NSOutlineView {
 /// would do for a registered textField.
 private func highlighted(_ name: String, _ matches: [Range<String.Index>], color: NSColor, style: NSView.BackgroundStyle) -> NSAttributedString {
     let color = style == .emphasized ? NSColor.alternateSelectedControlTextColor : color
-    let text = NSMutableAttributedString(string: name, attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: color])
+    // Without a paragraph style the label wraps: a name the button leaves no room for would put its end on a
+    // second line the one-line field clips, instead of ending in "…".
+    let style = NSMutableParagraphStyle()
+    style.lineBreakMode = .byTruncatingTail
+    let text = NSMutableAttributedString(string: name, attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: color, .paragraphStyle: style])
     for range in matches {
         text.addAttributes([.font: NSFont.systemFont(ofSize: 13, weight: .semibold), .backgroundColor: NSColor.findHighlightColor],
                            range: NSRange(range, in: name))
@@ -750,14 +765,57 @@ private protocol ThemedRow {
     func paint(_ theme: ThemeEnvironment)
 }
 
-/// A row's cell plus its More actions button (design-system §6 Sidebar rows): a 16 pt `ellipsis`
-/// at the trailing edge, 6 pt in, shown while the pointer is over the cell and while the row is
+/// The More actions button: the ellipsis alone at rest, on a rounded pill while the pointer is over it or it is pressed.
+final class MoreButton: NSButton {
+    private var over = false { didSet { refresh() } }
+    var onSelectedRow = false { didSet { refresh() } }
+    override var isHighlighted: Bool { didSet { refresh() } }
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.cornerRadius = 5
+        layer?.cornerCurve = .continuous
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways], owner: self))
+    }
+
+    override func mouseEntered(with event: NSEvent) { over = true }
+    override func mouseExited(with event: NSEvent) { over = false }
+    override func viewDidHide() { over = false }
+
+    /// White on the selection, the label colour elsewhere: 18% on the pointer, 28% pressed.
+    func refresh() {
+        let base: NSColor = onSelectedRow ? .alternateSelectedControlTextColor : .labelColor
+        let alpha: CGFloat = isHighlighted ? 0.28 : (over ? 0.18 : 0)
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = base.withAlphaComponent(alpha).cgColor
+        }
+    }
+
+    override func viewDidChangeEffectiveAppearance() { refresh() }
+}
+
+/// A row's cell plus its More actions button (design-system §6 Sidebar rows): an 18 pt `ellipsis` button
+/// at the trailing edge, 4 pt inside the selection highlight, shown while the pointer is over the cell and while the row is
 /// selected. A click opens the row's context menu and leaves the selection alone, because the
 /// button takes the mouse-down before the outline does. Names stop `moreReserve` short of the edge.
 class MoreActionsCell: NSTableCellView {
-    static let moreSide: CGFloat = 16
-    private static let moreInset: CGFloat = 6
-    let more = NSButton()
+    static let moreSide: CGFloat = 18
+    /// The source-list style draws the selection 10 pt in from the outline's edge, not at it.
+    static let selectionInset: CGFloat = 10
+    /// The space between the button and the selection's edge. The button sits inside the highlight, not on its edge.
+    private static let moreInset: CGFloat = 4
+    /// Where the button's trailing edge is, measured in from the outline's.
+    private static let moreEdge = selectionInset + moreInset
+    let more = MoreButton()
     var hovered = false { didSet { needsLayout = true } }
 
     init(target: AnyObject, action: Selector) {
@@ -772,6 +830,8 @@ class MoreActionsCell: NSTableCellView {
         more.action = action
         more.isHidden = true
         addSubview(more)
+        // The button reaches past the cell's edge into the row's inset.
+        clipsToBounds = false
     }
 
     @available(*, unavailable)
@@ -779,19 +839,33 @@ class MoreActionsCell: NSTableCellView {
 
     var isRowSelected: Bool { (superview as? NSTableRowView)?.isSelected ?? false }
     var showsMore: Bool { hovered || isRowSelected }
-    /// The width the trailing edge gives up to the button, and a 4 pt gap, while it shows.
-    var moreReserve: CGFloat { showsMore ? Self.moreInset + Self.moreSide + 4 : 0 }
+    /// What the source-list style leaves empty between the cell's trailing edge and the outline's. The button sits
+    /// 14 pt in from the outline's edge (4 pt inside the selection), so it may reach into this space; a cell outside an outline has none.
+    /// Measured against the outline, not the cell's parent: a selected row may wrap its cell in a narrower view,
+    /// and the button would then sit left of the other rows'.
+    var trailingInset: CGFloat {
+        var view = superview
+        while let current = view, !(current is NSTableView) { view = current.superview }
+        guard let table = view else { return 0 }
+        return max(0, table.bounds.width - convert(NSPoint(x: bounds.maxX, y: 0), to: table).x)
+    }
+    /// The width the cell gives up to the button, and a 4 pt gap, while it shows: what the inset does not already hold.
+    var moreReserve: CGFloat { showsMore ? max(0, Self.moreEdge + Self.moreSide + 4 - trailingInset) : 0 }
+    /// The cell and the space the button reaches into, so moving onto the button is still hovering the row.
+    private var hoverRect: NSRect { NSRect(x: 0, y: 0, width: bounds.width + trailingInset, height: bounds.height) }
 
+    /// AppKit calls this when the cell's geometry changes. Never from `layout()`: a layout runs on every hover change,
+    /// and replacing the area while the pointer is inside it drops the exit event and leaves the row hovered for good.
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         trackingAreas.forEach(removeTrackingArea)
-        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
+        addTrackingArea(NSTrackingArea(rect: hoverRect, options: [.mouseEnteredAndExited, .activeAlways], owner: self))
     }
 
     /// Hovered is where the pointer is now: a menu's tracking loop and a reload both hide the enter and exit events.
     func syncHover() {
         guard let window else { return hovered = false }
-        hovered = bounds.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
+        hovered = hoverRect.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
     }
 
     override func mouseEntered(with event: NSEvent) { hovered = true }
@@ -801,15 +875,38 @@ class MoreActionsCell: NSTableCellView {
         needsLayout = true
     }
 
+    /// The cell is put in its row before the row is in the outline, so the first layout may not know the inset.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        needsLayout = true
+        updateTrackingAreas()
+    }
+
+    private var laidOutInset: CGFloat = 0
+
+    /// Whatever moved the cell since its last layout (a selected row's wrapper, a resize), the button is placed
+    /// from the inset as it is now, before anything is drawn.
+    override func viewWillDraw() {
+        if trailingInset != laidOutInset { needsLayout = true }
+        super.viewWillDraw()
+    }
+
     override var backgroundStyle: NSView.BackgroundStyle { didSet { needsLayout = true } }
+
+    /// A name cut short, by the edge or by the button, shows in full as a tooltip; one that fits shows none.
+    func tipIfCut(_ field: NSTextField) {
+        field.toolTip = (field.cell?.cellSize.width ?? 0) > field.frame.width ? field.stringValue : nil
+    }
 
     /// Subclasses lay out after `super`, and read `moreReserve` for the width their name keeps.
     override func layout() {
         super.layout()
+        laidOutInset = trailingInset
         more.isHidden = !showsMore
         more.contentTintColor = backgroundStyle == .emphasized ? .alternateSelectedControlTextColor : .secondaryLabelColor
+        more.onSelectedRow = backgroundStyle == .emphasized
         let y = isFlipped ? 4 : ((bounds.height - Self.moreSide) / 2).rounded()
-        more.frame = NSRect(x: bounds.width - Self.moreInset - Self.moreSide, y: y, width: Self.moreSide, height: Self.moreSide)
+        more.frame = NSRect(x: bounds.width + trailingInset - Self.moreEdge - Self.moreSide, y: y, width: Self.moreSide, height: Self.moreSide)
     }
 }
 
@@ -854,6 +951,7 @@ final class NodeCell: MoreActionsCell {
         glyph.frame = NSRect(x: 0, y: (bounds.height - 14) / 2, width: 14, height: 14)
         let height = name.cell?.cellSize.height ?? 16
         name.frame = NSRect(x: 20, y: ((bounds.height - height) / 2).rounded(), width: max(0, bounds.width - 20 - moreReserve), height: height)
+        tipIfCut(name)
     }
 }
 
@@ -931,6 +1029,7 @@ final class RequestCell: MoreActionsCell, ThemedRow {
         badge.frame = NSRect(x: -2, y: ((bounds.height - badgeHeight) / 2).rounded(), width: badgeWidth, height: badgeHeight)
         let height = name.cell?.cellSize.height ?? 16
         name.frame = NSRect(x: badgeWidth, y: ((bounds.height - height) / 2).rounded(), width: max(0, bounds.width - badgeWidth - moreReserve), height: height)
+        tipIfCut(name)
     }
 }
 

@@ -767,9 +767,13 @@ and `warning` Theme tokens, secondary label). The cell reads `backgroundStyle ==
   valid JSON at line 14. Raccoon won't change this file.", "Unknown file version 3.", "Same id
   as List refunds.json.", and for JSON that is not a Request "Not a Raccoon Request: missing
   “name”. Raccoon won't change this file." Selecting it shows nothing in the editor; double-click reveals.
-- **More actions**: a 16 × 16 borderless `ellipsis` button at the trailing edge, 6 pt in,
+- **More actions**: an 18 × 18 borderless `ellipsis` button at the trailing edge, inside the selection highlight with 4 pt to spare
+  (the source list draws the highlight 10 pt in from the outline's edge, so the button is 14 pt in),
+  with a 5 pt rounded pill behind it while the pointer is on the button (18% of the text colour, 28% pressed; white on a selected row)
+  (measured from the outline, not the cell),
   tooltip and accessibility label "More actions". Shown while the pointer is over the row and
-  on the selected row, hidden otherwise, so names truncate against it only then. A click opens
+  on the selected row, hidden otherwise, so names truncate against it only then. A name cut short, by
+  the button or by the edge, shows in full as a tooltip; one that fits has none. A click opens
   the row's context menu under the button and does not change the selection. On an
   emphasized selection it takes `alternateSelectedControlTextColor`, as the row's text does.
 - **Example** (a child of a Request row, one level deeper): the status code in SF Mono bold

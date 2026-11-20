@@ -185,3 +185,44 @@ private extension Example {
     /// Its sidebar row, under the Request that `ExampleRowsTests` writes.
     var path: String { ExampleSummary(self).path(in: "Payments API/Create charge.json") }
 }
+
+/// A name the trailing ⋯ or the edge cuts short shows in full as a tooltip.
+@MainActor
+struct CutNameTooltipTests {
+    @Test func `a name that fits has no tooltip, one cut short shows in full, and a hovered row cuts earlier`() throws {
+        let cell = NodeCell(target: NSObject(), action: #selector(NSObject.description))
+        cell.name.stringValue = "Payments API with a long name"
+        cell.frame = NSRect(x: 0, y: 0, width: 400, height: 24)
+        cell.layout()
+        #expect(cell.name.toolTip == nil)
+
+        cell.frame = NSRect(x: 0, y: 0, width: 100, height: 24)
+        cell.layout()
+        #expect(cell.name.toolTip == "Payments API with a long name")
+
+        cell.name.stringValue = "API"
+        cell.frame = NSRect(x: 0, y: 0, width: 60, height: 24)
+        cell.layout()
+        #expect(cell.name.toolTip == nil)
+        cell.hovered = true
+        cell.layout()
+        #expect(cell.name.toolTip == "API")
+    }
+
+    @Test func `a name the button leaves no room for ends in an ellipsis on one line, it does not wrap`() throws {
+        let cell = NodeCell(target: NSObject(), action: #selector(NSObject.description))
+        cell.name.attributedStringValue = NSAttributedString(string: "Get Product Detail")
+        cell.name.stringValue = "Get Product Detail"
+        let item = SidebarItem(kind: .folder, name: "Get Product Detail", path: "Get Product Detail")
+        cell.show(item, match: [])
+        cell.frame = NSRect(x: 0, y: 0, width: 100, height: 24)
+        cell.layout()
+
+        let style = try #require(cell.name.attributedStringValue.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)
+        #expect(style.lineBreakMode == .byTruncatingTail)
+        let font = try #require(cell.name.attributedStringValue.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)
+        // Drawn as one line: truncation keeps the height of one line, wrapping would ask for two.
+        #expect(cell.name.cell?.cellSize(forBounds: cell.name.bounds).height ?? 0 <= font.boundingRectForFont.height + 1)
+    }
+}
+
