@@ -12,30 +12,34 @@ on (CORS), both listed below.
 
 ## Start and stop
 
+The Collection row's menu has **Start Mock Server** (or **Stop Mock Server** while it runs)
+and **Mock Server…**. The sheet is where the port and CORS are set and where the routes can be
+read before anything starts. Decided 2026-11-20: a first start with no settings remembered opens
+the sheet instead of starting blind.
+
 ```
--> startMock(collection)                         the Collection row's menu: Start Mock Server.
-                                                 A running one's menu has Stop Mock Server,
-                                                 Copy Mock URL, and Allow Browser Requests
-                                                 (CORS), checkable
+-> startMock(collection)                         the menu's Start Mock Server, or Start in the sheet
   -> MockSettings for the Collection             raccoon.json `mocks.<Collection name>`:
                                                  {port, allowsCORS}; absent -> port nil,
                                                  allowsCORS true (workspaces.md, boundary.md)
+     absent from raccoon.json (never started, never configured) and started from the menu
+                                                 -> openMockSheet(collection) instead; nothing starts
   -> MockRoutes.build(requests)                  pure        R: none   E: none, total
      the Collection's decodable Requests, read through DataFolderStore by the window
   -> MockListening.listen(port: settings.port)   boundary    R: MockListening
                                                  nil -> the system picks a free port
-                                                 E: .portInUse(port) -> escape: alert "Port
-                                                 <n> is in use.", buttons Use Another Port
-                                                 (listen(port: nil)) and Cancel
-                                                 E: .failed(reason) -> escape: alert
+                                                 E: .portInUse(port) -> escape: shown in the sheet
+                                                    under the Port field ("Port <n> is in use.");
+                                                    started from the menu, the sheet opens to show it
+                                                 E: .failed(reason) -> escape: shown in the sheet
+                                                    under the status line; the same rule from the menu
   -> remember the bound port                     raccoon.json, through WorkspaceFile.replacing
                                                  (reads the current bytes, keeps the id and the
                                                  other Collections' entries); a write
                                                  that fails is logged, the server still runs
   -> the window holds MockServer(collection, port, routes, task)
                                                  §8: inside withDataFolder
-  -> the Collection row shows the mock indicator, tooltip "Mock Server on
-     http://127.0.0.1:<port>"
+  -> the Collection row shows the mock indicator; the toolbar shows the Mock Server item
 -> stopMock(collection)                          Stop Mock Server, Workspace switch, quit
   -> the listener cancelled                      open connections closed, pending delays
                                                  cancelled (§8)
@@ -43,6 +47,84 @@ on (CORS), both listed below.
 
 Nothing restarts on relaunch. A Collection that is renamed keeps no settings: its name is its
 key (shapes.md, IDs), so its next start picks a new port.
+
+## The Mock Server sheet
+
+A native sheet for one Collection, opened by **Mock Server…** in the Collection's menu, by the
+toolbar item, and by a start that needs to show a problem. It configures; it is not where the
+server is watched (the toolbar item and the row do that). Closing it never stops the server.
+
+```
+-> openMockSheet(collection)                     Mock Server… , the toolbar item, a failed start
+  -> MockSettings for the Collection             the Port field and the CORS switch start from these
+  -> MockRoutes.build(requests)                  pure: the route list is shown before the first Start,
+                                                 and follows a running server's rebuilds
+  -> editPort(text)                              every keystroke
+    -> MockPort.parse(text)                      pure        R: none   E: none, total
+                                                 "" -> .automatic; 1024...65535 -> .port(n);
+                                                 anything else -> .invalid, which shows the
+                                                 inline message and disables Start / Restart
+    -> remembered when it parses                 raccoon.json, same write as the bound port;
+                                                 a running server keeps its port until Restart
+  -> setAllowsCORS(on)                           applies at once: no restart, the next reply
+                                                 carries it; remembered
+  -> Start Mock Server                           -> startMock(collection)
+  -> Restart Mock Server                         only while running and the Port field differs from
+                                                 the bound port: stopMock then startMock
+  -> Stop Mock Server                            -> stopMock(collection)
+  -> Done                                        closes the sheet; settings already remembered
+```
+
+The sheet's state is one enum, so every state is designed (design-graph §10):
+
+```
+MockSheetState   .stopped · .starting · .running(port) · .failed(.portInUse(port) | .failed(reason))
+```
+
+## What the sheet shows
+
+Copy is plain and short. A control's label is its action.
+
+| Place | Text |
+|---|---|
+| Heading, then the Collection's name under it, secondary | "Mock Server" |
+| Status, stopped | "Not running" |
+| Status, starting | "Starting…" |
+| Status, running, with a Copy URL button | "Running at http://127.0.0.1:3000" |
+| Port label | "Port" |
+| Port hint | "Use a port from 1024 to 65535, or leave it empty and Raccoon picks one." |
+| Port, a running server whose field was edited | "Restart to use port 3001." |
+| Port, a running server whose field was cleared | "Restart to use any free port." |
+| Port invalid | "Use a port from 1024 to 65535." |
+| Port taken | "Port 3000 is in use. Choose another port, or" + a link button "use any free port" |
+| Start failed for another reason | "Couldn't start the Mock Server: <reason>." |
+| CORS switch label | "Allow browser requests (CORS)" |
+| CORS hint | "Lets web pages on other sites call this server." |
+| Routes heading | "Serving 3 of 4 Requests" |
+| Route row | "GET /users/:id" and "2 Examples" (or "1 Example") |
+| Route row, a Request with no Example | "GET /refunds" and "Add an Example to serve it." |
+| Routes, none | "Nothing to serve yet. Save a Response as an Example to start." |
+| Footer note | "It stops when you quit Raccoon or switch Workspace, and doesn't start again by itself." |
+| Buttons, stopped | Cancel · **Start Mock Server** (default) |
+| Buttons, running | Stop Mock Server · **Done** (default) |
+| Buttons, running, port edited | Stop Mock Server · **Restart Mock Server** (default) · Done |
+
+While running, Done is the default so Return cannot stop the server by accident. Starting
+disables the button and shows the system spinner after 150 ms.
+
+## Where it shows that it runs
+
+```
+Toolbar item        a green dot and "Mock Server :3000", beside the Environment picker. Two or more
+                    running: "2 Mock Servers". None running: not drawn. A click opens the sheet, or
+                    a menu of the running Collections first when there are several.
+                    Tooltip and accessibility label: "Mock Server running on http://127.0.0.1:3000.
+                    Click to configure." and "2 Mock Servers running. Click to choose one."
+Collection row      the 8 pt dot and the port in secondary SF Mono, before the More actions button;
+                    tooltip "Mock Server running on http://127.0.0.1:3000"
+```
+
+No animation: the state changes on one frame (design-system §5).
 
 ## Answer a request
 

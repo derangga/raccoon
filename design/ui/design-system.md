@@ -786,8 +786,10 @@ and `warning` Theme tokens, secondary label). The cell reads `backgroundStyle ==
   one. It shows the `⋯` More actions button like any row; its menu is Edit Example…, Rename…,
   Duplicate, Delete… (examples.md). A click or Return shows the Example in its Request's Response
   viewer; a double-click or Edit Example… opens its own Tab.
-- **Mock indicator**: on a Collection row whose Mock Server runs, an 8 pt `success` dot before
-  the More actions button, tooltip "Mock Server on http://127.0.0.1:<port>".
+- **Mock indicator**: on a Collection row whose Mock Server runs, an 8 pt `success` dot and the
+  port (":3000", SF Mono 10 pt, secondary label colour) before the More actions button, tooltip
+  "Mock Server running on http://127.0.0.1:<port>". The name truncates before the dot and the
+  port do. On an emphasized selection both take `alternateSelectedControlTextColor`.
 - **Empty**: "No Collections yet. Create one, or save a Draft into one with ⌘S." plus the Data
   Folder path in SF Mono 11.
 
@@ -839,6 +841,41 @@ anchored at its top edge. A row, 14 pt in from both sides:
   folder ("api — work" → "api") updates in place.
 - **One Workspace.** Its Remove is disabled; the last one stays.
 - **Focus.** Opens on the list; closing returns focus to the field that had it (surfaces.md §8).
+
+### Mock Server sheet (native)
+
+A 460 pt wide sheet, as tall as its content, opened by Mock Server… and by the toolbar item.
+20 pt margins. Copy is in entry-points/mock-server.md §What the sheet shows.
+
+- **Header.** "Mock Server" (15 pt semibold), the Collection's name under it (12 pt secondary).
+- **Status row**, 14 pt below. An 8 pt dot, `systemGreen` while running, `tertiaryLabelColor`
+  otherwise, then the status text (13 pt). Running adds the URL in SF Mono 12 and a **Copy URL**
+  text button at the trailing edge (12 pt secondary; "Copied" for 1.5 s after a click). A failed
+  start puts its sentence here in `systemRed`, 12 pt.
+- **Settings group**, 16 pt below, a grouped box like the Workspaces list (8 pt radius, 1 pt
+  `separatorColor`, `controlBackgroundColor`): two rows, 14 pt in from both sides, a hairline
+  between them. Row one, the label "Port" (13 pt) and a 90 pt `NSTextField`, right-aligned digits,
+  with its hint under it (11 pt secondary, or the error in `systemRed`). Row two, the switch
+  "Allow browser requests (CORS)" with its hint under it. The Port field validates on every
+  keystroke (`MockPort.parse`); the hint becomes the message in place and the row does not grow.
+- **Routes**, 16 pt below. The heading ("Serving 3 of 4 Requests", 12 pt semibold secondary),
+  then a 24 pt row for each Request in sidebar order: the method in the method colour and
+  SF Mono bold 9.5 pt as in the sidebar, the path in SF Mono 12, the Example count trailing in
+  12 pt secondary. A Request with no Example reads "Add an Example to serve it." in
+  `tertiaryLabelColor`. The list shows six rows and scrolls past that. Empty: the one sentence.
+- **Footer note**, 12 pt secondary, then the buttons 16 pt below, trailing: bordered buttons, the default one filled. Stop Mock
+  Server sits at the leading edge of the button row.
+- **Focus.** Opens on the Port field. Esc and Done close. Return runs the default button.
+
+### Mock Server toolbar item
+
+A borderless toolbar button, 28 pt high, between the Environment picker and the inspector toggle,
+drawn only while a Mock Server runs. An 8 pt `systemGreen` dot, 6 pt gap, "Mock Server" (12 pt)
+and the port in SF Mono 11 secondary; two or more: "2 Mock Servers". It hovers and presses like
+any toolbar button. One server: a click opens its sheet. Several: a menu of their Collections,
+each with its port in secondary text, and a click on one opens its sheet. Appearing and
+vanishing take no animation. The toolbar keeps at least 12 pt clear before the inspector toggle,
+as the Environment picker does.
 
 ### Banners
 

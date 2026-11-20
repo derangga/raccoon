@@ -305,10 +305,14 @@ Examples
   ⚠ two Examples with one id in a file → the file is .unreadable("duplicate Example id")
   ⚠ status outside 100...599, delay outside 0...60000 → not an error: clamped by the init
 Mock Server
-  ⚠ the remembered port is taken  → escape: alert "Port <n> is in use." Use Another Port
-                           binds a free one and remembers it; Cancel starts nothing
-  ⚠ NWListener fails for any other reason → escape: alert "Couldn't start the Mock Server:
-                           <reason>."
+  ⚠ the remembered port is taken  → escape: shown in the Mock Server sheet under the Port field,
+                           "Port <n> is in use. Choose another port, or use any free port."
+                           The link binds a free one and remembers it. Started from the menu, the
+                           sheet opens to show it; nothing starts
+  ⚠ the Port field is not empty and not 1024...65535 → not an error: "Use a port from 1024 to
+                           65535." under the field, Start disabled (MockPort.parse, total)
+  ⚠ NWListener fails for any other reason → escape: the sheet's status line, "Couldn't start the
+                           Mock Server: <reason>." Started from the menu, the sheet opens to show it
   ⚠ raccoon.json unwritable when remembering the port → escape: logged; the server runs, the
                            port is not remembered
   ⚠ a request head that does not parse → not an error of Raccoon's: 400, connection closed.

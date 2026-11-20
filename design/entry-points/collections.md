@@ -157,8 +157,8 @@ selected row's Collection or Folder. A row's context menu has New Folder…, Ren
 Collection and Folder as a path), Move to Trash and Reveal in Finder; a Collection has no Move To,
 an unreadable row no Rename. A Collection's menu also has Export…, after Rename… and before Move to
 Trash (postman-export.md); no other row has it. A Request's menu also has New Example, and an
-Example row has its own menu (examples.md); a Collection's menu also has the Mock Server items
-(mock-server.md).
+Example row has its own menu (examples.md); a Collection's menu also has Start Mock Server (Stop Mock Server while it runs, with Copy Mock
+Server URL after it) and Mock Server…, after Export… and before the separator (mock-server.md).
 
 **The `⋯` button opens the same menu** (decided 2026-11-12). Every sidebar row shows a `⋯`
 button at its trailing edge while the pointer is over the row and while the row is selected,

@@ -80,6 +80,8 @@ Example.from(response)                                            Response -> Ex
 Example.asResponse                                                Example -> Response, to show it
 ExampleFile (inside RequestFile) encode·decode                    `examples` <-> [Example]
 MockRoutes.build                                                  Requests -> [MockRoute]
+MockPort.parse                                                    Port field text -> automatic,
+                                                                  1024...65535, or invalid
 MockRequestHead.parse                                             socket bytes -> head, need more
                                                                   bytes, or 400/413/501
 MockMatch.answer                                                  routes + head + CORS -> MockReply

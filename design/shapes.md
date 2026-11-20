@@ -283,6 +283,10 @@ accepts does not exist until resolution succeeded.
 ```
 MockSettings             port: UInt16?, allowsCORS: Bool         one Collection's, in raccoon.json
                          `mocks.<Collection name>`; absent is (nil, true) (mock-server.md)
+MockPort                 .automatic · .port(UInt16) · .invalid     what MockPort.parse reads from the
+                         sheet's Port field: empty, 1024...65535, anything else
+MockSheetState           .stopped · .starting · .running(port) · .failed(MockError)   one enum for
+                         every state the Mock Server sheet shows (mock-server.md)
 MockRoute                method, segments [MockSegment], requestName, examples [Example]
                          one Request with Examples, in sidebar order
 MockSegment              .literal(String) · .wildcard              `:name` and a whole `{{name}}`

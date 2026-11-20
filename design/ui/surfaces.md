@@ -13,7 +13,7 @@ what came back, without the app adding or hiding anything.
 ```
 Window                          one, native chrome
   Toolbar                       native: sidebar toggle (leading), title, Environment picker,
-                                inspector toggle (trailing)
+                                Mock Server item (only while one runs), inspector toggle (trailing)
   Sidebar                       native material: the Collection tree
     WorkspacePopUp              a Dropdown at the top: the open Workspace's title
     SidebarFilter               native search field, "Filter Collections"
@@ -56,6 +56,8 @@ Overlays
   EnvironmentsSheet             native sheet; its footer has + | − and Import from Postman…, an
                                 Environment row has Export… in its context menu
   WorkspacesSheet               native sheet: every Workspace, a Remove button on each
+  MockServerSheet               native sheet: status, Port, CORS, the routes served, Start / Stop /
+                                Restart (entry-points/mock-server.md)
   SaveDraftSheet                native sheet
   NewWorkspacePanel             native NSSavePanel: name + location
   OpenWorkspacePanel            native NSOpenPanel: one folder
@@ -276,6 +278,7 @@ two cases are a binary body and a secret value, and both say why instead of show
 | Sending loader | tens/day | The raccoon-on-a-rocket Lottie (`design/ui/assets/loading/raccoon-rocket.json`, 512 × 512, a 2.0 s loop) at 240 × 240 pt, centred in the Response body above "Waiting for the server. ⌘. cancels.". It is decoration: the status row's spinner and "Sending… 1.4 s" stay as the status. Timing is the spinner's: nothing for 150 ms, then a 120 ms opacity fade-in, ease-out (`CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)`). Any other state removes it on that frame, mid-loop, with no fade-out. It plays while the Response is `.sending` and the window is visible; occluded or miniaturised it pauses and resumes from frame 0. One player serves the window, so a Tab that is not selected has none and a Tab switch restarts the loop. Reduce Motion: the still Fly pose (frame 72), no playback, no fade. Hidden, with the text kept, when the body area is under 296 pt high (a Response pane under 341 pt) or the asset did not load. It has no background in any Flavor (design-system.md, Response viewer) |
 | Banner appearing | occasional | Purpose: prevent a jarring jump. `NSAnimationContext` group, 200 ms, ease-out (`CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)`), height from 0 plus opacity 0 → 1. Leaves the same way in 150 ms. Reduce Motion: no height animation, 150 ms opacity only |
 | Inspector show / hide | tens/day, a toolbar click or a shortcut | The system's `NSSplitViewItem` inspector collapse, unmodified: it is native chrome behaviour and already honours Reduce Motion. No custom motion |
+| Mock Server item, indicator and sheet states | tens/day (running state), occasional (start, stop) | **None.** The dot, the toolbar item and the sheet's status, button and hint text change on one frame. A pulsing dot would move all the time and carry no information the colour does not. The sheet's own entry is the system's sheet animation, unmodified |
 | Sidebar filter narrowing | every keystroke | **None.** Rows appear and vanish on the same frame as the keystroke |
 | Breadcrumb change, hover, and the sidebar revealing a row | tens/day | **None.** The segments swap on the Tab switch's frame, hover fills at once, and the row is selected and scrolled into view without animating (`scrollRowToVisible`). The sidebar showing is the system's split-view collapse, unmodified |
 | Body Type switch, and the GraphQL Query \| Variables divider | tens/day, a pick; a drag | **None.** The new Body Type's content swaps on the same frame as the pick; the divider is direct manipulation, 1 : 1 with the pointer |
@@ -290,6 +293,7 @@ two cases are a binary body and a secret value, and both say why instead of show
 | VariableTooltip | nothing until its value is clicked; then the panel, so ⌘C copies | pointer leaves the token and the popover, any other key, a click or scroll outside it, the link | n/a |
 | EnvironmentsSheet | window focus | Done, Esc | the field focused before ⌃E or the menu |
 | WorkspacesSheet | the list | Done, Esc | the field focused before Manage Workspaces… |
+| MockServerSheet | the Port field | Done, Cancel (while stopped), Esc; Start and Stop leave it open so the result is read | where it was before the menu or the toolbar item |
 | PostmanImportSheet | window focus | Import (then Done on the result), Cancel, Esc | the sidebar, on the first imported Collection; on Cancel, where it was |
 | CollectionExportSheet | window focus; ExportPanel is attached to it | Export… once the file is written, Cancel, Esc | where it was before the menu or the context menu |
 | EnvironmentExportSheet | window focus; ExportPanel is attached to it | Export… once the file is written (or Done on the result), Cancel, Esc | the Environments sheet, which was open under it |
