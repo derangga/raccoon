@@ -44,7 +44,9 @@ Window                          one, native chrome
                                 side is an empty state ("No Auth")
       RequestSettings           four switches and two number fields
     Split                       draggable divider
-    ResponseViewer              StatusLine · Body (Pretty | Raw) · Headers
+    ResponseViewer              StatusLine · Body (Pretty | Raw) · Headers · Timeline; Clear Response in
+                                the Body toolbar. Also shows an Example, read-only: no Timeline, and the
+                                status line carries its name (entry-points/examples.md)
   Inspector                     themed, right of the content, closed by default
     VariablesPane               what the selected Tab resolves against; values edit in place
     CurlPane                    Copy as Curl of the selected Tab, live, with Copy

@@ -63,7 +63,7 @@ The seconds one send allows to pass with no new bytes arriving, before it fails.
 _Avoid_: Deadline, TTL, total time
 
 **Response**:
-The result of the last send from a Tab, kept in memory only and lost when the Tab closes or Raccoon quits.
+The result of the last send from a Tab, kept in memory only and lost when the Tab closes or Raccoon quits. A click on an Example shows that Example in its Request's Tab in place of the Response, and Clear Response empties either.
 _Avoid_: Result, output, history entry
 
 **Example**:

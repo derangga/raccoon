@@ -81,12 +81,25 @@ struct ExampleRowsTests {
         #expect(cell.more.isHidden)
     }
 
-    @Test func `an Example row opens its Tab on a click and on Return`() throws {
+    @Test func `an Example row shows it in its Request's Tab on a click and on Return, with no Tab of its own`() throws {
         let (window, sidebar) = try sidebar()
         try expandRequest(sidebar)
 
         sidebar.open(row: 2)
-        sidebar.activate(row: 2)
+        let request = try #require(window.selectedTab)
+        #expect(request.shownExample?.name == "Created")
+        sidebar.activate(row: 3)
+
+        #expect(window.selectedTab === request)
+        #expect(request.shownExample?.name == "Card declined")
+        #expect(window.tabs.filter { $0.tab.example != nil }.isEmpty)
+    }
+
+    @Test func `editing an Example row, by double-click or its menu, opens its own Tab`() throws {
+        let (window, sidebar) = try sidebar()
+        try expandRequest(sidebar)
+
+        sidebar.edit(row: 2)
 
         guard case .example = window.selectedTab?.tab.source else { Issue.record("no Example Tab"); return }
         #expect(window.tabs.filter { $0.tab.example != nil }.count == 1)

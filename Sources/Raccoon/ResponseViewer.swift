@@ -21,7 +21,7 @@ final class ResponseViewer: NSView {
     let reasonLabel = NSTextField(labelWithString: "")
     let elapsedLabel = NSTextField(labelWithString: "")
     let sizeLabel = NSTextField(labelWithString: "")
-    private let dot = NSTextField(labelWithString: "·")
+    let dot = NSTextField(labelWithString: "·")
     /// "· 2 redirects", after the size; hidden when the send followed none.
     private let redirectsDot = NSTextField(labelWithString: "·")
     let redirectsLabel = NSTextField(labelWithString: "")
@@ -41,6 +41,7 @@ final class ResponseViewer: NSView {
     let searchButton: IconButton
     let copyButton: IconButton
     let exampleButton: IconButton
+    let clearButton: IconButton
     /// A failed Save as Example, in `error`, until the next send.
     let exampleNote = NSTextField(labelWithString: "")
     let findPanel: FindPanel
@@ -143,6 +144,7 @@ final class ResponseViewer: NSView {
         searchButton = IconButton(symbol: "magnifyingglass", label: "Find (⌘F)", theme: theme)
         copyButton = IconButton(symbol: "doc.on.doc", label: "Copy Response Body", theme: theme)
         exampleButton = IconButton(symbol: "square.and.arrow.down.on.square", label: "Save as Example", theme: theme)
+        clearButton = IconButton(symbol: "trash", label: "Clear Response", theme: theme)
         findPanel = FindPanel(theme: theme)
         super.init(frame: .zero)
         wantsLayer = true
@@ -234,13 +236,16 @@ final class ResponseViewer: NSView {
         copyButton.action = #selector(copyBody)
         // No target: the app takes it up the responder chain, as the Response ▸ Save as Example menu item does.
         exampleButton.action = #selector(AppDelegate.saveAsExample(_:))
+        clearButton.action = #selector(AppDelegate.clearResponse(_:))
+        clearButton.toolTip = "Clear Response (⌥⌘K)"
 
         let spacer = NSView()
         spacer.setContentHuggingPriority(.init(1), for: .horizontal)
-        let row = NSStackView(views: [mode, prettyNote, hexNote, saveButton, imageNote, exampleNote, spacer, searchButton, copyButton, exampleButton])
+        let row = NSStackView(views: [mode, prettyNote, hexNote, saveButton, imageNote, exampleNote, spacer, searchButton, copyButton, exampleButton, clearButton])
         row.spacing = 10
         row.setCustomSpacing(4, after: searchButton)
         row.setCustomSpacing(4, after: copyButton)
+        row.setCustomSpacing(4, after: exampleButton)
         row.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
         toolbarRule.boxType = .custom
         toolbarRule.borderWidth = 0
@@ -275,7 +280,9 @@ final class ResponseViewer: NSView {
         copyButton.isEnabled = searchable
         // A binary body or an image is saved as bytes, so only a Draft, which has no file, is refused.
         exampleButton.isEnabled = model.canSaveAsExample
-        exampleButton.toolTip = model.tab.source == .draft ? "Save the Request first" : "Save as Example (⌥⌘E)"
+        exampleButton.toolTip = model.shownExample != nil ? "Already saved"
+            : model.tab.source == .draft ? "Save the Request first" : "Save as Example (⌥⌘E)"
+        clearButton.isEnabled = model.canClearResponse
         exampleNote.stringValue = model.exampleNote ?? ""
         exampleNote.toolTip = model.exampleNote
         exampleNote.isHidden = model.exampleNote == nil
@@ -585,7 +592,7 @@ final class ResponseViewer: NSView {
     func render() {
         let bound = model
         withObservationTracking {
-            draw(model.tab.response)
+            draw(model.displayed)
         } onChange: { [weak self] in
             Task { @MainActor in if self?.model === bound { self?.render() } }
         }
@@ -618,6 +625,9 @@ final class ResponseViewer: NSView {
     private func drawState(_ state: ResponseState) {
         hideToolbar()
         setStatus(nil)
+        elapsedLabel.toolTip = nil
+        elapsedLabel.lineBreakMode = .byClipping
+        elapsedLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
         spinner.stopAnimation(nil)
         spinner.isHidden = true
         prettyNote.isHidden = true
@@ -652,19 +662,31 @@ final class ResponseViewer: NSView {
             let line = StatusLine(status: response.status, elapsed: response.elapsed, byteCount: response.byteCount,
                                   redirects: response.redirects.count)
             setStatus((line.code, line.reason, line.token))
-            elapsedLabel.stringValue = line.elapsed
-            sizeLabel.stringValue = line.size
-            [elapsedLabel, dot, sizeLabel].forEach { $0.isHidden = false }
-            redirectsLabel.stringValue = line.redirects
-            [redirectsDot, redirectsLabel].forEach { $0.isHidden = line.redirects.isEmpty }
+            if let example = model.shownExample {
+                // Nothing was measured: the Example's name takes the time's place, and there is no size.
+                elapsedLabel.stringValue = example.name
+                elapsedLabel.toolTip = example.name
+                elapsedLabel.lineBreakMode = .byTruncatingTail
+                elapsedLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+                elapsedLabel.isHidden = false
+            } else {
+                elapsedLabel.stringValue = line.elapsed
+                sizeLabel.stringValue = line.size
+                [elapsedLabel, dot, sizeLabel].forEach { $0.isHidden = false }
+                redirectsLabel.stringValue = line.redirects
+                [redirectsDot, redirectsLabel].forEach { $0.isHidden = line.redirects.isEmpty }
+            }
             section.isHidden = false
+            // An Example has no Timeline; the choice of Timeline is kept for the next Response.
+            section.showFirst(model.shownExample == nil ? 3 : 2)
             section.setCount(response.headers.count, forSegment: 1)
             // A failed save is said in the Body toolbar, so a new one brings the Body section back.
             let failures = (ObjectIdentifier(model), model.exampleFailures)
             if model.exampleNote != nil, seenFailures.map({ $0 != failures }) ?? true { wantsSection = .body }
             seenFailures = failures
-            section.selectedSegment = wantsSection.rawValue
-            switch wantsSection {
+            let shownSection: Section = model.shownExample != nil && wantsSection == .timeline ? .body : wantsSection
+            section.selectedSegment = shownSection.rawValue
+            switch shownSection {
             case .body: drawBody(response)
             case .headers: drawHeaders(response.headers)
             case .timeline: drawTimeline(response)
@@ -1110,7 +1132,7 @@ final class ResponseViewer: NSView {
             try? await Task.sleep(for: delay)
             guard let self else { return }
             ticking = nil
-            draw(model.tab.response)
+            draw(model.displayed)
         }
     }
 }

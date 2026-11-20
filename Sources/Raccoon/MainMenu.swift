@@ -87,7 +87,9 @@ enum MainMenu {
         let saveAsExample = NSMenuItem(title: "Save as Example", action: #selector(AppDelegate.saveAsExample(_:)), keyEquivalent: "e")
         saveAsExample.keyEquivalentModifierMask = [.option, .command]
         // No target: the AppDelegate takes it. It works whichever Response section is showing; a failure brings the Body section back.
-        menu.addItem(submenu("Response", [saveAsExample]))
+        let clearResponse = NSMenuItem(title: "Clear Response", action: #selector(AppDelegate.clearResponse(_:)), keyEquivalent: "k")
+        clearResponse.keyEquivalentModifierMask = [.option, .command]
+        menu.addItem(submenu("Response", [saveAsExample, clearResponse]))
         let next = NSMenuItem(title: "Show Next Tab", action: #selector(AppDelegate.showNextTab(_:)), keyEquivalent: "\t")
         next.keyEquivalentModifierMask = .control
         let previous = NSMenuItem(title: "Show Previous Tab", action: #selector(AppDelegate.showPreviousTab(_:)), keyEquivalent: "\t")

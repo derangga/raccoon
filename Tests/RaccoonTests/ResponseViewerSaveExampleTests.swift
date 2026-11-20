@@ -63,12 +63,12 @@ struct ResponseViewerSaveExampleTests {
         #expect(viewer.exampleButton.isEnabled)
     }
 
-    @Test func `it comes last in the toolbar, 4 pt after Copy, which is 4 pt after Search`() async {
+    @Test func `it comes after Copy, which is 4 pt after Search, and before Clear Response at the end`() async {
         let (_, viewer) = await received(Data("hi".utf8))
 
         #expect(viewer.copyButton.frame.minX - viewer.searchButton.frame.maxX == 4)
         #expect(viewer.exampleButton.frame.minX - viewer.copyButton.frame.maxX == 4)
-        #expect(viewer.exampleButton.frame.maxX == viewer.bodyToolbar.bounds.maxX - 12)
+        #expect(viewer.clearButton.frame.maxX == viewer.bodyToolbar.bounds.maxX - 12)
         #expect(viewer.exampleButton.frame.size == NSSize(width: 24, height: 24))
     }
 
@@ -105,7 +105,7 @@ struct ResponseViewerSaveExampleTests {
         viewer.layoutSubtreeIfNeeded()
 
         #expect(viewer.exampleNote.frame.maxX <= viewer.searchButton.frame.minX)
-        #expect(viewer.exampleButton.frame.maxX == viewer.bodyToolbar.bounds.maxX - 12)
+        #expect(viewer.clearButton.frame.maxX == viewer.bodyToolbar.bounds.maxX - 12)
     }
 
     func showHeaders(_ viewer: ResponseViewer) {

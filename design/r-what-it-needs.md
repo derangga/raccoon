@@ -77,6 +77,7 @@ GraphQLPayload.encode / .text, GraphQLMethod.forPick              GraphQL body -
                                                                   the method a pick sets
 Highlighter.ranges(_, .graphql)                                   GraphQL query -> token ranges
 Example.from(response)                                            Response -> Example
+Example.asResponse                                                Example -> Response, to show it
 ExampleFile (inside RequestFile) encode·decode                    `examples` <-> [Example]
 MockRoutes.build                                                  Requests -> [MockRoute]
 MockRequestHead.parse                                             socket bytes -> head, need more
@@ -197,7 +198,9 @@ Import from Postman… in the Environments sheet
 Examples          DataFolderStore, FileReading      through the window, which owns the index and
                                                     the WriteLedger: every Example write is a
                                                     read-modify-write of the Request file. FileReading
-                                                    for Replace from File…
+                                                    for Replace from File…. Showing an Example and
+                                                     Clear Response add no port: TabModel state and
+                                                     the pure Example.asResponse
 Mock Server       MockListening, DataFolderStore    through the window: it builds the routes from
                                                     the Collection's files and holds one MockServer
                                                     per running Collection. WorkspaceFile for the

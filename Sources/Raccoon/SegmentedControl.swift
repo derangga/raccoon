@@ -15,7 +15,10 @@ final class SegmentedControl: NSControl, NSViewToolTipOwner {
     private var motion: IndicatorMotion?
     /// Runs only while a slide is under way.
     private var link: CADisplayLink?
-    private var labels: [String]
+    private let allLabels: [String]
+    /// How many of the labels show: the Response viewer drops Timeline for an Example.
+    private var visible: Int { didSet { invalidateIntrinsicContentSize(); needsDisplay = true } }
+    private var labels: [String] { Array(allLabels.prefix(visible)) }
     /// The "11" of "Headers 11", drawn smaller and dimmer than the title.
     private var counts: [Int?]
     /// SF Symbols drawn in place of the labels, 30 pt segments; the labels become each segment's
@@ -29,7 +32,8 @@ final class SegmentedControl: NSControl, NSViewToolTipOwner {
 
     init(labels: [String], symbols: [String]? = nil, style: SegmentStyle = .boxed,
          reduceMotion: @escaping () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }, theme: ThemeEnvironment) {
-        self.labels = labels
+        allLabels = labels
+        visible = labels.count
         counts = Array(repeating: nil, count: labels.count)
         self.symbols = symbols
         self.style = style
@@ -74,6 +78,12 @@ final class SegmentedControl: NSControl, NSViewToolTipOwner {
         counts[index] = count
         invalidateIntrinsicContentSize()
         needsDisplay = true
+    }
+
+    /// Only the first `count` segments show; the others keep their counts and come back with a larger one.
+    func showFirst(_ count: Int) {
+        visible = min(max(count, 1), allLabels.count)
+        selectedSegment = min(selectedSegment, visible - 1)
     }
 
     func isEnabled(forSegment index: Int) -> Bool { segmentEnabled.indices.contains(index) && segmentEnabled[index] }

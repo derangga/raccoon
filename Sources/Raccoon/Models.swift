@@ -298,6 +298,64 @@ final class TabModel {
         CGImageSourceCreateWithData(data as CFData, nil).flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) } != nil
     }
 
+    /// The Example the Response viewer shows in place of a Response (examples.md §Show an Example).
+    /// Never in the Tab, so never saved, never Dirty, never in the Session.
+    private(set) var shownExample: Example?
+
+    /// What the Response viewer draws: the shown Example, else the Tab's Response.
+    var displayed: ResponseState {
+        shownExample.map { .received($0.asResponse) } ?? tab.response
+    }
+
+    /// A click on an Example row. The Tab's finished Response is replaced; a send in flight keeps
+    /// running and its result replaces the Example.
+    func show(_ example: Example) {
+        if inFlight == nil { tab.response = .idle }
+        exampleNote = nil
+        shownExample = example
+        present(example.asResponse)
+    }
+
+    /// The file's version of the shown Example, or nil when it is gone.
+    func followShown(_ disk: Example?) {
+        guard let shown = shownExample, disk != shown else { return }
+        if let disk {
+            shownExample = disk
+            present(disk.asResponse)
+        } else {
+            shownExample = nil
+            clearPresentation()
+        }
+    }
+
+    /// Clear Response is offered for anything shown, except while a send is in flight: Cancel stops that.
+    var canClearResponse: Bool { inFlight == nil && displayed != .idle }
+
+    /// Back to the empty Tab, whether it showed a Response or an Example. A saved Example is not touched.
+    func clearResponse() {
+        guard canClearResponse else { return }
+        shownExample = nil
+        tab.response = .idle
+        clearPresentation()
+    }
+
+    /// Whatever the viewer shows next gets a fresh presentation; a stale one never lands.
+    private func clearPresentation() {
+        presenting?.cancel()
+        presented = nil
+        sends += 1
+    }
+
+    private func present(_ response: Response) {
+        clearPresentation()
+        let send = sends
+        presenting = Task {
+            let presented = await Self.present(response)
+            // Something newer owns the viewer now.
+            if send == sends { self.presented = presented }
+        }
+    }
+
     /// Resolution runs first, so a request that cannot be sent never shows `.sending`.
     /// One send at a time (§7): a second ⌘↩ while sending does nothing.
     func send() {
@@ -312,12 +370,16 @@ final class TabModel {
         } catch {
             switch error {
             case .undefined(let names):
-                // The red underlines are already on screen; the last Response stays.
+                // The red underlines are already on screen; the last Response, or the shown Example, stays.
                 message = .undefined(names, in: variables().active?.name)
             case .invalidURL:
+                shownExample = nil
+                clearPresentation()
                 tab.response = .notSent(error)
                 isURLInvalid = true
             case .graphqlVariables(let line, let column):
+                shownExample = nil
+                clearPresentation()
                 tab.response = .notSent(error)
                 message = .graphqlVariables(line: line, column: column)
             }
@@ -325,10 +387,8 @@ final class TabModel {
         }
         let since = instants.now
         tab.response = .sending(since: since)
-        presenting?.cancel()
-        presented = nil
-        sends += 1
-        let send = sends
+        shownExample = nil
+        clearPresentation()
         inFlight = Task {
             let result: Result<Response, SendError>
             do throws(SendError) {
@@ -339,15 +399,14 @@ final class TabModel {
             // Cancel has already returned the Tab to .idle, and a newer send may own it now.
             guard !Task.isCancelled else { return }
             inFlight = nil
+            // An Example shown while this send ran gives way to its result.
+            shownExample = nil
             switch result {
             case .success(let response):
                 tab.response = .received(response)
-                presenting = Task {
-                    let presented = await Self.present(response)
-                    // A newer send owns the viewer now.
-                    if send == sends { self.presented = presented }
-                }
+                present(response)
             case .failure(let error):
+                clearPresentation()
                 tab.response = .failed(error, after: instants.now - since)
                 if case .fileMissing(let path) = error {
                     missingFile = path
@@ -361,7 +420,7 @@ final class TabModel {
     var canSaveBody: Bool {
         // An Example Tab offers a body it cannot edit: bytes, never text.
         if let example = tab.example, case .bytes(let data) = example.body { return !data.isEmpty }
-        guard case .received(let response) = tab.response else { return false }
+        guard case .received(let response) = displayed else { return false }
         return response.byteCount > 0
     }
 
@@ -376,7 +435,7 @@ final class TabModel {
 
     /// The Body toolbar's Copy.
     func copyBody(pretty: Bool) {
-        guard case .received(let response) = tab.response else { return }
+        guard case .received(let response) = displayed else { return }
         clipboard.setString(Self.shownText(response, presented, pretty: pretty))
     }
 
@@ -388,7 +447,7 @@ final class TabModel {
             let headers = example.headers.filter(\.isEnabled).map { Response.Header(name: $0.name, value: $0.value) }
             return BodyToSave(name: ResponseFileName.suggest(headers: headers, url: nil), body: data)
         }
-        guard case .received(let response) = tab.response else { return nil }
+        guard case .received(let response) = displayed else { return nil }
         return BodyToSave(name: ResponseFileName.suggest(headers: response.headers, url: response.url), body: response.body)
     }
 
@@ -909,6 +968,7 @@ final class WindowModel {
     /// reloads or turns Changed on Disk, or becomes a Draft when its file is gone.
     private func followTabs(before: DataFolderIndex, scan: DataFolderScan) {
         for model in tabs {
+            followShown(model, in: scan)
             if case .example(let requestID, let id) = model.tab.source {
                 followExample(model, requestID, id, before: before, scan: scan)
                 continue
@@ -970,6 +1030,14 @@ final class WindowModel {
             model.tab.baseline = .example(disk)
         }
         if model.notice == .exampleDeletedOnDisk { model.notice = nil }
+    }
+
+    /// The Example a Request Tab shows, after the file changed: the viewer takes the file's version,
+    /// silently, or empties when the Example or its Request is gone. shortcut: a Request file that is
+    /// unreadable empties it too; clicking the Example again shows it once the file reads.
+    private func followShown(_ model: TabModel, in scan: DataFolderScan) {
+        guard let shown = model.shownExample, case .request(let requestID) = model.tab.source else { return }
+        model.followShown(diskExample(requestID, shown.id, in: scan))
     }
 
     private func markExampleGone(_ model: TabModel) {
@@ -1584,6 +1652,18 @@ final class WindowModel {
         assertOneTabPerSource()
     }
 
+    /// A click or Return on a sidebar Example row (examples.md §Show an Example): the Request's Tab is
+    /// selected, or opened, and shows the Example in its Response viewer. Its edits are not touched.
+    /// A file that broke or lost the Example since the scan shows and opens nothing; the rescan
+    /// turns its row unreadable or drops it.
+    func showExample(_ requestID: RequestID, _ id: ExampleID) {
+        guard let path = index.path(of: requestID) else { return }
+        guard let request = readRequest(at: path), request.id == requestID, let example = request.examples.first(where: { $0.id == id })
+        else { rescan(); return }
+        openRequest(requestID)
+        tabs.first { $0.tab.source == .request(requestID) }?.show(example)
+    }
+
     /// The Request file at `path`, read and decoded; nil when it does not, which every caller treats as a rescan.
     private func readRequest(at path: String) -> Request? {
         guard let store, let data = try? store.read(path) else { return nil }
@@ -1685,6 +1765,8 @@ final class WindowModel {
                 request.examples.append(example)
             }
         }
+        // Not followOpenExamples: that would see this Example's own Tab as differing from its baseline.
+        tabs.forEach { followShown($0, in: lastScan) }
     }
 
     /// Remove the Example with that id; one that is not there needs no removing.

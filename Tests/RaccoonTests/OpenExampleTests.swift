@@ -455,16 +455,16 @@ struct OpenExampleTests {
 
     // MARK: Sidebar and Breadcrumb
 
-    @Test func `clicking or activating an Example row in the sidebar opens its Tab`() throws {
+    @Test func `editing an Example row in the sidebar opens its Tab`() throws {
         let window = try makeWindow()
         let sidebar = SidebarViewController(window: window, theme: theme, reveal: { _ in })
         sidebar.view.frame = NSRect(x: 0, y: 0, width: 232, height: 600)
         sidebar.outline.expandItem(nil, expandChildren: true)
 
-        sidebar.open(row: 3)
+        sidebar.edit(row: 3)
         #expect(window.selectedTab?.tab.source == .example(request, example(2).id))
 
-        sidebar.activate(row: 2)
+        sidebar.edit(row: 2)
         #expect(window.selectedTab?.tab.source == .example(request, example(1).id))
         #expect(window.tabs.count == 3)
     }

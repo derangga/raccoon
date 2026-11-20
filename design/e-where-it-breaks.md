@@ -289,6 +289,11 @@ Examples
                            was deleted." The note shows in whichever Response section was open:
                            a failed save switches the viewer to Body, and an empty or binary void
                            shows the note under its message. It stays until the next send
+  ⚠ show an Example whose Request file broke, or that is gone from the file → escape: rescan, the
+                           row turns unreadable or goes, nothing is shown, the Tab is as it was
+  ⚠ show an Example while a send is in flight → not an error: it shows, and the send's result
+                           replaces it. Clear Response is disabled until the send ends
+  ⚠ the shown Example deleted, or its Request deleted → escape: the viewer goes back to idle
   ⚠ a Request ⌘S whose file has Examples → not an error: read-modify-write keeps them. The file
                            unreadable now -> the existing "Not saved" path
   ⚠ an Example ⌘S, its Request file gone → escape: stays Dirty, "Not saved. Its Request was

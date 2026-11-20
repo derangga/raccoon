@@ -598,7 +598,10 @@ area, all on `backgroundRecessed`.
   1 MB of 3.2 MB" with Save to File… beside it, or an image's "900 × 900 · image/webp"); the
   note truncates first. Trailing: Search (`magnifyingglass`, tooltip "Find (⌘F)") and Copy
   (`doc.on.doc`, tooltip "Copy Response Body"), then Save as Example (`square.and.arrow.down.on.square`,
-  tooltip "Save as Example (⌥⌘E)"; disabled with tooltip "Save the Request first" on a Draft), 4 pt apart.
+  tooltip "Save as Example (⌥⌘E)"; disabled with tooltip "Save the Request first" on a Draft), then
+  Clear Response (`trash`, tooltip "Clear Response (⌥⌘K)"), 4 pt apart. While an Example shows, Save as
+  Example is disabled with tooltip "Already saved", and the status line reads the code and reason,
+  then the Example's name in `textSecondary`, with no time, size or Timeline segment.
   A failed save shows its reason as the note, in `error`, until the next send. For an image both are disabled
   and Pretty | Raw is hidden; for the Hex view Pretty | Raw is hidden. Copy turns to
   `checkmark` (tooltip "Copied") for 1.5 s with the system symbol swap, no transition under
@@ -780,8 +783,9 @@ and `warning` Theme tokens, secondary label). The cell reads `backgroundStyle ==
   9.5 pt where a Request's method badge sits, coloured `status2xx` … `status5xx` by class, as the
   Response's status line, then the Example's name. A Request with Examples gets a
   disclosure triangle; collapsed by default, expanded when Save as Example or New Example adds
-  one. It shows the `⋯` More actions button like any row; its menu is Rename…, Duplicate, Delete…
-  (examples.md).
+  one. It shows the `⋯` More actions button like any row; its menu is Edit Example…, Rename…,
+  Duplicate, Delete… (examples.md). A click or Return shows the Example in its Request's Response
+  viewer; a double-click or Edit Example… opens its own Tab.
 - **Mock indicator**: on a Collection row whose Mock Server runs, an 8 pt `success` dot before
   the More actions button, tooltip "Mock Server on http://127.0.0.1:<port>".
 - **Empty**: "No Collections yet. Create one, or save a Draft into one with ⌘S." plus the Data

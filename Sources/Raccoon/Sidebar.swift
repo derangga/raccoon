@@ -359,20 +359,31 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     }
 
     @objc private func doubleClicked() {
-        activate(row: outline.clickedRow)
+        if case .example? = (outline.item(atRow: outline.clickedRow) as? SidebarItem)?.kind {
+            edit(row: outline.clickedRow)
+        } else {
+            activate(row: outline.clickedRow)
+        }
     }
 
-    /// A click: a Request or an Example opens in its Tab. Anything else only selects.
+    /// A click: a Request opens in its Tab, an Example shows in its Request's Tab (examples.md §Show an
+    /// Example). Anything else only selects.
     func open(row: Int) {
         guard let item = outline.item(atRow: row) as? SidebarItem else { return }
         switch item.kind {
         case .request(let id, _): window.openRequest(id)
-        case .example(let requestID, let id, _): window.openExample(requestID, id)
+        case .example(let requestID, let id, _): window.showExample(requestID, id)
         case .collection, .folder, .unreadable: break
         }
     }
 
-    /// Double-click or Return: a Request or an Example opens, a Collection or Folder expands or collapses, an unreadable file is revealed in Finder.
+    /// Double-click on an Example row: its editor Tab.
+    func edit(row: Int) {
+        guard case .example(let requestID, let id, _)? = (outline.item(atRow: row) as? SidebarItem)?.kind else { return }
+        window.openExample(requestID, id)
+    }
+
+    /// Double-click or Return: a Request opens, an Example is shown, a Collection or Folder expands or collapses, an unreadable file is revealed in Finder.
     func activate(row: Int) {
         guard let item = outline.item(atRow: row) as? SidebarItem else { return }
         switch item.kind {
@@ -489,6 +500,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         }
         // An Example has no file: no Move, Trash or Reveal. Delete… is set apart, last.
         if item.isExample {
+            add("Edit Example…", #selector(editExample), item)
             add("Rename…", #selector(renameItem), item)
             add("Duplicate", #selector(duplicateExample), item)
             menu.addItem(.separator())
@@ -551,6 +563,11 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     }
 
     /// The copy sits after the original and is selected; no Tab opens.
+    @objc private func editExample(_ sender: NSMenuItem) {
+        guard let item = sender.representedObject as? SidebarItem, case .example(let requestID, let id, _) = item.kind else { return }
+        window.openExample(requestID, id)
+    }
+
     @objc private func duplicateExample(_ sender: NSMenuItem) {
         guard let item = sender.representedObject as? SidebarItem, case .example(let requestID, let id, _) = item.kind else { return }
         performExample({ "Couldn't duplicate the Example “\(item.name)”: \($0)" }) { () throws(ExampleWriteError) in

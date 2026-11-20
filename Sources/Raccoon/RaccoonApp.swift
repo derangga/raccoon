@@ -204,6 +204,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               let id = windowModel?.selected, let row = windowModel?.saveAsExample(id) else { return }
         sidebar?.reveal(path: row)
     }
+    /// Response ▸ Clear Response and the Body toolbar's button: the selected Tab's viewer goes back to empty.
+    @objc func clearResponse(_ sender: Any?) { windowModel?.selectedTab?.clearResponse() }
     @objc func closeTab(_ sender: Any?) { if let tab = windowModel?.selectedTab { closer?.close(tab) } }
     @objc func forceCloseTab(_ sender: Any?) { if let tab = windowModel?.selectedTab { closer?.close(.tab, of: tab, force: true) } }
     /// File ▸ Always Discard Unsaved Changes: the way back from the close sheet's checkbox.
@@ -283,6 +285,8 @@ extension AppDelegate: NSMenuItemValidation {
             return windowModel?.selectedTab?.canSaveBody == true && windowController?.window?.attachedSheet == nil
         case #selector(saveAsExample(_:)):
             return windowModel?.selectedTab?.canSaveAsExample == true && windowController?.window?.attachedSheet == nil
+        case #selector(clearResponse(_:)):
+            return windowModel?.selectedTab?.canClearResponse == true && windowController?.window?.attachedSheet == nil
         case #selector(exportCollection(_:)):
             return Self.canExportCollection(selected: sidebar?.selectedCollection, sheetUp: windowController?.window?.attachedSheet != nil)
         case #selector(showTab(_:)):

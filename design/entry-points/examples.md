@@ -81,7 +81,7 @@ whichever Response section is showing, and is disabled where the button is.
 ```
 
 **The menus.** A Request's menu gains New Example after New Folder…, with no ellipsis because it
-asks nothing. An Example row's menu is Rename…, Duplicate, a separator, Delete…, and its `⋯` button
+asks nothing. An Example row's menu is Edit Example…, Rename…, Duplicate, a separator, Delete…, and its `⋯` button
 opens the same menu. New Example opens the new Example's Tab and shows its row (the Request
 expanded, the row selected). Duplicate selects the copy and opens no Tab, and appends " 2"
 literally, so a copy of "Created 2" is "Created 2 2". Delete… is a native alert sheet: "Delete the
@@ -91,10 +91,59 @@ selected Example row asks the same; ⌫ on any other row does nothing. A write t
 alert sheet: "Couldn't create an Example: <reason>." (or "Couldn't rename / duplicate / delete the
 Example “<name>”: <reason>."), and nothing is written.
 
-## Open and edit an Example
+## Show an Example
+
+A click or Return on an Example row shows the Example in its Request Tab's Response viewer,
+read-only, so the Request's URL, Params and Body stay on screen beside it. Decided 2026-11-20.
 
 ```
--> openExample(requestID, exampleID)             click or Return on an Example row
+-> showExample(requestID, exampleID)             click or Return on an Example row
+  -> read and decode the Request file            E: the file broke or has another id -> escape:
+                                                 rescan, nothing shown, no Tab opened
+                                                 E: the Example is gone -> escape: rescan,
+                                                 nothing shown, no Tab opened
+  -> openRequest(requestID)                      select the Request's Tab, or open it after the
+                                                 selected one (collections.md). Its edits are
+                                                 never touched
+  -> tab.show(example)                           pure state, R: none
+     -> the Tab's Response is replaced           received, failed or not sent -> idle: the live
+                                                 Response is not kept underneath
+        a send in flight                         untouched. The Example shows meanwhile and the
+                                                 send's result replaces it
+     -> shownExample = example                   never in the Tab, its snapshot or the Session
+     -> the viewer presents example.asResponse   the same Pretty, Raw and Headers as a live Response
+  -> the Example's row stays selected            while it is shown
+-> Send                                          the Example goes first: Send is the latest intent,
+                                                 also when the URL or the GraphQL Variables cannot
+                                                 be resolved (the viewer says "Not sent"). A send
+                                                 stopped by Undefined Variables sends nothing, so
+                                                 the Example stays
+-> Clear Response                                the Response viewer's toolbar, and Response ▸ Clear
+                                                 Response (⌥⌘K). Enabled while something is shown and
+                                                 no send is in flight. The Tab goes back to idle,
+                                                 whether it showed a live Response or an Example. A
+                                                 saved Example is never touched
+-> the shown Example is renamed, edited and saved in its own Tab, or changed on disk
+                                                 the viewer shows the new Example, silently
+-> the shown Example is deleted                  the viewer goes back to idle
+```
+
+**What the viewer shows.** The status line reads the Example's status and reason, then its
+name, and has no time or size: nothing was measured. There is no Timeline section. Save as
+Example is disabled, since it is already saved. Search, Copy, Save Body… and the Hex view work as
+for a live Response. `Example.asResponse` is pure: status, the enabled headers and the body's
+bytes, with a zero elapsed time. A Request's own Response is never kept under an Example, and
+a relaunch shows an empty viewer.
+
+**The request above is the Request as it is now.** An Example does not store the request that
+produced it, so after the Request is edited the two can disagree. Known simplification.
+
+## Open and edit an Example
+
+Double-click on an Example row, its menu's Edit Example…, and New Example open the editor.
+
+```
+-> openExample(requestID, exampleID)             double-click, Edit Example…, New Example
   -> window.tab(showing: .example(requestID, exampleID))?  found -> select it, end
   -> read and decode the Request file            E: as openRequest (collections.md)
   -> Tab(source: .example(requestID, exampleID), content: .example(example),

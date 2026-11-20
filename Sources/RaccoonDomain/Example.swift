@@ -45,6 +45,18 @@ extension Example {
             body: ExampleBody(bytes: response.body))
     }
 
+    /// What the Response viewer draws to show this Example (examples.md §Show an Example): the status,
+    /// the enabled headers and the body's bytes. Nothing was measured, so the elapsed time is zero.
+    public var asResponse: Response {
+        let bytes: Data = switch body {
+        case .text(let text): Data(text.utf8)
+        case .bytes(let data): data
+        }
+        return Response(
+            status: status, headers: headers.filter(\.isEnabled).map { Response.Header(name: $0.name, value: $0.value) },
+            body: bytes, elapsed: .zero, byteCount: bytes.count)
+    }
+
     /// Duplicate (examples.md): the same Example under a new id, " 2" appended to the name as it stands.
     public func duplicate(id: ExampleID) -> Example {
         Example(id: id, name: name + " 2", status: status, headers: headers, body: body, delayMilliseconds: delayMilliseconds)

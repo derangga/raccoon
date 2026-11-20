@@ -44,10 +44,18 @@ struct ExampleMenuSidebarTests {
         #expect(sidebar.contextMenu(row: 2).item(withTitle: "New Example") == nil)
     }
 
-    @Test func `an Example's menu is Rename…, Duplicate and, apart, Delete…; no Trash, Move or Reveal`() throws {
+    @Test func `an Example's menu is Edit Example…, Rename…, Duplicate and, apart, Delete…; no Trash, Move or Reveal`() throws {
         let (_, sidebar) = try expanded()
 
-        #expect(titles(sidebar.contextMenu(row: 2)) == ["Rename…", "Duplicate", "-", "Delete…"])
+        #expect(titles(sidebar.contextMenu(row: 2)) == ["Edit Example…", "Rename…", "Duplicate", "-", "Delete…"])
+    }
+
+    @Test func `Edit Example… opens the Example's own Tab`() throws {
+        let (window, sidebar) = try expanded()
+
+        try choose("Edit Example…", in: sidebar.contextMenu(row: 2))
+
+        guard case .example = window.selectedTab?.tab.source else { Issue.record("no Example Tab"); return }
     }
 
     @Test func `an Example row has a More actions button like a Request's, shown on hover and selection`() throws {
@@ -62,7 +70,7 @@ struct ExampleMenuSidebarTests {
         var opened: [NSMenu] = []
         sidebar.presentMenu = { menu, _ in opened.append(menu) }
         _ = cell.more.target?.perform(cell.more.action, with: cell.more)
-        #expect(opened.map(titles) == [["Rename…", "Duplicate", "-", "Delete…"]])
+        #expect(opened.map(titles) == [["Edit Example…", "Rename…", "Duplicate", "-", "Delete…"]])
     }
 
     // MARK: New Example
